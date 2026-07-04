@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail, Phone, MapPin, Globe, Share2, MessageCircle, Link as LinkIcon } from 'lucide-react'
 
 // Custom SVG icons for social media (lucide-react doesn't have brand icons)
 const FacebookIcon = ({ className }: { className?: string }) => (
@@ -54,10 +54,10 @@ const footerLinks = {
 }
 
 const socialLinks = [
-  { name: 'Facebook', href: 'https://facebook.com/find4sport', icon: FacebookIcon },
-  { name: 'Instagram', href: 'https://instagram.com/find4sport', icon: InstagramIcon },
-  { name: 'Twitter', href: 'https://twitter.com/find4sport', icon: TwitterIcon },
-  { name: 'LinkedIn', href: 'https://linkedin.com/company/find4sport', icon: LinkedinIcon },
+  { name: 'Facebook', href: 'https://facebook.com/find4sport', icon: Share2 },
+  { name: 'Instagram', href: 'https://instagram.com/find4sport', icon: Globe },
+  { name: 'Twitter', href: 'https://twitter.com/find4sport', icon: MessageCircle },
+  { name: 'LinkedIn', href: 'https://linkedin.com/company/find4sport', icon: LinkIcon },
 ]
 
 export function Footer() {

@@ -167,11 +167,13 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
     <>
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
+          <SheetTrigger
+            render={
+              <Button variant="outline" size="icon">
+                <Menu className="h-4 w-4" />
+              </Button>
+            }
+          />
           <SheetContent side="left" className="p-0 w-64">
             <SidebarContent />
           </SheetContent>

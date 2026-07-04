@@ -6,175 +6,143 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  LayoutDashboard,
-  User,
-  Settings,
-  Star,
-  MessageSquare,
   Calendar,
-  Heart,
-  Bell,
-  Menu,
-  LogOut,
-  Briefcase,
-  MapPin,
   Users,
-  Image,
-  FileText,
-  BarChart3,
-  Trophy,
-  Shield,
+  MessageSquare,
+  Settings,
+  LogOut,
+  LayoutDashboard,
+  Star,
+  Activity,
+  User,
+  Heart,
+  CalendarCheck,
+  Building2,
+  DollarSign,
+  Menu,
+  Bell,
 } from 'lucide-react'
-import type { Professional } from '@/lib/types'
-
-const navigationItems = [
-  {
-    title: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Meu Perfil',
-    href: '/dashboard/perfil',
-    icon: User,
-  },
-  {
-    title: 'Servicos',
-    href: '/dashboard/servicos',
-    icon: Briefcase,
-  },
-  {
-    title: 'Galeria',
-    href: '/profissional/galeria',
-    icon: Image,
-  },
-  {
-    title: 'Documentos',
-    href: '/profissional/documentos',
-    icon: FileText,
-  },
-  {
-    title: 'Criar Evento',
-    href: '/criar-evento',
-    icon: Calendar,
-  },
-  {
-    title: 'Avaliacoes',
-    href: '/dashboard/avaliacoes',
-    icon: Star,
-  },
-  {
-    title: 'Mensagens',
-    href: '/mensagens',
-    icon: MessageSquare,
-  },
-  {
-    title: 'Favoritos',
-    href: '/favoritos',
-    icon: Heart,
-  },
-  {
-    title: 'Pedidos de Contacto',
-    href: '/dashboard/contactos',
-    icon: Users,
-  },
-  {
-    title: 'Agenda',
-    href: '/dashboard/agenda',
-    icon: Calendar,
-  },
-  {
-    title: 'Espacos Associados',
-    href: '/dashboard/espacos',
-    icon: MapPin,
-  },
-  {
-    title: 'Estatisticas',
-    href: '/profissional/estatisticas',
-    icon: BarChart3,
-  },
-  {
-    title: 'Gamificacao',
-    href: '/dashboard/gamificacao',
-    icon: Trophy,
-  },
-  {
-    title: 'Pontuacao de Confianca',
-    href: '/dashboard/trust-score',
-    icon: Shield,
-  },
-  {
-    title: 'Notificacoes',
-    href: '/notificacoes',
-    icon: Bell,
-  },
-  {
-    title: 'Definicoes',
-    href: '/definicoes',
-    icon: Settings,
-  },
-]
 
 interface DashboardSidebarProps {
-  professional: Professional | null
+  professional: any | null
+  space: any | null
 }
 
-export function DashboardSidebar({ professional }: DashboardSidebarProps) {
+export function DashboardSidebar({ professional, space }: DashboardSidebarProps) {
   const pathname = usePathname()
+  
+  const basePath = '/dashboard'
 
-  const displayName = professional?.professional_name || professional?.full_name || 'Utilizador'
-  const initials = displayName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+  let navItems = []
+
+  if (space) {
+    navItems = [
+      { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
+      { name: 'Reservas', href: `${basePath}/reservas`, icon: CalendarCheck },
+      { name: 'O Meu Espaço', href: `${basePath}/espaco`, icon: Building2 },
+      { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
+      { name: 'Faturação', href: `${basePath}/faturacao`, icon: DollarSign },
+      { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
+      { name: 'Avaliações', href: `${basePath}/avaliacoes`, icon: Star },
+      { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
+      { name: 'Definições', href: `${basePath}/definicoes`, icon: Settings },
+    ]
+  } else if (professional) {
+    navItems = [
+      { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
+      { name: 'Agenda & Eventos', href: `${basePath}/agenda`, icon: Calendar },
+      { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
+      { name: 'Serviços', href: `${basePath}/servicos`, icon: Activity },
+      { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
+      { name: 'Avaliações', href: `${basePath}/avaliacoes`, icon: Star },
+      { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
+      { name: 'Definições', href: `${basePath}/definicoes`, icon: Settings },
+    ]
+  } else {
+    navItems = [
+      { name: 'O Meu Painel', href: basePath, icon: LayoutDashboard },
+      { name: 'Próximos Eventos', href: `${basePath}/eventos`, icon: CalendarCheck },
+      { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
+      { name: 'Favoritos', href: `${basePath}/favoritos`, icon: Heart },
+      { name: 'O Meu Perfil', href: `${basePath}/perfil`, icon: User },
+      { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
+      { name: 'Definições', href: `${basePath}/definicoes`, icon: Settings },
+    ]
+  }
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">F4S</span>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
+            <span className="text-lg font-bold text-white">F4</span>
           </div>
-          <span className="font-bold text-lg">FIND4SPORT</span>
+          <span className="hidden text-xl font-bold tracking-tight text-foreground sm:block">
+            FIND<span className="text-primary">4</span>SPORT
+          </span>
         </Link>
       </div>
 
       <div className="p-4 border-b">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={professional?.avatar_url || undefined} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{displayName}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {professional?.status === 'active' ? 'Perfil ativo' : 'Perfil pendente'}
-            </p>
+        {space ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+              {space.name?.charAt(0) || 'E'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-semibold text-sm truncate">{space.name}</p>
+              <p className="text-xs text-muted-foreground truncate">Gestor de Espaço</p>
+            </div>
           </div>
-        </div>
+        ) : professional ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden">
+              {professional.avatar_url ? (
+                <img src={professional.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-primary font-bold">
+                  {professional.full_name?.charAt(0) || 'P'}
+                </div>
+              )}
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-semibold text-sm truncate">{professional.full_name}</p>
+              <p className="text-xs text-muted-foreground truncate">Profissional</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold">
+              U
+            </div>
+            <div className="overflow-hidden">
+              <p className="font-semibold text-sm truncate">Utilizador</p>
+              <p className="text-xs text-muted-foreground truncate">Atleta</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="flex-1 py-4">
-        <nav className="px-3 space-y-1">
-          {navigationItems.map((item) => {
+        <nav className="space-y-1 px-2">
+          {navItems.map((item: any) => {
             const isActive = pathname === item.href
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
+                className={`
+                  flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
+                  ${
+                    isActive
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  }
+                `}
               >
                 <item.icon className="h-4 w-4" />
-                {item.title}
+                {item.name || item.title}
               </Link>
             )
           })}
@@ -197,11 +165,13 @@ export function DashboardSidebar({ professional }: DashboardSidebarProps) {
       {/* Mobile trigger */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon">
-              <Menu className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
+          <SheetTrigger
+            render={
+              <Button variant="outline" size="icon">
+                <Menu className="h-4 w-4" />
+              </Button>
+            }
+          />
           <SheetContent side="left" className="p-0 w-64">
             <SidebarContent />
           </SheetContent>

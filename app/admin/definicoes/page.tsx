@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Save, Settings, Tag, Key, Bell, Users, Mail, Brain, Trash2, Plus } from 'lucide-react'
+import { Loader2, Save, Settings, Tag, Key, Bell, Users, Mail, Brain, Trash2, Plus, Image } from 'lucide-react'
 import type { Category } from '@/lib/types'
 
 type ApiKey = {
@@ -64,6 +64,9 @@ export default function AdminDefinicoesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showAddApiKey, setShowAddApiKey] = useState(false)
+  const [carouselSlides, setCarouselSlides] = useState<any[]>([])
+  const [newSlide, setNewSlide] = useState({ image_url: '', title: '', subtitle: '', button_text: '', button_link: '', display_order: 0 })
+  const [showAddSlide, setShowAddSlide] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -89,6 +92,13 @@ export default function AdminDefinicoesPage() {
           .select('*')
           .order('name')
         if (cats) setCategories(cats)
+
+        // Load carousel slides
+        const { data: slides } = await supabase
+          .from('carousel_slides')
+          .select('*')
+          .order('display_order', { ascending: true })
+        if (slides) setCarouselSlides(slides)
 
         // Load config from system_config table or use defaults
         const { data: sysConfig } = await supabase
@@ -133,6 +143,66 @@ export default function AdminDefinicoesPage() {
       setError(err instanceof Error ? err.message : 'Erro ao guardar definições')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleAddSlide() {
+    if (!newSlide.image_url.trim()) return
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('carousel_slides')
+        .insert({
+          image_url: newSlide.image_url,
+          title: newSlide.title || null,
+          subtitle: newSlide.subtitle || null,
+          button_text: newSlide.button_text || null,
+          button_link: newSlide.button_link || null,
+          display_order: newSlide.display_order,
+          is_active: true
+        })
+        .select()
+        .single()
+      if (error) throw error
+      if (data) {
+        setCarouselSlides(prev => [...prev, data].sort((a,b) => a.display_order - b.display_order))
+      }
+      setNewSlide({ image_url: '', title: '', subtitle: '', button_text: '', button_link: '', display_order: 0 })
+      setShowAddSlide(false)
+      setSuccess('Slide adicionado com sucesso!')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao adicionar slide')
+    }
+  }
+
+  async function handleToggleSlideActive(id: string, currentStatus: boolean) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('carousel_slides')
+        .update({ is_active: !currentStatus })
+        .eq('id', id)
+      if (error) throw error
+      setCarouselSlides(prev => prev.map(s => s.id === id ? { ...s, is_active: !currentStatus } : s))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao alterar estado do slide')
+    }
+  }
+
+  async function handleDeleteSlide(id: string) {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('carousel_slides')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      setCarouselSlides(prev => prev.filter(s => s.id !== id))
+      setSuccess('Slide eliminado!')
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao eliminar slide')
     }
   }
 
@@ -241,6 +311,7 @@ export default function AdminDefinicoesPage() {
           <nav className="flex flex-col gap-1 rounded-xl border border-gray-100 bg-white p-2 shadow-sm">
             {[
               { id: 'geral', label: 'Geral', icon: Settings },
+              { id: 'carousel', label: 'Carrossel Home', icon: Image },
               { id: 'categorias', label: 'Categorias', icon: Tag },
               { id: 'api-keys', label: 'API Keys', icon: Key },
               { id: 'notificacoes', label: 'Notificações', icon: Bell },
@@ -351,6 +422,97 @@ export default function AdminDefinicoesPage() {
                     checked={config.review_auto_approve}
                     onCheckedChange={(checked) => setConfig(prev => ({ ...prev, review_auto_approve: checked }))}
                   />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'carousel' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Carrossel da Homepage</CardTitle>
+                  <CardDescription>Gere os slides e imagens principais da página de entrada</CardDescription>
+                </div>
+                <Button onClick={() => setShowAddSlide(true)} className="bg-teal-600 hover:bg-teal-700">
+                  <Plus className="mr-1 h-4 w-4" /> Adicionar Slide
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {showAddSlide && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>URL da Imagem *</Label>
+                        <Input
+                          value={newSlide.image_url}
+                          onChange={(e) => setNewSlide(prev => ({ ...prev, image_url: e.target.value }))}
+                          placeholder="https://images.unsplash.com/..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ordem de Exibição</Label>
+                        <Input
+                          type="number"
+                          value={newSlide.display_order}
+                          onChange={(e) => setNewSlide(prev => ({ ...prev, display_order: Number(e.target.value) }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Título Principal</Label>
+                        <Input
+                          value={newSlide.title}
+                          onChange={(e) => setNewSlide(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="Ex: Treine com os Melhores"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtítulo</Label>
+                        <Input
+                          value={newSlide.subtitle}
+                          onChange={(e) => setNewSlide(prev => ({ ...prev, subtitle: e.target.value }))}
+                          placeholder="Ex: Personal Trainers certificados"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="ghost" onClick={() => setShowAddSlide(false)}>Cancelar</Button>
+                      <Button onClick={handleAddSlide} className="bg-teal-600 hover:bg-teal-700">Guardar Slide</Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {carouselSlides.map((slide) => (
+                    <div key={slide.id} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white">
+                      <div className="relative aspect-[16/9] bg-gray-100">
+                        <img src={slide.image_url} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute top-2 right-2 flex gap-1">
+                          <Switch
+                            checked={slide.is_active}
+                            onCheckedChange={() => handleToggleSlideActive(slide.id, slide.is_active)}
+                          />
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-bold text-sm text-gray-900">{slide.title || 'Sem título'}</h4>
+                          <p className="text-xs text-gray-500 line-clamp-2 mt-1">{slide.subtitle || 'Sem subtítulo'}</p>
+                          <p className="text-[10px] text-gray-400 mt-2">Ordem: {slide.display_order}</p>
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteSlide(slide.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

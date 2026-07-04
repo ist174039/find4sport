@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Trophy, Award, Star, Zap, Target, ArrowLeft, Medal, Flame, TrendingUp } from 'lucide-react'
+import { Trophy, Award, Star, Zap, Target, ArrowLeft, Medal, Flame, TrendingUp, Users } from 'lucide-react'
 
 type Badge = {
   id: string

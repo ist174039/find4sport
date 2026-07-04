@@ -21,10 +21,17 @@ export default async function DashboardLayout({
     .eq('user_id', user.id)
     .single()
 
+  // Check if user has a space profile
+  const { data: space } = await supabase
+    .from('sport_spaces')
+    .select('*')
+    .eq('owner_user_id', user.id)
+    .single()
+
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="flex">
-        <DashboardSidebar professional={professional} />
+        <DashboardSidebar professional={professional} space={space} />
         <main className="flex-1 p-6 lg:p-8 ml-0 lg:ml-64">
           <div className="max-w-6xl mx-auto">
             {children}

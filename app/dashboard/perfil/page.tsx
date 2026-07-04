@@ -7,24 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { CheckCircle, Upload, Loader2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase } from 'lucide-react'
 import type { Professional, Category } from '@/lib/types'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isProfessional, setIsProfessional] = useState(false)
   const [professional, setProfessional] = useState<Professional | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -39,6 +32,7 @@ export default function ProfilePage() {
     address: '',
     website: '',
     service_radius_km: 10,
+    avatar_url: ''
   })
 
   useEffect(() => {
@@ -51,40 +45,41 @@ export default function ProfilePage() {
         return
       }
 
-      // Fetch categories
-      const { data: catData } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name')
-
-      if (catData) setCategories(catData)
-
-      // Fetch professional profile
       const { data: proData } = await supabase
         .from('professionals')
-        .select(`
-          *,
-          professional_categories(category_id)
-        `)
+        .select(`*, professional_categories(category_id)`)
         .eq('user_id', user.id)
         .single()
 
       if (proData) {
+        setIsProfessional(true)
         setProfessional(proData)
         setFormData({
-          full_name: proData.full_name || '',
+          full_name: proData.full_name || user.user_metadata?.full_name || '',
           professional_name: proData.professional_name || '',
           bio: proData.bio || '',
-          email: proData.email || '',
+          email: proData.email || user.email || '',
           phone: proData.phone || '',
           whatsapp: proData.whatsapp || '',
           address: proData.address || '',
           website: proData.website || '',
           service_radius_km: proData.service_radius_km || 10,
+          avatar_url: proData.avatar_url || user.user_metadata?.avatar_url || ''
         })
         setSelectedCategories(
           proData.professional_categories?.map((pc: { category_id: string }) => pc.category_id) || []
         )
+        
+        const { data: catData } = await supabase.from('categories').select('*').order('name')
+        if (catData) setCategories(catData)
+      } else {
+        setIsProfessional(false)
+        setFormData(prev => ({
+          ...prev,
+          full_name: user.user_metadata?.full_name || '',
+          email: user.email || '',
+          avatar_url: user.user_metadata?.avatar_url || ''
+        }))
       }
 
       setLoading(false)
@@ -93,18 +88,14 @@ export default function ProfilePage() {
     fetchData()
   }, [router])
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
     )
   }
 
@@ -118,24 +109,23 @@ export default function ProfilePage() {
     if (!user) return
 
     try {
-      if (professional) {
-        // Update existing profile
-        const { error } = await supabase
+      if (isProfessional && professional) {
+        await supabase
           .from('professionals')
           .update({
-            ...formData,
+            full_name: formData.full_name,
+            professional_name: formData.professional_name,
+            bio: formData.bio,
+            phone: formData.phone,
+            whatsapp: formData.whatsapp,
+            address: formData.address,
+            website: formData.website,
+            service_radius_km: formData.service_radius_km,
             updated_at: new Date().toISOString(),
           })
           .eq('id', professional.id)
 
-        if (error) throw error
-
-        // Update categories
-        await supabase
-          .from('professional_categories')
-          .delete()
-          .eq('professional_id', professional.id)
-
+        await supabase.from('professional_categories').delete().eq('professional_id', professional.id)
         if (selectedCategories.length > 0) {
           await supabase.from('professional_categories').insert(
             selectedCategories.map((catId, index) => ({
@@ -145,34 +135,14 @@ export default function ProfilePage() {
             }))
           )
         }
-      } else {
-        // Create new profile
-        const { data: newPro, error } = await supabase
-          .from('professionals')
-          .insert({
-            user_id: user.id,
-            ...formData,
-            public_slug: formData.professional_name
-              ? formData.professional_name.toLowerCase().replace(/\s+/g, '-')
-              : formData.full_name.toLowerCase().replace(/\s+/g, '-'),
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-
-        if (selectedCategories.length > 0 && newPro) {
-          await supabase.from('professional_categories').insert(
-            selectedCategories.map((catId, index) => ({
-              professional_id: newPro.id,
-              category_id: catId,
-              is_primary: index === 0,
-            }))
-          )
-        }
-
-        setProfessional(newPro)
       }
+
+      await supabase.auth.updateUser({
+        data: { 
+          full_name: formData.full_name,
+          avatar_url: formData.avatar_url 
+        }
+      })
 
       router.refresh()
     } catch (error) {
@@ -185,231 +155,185 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
-  const initials = formData.full_name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+  const initials = formData.full_name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Meu Perfil</h1>
-        <p className="text-muted-foreground">
-          Gerir as informacoes do seu perfil profissional
-        </p>
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
+      
+      {/* Header Section - Standard Homepage Layout */}
+      <div className="flex justify-between items-end mb-10 pb-6 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">O Meu Perfil</h1>
+          <p className="mt-2 text-muted-foreground">
+            {isProfessional ? 'Gere a tua presença pública na plataforma.' : 'Atualiza os teus dados pessoais.'}
+          </p>
+        </div>
+        {isProfessional && (
+          <Badge className="bg-primary text-primary-foreground text-xs px-3 py-1 rounded-md font-bold">Conta Profissional</Badge>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Foto de Perfil</CardTitle>
-            <CardDescription>
-              A sua foto aparecera no seu perfil publico
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-6">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={professional?.avatar_url || undefined} />
-                <AvatarFallback className="text-2xl">{initials || 'U'}</AvatarFallback>
-              </Avatar>
-              <Button type="button" variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Carregar foto
-              </Button>
+        
+        {/* Avatar Section - Standard Card */}
+        <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
+          <div className="relative group cursor-pointer shrink-0">
+            <Avatar className="h-24 w-24 border border-border shadow-sm">
+              <AvatarImage src={formData.avatar_url || undefined} />
+              <AvatarFallback className="text-3xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Camera className="h-6 w-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="text-center sm:text-left">
+            <h3 className="font-bold text-base mb-1">Fotografia de Perfil</h3>
+            <p className="text-xs text-muted-foreground mb-4 max-w-sm">Esta imagem será visível para todos os utilizadores da plataforma.</p>
+            <Button type="button" variant="outline" className="rounded-lg border-border hover:bg-muted text-xs h-9 gap-1.5">
+              <Upload className="h-3.5 w-3.5" /> Alterar Foto
+            </Button>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Informacoes Basicas</CardTitle>
-            <CardDescription>
-              Estas informacoes serao exibidas no seu perfil publico
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Basic Info Section - Standard Card */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+          <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
+             <UserIcon className="h-4.5 w-4.5 text-primary" /> Informações Básicas
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name" className="text-xs font-semibold text-foreground/80">Nome completo *</Label>
+              <Input
+                id="full_name"
+                name="full_name"
+                value={formData.full_name}
+                onChange={handleInputChange}
+                required
+                className="rounded-lg h-10 bg-background border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs font-semibold text-foreground/80">Email *</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                disabled
+                className="rounded-lg h-10 bg-muted border-border opacity-70 cursor-not-allowed"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Professional Details */}
+        {isProfessional && (
+          <>
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+              <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
+                <Briefcase className="h-4.5 w-4.5 text-teal-500" /> Detalhes Profissionais
+              </h3>
+              
               <div className="space-y-2">
-                <Label htmlFor="full_name">Nome completo *</Label>
-                <Input
-                  id="full_name"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="professional_name">Nome profissional</Label>
+                <Label htmlFor="professional_name" className="text-xs font-semibold text-foreground/80">Nome Profissional</Label>
                 <Input
                   id="professional_name"
                   name="professional_name"
                   value={formData.professional_name}
                   onChange={handleInputChange}
-                  placeholder="Ex: Personal Trainer Joao"
+                  placeholder="Ex: PT João Silva"
+                  className="rounded-lg h-10 bg-background border-border"
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="bio">Biografia</Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                value={formData.bio}
-                onChange={handleInputChange}
-                placeholder="Conte um pouco sobre a sua experiencia e especializacoes..."
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Categorias</CardTitle>
-            <CardDescription>
-              Selecione as categorias em que atua (a primeira sera a principal)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => {
-                const isSelected = selectedCategories.includes(category.id)
-                return (
-                  <Badge
-                    key={category.id}
-                    variant={isSelected ? 'default' : 'outline'}
-                    className="cursor-pointer transition-colors"
-                    onClick={() => toggleCategory(category.id)}
-                  >
-                    {category.emoji} {category.name}
-                    {isSelected && <CheckCircle className="h-3 w-3 ml-1" />}
-                  </Badge>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Contactos</CardTitle>
-            <CardDescription>
-              Como os clientes podem entrar em contacto consigo
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
+                <Label htmlFor="bio" className="text-xs font-semibold text-foreground/80">Biografia</Label>
+                <Textarea
+                  id="bio"
+                  name="bio"
+                  value={formData.bio}
                   onChange={handleInputChange}
-                  required
+                  placeholder="Conta um pouco sobre a tua experiência..."
+                  rows={4}
+                  className="rounded-lg bg-background border-border resize-none text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="+351 912 345 678"
-                />
+              
+              <div className="space-y-2 pt-2">
+                <Label className="text-xs font-semibold text-foreground/80">Modalidades</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map((category) => {
+                    const isSelected = selectedCategories.includes(category.id)
+                    return (
+                      <Badge
+                        key={category.id}
+                        variant={isSelected ? 'default' : 'outline'}
+                        className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
+                        onClick={() => toggleCategory(category.id)}
+                      >
+                        {category.emoji} {category.name}
+                        {isSelected && <CheckCircle className="h-3 w-3 ml-1.5" />}
+                      </Badge>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input
-                  id="whatsapp"
-                  name="whatsapp"
-                  type="tel"
-                  value={formData.whatsapp}
-                  onChange={handleInputChange}
-                  placeholder="+351 912 345 678"
-                />
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+              <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
+                <MapPin className="h-4.5 w-4.5 text-amber-500" /> Localização & Contactos
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-xs font-semibold">Telefone</Label>
+                  <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp" className="text-xs font-semibold">WhatsApp</Label>
+                  <Input id="whatsapp" name="whatsapp" value={formData.whatsapp} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="website" className="text-xs font-semibold">Website Profissional</Label>
+                  <Input id="website" name="website" type="url" value={formData.website} onChange={handleInputChange} placeholder="https://" className="rounded-lg h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="text-xs font-semibold">Morada / Zona de Atuação</Label>
+                  <Input id="address" name="address" value={formData.address} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="service_radius_km" className="text-xs font-semibold">Raio de Deslocação</Label>
+                  <Select value={String(formData.service_radius_km)} onValueChange={(val) => setFormData(p => ({...p, service_radius_km: Number(val)}))}>
+                    <SelectTrigger className="w-full rounded-lg h-10 bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">Até 5 km</SelectItem>
+                      <SelectItem value="10">Até 10 km</SelectItem>
+                      <SelectItem value="20">Até 20 km</SelectItem>
+                      <SelectItem value="50">Até 50 km</SelectItem>
+                      <SelectItem value="100">Qualquer zona (Online)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
-                  name="website"
-                  type="url"
-                  value={formData.website}
-                  onChange={handleInputChange}
-                  placeholder="https://www.example.com"
-                />
-              </div>
             </div>
-          </CardContent>
-        </Card>
+          </>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Localizacao</CardTitle>
-            <CardDescription>
-              Onde presta os seus servicos
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="address">Morada / Zona de atuacao</Label>
-              <Input
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                placeholder="Ex: Lisboa, Portugal"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="service_radius_km">Raio de deslocacao (km)</Label>
-              <Select
-                value={String(formData.service_radius_km)}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, service_radius_km: Number(value) }))
-                }
-              >
-                <SelectTrigger className="w-full md:w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5 km</SelectItem>
-                  <SelectItem value="10">10 km</SelectItem>
-                  <SelectItem value="20">20 km</SelectItem>
-                  <SelectItem value="30">30 km</SelectItem>
-                  <SelectItem value="50">50 km</SelectItem>
-                  <SelectItem value="100">100 km</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+        <div className="flex justify-end gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="rounded-lg h-10 px-5 hover:bg-muted border-border transition-all">
             Cancelar
           </Button>
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving} className="rounded-lg h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm transition-all">
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {professional ? 'Guardar alteracoes' : 'Criar perfil'}
+            Guardar Alterações
           </Button>
         </div>
       </form>

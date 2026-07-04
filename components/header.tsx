@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Activity,
   Rss,
+  LayoutDashboard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -106,7 +107,7 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
             <>
               {/* Notifications */}
               <Button variant="ghost" size="icon" asChild className="relative">
-                <Link href="/notificacoes">
+                <Link href="/dashboard/notificacoes">
                   <Bell className="h-5 w-5" />
                   {notificationCount > 0 && (
                     <Badge
@@ -122,7 +123,7 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
 
               {/* Messages */}
               <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
-                <Link href="/mensagens">
+                <Link href="/dashboard/mensagens">
                   <MessageSquare className="h-5 w-5" />
                   <span className="sr-only">Mensagens</span>
                 </Link>
@@ -130,19 +131,21 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
 
               {/* User Menu */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage
-                        src={user.avatar_url || undefined}
-                        alt={user.full_name || user.email}
-                      />
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <button className="relative h-9 w-9 rounded-full focus:outline-none flex items-center justify-center hover:opacity-90 transition-opacity">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage
+                          src={user.avatar_url || undefined}
+                          alt={user.full_name || user.email}
+                        />
+                        <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+                          {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  }
+                />
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="flex items-center justify-start gap-2 p-2">
                     <div className="flex flex-col space-y-0.5">
@@ -151,31 +154,47 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
                     </div>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/perfil" className="flex cursor-pointer items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      O Meu Perfil
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/favoritos" className="flex cursor-pointer items-center">
-                      <Heart className="mr-2 h-4 w-4" />
-                      Favoritos
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/definicoes" className="flex cursor-pointer items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Definicoes
-                    </Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/dashboard" className="flex cursor-pointer items-center font-semibold text-primary">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Painel (Dashboard)
+                      </Link>
+                    }
+                  />
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/dashboard/perfil" className="flex cursor-pointer items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        O Meu Perfil
+                      </Link>
+                    }
+                  />
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/dashboard/favoritos" className="flex cursor-pointer items-center">
+                        <Heart className="mr-2 h-4 w-4" />
+                        Favoritos
+                      </Link>
+                    }
+                  />
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/dashboard/definicoes" className="flex cursor-pointer items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Definicoes
+                      </Link>
+                    }
+                  />
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/auth/logout" className="flex cursor-pointer items-center text-destructive">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Terminar Sessao
-                    </Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <Link href="/auth/logout" className="flex cursor-pointer items-center text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Terminar Sessao
+                      </Link>
+                    }
+                  />
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -233,7 +252,35 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
                     </Link>
                   )
                 })}
-                {!user && (
+                 {user ? (
+                  <>
+                    <hr className="my-2 border-border/50" />
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary font-semibold hover:bg-accent"
+                    >
+                      <LayoutDashboard className="h-5 w-5" />
+                      Painel (Dashboard)
+                    </Link>
+                    <Link
+                      href="/dashboard/perfil"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <User className="h-5 w-5" />
+                      O Meu Perfil
+                    </Link>
+                    <Link
+                      href="/auth/logout"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-destructive hover:bg-destructive/10"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      Terminar Sessão
+                    </Link>
+                  </>
+                ) : (
                   <>
                     <hr className="my-2" />
                     <Link

@@ -5,59 +5,11 @@ import { Footer } from '@/components/footer'
 
 export default function Page() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1">
-        {/*  SideNavBar  */}
-<aside className="h-screen w-64 fixed left-0 top-0 bg-surface dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col py-8 px-4 z-50"><div className="mb-10 px-2">
-<h1 className="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim tracking-tight">FIND4SPORT</h1>
-<p className="font-label-md text-label-md text-on-surface-variant opacity-70">Painel do Profissional</p>
-</div>
-
-<button className="mt-4 mb-8 w-full bg-primary text-on-primary py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-sm">
-<span className="material-symbols-outlined text-[18px]" data-icon="add_circle">add_circle</span>
-            Criar Novo Evento
-        </button>
-<div className="pt-6 border-t border-outline-variant space-y-1">
-<a className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 ease-in-out text-on-surface-variant hover:bg-secondary-container" href="#">
-<span className="material-symbols-outlined" data-icon="settings">settings</span>
-<span className="font-label-md text-label-md">Configurações</span>
-</a>
-<a className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 ease-in-out text-on-surface-variant hover:bg-error-container/20 hover:text-error" href="#">
-<span className="material-symbols-outlined" data-icon="logout">logout</span>
-<span className="font-label-md text-label-md">Sair</span>
-</a>
-</div></aside>
-{/*  TopAppBar  */}
-<header className="sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant h-16 flex justify-between items-center px-12 transition-all duration-200">
-<div className="flex items-center gap-8">
-
-</div>
-<div className="flex items-center gap-6">
-<div className="flex items-center gap-4 border-r border-outline-variant pr-6">
-<button className="relative p-2 text-on-surface-variant hover:text-primary transition-colors">
-<span className="material-symbols-outlined" data-icon="notifications">notifications</span>
-<span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
-</button>
-<button className="p-2 text-on-surface-variant hover:text-primary transition-colors">
-<span className="material-symbols-outlined" data-icon="help">help</span>
-</button>
-</div>
-<div className="flex items-center gap-3">
-<button className="font-label-md text-label-md text-primary font-bold hover:underline">Ver Perfil Público</button>
-<div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed ring-2 ring-surface">
-<img alt="Avatar do Profissional" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA68r10W2gkwU0Wa9RMEeuXchkdVLeCKmioYLMcflukZt_NdPxHCp6HPPDbRv_PS3lq-H8PxeW-VTFa0cRbY2EHqawLxH1IP9bicwwxcIcVlw-dyFSRQJq8_gMbLN0pyxGJnTDyFoKfzW6OBajloQsTvhFqlconiRVy_D6f7x5gp-SiD5AsB3tZZ9qKMrJFzcLG9TfKpVaF2hPhENUrXRteOtArKZzcAf8C1UAYH5nSHxfGhGsg06LLWvDRRAZCyS7TF9jWgKb" />
-</div>
-</div>
-</div>
-</header>
-{/*  Main Content  */}
-<main className="pl-64 min-h-screen p-12 max-w-[1400px] mx-auto space-y-gutter">
-<div className="max-w-[1280px] mx-auto">
-<header className="mb-10">
-<h2 className="font-headline-lg text-headline-lg text-text-primary">Dashboard Global</h2>
-<p className="font-body-lg text-text-secondary">Bem-vindo de volta ao centro de operações da FIND4SPORT.</p>
-</header>
+    <div className="space-y-gutter max-w-[1280px] mx-auto w-full">
+      <header className="mb-10">
+        <h2 className="font-headline-lg text-headline-lg text-text-primary">Dashboard Global</h2>
+        <p className="font-body-lg text-text-secondary">Bem-vindo de volta ao centro de operações da FIND4SPORT.</p>
+      </header>
 {/*  KPI Cards Grid  */}
 <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-10">
 {/*  Total Professionals  */}
@@ -266,15 +218,11 @@ export default function Page() {
 </td>
 </tr>
 </tbody>
-</table>
-</div>
-</div>
-</div>
-</div>
-</div>
-</main>
-      </main>
-      <Footer />
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
