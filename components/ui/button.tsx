@@ -56,7 +56,7 @@ function Button({
         {
           className: cn(
             buttonVariants({ variant, size, className }),
-            (child as React.ReactElement).props.className
+            (child as React.ReactElement<any>).props.className
           ),
           ...props,
         } as React.Attributes

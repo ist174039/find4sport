@@ -199,12 +199,12 @@ export default function ServicesPage() {
           setDialogOpen(open)
           if (!open) resetForm()
         }}>
-          <DialogTrigger asChild>
+          <DialogTrigger render={
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Novo Servico
             </Button>
-          </DialogTrigger>
+          } />
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>
@@ -267,7 +267,7 @@ export default function ServicesPage() {
                   <Select
                     value={formData.modality}
                     onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, modality: value }))
+                      setFormData((prev) => ({ ...prev, modality: value || '' }))
                     }
                   >
                     <SelectTrigger>
@@ -301,7 +301,7 @@ export default function ServicesPage() {
                   <Select
                     value={formData.price_unit}
                     onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, price_unit: value }))
+                      setFormData((prev) => ({ ...prev, price_unit: value || '' }))
                     }
                   >
                     <SelectTrigger>

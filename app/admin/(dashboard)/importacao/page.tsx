@@ -1,61 +1,49 @@
 'use client'
 
-import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function Page() {
+  const [importing, setImporting] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleImport = async () => {
+    setImporting(true)
+    const supabase = createClient()
+    
+    const mockSpaces = [
+      {
+        name: 'Arena BT Premium (Importada)',
+        address: 'Rua Olimpíadas, 205 - SP',
+        is_verified: true,
+        rating_avg: 4.8,
+        review_count: 24,
+        slug: 'arena-bt-premium-' + Date.now(),
+        gallery_urls: ['https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=300']
+      },
+      {
+        name: 'Centro Esportivo Pinheiros (Importado)',
+        address: 'Av. das Nações Unidas, 1200 - SP',
+        is_verified: false,
+        rating_avg: 4.5,
+        review_count: 12,
+        slug: 'centro-esportivo-pinheiros-' + Date.now(),
+        gallery_urls: ['https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=300']
+      }
+    ]
+
+    const { error } = await supabase.from('sport_spaces').insert(mockSpaces)
+    setImporting(false)
+    if (!error) {
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } else {
+      alert('Erro ao importar: ' + error.message)
+    }
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1">
-        {/*  SideNavBar  */}
-<aside className="h-screen w-64 fixed left-0 top-0 bg-surface dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col py-8 px-4 z-50"><div className="mb-10 px-2">
-<h1 className="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim tracking-tight">FIND4SPORT</h1>
-<p className="font-label-md text-label-md text-on-surface-variant opacity-70">Painel do Profissional</p>
-</div>
-
-<button className="mt-4 mb-8 w-full bg-primary text-on-primary py-3 px-4 rounded-lg font-label-md text-label-md hover:bg-primary-container transition-all flex items-center justify-center gap-2 shadow-sm">
-<span className="material-symbols-outlined text-[18px]" data-icon="add_circle">add_circle</span>
-            Criar Novo Evento
-        </button>
-<div className="pt-6 border-t border-outline-variant space-y-1">
-<a className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 ease-in-out text-on-surface-variant hover:bg-secondary-container" href="#">
-<span className="material-symbols-outlined" data-icon="settings">settings</span>
-<span className="font-label-md text-label-md">Configurações</span>
-</a>
-<a className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 ease-in-out text-on-surface-variant hover:bg-error-container/20 hover:text-error" href="#">
-<span className="material-symbols-outlined" data-icon="logout">logout</span>
-<span className="font-label-md text-label-md">Sair</span>
-</a>
-</div></aside>
-{/*  TopAppBar  */}
-<header className="sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant h-16 flex justify-between items-center px-12 transition-all duration-200">
-<div className="flex items-center gap-8">
-
-</div>
-<div className="flex items-center gap-6">
-<div className="flex items-center gap-4 border-r border-outline-variant pr-6">
-<button className="relative p-2 text-on-surface-variant hover:text-primary transition-colors">
-<span className="material-symbols-outlined" data-icon="notifications">notifications</span>
-<span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
-</button>
-<button className="p-2 text-on-surface-variant hover:text-primary transition-colors">
-<span className="material-symbols-outlined" data-icon="help">help</span>
-</button>
-</div>
-<div className="flex items-center gap-3">
-<button className="font-label-md text-label-md text-primary font-bold hover:underline">Ver Perfil Público</button>
-<div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-fixed ring-2 ring-surface">
-<img alt="Avatar do Profissional" className="w-full h-full object-cover" data-alt="A professional headshot of a female executive in a modern sports corporate setting, with soft natural light hitting her face from the side. She wears a minimal, dark blazer over a professional tech-wear shirt. The background is a blurred high-end athletic facility with emerald green accents and clean white walls, reflecting a sense of leadership and expertise." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCLl63YtK13hnEfR0LOL0a7uCZKRfwuNnh0YsHtOX_BVyUF86PUxC4mJKIRQEgcFME4coo3KStMd_gTKSFz6LDmmiGkb2JN4P9oe9rog1_zvjipfaoKn7pIbpywpQa7DkNWUfvzN4O_tgXd87WZj-OflXoi5GOzivm_h-vdMoHNtkSukMVX1hp3uaJ6IpSPdcbgeN3LkliKLLf6OQkLZP8Z1wRd7UhZC6BoGKeOkfF5EySBLBegHzY8RbI6kCFP8YA3TtShxUv" />
-</div>
-</div>
-</div>
-</header>
-{/*  Main Content  */}
-<div className="pl-64 min-h-screen">
-<main className="p-12 max-w-[1400px] mx-auto space-y-gutter">
-{/*  The original content of main goes here, but wrapped in the new container structure  */}
-<div className="max-w-[1280px] mx-auto">
+    <div className="max-w-[1280px] mx-auto space-y-gutter">
 {/*  Header & Stepper  */}
 <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
 <div>
@@ -246,7 +234,7 @@ export default function Page() {
 <div className="p-6 bg-surface-container-low flex justify-between items-center">
 <p className="text-body-md text-on-surface-variant">Mostrando 2 de 58 itens detectados</p>
 <div className="flex gap-2">
-<button className="px-4 py-2 bg-surface-container-highest rounded text-label-md disabled:opacity-50" disabled="">Anterior</button>
+<button className="px-4 py-2 bg-surface-container-highest rounded text-label-md disabled:opacity-50" disabled>Anterior</button>
 <button className="px-4 py-2 bg-surface-container-highest rounded text-label-md hover:bg-outline-variant transition-colors">Próximo</button>
 </div>
 </div>
@@ -317,13 +305,23 @@ export default function Page() {
 <span className="font-label-md text-primary bg-primary/10 px-3 py-1 rounded">Score Inicial</span>
 </div>
 </div>
+<div className="flex justify-end mt-8">
+  <button 
+    onClick={handleImport}
+    disabled={importing}
+    className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2 shadow-md shadow-primary/10 text-sm"
+  >
+    {importing ? 'A Ingerir Dados...' : 'Confirmar e Ingerir na Base de Dados'}
+  </button>
 </div>
 </div>
 </div>
-</main>
-</div>
-      </main>
-      <Footer />
+{success && (
+  <div className="fixed bottom-8 right-8 bg-inverse-surface text-inverse-on-surface px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+    <span className="material-symbols-outlined text-primary-fixed">check_circle</span>
+    <p className="font-label-md text-label-md">Dados de espaços importados com sucesso para a base de dados!</p>
+  </div>
+)}
     </div>
   )
 }

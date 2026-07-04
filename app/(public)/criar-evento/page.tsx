@@ -79,8 +79,8 @@ export default function Page() {
 </div>
 <div>
 <label className="block font-label-md text-label-md text-on-surface-variant mb-2" htmlFor="eventCategory">Categoria</label>
-<select className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer" id="eventCategory">
-<option disabled="" selected="" value="">Selecionar Categoria</option>
+<select className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all appearance-none cursor-pointer" id="eventCategory" defaultValue="">
+<option disabled value="">Selecionar Categoria</option>
 <option value="corrida">Corrida</option>
 <option value="yoga">Yoga</option>
 <option value="padel">Padel</option>
@@ -94,7 +94,7 @@ export default function Page() {
 </div>
 <div className="md:col-span-2">
 <label className="block font-label-md text-label-md text-on-surface-variant mb-2" htmlFor="eventDescription">Descrição Detalhada</label>
-<textarea className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all custom-scrollbar" id="eventDescription" placeholder="Descreva os objetivos, percurso, requisitos e o que está incluído..." rows="5"></textarea>
+<textarea className="w-full bg-background border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all custom-scrollbar" id="eventDescription" placeholder="Descreva os objetivos, percurso, requisitos e o que está incluído..." rows={5}></textarea>
 </div>
 </div>
 </div>

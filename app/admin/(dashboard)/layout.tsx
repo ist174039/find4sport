@@ -11,7 +11,7 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login?redirect=/admin')
+    redirect('/admin/login')
   }
 
   // Check if user is an admin
@@ -23,7 +23,7 @@ export default async function AdminLayout({
     .single()
 
   if (!adminUser) {
-    redirect('/')
+    redirect('/admin/login?error=unauthorized')
   }
 
   return (

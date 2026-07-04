@@ -96,7 +96,7 @@ export default function AdminUtilizadoresPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Pesquisar..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v || 'all')}>
             <SelectTrigger className="w-36">
               <SelectValue placeholder="Filtrar role" />
             </SelectTrigger>

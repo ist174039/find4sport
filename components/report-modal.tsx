@@ -75,9 +75,7 @@ export function ReportModal({ reviewId, professionalId, spaceId, eventId, commen
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || <Button variant="ghost" size="sm"><Flag className="mr-1 h-3 w-3" /> Denunciar</Button>}
-      </DialogTrigger>
+      <DialogTrigger render={(children as React.ReactElement) || <Button variant="ghost" size="sm"><Flag className="mr-1 h-3 w-3" /> Denunciar</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Denunciar Conteúdo</DialogTitle>

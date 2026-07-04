@@ -78,7 +78,7 @@ export function SearchBar({
       )}
     >
       {/* Search Type */}
-      <Select value={type} onValueChange={setType}>
+      <Select value={type} onValueChange={(v) => setType(v || '')}>
         <SelectTrigger
           className={cn(
             'w-full sm:w-36',

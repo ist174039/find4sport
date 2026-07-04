@@ -109,7 +109,7 @@ export default function CriarEventoProfissionalPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
-                <Select value={formData.category_id} onValueChange={(v) => setFormData({ ...formData, category_id: v })}>
+                <Select value={formData.category_id} onValueChange={(v) => setFormData({ ...formData, category_id: v || '' })}>
                   <SelectTrigger id="category">
                     <SelectValue placeholder="Selecionar categoria" />
                   </SelectTrigger>

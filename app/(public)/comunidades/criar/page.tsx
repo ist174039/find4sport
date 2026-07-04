@@ -93,7 +93,7 @@ export default function Page() {
 </div>
 <div className="col-span-2">
 <label className="block font-label-md text-on-surface-variant mb-2">Descrição</label>
-<textarea className="w-full bg-surface border-border-subtle rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="Conte o propósito da comunidade, modalidades e quem pode participar..." rows="4"></textarea>
+<textarea className="w-full bg-surface border-border-subtle rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="Conte o propósito da comunidade, modalidades e quem pode participar..." rows={4}></textarea>
 </div>
 </div>
 </section>

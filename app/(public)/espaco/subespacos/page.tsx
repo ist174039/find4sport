@@ -141,7 +141,7 @@ export default function Page() {
 <input className="w-20 px-2 py-1 bg-surface-container text-center rounded border-none focus:ring-2 focus:ring-primary font-body-md" type="text" value="22:00" />
 </div>
 <label className="relative inline-flex items-center cursor-pointer">
-<input checked="" className="sr-only peer" type="checkbox" />
+<input defaultChecked={true} className="sr-only peer" type="checkbox" />
 <div className="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
 </label>
 </div>
@@ -154,7 +154,7 @@ export default function Page() {
 <input className="w-20 px-2 py-1 bg-surface-container text-center rounded border-none focus:ring-2 focus:ring-primary font-body-md" type="text" value="20:00" />
 </div>
 <label className="relative inline-flex items-center cursor-pointer">
-<input checked="" className="sr-only peer" type="checkbox" />
+<input defaultChecked={true} className="sr-only peer" type="checkbox" />
 <div className="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
 </label>
 </div>

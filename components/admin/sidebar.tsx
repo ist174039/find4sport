@@ -99,13 +99,15 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b">
-        <Link href="/admin" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Shield className="h-4 w-4 text-primary-foreground" />
+        <Link href="/admin" className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
+            <span className="text-lg font-bold text-white">F4</span>
           </div>
-          <div>
-            <span className="font-bold text-lg">FIND4SPORT</span>
-            <Badge variant="secondary" className="ml-2 text-xs">
+          <div className="flex items-center">
+            <span className="text-xl font-bold tracking-tight text-foreground">
+              FIND<span className="text-primary">4</span>SPORT
+            </span>
+            <Badge variant="secondary" className="ml-2 text-[10px] py-0 px-1.5 uppercase font-bold tracking-wider">
               Admin
             </Badge>
           </div>
