@@ -83,14 +83,13 @@ function RegisterForm() {
   const handleContinueFromType = () => {
     if (!selectedType) return
     if (selectedType === 'profissional') {
-      router.push('/profissionais/registar')
+      router.push('/auth/registar/profissional')
       return
     }
     if (selectedType === 'espaco') {
-      router.push('/espacos/registar')
+      router.push('/auth/registar/espaco')
       return
     }
-    // utilizador — show the form
     setStep('formulario')
   }
 
@@ -121,7 +120,7 @@ function RegisterForm() {
             `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
-            role: selectedType ?? 'utilizador',
+            type: selectedType ?? 'utilizador',
           },
         },
       })

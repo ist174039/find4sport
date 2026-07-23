@@ -89,17 +89,28 @@ export default function LoginPage() {
     
     try {
       const supabase = createClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
       })
       
       if (signInError) throw signInError
       
+      const { data: profile, error: profileError } = await supabase
+        .from('platform_users')
+        .select('type')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut()
+        throw new Error('Acesso negado. Utilize a área correta para aceder à sua conta.')
+      }
+      
       window.location.href = redirectByType[selectedType]
     } catch (err: any) {
       console.error(err)
-      setError('Credenciais inválidas. Por favor, tente novamente.')
+      setError(err.message || 'Credenciais inválidas. Por favor, tente novamente.')
     } finally {
       setIsLoading(false)
     }

@@ -30,10 +30,9 @@ export default function AdminLoginPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: adminUser } = await supabase
-          .from('admin_users')
+          .from('admins')
           .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
+          .eq('auth_user_id', user.id)
           .single()
         
         if (adminUser) {
@@ -68,10 +67,9 @@ export default function AdminLoginPage() {
       if (!user) throw new Error('Falha ao autenticar utilizador.')
 
       const { data: adminUser, error: adminError } = await supabase
-        .from('admin_users')
+        .from('admins')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
+        .eq('auth_user_id', user.id)
         .single()
 
       if (adminError || !adminUser) {

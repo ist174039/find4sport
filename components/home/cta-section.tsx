@@ -42,7 +42,7 @@ export function CTASection({ isLoggedIn }: CTASectionProps) {
               variant="secondary"
               className="mt-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90"
             >
-              <Link href={isLoggedIn ? '/profissionais/registar' : '/auth/registar?tipo=profissional'}>
+              <Link href={isLoggedIn ? '/auth/registar/profissional' : '/auth/registar/profissional'}>
                 Registar como Profissional
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

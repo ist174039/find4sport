@@ -67,7 +67,7 @@ export default function ProfessionalEstadoPage() {
         if (profError) {
           if (profError.code === 'PGRST116') {
             // No professional profile yet - redirect to register
-            router.push('/profissional/registar')
+            router.push('/auth/registar/profissional')
             return
           }
           throw profError
@@ -234,7 +234,7 @@ export default function ProfessionalEstadoPage() {
                 {professional.rejection_reason || 'Não foi especificado um motivo. Contacta o suporte para mais informações.'}
               </div>
               <div className="mt-6 flex justify-center gap-4">
-                <Link href="/profissional/registar">
+                <Link href="/auth/registar/profissional">
                   <Button className="bg-teal-600 hover:bg-teal-700">
                     <RefreshCw className="mr-2 h-4 w-4" /> Submeter Novamente
                   </Button>

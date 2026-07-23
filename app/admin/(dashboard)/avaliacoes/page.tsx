@@ -1,153 +1,250 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Input } from '@/components/ui/input'
-import { Star, Search, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { TablePagination } from '@/components/ui/table-pagination'
 
-type Review = {
-  id: string
-  rating: number
-  comment: string | null
-  created_at: string
-  reviewer_name: string | null
-  target_type: string
-  target_name: string | null
-}
-
-export default function AdminAvaliacoesPage() {
-  const router = useRouter()
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [filtered, setFiltered] = useState<Review[]>([])
+export default function Page() {
+  const [reviews, setReviews] = useState<any[]>([])
+  const [filteredReviews, setFilteredReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  
+  const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'low' | 'pending'>('all')
+  const [stats, setStats] = useState({ total: 0, avg: 0, critical: 0 })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+  const paginatedData = filteredReviews.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredReviews.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/login'); return }
+    setCurrentPage(1)
+  }, [filteredReviews.length])
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      if (profile?.role !== 'admin') { router.push('/'); return }
+ useEffect(() => {
+  async function load() {
+   const supabase = createClient()
+   
+   const { data } = await supabase
+    .from('reviews')
+    .select(`
+     *,
+     platform_users:user_id(full_name, email),
+     professionals:professional_id(full_name),
+     sport_spaces:space_id(name)
+    `)
+    .order('created_at', { ascending: false })
 
-      const { data } = await supabase
-        .from('reviews')
-        .select('id, rating, comment, created_at, reviewer_id, target_type, target_id')
-        .order('created_at', { ascending: false })
+   const loadedReviews = data || []
+   setReviews(loadedReviews)
+   setFilteredReviews(loadedReviews)
 
-      if (data) {
-        const mapped = await Promise.all((data || []).map(async (r) => {
-          let reviewer_name = null
-          let target_name = null
+   const total = loadedReviews.length
+   const critical = loadedReviews.filter(r => r.rating <= 2).length
+   
+   let sum = 0
+   loadedReviews.forEach(r => sum += r.rating)
+   const avg = total > 0 ? (sum / total).toFixed(1) : 0
 
-          if (r.reviewer_id) {
-            const { data: prof } = await supabase.from('professionals').select('full_name').eq('id', r.reviewer_id).single()
-            if (prof) reviewer_name = prof.full_name
-          }
-          if (r.target_type === 'professional' && r.target_id) {
-            const { data: t } = await supabase.from('professionals').select('full_name').eq('id', r.target_id).single()
-            if (t) target_name = t.full_name
-          } else if (r.target_type === 'space' && r.target_id) {
-            const { data: t } = await supabase.from('sport_spaces').select('name').eq('id', r.target_id).single()
-            if (t) target_name = t.name
-          }
-
-          return { ...r, reviewer_name, target_name }
-        }))
-        setReviews(mapped)
-        setFiltered(mapped)
-      }
-      setLoading(false)
-    }
-    load()
-  }, [router])
-
-  useEffect(() => {
-    if (!search.trim()) { setFiltered(reviews); return }
-    const term = search.toLowerCase()
-    setFiltered(reviews.filter(r =>
-      r.comment?.toLowerCase().includes(term) ||
-      r.reviewer_name?.toLowerCase().includes(term) ||
-      r.target_name?.toLowerCase().includes(term)
-    ))
-  }, [search, reviews])
-
-  const handleDelete = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('reviews').delete().eq('id', id)
-    setReviews(reviews.filter(r => r.id !== id))
+   setStats({ total, avg: Number(avg), critical })
+   setLoading(false)
   }
+  load()
+ }, [])
 
-  if (loading) {
-    return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+ useEffect(() => {
+  if (activeFilter === 'all') {
+   setFilteredReviews(reviews)
+  } else if (activeFilter === 'high') {
+   setFilteredReviews(reviews.filter(r => r.rating >= 4))
+  } else if (activeFilter === 'low') {
+   setFilteredReviews(reviews.filter(r => r.rating <= 2))
+  } else if (activeFilter === 'pending') {
+   setFilteredReviews(reviews.filter(r => r.status === 'pending'))
   }
+ }, [activeFilter, reviews])
 
-  return (
+ const handleDelete = async (id: string) => {
+  if (!window.confirm('Tem certeza que deseja apagar esta avaliação?')) return
+  
+  const supabase = createClient()
+  const { error } = await supabase.from('reviews').delete().eq('id', id)
+  if (!error) {
+   setReviews(prev => prev.filter(r => r.id !== id))
+   await supabase.from('audit_logs').insert([{
+    action: 'DELETE', table_name: 'reviews', user_email: 'admin@find4sport.pt',
+    new_data: { action: `Avaliação ${id} apagada` }
+   }])
+  }
+ }
+
+ const renderStars = (rating: number) => {
+  return Array(5).fill(0).map((_, i) => (
+   <span key={i} className={`material-symbols-outlined text-[16px] ${i < rating ? 'text-trust-gold' : 'text-outline-variant'}`}>
+    star
+   </span>
+  ))
+ }
+
+ return (
+  <div className="space-y-6">
+   {/* Page Header */}
+   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Avaliações</h1>
-          <p className="text-sm text-muted-foreground">Gerir todas as avaliações da plataforma.</p>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Pesquisar..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            {search ? 'Nenhuma avaliação corresponde à pesquisa.' : 'Nenhuma avaliação encontrada.'}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((review) => (
-            <Card key={review.id}>
-              <CardContent className="flex items-start justify-between pt-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-300'}`} />
-                      ))}
-                    </div>
-                    <Badge variant="outline">
-                      {review.target_type === 'professional' ? 'Profissional' : 'Espaço'}
-                    </Badge>
-                  </div>
-                  {review.target_name && (
-                    <p className="mt-1 text-xs text-muted-foreground">Sobre: {review.target_name}</p>
-                  )}
-                  {review.reviewer_name && (
-                    <p className="text-xs text-muted-foreground">Por: {review.reviewer_name}</p>
-                  )}
-                  {review.comment && (
-                    <p className="mt-2 text-sm text-foreground">{review.comment}</p>
-                  )}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {new Date(review.created_at).toLocaleDateString('pt-PT')}
-                  </p>
-                </div>
-                <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(review.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Gestão de Avaliações</h1>
+     <p className="text-muted-foreground mt-1 text-sm">Modere comentários, responda a denúncias e mantenha a qualidade.</p>
     </div>
-  )
+    <div className="flex gap-3">
+     <button className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all">
+      <span className="material-symbols-outlined text-[20px]">download</span>
+      Exportar CSV
+     </button>
+    </div>
+   </section>
+
+   {/* Stats Overview */}
+   <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
+     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-primary">
+      <span className="material-symbols-outlined text-[64px]" data-icon="forum">forum</span>
+     </div>
+     <p className="text-muted-foreground font-medium text-sm mb-2">Total de Avaliações</p>
+     <div className="flex items-end gap-2">
+      <h3 className="text-2xl font-bold text-foreground">{loading ? '...' : stats.total}</h3>
+     </div>
+    </div>
+    <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
+     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-trust-gold">
+      <span className="material-symbols-outlined text-[64px]" data-icon="star">star</span>
+     </div>
+     <p className="text-muted-foreground font-medium text-sm mb-2">Média Global</p>
+     <div className="flex items-end gap-2">
+      <h3 className="text-2xl font-bold text-foreground">{loading ? '...' : stats.avg}</h3>
+      <span className="text-trust-gold font-medium text-sm bg-trust-gold/10 px-2 py-0.5 rounded-full mb-1">/ 5.0</span>
+     </div>
+    </div>
+    <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 relative overflow-hidden group">
+     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-destructive">
+      <span className="material-symbols-outlined text-[64px]" data-icon="report">report</span>
+     </div>
+     <p className="text-muted-foreground font-medium text-sm mb-2">Críticas (≤ 2 Estrelas)</p>
+     <div className="flex items-end gap-2">
+      <h3 className="text-2xl font-bold text-destructive">{loading ? '...' : stats.critical}</h3>
+      <span className="text-destructive font-medium text-sm">Requerem atenção</span>
+     </div>
+    </div>
+   </section>
+
+   {/* Main List Section */}
+   <section className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="p-6 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+     <div className="flex flex-col sm:flex-row gap-3 w-full">
+      {/* Tab Filters */}
+      <div className="flex bg-muted/30 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
+       <button onClick={() => setActiveFilter('all')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Todas</button>
+       <button onClick={() => setActiveFilter('high')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap flex items-center gap-1 ${activeFilter === 'high' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+        Positivas <span className="material-symbols-outlined text-[14px]">thumb_up</span>
+       </button>
+       <button onClick={() => setActiveFilter('low')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap flex items-center gap-1 ${activeFilter === 'low' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+        Críticas <span className="material-symbols-outlined text-[14px] text-destructive">thumb_down</span>
+       </button>
+       <button onClick={() => setActiveFilter('pending')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'pending' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Denunciadas</button>
+      </div>
+      
+      {/* Quick Search */}
+      <div className="relative flex-1 sm:max-w-xs ml-auto">
+       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]">search</span>
+       <input 
+        type="text" 
+        placeholder="Pesquisar..." 
+        className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+       />
+      </div>
+     </div>
+    </div>
+
+    <div className="overflow-x-auto">
+     <table className="w-full text-left">
+      <thead className="bg-muted/30 border-b border-border">
+       <tr>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Avaliação</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Comentário</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Autor</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Entidade</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs text-right">Ações</th>
+       </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+       {loading ? (
+        <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">A carregar avaliações...</td></tr>
+       ) : filteredReviews.length === 0 ? (
+        <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">Nenhuma avaliação encontrada.</td></tr>
+       ) : (
+        paginatedData.map((review) => (
+         <tr key={review.id} className="hover:bg-muted/30 transition-colors">
+          <td className="px-6 py-4">
+           <div className="flex gap-1 mb-1">
+            {renderStars(review.rating)}
+           </div>
+           <span className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString('pt-PT')}</span>
+          </td>
+          <td className="px-6 py-4">
+           <p className="text-sm text-foreground font-bold truncate max-w-[200px]" title={review.title}>{review.title || 'Sem Título'}</p>
+           <p className="text-sm text-muted-foreground line-clamp-2 max-w-[250px]" title={review.comment}>{review.comment}</p>
+          </td>
+          <td className="px-6 py-4">
+           <p className="font-semibold text-foreground">{review.platform_users?.full_name || 'Utilizador'}</p>
+           <p className="text-xs text-muted-foreground">{review.platform_users?.email || 'Sem email'}</p>
+          </td>
+          <td className="px-6 py-4">
+           {review.professionals && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold">
+             <span className="material-symbols-outlined text-[12px]">person</span> {review.professionals.full_name}
+            </span>
+           )}
+           {review.sport_spaces && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary/10 text-secondary rounded-full text-[11px] font-bold mt-1">
+             <span className="material-symbols-outlined text-[12px]">stadium</span> {review.sport_spaces.name}
+            </span>
+           )}
+          </td>
+          <td className="px-6 py-4 text-right">
+           <div className="flex justify-end gap-1">
+            <Dialog>
+             <DialogTrigger className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Responder">
+<span className="material-symbols-outlined text-[20px]">reply</span>
+</DialogTrigger>
+             <DialogContent>
+              <DialogHeader>
+               <DialogTitle>Responder à Avaliação</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+               <p className="italic text-muted-foreground border-l-4 border-border pl-4">"{review.comment}"</p>
+               <div className="space-y-2">
+                <Label>Sua Resposta</Label>
+                <textarea className="w-full min-h-[100px] p-3 border border-border rounded-lg focus:ring-1 focus:ring-primary" placeholder="Escreva aqui a resposta oficial..."></textarea>
+               </div>
+               <Button className="w-full bg-primary hover:bg-primary/90 text-white">Publicar Resposta</Button>
+              </div>
+             </DialogContent>
+            </Dialog>
+            <button onClick={() => handleDelete(review.id)} className="p-2 hover:bg-destructive/20 text-muted-foreground hover:text-destructive rounded-lg transition-colors" title="Apagar">
+             <span className="material-symbols-outlined text-[20px]">delete</span>
+            </button>
+           </div>
+          </td>
+         </tr>
+        ))
+       )}
+      </tbody>
+     </table>
+    </div>
+    
+    <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredReviews.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setCurrentPage} />
+      </section>
+  </div>
+ )
 }

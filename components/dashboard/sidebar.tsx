@@ -149,7 +149,12 @@ export function DashboardSidebar({ professional, space }: DashboardSidebarProps)
         </nav>
       </ScrollArea>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t space-y-2">
+        <Link href="/" className="block">
+          <Button variant="outline" className="w-full justify-start gap-3">
+            Ver site
+          </Button>
+        </Link>
         <form action="/auth/logout" method="POST">
           <Button variant="ghost" className="w-full justify-start gap-3" type="submit">
             <LogOut className="h-4 w-4" />

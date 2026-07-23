@@ -5,7 +5,10 @@ import {
   Settings, ArrowRight, ShieldCheck 
 } from 'lucide-react'
 
+import { useRouter } from 'next/navigation'
+
 export function SpaceDashboard({ space }: { space: any }) {
+  const router = useRouter()
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -81,7 +84,10 @@ export function SpaceDashboard({ space }: { space: any }) {
             <h2 className="text-xl font-bold mb-4">Verificação de Conta Comercial</h2>
             <p className="text-muted-foreground mb-6 max-w-md">O seu espaço desportivo está registado. Atualize o calendário de disponibilidades e as fotografias do recinto para aumentar a taxa de conversão nas reservas online.</p>
             <div className="flex gap-3">
-              <button className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-all">
+              <button 
+                onClick={() => router.push('/dashboard/espacos')}
+                className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-all"
+              >
                 Gerir Campos
               </button>
             </div>
@@ -116,7 +122,10 @@ export function SpaceDashboard({ space }: { space: any }) {
               ))}
             </div>
             
-            <button className="w-full mt-6 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm hover:text-foreground transition-all flex items-center justify-center gap-2">
+            <button 
+              onClick={() => router.push('/dashboard/agenda')}
+              className="w-full mt-6 py-2.5 bg-muted text-muted-foreground rounded-xl font-medium text-sm hover:text-foreground transition-all flex items-center justify-center gap-2"
+            >
               Agenda Completa <ArrowRight className="w-4 h-4" />
             </button>
           </div>

@@ -35,7 +35,7 @@ export default function GamificationPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) { router.push('/auth/login'); return }
 
-        const { data: profile } = await supabase.from('user_profiles').select('xp_level, xp_points, xp_next_level, streak_days').eq('user_id', user.id).single()
+        const { data: profile } = await supabase.from('platform_users').select('xp_level, xp_points, xp_next_level, streak_days').eq('user_id', user.id).single()
         if (profile) {
           setLevel(profile.xp_level || 1)
           setXp(profile.xp_points || 0)

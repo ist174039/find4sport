@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { adminCreateUser } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,6 +38,7 @@ export default function ProfessionalRegisterPage() {
     professional_name: '',
     bio: '',
     email: '',
+    password: '',
     phone: '',
     whatsapp: '',
     address: '',
@@ -61,18 +63,19 @@ export default function ProfessionalRegisterPage() {
       try {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { router.push('/auth/login?tipo=profissional'); return }
 
         // Check if already a professional
-        const { data: existing } = await supabase
-          .from('professionals')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
+        if (user) {
+          const { data: existing } = await supabase
+            .from('professionals')
+            .select('id')
+            .eq('user_id', user.id)
+            .single()
 
-        if (existing) {
-          router.push('/profissional/estado')
-          return
+          if (existing) {
+            router.push('/profissional/estado')
+            return
+          }
         }
 
         // Load categories
@@ -83,11 +86,13 @@ export default function ProfessionalRegisterPage() {
         if (cats) setCategories(cats)
 
         // Pre-fill name from auth
-        setFormData(prev => ({
-          ...prev,
-          full_name: user.user_metadata?.full_name || '',
-          email: user.email || '',
-        }))
+        if (user) {
+          setFormData(prev => ({
+            ...prev,
+            full_name: user.user_metadata?.full_name || '',
+            email: user.email || '',
+          }))
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar')
       } finally {
@@ -106,6 +111,7 @@ export default function ProfessionalRegisterPage() {
       case 'dados':
         if (!formData.full_name.trim()) return 'Nome completo é obrigatório'
         if (!formData.email.trim()) return 'Email é obrigatório'
+        if (!formData.password.trim() || formData.password.length < 6) return 'Password é obrigatória (mín. 6 caracteres)'
         if (!formData.phone.trim()) return 'Telefone é obrigatório'
         return null
       case 'categorias':
@@ -168,7 +174,44 @@ export default function ProfessionalRegisterPage() {
     setError(null)
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      let { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        // Create user
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.full_name,
+              type: 'profissional',
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          }
+        })
+
+        if (signUpError) {
+          // If rate limited, bypass via server action (Admin API)
+          if (signUpError.message.toLowerCase().includes('rate limit')) {
+            const adminRes = await adminCreateUser(formData.email, formData.password, formData.full_name, 'profissional')
+            if (adminRes.error) throw new Error(adminRes.error)
+            
+            // Now log the user in to get the session needed for RLS
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: formData.email,
+              password: formData.password,
+            })
+            if (signInError) throw signInError
+            user = signInData.user
+          } else {
+            throw signUpError
+          }
+        } else {
+          if (!signUpData.user) throw new Error('Falha ao criar utilizador')
+          user = signUpData.user
+        }
+      }
+
       if (!user) throw new Error('Não autenticado')
 
       // Create professional profile
@@ -192,7 +235,7 @@ export default function ProfessionalRegisterPage() {
         .select('id')
         .single()
 
-      if (profError) throw profError
+      if (profError) throw new Error(`Erro na base de dados (professionals): ${profError.message}`)
 
       // Add categories
       if (selectedCategories.length > 0 && professional) {
@@ -218,11 +261,10 @@ export default function ProfessionalRegisterPage() {
         if (qualError) console.error('Error adding qualifications:', qualError)
       }
 
-      // Update user role
-      await supabase.from('user_profiles').upsert({
-        user_id: user.id,
-        full_name: formData.full_name,
-        role: 'professional',
+      // Update user type
+      await supabase.from('platform_users').upsert({
+        id: user.id,
+        type: 'profissional',
       })
 
       router.push('/profissional/estado')
@@ -354,6 +396,18 @@ export default function ProfessionalRegisterPage() {
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telemóvel *</Label>
                   <Input

@@ -29,11 +29,11 @@ export default async function DashboardLayout({
     .single()
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="flex">
+    <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
+      <div className="flex w-full">
         <DashboardSidebar professional={professional} space={space} />
-        <main className="flex-1 p-6 lg:p-8 ml-0 lg:ml-64">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
+          <div className="max-w-6xl mx-auto w-full">
             {children}
           </div>
         </main>

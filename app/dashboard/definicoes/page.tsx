@@ -11,7 +11,6 @@ export default function DefinicoesPage() {
 
   const tabs = [
     { id: 'account', label: 'Conta & Segurança', icon: Shield },
-    { id: 'notifications', label: 'Notificações', icon: Bell },
     { id: 'billing', label: 'Faturação', icon: CreditCard },
   ]
 
@@ -116,14 +115,6 @@ export default function DefinicoesPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeTab === 'notifications' && (
-            <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
-               <Bell className="h-10 w-10 text-muted-foreground mb-3 opacity-40 mx-auto" />
-               <h3 className="font-semibold text-foreground">Notificações em breve</h3>
-               <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">Estamos a preparar um sistema para que possas gerir alertas de reservas, mensagens e novos eventos.</p>
             </div>
           )}
 

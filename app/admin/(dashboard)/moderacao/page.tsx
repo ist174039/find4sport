@@ -2,123 +2,95 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { TablePagination } from '@/components/ui/table-pagination'
 
 export default function Page() {
-  const [reviews, setReviews] = useState<any[]>([])
+  const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+  const paginatedData = reports.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(reports.length / ITEMS_PER_PAGE)
+
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('reviews')
-        .select('*')
-        .not('comment', 'is', null)
-        .order('created_at', { ascending: false })
-      if (data) setReviews(data)
-      setLoading(false)
-    }
-    load()
-  }, [])
+    setCurrentPage(1)
+  }, [reports.length])
 
-  const handleKeep = (id: string) => {
-    setReviews(prev => prev.filter(r => r.id !== id))
+ useEffect(() => {
+  async function load() {
+   // For now, load bad reviews as moderation queue
+   const supabase = createClient()
+   const { data } = await supabase
+    .from('reviews')
+    .select('*, platform_users:user_id(full_name)')
+    .lte('rating', 2)
+    .order('created_at', { ascending: false })
+   
+   setReports(data || [])
+   setLoading(false)
   }
+  load()
+ }, [])
 
-  const handleRemove = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('reviews').delete().eq('id', id)
-    if (!error) {
-      setReviews(prev => prev.filter(r => r.id !== id))
-    }
-  }
-
-  return (
-    <div className="space-y-gutter">
-{/*  Header & Filters  */}
-<div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-<div>
-<h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Fila de Moderação</h2>
-<p className="font-body-md text-on-surface-variant">Analise denúncias de usuários e mantenha a integridade da comunidade FIND4SPORT.</p>
-</div>
-<div className="flex bg-surface-container p-1 rounded-xl">
-<button className="px-6 py-2 rounded-lg font-label-md transition-all bg-surface-container-lowest text-primary shadow-sm flex items-center gap-2">
-                        Avaliações
-                        <span className="w-5 h-5 bg-error text-on-error text-[10px] rounded-full flex items-center justify-center font-bold">12</span>
-</button>
-<button className="px-6 py-2 rounded-lg font-label-md transition-all text-on-surface-variant hover:text-on-surface flex items-center gap-2">
-                        Perfis
-                        <span className="w-5 h-5 bg-outline text-on-surface-variant text-[10px] rounded-full flex items-center justify-center font-bold bg-opacity-20">5</span>
-</button>
-</div>
-</div>
-{/*  Moderation Queue  */}
-<div className="grid grid-cols-1 gap-6">
-          {loading ? (
-            <p className="text-center py-10 text-muted-foreground text-sm">A carregar itens para moderação...</p>
-          ) : reviews.length === 0 ? (
-            <p className="text-center py-10 text-muted-foreground text-sm">Nenhum item pendente de moderação.</p>
-          ) : (
-            reviews.map((r) => (
-              <article key={r.id} className="bg-surface-container-lowest border border-border-subtle rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg group">
-                <div className="flex flex-col md:flex-row">
-                  <div className="p-6 flex-grow">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-error-container text-on-error-container text-[10px] font-bold rounded-full uppercase tracking-wider">Avaliação Reportada</span>
-                        <span className="text-on-surface-variant text-[12px]">{r.created_at}</span>
-                      </div>
-                      <div className="flex gap-1 text-trust-gold">
-                        {Array.from({ length: r.rating }).map((_, idx) => (
-                          <span key={idx} className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        ))}
-                        {Array.from({ length: 5 - r.rating }).map((_, idx) => (
-                          <span key={idx} className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 0" }}>star</span>
-                        ))}
-                      </div>
-                    </div>
-                    <h3 className="font-headline-md text-headline-md text-on-surface mb-2">Comentário do Utilizador</h3>
-                    <p className="font-body-md text-on-surface bg-surface p-4 rounded-lg italic mb-4 border-l-4 border-primary">
-                      "{r.comment}"
-                    </p>
-                  </div>
-                  {/*  Actions Sidebar  */}
-                  <div className="w-full md:w-64 bg-surface-container-low p-6 flex flex-col gap-3 justify-center border-l border-border-subtle">
-                    <button 
-                      onClick={() => handleKeep(r.id)}
-                      className="w-full py-2 bg-primary text-white font-label-md rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined">check_circle</span>
-                      Manter
-                    </button>
-                    <button 
-                      onClick={() => handleRemove(r.id)}
-                      className="w-full py-2 border border-error text-error font-label-md rounded-lg hover:bg-error-container/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined">delete</span>
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))
-          )}
-</div>
-{/*  Pagination/Footer Actions  */}
-<div className="mt-12 flex items-center justify-between border-t border-outline-variant pt-8">
-<p className="font-body-md text-on-surface-variant">Mostrando <strong>{reviews.length}</strong> de {reviews.length} itens pendentes</p>
-<div className="flex gap-2">
-<button className="p-2 border border-outline-variant rounded-lg hover:bg-surface-container transition-all">
-<span className="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
-</button>
-<button className="px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md active-tab-glow">1</button>
-<button className="px-4 py-2 border border-outline-variant rounded-lg font-label-md hover:bg-surface-container">2</button>
-<button className="px-4 py-2 border border-outline-variant rounded-lg font-label-md hover:bg-surface-container">3</button>
-<button className="p-2 border border-outline-variant rounded-lg hover:bg-surface-container transition-all">
-<span className="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
-</button>
-</div>
-</div>
+ return (
+  <div className="space-y-6">
+   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div>
+     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Centro de Moderação</h1>
+     <p className="text-muted-foreground mt-1 text-sm">Gestão unificada de denúncias, conteúdos sinalizados e bloqueios.</p>
     </div>
-  )
+   </section>
+
+   <section className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="p-6 border-b border-border flex items-center gap-2">
+     <span className="material-symbols-outlined text-destructive">gavel</span>
+     <h3 className="text-xl font-bold text-foreground">Fila de Moderação (Conteúdo Sensível)</h3>
+    </div>
+    
+    <div className="overflow-x-auto">
+     <table className="w-full text-left">
+      <thead className="bg-muted/30 border-b border-border">
+       <tr>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Tipo</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Conteúdo</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Denunciante</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs text-right">Ação Rápida</th>
+       </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+       {loading ? (
+        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">A carregar fila...</td></tr>
+       ) : reports.length === 0 ? (
+        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">Nenhum item na fila de moderação.</td></tr>
+       ) : (
+        reports.map((report) => (
+         <tr key={report.id} className="hover:bg-destructive/5 transition-colors">
+          <td className="px-6 py-4">
+           <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-muted text-muted-foreground rounded-full text-[11px] font-bold uppercase">
+            Avaliação ({report.rating}★)
+           </span>
+          </td>
+          <td className="px-6 py-4">
+           <p className="text-sm text-foreground max-w-[300px] truncate">"{report.comment || report.title}"</p>
+          </td>
+          <td className="px-6 py-4">
+           <p className="font-semibold text-foreground">{report.platform_users?.full_name || 'Utilizador'}</p>
+           <p className="text-xs text-muted-foreground">{new Date(report.created_at).toLocaleDateString('pt-PT')}</p>
+          </td>
+          <td className="px-6 py-4 text-right">
+           <div className="flex justify-end gap-2">
+            <button className="px-3 py-1.5 border border-border rounded font-medium text-sm text-xs hover:bg-muted">Ignorar</button>
+            <button className="px-3 py-1.5 bg-destructive text-white rounded font-medium text-sm text-xs hover:bg-destructive/90">Remover</button>
+           </div>
+          </td>
+         </tr>
+        ))
+       )}
+      </tbody>
+     </table>
+    </div>
+   </section>
+  </div>
+ )
 }

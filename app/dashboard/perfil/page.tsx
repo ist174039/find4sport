@@ -32,7 +32,10 @@ export default function ProfilePage() {
     address: '',
     website: '',
     service_radius_km: 10,
-    avatar_url: ''
+    avatar_url: '',
+    location: '',
+    language: 'pt',
+    nif: ''
   })
 
   useEffect(() => {
@@ -51,6 +54,12 @@ export default function ProfilePage() {
         .eq('user_id', user.id)
         .single()
 
+      const { data: platformUser } = await supabase
+        .from('platform_users')
+        .select('location, language')
+        .eq('id', user.id)
+        .single()
+
       if (proData) {
         setIsProfessional(true)
         setProfessional(proData)
@@ -64,7 +73,10 @@ export default function ProfilePage() {
           address: proData.address || '',
           website: proData.website || '',
           service_radius_km: proData.service_radius_km || 10,
-          avatar_url: proData.avatar_url || user.user_metadata?.avatar_url || ''
+          avatar_url: proData.avatar_url || user.user_metadata?.avatar_url || '',
+          location: platformUser?.location || '',
+          language: platformUser?.language || 'pt',
+          nif: proData.nif || user.user_metadata?.nif || ''
         })
         setSelectedCategories(
           proData.professional_categories?.map((pc: { category_id: string }) => pc.category_id) || []
@@ -78,7 +90,11 @@ export default function ProfilePage() {
           ...prev,
           full_name: user.user_metadata?.full_name || '',
           email: user.email || '',
-          avatar_url: user.user_metadata?.avatar_url || ''
+          avatar_url: user.user_metadata?.avatar_url || '',
+          location: platformUser?.location || '',
+          language: platformUser?.language || 'pt',
+          phone: user.user_metadata?.phone || '',
+          nif: user.user_metadata?.nif || ''
         }))
       }
 
@@ -140,9 +156,20 @@ export default function ProfilePage() {
       await supabase.auth.updateUser({
         data: { 
           full_name: formData.full_name,
-          avatar_url: formData.avatar_url 
+          avatar_url: formData.avatar_url,
+          phone: formData.phone,
+          nif: formData.nif
         }
       })
+
+      await supabase
+        .from('platform_users')
+        .update({
+          full_name: formData.full_name,
+          location: formData.location,
+          language: formData.language
+        })
+        .eq('id', user.id)
 
       router.refresh()
     } catch (error) {
@@ -228,6 +255,50 @@ export default function ProfilePage() {
                 className="rounded-lg h-10 bg-muted border-border opacity-70 cursor-not-allowed"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-xs font-semibold text-foreground/80">Telefone</Label>
+              <Input
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                className="rounded-lg h-10 bg-background border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nif" className="text-xs font-semibold text-foreground/80">NIF</Label>
+              <Input
+                id="nif"
+                name="nif"
+                value={formData.nif}
+                onChange={handleInputChange}
+                className="rounded-lg h-10 bg-background border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location" className="text-xs font-semibold text-foreground/80">Morada / Localidade</Label>
+              <Input
+                id="location"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="Ex: Lisboa, Portugal"
+                className="rounded-lg h-10 bg-background border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="language" className="text-xs font-semibold text-foreground/80">Idioma de Preferência</Label>
+              <Select value={formData.language} onValueChange={(val) => setFormData(p => ({...p, language: val || 'pt'}))}>
+                <SelectTrigger className="w-full rounded-lg h-10 bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pt">Português (PT)</SelectItem>
+                  <SelectItem value="en">English (EN)</SelectItem>
+                  <SelectItem value="es">Español (ES)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -292,11 +363,7 @@ export default function ProfilePage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-xs font-semibold">Telefone</Label>
-                  <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp" className="text-xs font-semibold">WhatsApp</Label>
+                  <Label htmlFor="whatsapp" className="text-xs font-semibold">WhatsApp Profissional</Label>
                   <Input id="whatsapp" name="whatsapp" value={formData.whatsapp} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
                 </div>
                 <div className="space-y-2 md:col-span-2">

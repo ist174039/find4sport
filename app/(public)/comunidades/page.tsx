@@ -1,16 +1,29 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { ComunidadesFilterModal } from '@/components/comunidades-filter-modal'
 
-export default async function CommunitiesPage() {
+export default async function CommunitiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const supabase = await createClient()
+  const params = await searchParams
+  const categoryParam = typeof params.category === 'string' ? params.category : null
 
-  const { data: communities, error } = await supabase
+  let query = supabase
     .from('communities')
     .select(`
       *,
       community_members (count)
     `)
     .order('created_at', { ascending: false })
+
+  if (categoryParam) {
+    query = query.ilike('sport_category', `%${categoryParam}%`)
+  }
+
+  const { data: communities, error } = await query
 
   const safeCommunities = communities || []
 
@@ -30,10 +43,7 @@ export default async function CommunitiesPage() {
             </div>
             
             <div className="flex items-center gap-3">
-              <Link href="/pesquisa?type=comunidades" className="bg-secondary text-secondary-foreground px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:bg-secondary/80 transition-colors border border-border shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">filter_list</span>
-                Filtros
-              </Link>
+              <ComunidadesFilterModal />
               <Link href="/comunidades/criar" className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 Criar

@@ -1,124 +1,159 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Input } from '@/components/ui/input'
-import { Search, Shield } from 'lucide-react'
+import { TablePagination } from '@/components/ui/table-pagination'
 
-type AuditLog = {
-  id: string
-  action: string
-  table_name: string
-  record_id: string | null
-  user_id: string | null
-  user_email: string | null
-  old_data: any
-  new_data: any
-  created_at: string
-}
-
-export default function AdminAuditPage() {
-  const router = useRouter()
-  const [logs, setLogs] = useState<AuditLog[]>([])
-  const [filtered, setFiltered] = useState<AuditLog[]>([])
+export default function Page() {
+  const [logs, setLogs] = useState<any[]>([])
+  const [filteredLogs, setFilteredLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'INSERT' | 'UPDATE' | 'DELETE'>('all')
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+  const paginatedData = filteredLogs.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/login'); return }
-      const { data: profile } = await supabase.from('user_profiles').select('role').eq('id', user.id).single()
-      if (profile?.role !== 'admin') { router.push('/'); return }
+    setCurrentPage(1)
+  }, [filteredLogs.length])
 
-      const { data } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100)
+ useEffect(() => {
+  async function load() {
+   const supabase = createClient()
+   const { data } = await supabase
+    .from('audit_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
 
-      setLogs(data || [])
-      setFiltered(data || [])
-      setLoading(false)
-    }
-    load()
-  }, [router])
-
-  useEffect(() => {
-    if (!search.trim()) { setFiltered(logs); return }
-    const term = search.toLowerCase()
-    setFiltered(logs.filter(l =>
-      l.action.toLowerCase().includes(term) ||
-      l.table_name.toLowerCase().includes(term) ||
-      l.user_email?.toLowerCase().includes(term)
-    ))
-  }, [search, logs])
-
-  const actionColors: Record<string, string> = {
-    INSERT: 'bg-green-100 text-green-700',
-    UPDATE: 'bg-blue-100 text-blue-700',
-    DELETE: 'bg-red-100 text-red-700',
+   const loadedLogs = data || []
+   setLogs(loadedLogs)
+   setFilteredLogs(loadedLogs)
+   setLoading(false)
   }
+  load()
+ }, [])
 
-  if (loading) return <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+ useEffect(() => {
+  let result = logs
+  if (activeFilter !== 'all') {
+   result = result.filter(l => l.action === activeFilter)
+  }
+  if (search) {
+   const lower = search.toLowerCase()
+   result = result.filter(l => 
+    (l.user_email && l.user_email.toLowerCase().includes(lower)) || 
+    (l.table_name && l.table_name.toLowerCase().includes(lower)) ||
+    (l.new_data && JSON.stringify(l.new_data).toLowerCase().includes(lower))
+   )
+  }
+  setFilteredLogs(result)
+ }, [search, activeFilter, logs])
 
-  return (
+ return (
+  <div className="space-y-6">
+   {/* Page Header */}
+   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Audit Log</h1>
-          <p className="text-sm text-muted-foreground">Registo de alterações na plataforma.</p>
-        </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Pesquisar..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Nenhum registo de auditoria encontrado.
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {filtered.map((log) => (
-                <div key={log.id} className="px-6 py-3">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    <Badge variant="outline" className={actionColors[log.action] || ''}>
-                      {log.action}
-                    </Badge>
-                    <span className="text-sm font-medium text-foreground">{log.table_name}</span>
-                    {log.user_email && <span className="text-xs text-muted-foreground">por {log.user_email}</span>}
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString('pt-PT')}
-                    </span>
-                  </div>
-                  {log.action === 'UPDATE' && (
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                        Ver alterações
-                      </summary>
-                      <pre className="mt-1 max-h-32 overflow-auto rounded bg-muted p-2 text-xs">
-                        {JSON.stringify({ old: log.old_data, new: log.new_data }, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Audit Logs (Auditoria)</h1>
+     <p className="text-muted-foreground mt-1 text-sm">Registo imutável de todas as ações administrativas na plataforma.</p>
     </div>
-  )
+    <div className="flex gap-3">
+     <button className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all">
+      <span className="material-symbols-outlined text-[20px]">download</span>
+      Exportar Logs
+     </button>
+    </div>
+   </section>
+
+   {/* Main List Section */}
+   <section className="bg-card rounded-xl border border-border overflow-hidden">
+    <div className="p-6 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+     <div className="flex flex-col sm:flex-row gap-3 w-full">
+      {/* Tab Filters */}
+      <div className="flex bg-muted/30 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
+       <button onClick={() => setActiveFilter('all')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Todos</button>
+       <button onClick={() => setActiveFilter('INSERT')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'INSERT' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Criações</button>
+       <button onClick={() => setActiveFilter('UPDATE')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'UPDATE' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Edições</button>
+       <button onClick={() => setActiveFilter('DELETE')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'DELETE' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Remoções</button>
+      </div>
+      
+      {/* Quick Search */}
+      <div className="relative flex-1 sm:max-w-xs ml-auto">
+       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]">search</span>
+       <input 
+        type="text" 
+        placeholder="Pesquisar por email, tabela..." 
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+       />
+      </div>
+     </div>
+    </div>
+
+    <div className="overflow-x-auto">
+     <table className="w-full text-left">
+      <thead className="bg-muted/30 border-b border-border">
+       <tr>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Ação</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Entidade (Tabela)</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Autor (Admin)</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Detalhes</th>
+       </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+       {loading ? (
+        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">A carregar logs de auditoria...</td></tr>
+       ) : filteredLogs.length === 0 ? (
+        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">Nenhum log encontrado para os filtros selecionados.</td></tr>
+       ) : (
+        paginatedData.map((log) => (
+         <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+          <td className="px-6 py-4">
+           {log.action === 'INSERT' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full text-[11px] font-bold uppercase tracking-wider">
+             <span className="material-symbols-outlined text-[12px]">add_circle</span> Insert
+            </span>
+           )}
+           {log.action === 'UPDATE' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold uppercase tracking-wider">
+             <span className="material-symbols-outlined text-[12px]">edit</span> Update
+            </span>
+           )}
+           {log.action === 'DELETE' && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-destructive/10 text-destructive rounded-full text-[11px] font-bold uppercase tracking-wider">
+             <span className="material-symbols-outlined text-[12px]">delete</span> Delete
+            </span>
+           )}
+          </td>
+          <td className="px-6 py-4">
+           <span className="font-mono text-sm bg-muted px-2 py-1 rounded text-muted-foreground">{log.table_name}</span>
+           <p className="text-xs text-muted-foreground mt-1">{new Date(log.created_at).toLocaleString('pt-PT')}</p>
+          </td>
+          <td className="px-6 py-4">
+           <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-muted-foreground text-[18px]">admin_panel_settings</span>
+            <span className="text-sm font-bold text-foreground">{log.user_email || log.user_id || 'Sistema'}</span>
+           </div>
+          </td>
+          <td className="px-6 py-4">
+           <div className="max-w-md">
+            <p className="text-sm text-muted-foreground truncate">
+             {log.new_data?.action || JSON.stringify(log.new_data)}
+            </p>
+           </div>
+          </td>
+         </tr>
+        ))
+       )}
+      </tbody>
+     </table>
+    </div>
+   </section>
+  </div>
+ )
 }

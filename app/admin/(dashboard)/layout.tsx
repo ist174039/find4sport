@@ -3,39 +3,39 @@ import { createClient } from '@/lib/supabase/server'
 import { AdminSidebar } from '@/components/admin/sidebar'
 
 export default async function AdminLayout({
-  children,
+ children,
 }: {
-  children: React.ReactNode
+ children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+ const supabase = await createClient()
+ const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/admin/login')
-  }
+ if (!user) {
+  redirect('/admin/login')
+ }
 
-  // Check if user is an admin
-  const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single()
+ // Check if user is an admin
+ const { data: adminUser } = await supabase
+  .from('admin_users')
+  .select('*')
+  .eq('user_id', user.id)
+  .eq('is_active', true)
+  .single()
 
-  if (!adminUser) {
-    redirect('/admin/login?error=unauthorized')
-  }
+ if (!adminUser) {
+  redirect('/admin/login?error=unauthorized')
+ }
 
-  return (
-    <div className="min-h-screen bg-muted/30">
-      <div className="flex">
-        <AdminSidebar adminUser={adminUser} />
-        <main className="flex-1 p-6 lg:p-8 ml-0 lg:ml-64">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
-  )
+ return (
+  <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
+   <div className="flex w-full">
+    <AdminSidebar adminUser={adminUser} />
+    <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
+     <div className="max-w-6xl mx-auto w-full">
+      {children}
+     </div>
+    </main>
+   </div>
+  </div>
+ )
 }

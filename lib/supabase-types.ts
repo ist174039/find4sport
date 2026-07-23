@@ -141,7 +141,7 @@ export type Database = {
             foreignKeyName: "communities_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
@@ -180,7 +180,7 @@ export type Database = {
             foreignKeyName: "community_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
@@ -347,7 +347,7 @@ export type Database = {
             foreignKeyName: "events_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
           {
@@ -417,7 +417,7 @@ export type Database = {
             foreignKeyName: "favorites_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
@@ -678,7 +678,7 @@ export type Database = {
             foreignKeyName: "professionals_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
@@ -795,7 +795,7 @@ export type Database = {
             foreignKeyName: "reviews_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
@@ -985,19 +985,43 @@ export type Database = {
             foreignKeyName: "sport_spaces_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "sport_spaces_owner_user_id_fkey"
             columns: ["owner_user_id"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "platform_users"
             referencedColumns: ["id"]
           },
         ]
       }
-      user_profiles: {
+      admins: {
+        Row: {
+          id: string
+          auth_user_id: string
+          email: string
+          admin_type: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          auth_user_id?: string
+          email: string
+          admin_type: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          auth_user_id?: string
+          email?: string
+          admin_type?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      platform_users: {
         Row: {
           avatar_url: string | null
           created_at: string
@@ -1006,7 +1030,7 @@ export type Database = {
           language: string | null
           location: string | null
           preferences: Json | null
-          role: Database["public"]["Enums"]["user_role"] | null
+          type: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
         }
         Insert: {
@@ -1017,7 +1041,7 @@ export type Database = {
           language?: string | null
           location?: string | null
           preferences?: Json | null
-          role?: Database["public"]["Enums"]["user_role"] | null
+          type?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
         Update: {
@@ -1028,7 +1052,7 @@ export type Database = {
           language?: string | null
           location?: string | null
           preferences?: Json | null
-          role?: Database["public"]["Enums"]["user_role"] | null
+          type?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
         Relationships: []

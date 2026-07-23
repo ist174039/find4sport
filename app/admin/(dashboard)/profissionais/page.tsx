@@ -2,208 +2,362 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
+import { TablePagination } from '@/components/ui/table-pagination'
 
 export default function Page() {
   const [professionals, setProfessionals] = useState<any[]>([])
+  const [filteredProfessionals, setFilteredProfessionals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'pending'>('all')
+  const [stats, setStats] = useState({ total: 0, pending: 0, avgRating: 0, reports: 0 })
+  const [logs, setLogs] = useState<any[]>([])
+  
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [inviting, setInviting] = useState(false)
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '' })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+  const paginatedData = filteredProfessionals.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredProfessionals.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('professionals')
-        .select('*')
-        .order('full_name', { ascending: true })
-      if (data) setProfessionals(data)
-      setLoading(false)
+    setCurrentPage(1)
+  }, [filteredProfessionals.length])
+
+ useEffect(() => {
+  async function load() {
+   const supabase = createClient()
+   
+   const [
+    { data: profs },
+    { data: reviewData },
+    { data: auditLogs }
+   ] = await Promise.all([
+    supabase.from('professionals').select('*').order('full_name', { ascending: true }),
+    supabase.from('reviews').select('rating, professional_id').not('professional_id', 'is', null),
+    supabase.from('audit_logs').select('*').eq('table_name', 'professionals').order('created_at', { ascending: false }).limit(5)
+   ])
+
+   const loadedProfs = profs || []
+   setProfessionals(loadedProfs)
+   setFilteredProfessionals(loadedProfs)
+   
+   if (auditLogs) setLogs(auditLogs)
+
+   // Calculate Stats
+   const total = loadedProfs.length
+   const pending = loadedProfs.filter(p => !p.is_verified).length
+   
+   let sumRating = 0
+   let countRating = 0
+   loadedProfs.forEach(p => {
+    if (p.rating_avg) {
+     sumRating += Number(p.rating_avg)
+     countRating++
     }
-    load()
-  }, [])
+   })
+   const avgRating = countRating > 0 ? (sumRating / countRating).toFixed(1) : '0.0'
+   
+   const reports = (reviewData || []).filter(r => r.rating <= 2).length
 
-  return (
-    <div className="space-y-gutter">
-{/*  Page Header Area  */}
-<div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-<div>
-<h1 className="font-headline-lg text-headline-lg text-on-surface mb-2">Gestão de Profissionais</h1>
-<p className="font-body-lg text-body-lg text-on-surface-variant">Aprovação, moderação e monitoramento da base de dados.</p>
-</div>
-<div className="flex gap-3">
-<button className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-outline-variant rounded-lg text-on-surface font-label-md text-label-md hover:bg-surface-container transition-all">
-<span className="material-symbols-outlined" data-icon="filter_list">filter_list</span>
-                        Filtros Avançados
-                    </button>
-<button className="flex items-center gap-2 px-6 py-2.5 bg-brand-emerald text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 shadow-sm transition-all">
+   setStats({ total, pending, avgRating: Number(avgRating), reports })
+   setLoading(false)
+  }
+  load()
+ }, [])
+
+ useEffect(() => {
+  if (activeFilter === 'all') {
+   setFilteredProfessionals(professionals)
+  } else if (activeFilter === 'active') {
+   setFilteredProfessionals(professionals.filter(p => p.is_verified))
+  } else if (activeFilter === 'pending') {
+   setFilteredProfessionals(professionals.filter(p => !p.is_verified))
+  }
+ }, [activeFilter, professionals])
+
+ const handleInvite = async () => {
+  if (!inviteForm.name || !inviteForm.email) return
+  setInviting(true)
+  const supabase = createClient()
+  
+  // Create a dummy record just for the UI simulation
+  const newProf = {
+   full_name: inviteForm.name,
+   email: inviteForm.email,
+   is_verified: false,
+   public_slug: 'convidado-' + Date.now()
+  }
+  
+  const { data, error } = await supabase.from('professionals').insert([newProf]).select()
+  
+  if (!error && data) {
+   setProfessionals(prev => [...prev, data[0]])
+   // Also log it
+   await supabase.from('audit_logs').insert([{
+    action: 'INSERT',
+    table_name: 'professionals',
+    user_email: 'admin@find4sport.pt',
+    new_data: { action: `Profissional ${inviteForm.name} convidado` }
+   }])
+  }
+  
+  setInviting(false)
+  setIsInviteOpen(false)
+  setInviteForm({ name: '', email: '' })
+ }
+
+ const exportPDF = () => {
+  window.print()
+ }
+
+ return (
+  <div className="space-y-6 print:m-0 print:p-0">
+   {/* Page Header Area */}
+   <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 print:hidden">
+    <div>
+     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl mb-2">Gestão de Profissionais</h1>
+     <p className="text-lg text-muted-foreground">Aprovação, moderação e monitoramento da base de dados.</p>
+    </div>
+    <div className="flex gap-3">
+     <button className="flex items-center gap-2 px-4 py-2.5 bg-background border border-border rounded-lg text-foreground font-medium text-sm hover:bg-muted transition-all">
+      <span className="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+      Filtros Avançados
+     </button>
+     
+     <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+      <DialogTrigger className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm hover:opacity-90 shadow-sm transition-all">
 <span className="material-symbols-outlined" data-icon="person_add">person_add</span>
-                        Convidar Profissional
-                    </button>
-</div>
-</div>
-{/*  Stats Overview  */}
-<div className="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-section-gap">
-<div className="bg-surface-container-lowest p-6 rounded-lg border border-border-subtle hover:shadow-md transition-all">
-<div className="flex justify-between items-start mb-4">
-<span className="p-2 bg-primary-fixed text-on-primary-fixed-variant rounded-lg material-symbols-outlined" data-icon="group">group</span>
-<span className="text-brand-emerald font-label-md text-label-md flex items-center gap-1">+12% <span className="material-symbols-outlined text-[14px]" data-icon="trending_up">trending_up</span></span>
-</div>
-<p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total de Profissionais</p>
-<p className="font-display-lg text-display-lg text-on-surface mt-1">1.284</p>
-</div>
-<div className="bg-surface-container-lowest p-6 rounded-lg border border-border-subtle hover:shadow-md transition-all">
-<div className="flex justify-between items-start mb-4">
-<span className="p-2 bg-secondary-fixed text-on-secondary-fixed-variant rounded-lg material-symbols-outlined" data-icon="pending_actions">pending_actions</span>
-<span className="bg-error-container text-on-error-container font-label-md text-label-md px-2 py-0.5 rounded-full">Urgente</span>
-</div>
-<p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Aguardando Aprovação</p>
-<p className="font-display-lg text-display-lg text-on-surface mt-1">42</p>
-</div>
-<div className="bg-surface-container-lowest p-6 rounded-lg border border-border-subtle hover:shadow-md transition-all">
-<div className="flex justify-between items-start mb-4">
-<span className="p-2 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-lg material-symbols-outlined" data-icon="star">star</span>
-<span className="text-trust-gold font-label-md text-label-md">Top 5%</span>
-</div>
-<p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Média de Avaliação</p>
-<p className="font-display-lg text-display-lg text-on-surface mt-1">4.8</p>
-</div>
-<div className="bg-surface-container-lowest p-6 rounded-lg border border-border-subtle hover:shadow-md transition-all">
-<div className="flex justify-between items-start mb-4">
-<span className="p-2 bg-surface-container-highest text-on-surface rounded-lg material-symbols-outlined" data-icon="report">report</span>
-</div>
-<p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Denúncias Ativas</p>
-<p className="font-display-lg text-display-lg text-on-surface mt-1">07</p>
-</div>
-</div>
-{/*  Professional Management Table Container  */}
-<div className="bg-surface-container-lowest rounded-lg border border-border-subtle shadow-sm overflow-hidden">
-<div className="p-6 border-b border-border-subtle flex flex-col md:flex-row justify-between items-center gap-4">
-<h3 className="font-headline-md text-headline-md text-on-surface">Base de Profissionais</h3>
-<div className="flex gap-2">
-<div className="bg-surface-container-low p-1 rounded-lg flex">
-<button className="px-4 py-1.5 bg-white text-brand-emerald font-label-md text-label-md rounded shadow-sm">Todos</button>
-<button className="px-4 py-1.5 text-on-surface-variant font-label-md text-label-md hover:text-on-surface">Ativos</button>
-<button className="px-4 py-1.5 text-on-surface-variant font-label-md text-label-md hover:text-on-surface">Pendentes</button>
-</div>
-</div>
-</div>
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse">
-<thead>
-<tr className="bg-surface-container-low/50">
-<th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Profissional</th>
-<th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Categoria</th>
-<th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Localização</th>
-<th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Status</th>
-<th className="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase text-right">Ações</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-border-subtle">
-          {loading ? (
-            <tr>
-              <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">A carregar profissionais...</td>
-            </tr>
-          ) : professionals.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">Nenhum profissional encontrado.</td>
-            </tr>
-          ) : (
-            professionals.map((prof) => (
-              <tr key={prof.id} className="hover:bg-surface-container-lowest/50 transition-colors group">
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <img 
-                        alt={prof.full_name} 
-                        className="w-12 h-12 rounded-full object-cover border border-outline-variant" 
-                        src={prof.avatar_url || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150"} 
-                      />
-                    </div>
-                    <div>
-                      <p className="font-body-lg text-body-lg font-semibold text-on-surface">{prof.full_name}</p>
-                      <p className="font-body-md text-body-md text-on-surface-variant">{prof.email || 'Sem email'}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-5">
-                  <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full font-label-md text-label-md">
-                    {prof.title || 'Profissional'}
-                  </span>
-                </td>
-                <td className="px-6 py-5">
-                  <p className="font-body-md text-body-md text-on-surface-variant">{prof.location || 'N/A'}</p>
-                </td>
-                <td className="px-6 py-5">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-md text-label-md ${
-                    prof.is_verified ? 'bg-success-mint text-brand-emerald' : 'bg-secondary-fixed text-on-secondary-fixed-variant'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${prof.is_verified ? 'bg-brand-emerald' : 'bg-secondary'}`}></span>
-                    {prof.is_verified ? 'Verificado' : 'Pendente'}
-                  </span>
-                </td>
-                <td className="px-6 py-5 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button className="p-2 text-on-surface-variant hover:text-brand-emerald hover:bg-primary-container/20 rounded-lg transition-all" title="Ver Detalhes">
-                      <span className="material-symbols-outlined">visibility</span>
-                    </button>
-                    <button className="p-2 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition-all" title="Bloquear">
-                      <span className="material-symbols-outlined">block</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+        Convidar Profissional
+</DialogTrigger>
+      <DialogContent>
+       <DialogHeader>
+        <DialogTitle>Convidar Novo Profissional</DialogTitle>
+       </DialogHeader>
+       <div className="space-y-4 pt-4">
+        <div className="space-y-2">
+         <Label>Nome Completo</Label>
+         <Input value={inviteForm.name} onChange={e => setInviteForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Ex: Carlos Silva" />
+        </div>
+        <div className="space-y-2">
+         <Label>Email</Label>
+         <Input type="email" value={inviteForm.email} onChange={e => setInviteForm(prev => ({ ...prev, email: e.target.value }))} placeholder="carlos@exemplo.com" />
+        </div>
+        <Button className="w-full bg-primary hover:bg-primary/90 text-white" onClick={handleInvite} disabled={inviting}>
+         {inviting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+         Enviar Convite
+        </Button>
+       </div>
+      </DialogContent>
+     </Dialog>
     </div>
-    {/*  Pagination Footer  */}
-    <div className="p-6 border-t border-border-subtle flex flex-col md:flex-row justify-between items-center gap-4 bg-surface-container-low/30">
-      <p className="font-body-md text-body-md text-on-surface-variant">Mostrando <strong>{professionals.length}</strong> profissionais</p>
-      <div className="flex gap-2">
-        <button className="p-2 border border-border-subtle rounded-lg text-on-surface-variant hover:bg-white transition-all disabled:opacity-50" disabled>
-          <span className="material-symbols-outlined">chevron_left</span>
-        </button>
-        <button className="p-2 border border-border-subtle rounded-lg text-on-surface-variant hover:bg-white transition-all">
-          <span className="material-symbols-outlined">chevron_right</span>
-        </button>
+   </div>
+
+   {/* Stats Overview */}
+   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-section-gap print:hidden">
+    <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
+     <div className="flex justify-between items-start mb-4">
+      <span className="p-2 bg-primary/20 text-primary rounded-lg material-symbols-outlined" data-icon="group">group</span>
+     </div>
+     <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Total de Profissionais</p>
+     <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.total}</p>
+    </div>
+    <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
+     <div className="flex justify-between items-start mb-4">
+      <span className="p-2 bg-secondary/50 text-secondary-foreground-variant rounded-lg material-symbols-outlined" data-icon="pending_actions">pending_actions</span>
+      {stats.pending > 0 && <span className="bg-destructive/20 text-destructive font-semibold font-medium text-sm px-2 py-0.5 rounded-full">Urgente</span>}
+     </div>
+     <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Aguardando Aprovação</p>
+     <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.pending}</p>
+    </div>
+    <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
+     <div className="flex justify-between items-start mb-4">
+      <span className="p-2 bg-secondary text-secondary-foreground-variant rounded-lg material-symbols-outlined" data-icon="star">star</span>
+      <span className="text-trust-gold font-medium text-sm">Global</span>
+     </div>
+     <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Média de Avaliação</p>
+     <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.avgRating}</p>
+    </div>
+    <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
+     <div className="flex justify-between items-start mb-4">
+      <span className="p-2 bg-mutedest text-foreground rounded-lg material-symbols-outlined" data-icon="report">report</span>
+     </div>
+     <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Denúncias Ativas</p>
+     <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.reports}</p>
+    </div>
+   </div>
+
+   {/* Professional Management Table Container */}
+   <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden print:border-none print:shadow-none">
+    <div className="p-6 border-b border-border flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
+     <h3 className="text-xl font-bold text-foreground">Base de Profissionais</h3>
+     <div className="flex gap-2">
+      <div className="bg-muted/30 p-1 rounded-lg flex">
+       <button 
+        onClick={() => setActiveFilter('all')}
+        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'all' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
+       >Todos</button>
+       <button 
+        onClick={() => setActiveFilter('active')}
+        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'active' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
+       >Ativos</button>
+       <button 
+        onClick={() => setActiveFilter('pending')}
+        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'pending' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
+       >Pendentes</button>
       </div>
+     </div>
     </div>
-</div>
-{/*  Activity Logs & Report Card  */}
-<div className="mt-section-gap grid grid-cols-1 lg:grid-cols-3 gap-gutter">
-<div className="lg:col-span-2 bg-surface-container-lowest p-8 rounded-lg border border-border-subtle shadow-sm">
-<h3 className="font-headline-md text-headline-md text-on-surface mb-6">Logs de Atividade</h3>
-<div className="space-y-6">
-<div className="flex gap-4">
-<div className="mt-1 w-8 h-8 rounded-full bg-success-mint flex items-center justify-center text-brand-emerald">
-<span className="material-symbols-outlined text-[18px]" data-icon="check_circle">check_circle</span>
-</div>
-<div>
-<p className="font-body-md text-body-md text-on-surface"><span className="font-bold">Administrador Pedro</span> aprovou o cadastro de <span className="font-bold">Ricardo Silva</span>.</p>
-<p className="font-label-md text-label-md text-on-surface-variant mt-1">Hoje, às 14:23</p>
-</div>
-</div>
-<div className="flex gap-4">
-<div className="mt-1 w-8 h-8 rounded-full bg-error-container/20 flex items-center justify-center text-error">
-<span className="material-symbols-outlined text-[18px]" data-icon="cancel">cancel</span>
-</div>
-<div>
-<p className="font-body-md text-body-md text-on-surface"><span className="font-bold">Administrador Pedro</span> recusou o cadastro de <span className="font-bold">Matheus Oliveira</span> por documentação incompleta.</p>
-<p className="font-label-md text-label-md text-on-surface-variant mt-1">Hoje, às 11:45</p>
-</div>
-</div>
-</div>
-</div>
-<div className="bg-brand-emerald p-8 rounded-lg text-on-primary-container relative overflow-hidden">
-<div className="relative z-10">
-<h4 className="font-headline-md text-headline-md font-bold mb-4">Relatório Semanal</h4>
-<p className="font-body-md text-body-md mb-6 text-white/90">O crescimento da rede superou a meta em 8.2% esta semana. Revise os novos profissionais pendentes para manter o tempo de resposta baixo.</p>
-<button className="w-full py-3 bg-white text-brand-emerald font-bold rounded-lg hover:bg-surface-container transition-all">Exportar PDF</button>
-</div>
-<span className="material-symbols-outlined absolute -right-4 -bottom-4 text-[160px] opacity-10 pointer-events-none" data-icon="monitoring">monitoring</span>
-</div>
-</div>
-
-
+    
+    <div className="hidden print:block mb-4">
+     <h2 className="text-2xl font-bold">Relatório de Profissionais - FIND4SPORT</h2>
+     <p className="text-gray-500">{new Date().toLocaleDateString('pt-PT')}</p>
     </div>
-  )
+
+    <div className="overflow-x-auto">
+     <table className="w-full text-left border-collapse">
+      <thead>
+       <tr className="bg-muted/50">
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase">Profissional</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase hidden md:table-cell">Especialidade</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase hidden lg:table-cell">Localização</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase">Status</th>
+        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-right print:hidden">Ações</th>
+       </tr>
+      </thead>
+      <tbody className="divide-y divide-border-subtle">
+       {loading ? (
+        <tr>
+         <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">A carregar profissionais...</td>
+        </tr>
+       ) : filteredProfessionals.length === 0 ? (
+        <tr>
+         <td colSpan={5} className="text-center py-10 text-muted-foreground text-sm">Nenhum profissional encontrado.</td>
+        </tr>
+       ) : (
+        paginatedData.map((prof) => (
+         <tr key={prof.id} className="hover:bg-card/50 transition-colors group">
+          <td className="px-6 py-5">
+           <div className="flex items-center gap-4">
+            <div className="relative">
+             <img 
+              alt={prof.full_name} 
+              className="w-12 h-12 rounded-full object-cover border border-border" 
+              src={prof.avatar_url || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150"} 
+             />
+            </div>
+            <div>
+             <p className="text-lg font-semibold text-foreground max-w-[200px] truncate">{prof.full_name}</p>
+             <p className="text-sm text-sm text-muted-foreground max-w-[200px] truncate">{prof.email || 'Sem email'}</p>
+            </div>
+           </div>
+          </td>
+          <td className="px-6 py-5 hidden md:table-cell">
+           <span className="inline-flex px-3 py-1 bg-secondary/50 text-secondary-foreground text-sm font-medium rounded-full">
+            {prof.professional_name || 'Profissional'}
+           </span>
+          </td>
+          <td className="px-6 py-5 hidden lg:table-cell">
+           <p className="text-foreground text-sm flex items-center gap-1.5 truncate max-w-[150px]">
+            <span className="material-symbols-outlined text-[16px] text-muted-foreground">location_on</span>
+            {prof.address || 'Não definida'}
+           </p>
+          </td>
+          <td className="px-6 py-5">
+           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-sm ${
+            prof.is_verified ? 'bg-success-mint text-green-600 dark:text-green-400' : 'bg-secondary/50 text-secondary-foreground-variant'
+           }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${prof.is_verified ? 'bg-primary' : 'bg-secondary'}`}></span>
+            {prof.is_verified ? 'Verificado' : 'Pendente'}
+           </span>
+          </td>
+          <td className="px-6 py-5 text-right print:hidden">
+           <div className="flex justify-end gap-2">
+            <button className="p-2 text-muted-foreground hover:text-green-600 dark:text-green-400 hover:bg-primary/20/20 rounded-lg transition-all" title="Ver Detalhes">
+             <span className="material-symbols-outlined">visibility</span>
+            </button>
+            <button className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Bloquear">
+             <span className="material-symbols-outlined">block</span>
+            </button>
+           </div>
+          </td>
+         </tr>
+        ))
+       )}
+      </tbody>
+     </table>
+    </div>
+    
+    {/* Pagination Footer */}
+    <div className="p-6 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 bg-muted/30 print:hidden">
+     <p className="text-sm text-sm text-muted-foreground">Mostrando <strong>{filteredProfessionals.length}</strong> profissionais</p>
+     <div className="flex gap-2">
+      <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
+       <span className="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
+       <span className="material-symbols-outlined">chevron_right</span>
+      </button>
+     </div>
+    </div>
+   </div>
+
+   {/* Activity Logs & Report Card */}
+   <div className="mt-section-gap grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+    <div className="lg:col-span-2 bg-card p-8 rounded-lg border border-border shadow-sm">
+     <h3 className="text-xl font-bold text-foreground mb-6">Logs de Atividade Recente</h3>
+     <div className="space-y-6">
+      {logs.length === 0 ? (
+       <p className="text-muted-foreground text-sm">Nenhum log encontrado para profissionais.</p>
+      ) : (
+       logs.map((log) => (
+        <div key={log.id} className="flex gap-4">
+         <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center ${
+          log.action === 'INSERT' ? 'bg-success-mint text-green-600 dark:text-green-400' : 
+          log.action === 'DELETE' ? 'bg-destructive/10 text-destructive' : 
+          'bg-secondary text-secondary-foreground'
+         }`}>
+          <span className="material-symbols-outlined text-[18px]">
+           {log.action === 'INSERT' ? 'person_add' : log.action === 'DELETE' ? 'person_remove' : 'edit'}
+          </span>
+         </div>
+         <div>
+          <p className="text-sm text-sm text-foreground">
+           <span className="font-bold">{log.user_email || 'Sistema'}</span>{' '}
+           {log.new_data?.action || `${log.action} em Profissionais`}
+          </p>
+          <p className="font-medium text-sm text-muted-foreground mt-1">
+           {new Date(log.created_at).toLocaleString('pt-PT')}
+          </p>
+         </div>
+        </div>
+       ))
+      )}
+     </div>
+    </div>
+    
+    <div className="bg-primary p-8 rounded-lg text-on-primary-container relative overflow-hidden flex flex-col justify-between">
+     <div className="relative z-10">
+      <h4 className="text-xl font-bold font-bold mb-4">Relatório de Profissionais</h4>
+      <p className="text-sm text-sm mb-6 text-white/90">
+       Mantenha o acompanhamento offline ou envie relatórios para a diretoria da FIND4SPORT.
+      </p>
+     </div>
+     <button 
+      onClick={exportPDF}
+      className="w-full py-3 bg-white text-green-600 dark:text-green-400 font-bold rounded-lg hover:bg-muted transition-all z-10"
+     >
+      Exportar Lista (PDF/Imprimir)
+     </button>
+     <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-[160px] opacity-10 pointer-events-none" data-icon="monitoring">monitoring</span>
+    </div>
+   </div>
+  </div>
+ )
 }
