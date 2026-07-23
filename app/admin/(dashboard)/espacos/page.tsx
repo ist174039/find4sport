@@ -6,8 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { 
+  AlertCircle, BarChart, BellRing, Building, Building2, ChevronDown, 
+  Edit, ExternalLink, FileText, Image, Loader2, Plus, Store, Trash2, CheckCircle2, Power, Eye
+} from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
+import Link from 'next/link'
 
 export default function Page() {
   const [spaces, setSpaces] = useState<any[]>([])
@@ -18,13 +23,11 @@ export default function Page() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'draft' | 'pending'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name')
   
-  const [stats, setStats] = useState({ total: 0, new30d: 0, pendingClaims: 0 })
+  const [stats, setStats] = useState({ total: 0, activeCount: 0, pendingClaims: 0 })
   
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createForm, setCreateForm] = useState({ name: '', address: '' })
-
-  const [simulatingImport, setSimulatingImport] = useState(false)
 
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
@@ -35,335 +38,382 @@ export default function Page() {
     setCurrentPage(1)
   }, [filteredSpaces.length])
 
- useEffect(() => {
-  async function load() {
-   const supabase = createClient()
-   
-   const [
-    { data: spacesData },
-    { data: claimsData }
-   ] = await Promise.all([
-    supabase.from('sport_spaces').select('*').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
-    supabase.from('space_claims').select('*, sport_spaces(name), auth_users:user_id(email)').eq('status', 'pending')
-   ])
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      
+      const [
+        { data: spacesData },
+        { data: claimsData }
+      ] = await Promise.all([
+        supabase.from('sport_spaces').select('*').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
+        supabase.from('space_claims').select('*, sport_spaces(name)').eq('status', 'pending')
+      ])
 
-   const loadedSpaces = spacesData || []
-   setSpaces(loadedSpaces)
-   setFilteredSpaces(loadedSpaces)
-   
-   setClaims(claimsData || [])
+      const loadedSpaces = spacesData || []
+      setSpaces(loadedSpaces)
+      setFilteredSpaces(loadedSpaces)
+      
+      setClaims(claimsData || [])
 
-   // Stats
-   const total = loadedSpaces.length
-   const thirtyDaysAgo = new Date()
-   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-   const new30d = loadedSpaces.filter(s => new Date(s.created_at) > thirtyDaysAgo).length
-   
-   setStats({
-    total,
-    new30d,
-    pendingClaims: (claimsData || []).length
-   })
-   
-   setLoading(false)
+      const total = loadedSpaces.length
+      const activeCount = loadedSpaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified).length
+      
+      setStats({
+        total,
+        activeCount,
+        pendingClaims: (claimsData || []).length
+      })
+      
+      setLoading(false)
+    }
+    load()
+  }, [sortBy])
+
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setFilteredSpaces(spaces)
+    } else if (activeFilter === 'active') {
+      setFilteredSpaces(spaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified))
+    } else if (activeFilter === 'draft') {
+      setFilteredSpaces(spaces.filter(s => s.status === 'draft' || s.status === 'suspended'))
+    } else if (activeFilter === 'pending') {
+      setFilteredSpaces(spaces.filter(s => s.status === 'pending' || !s.is_verified))
+    }
+  }, [activeFilter, spaces])
+
+  // Toggle Space Status (Draft -> Active / Online)
+  const handleToggleStatus = async (spaceId: string, currentStatus: string) => {
+    const isCurrentlyActive = currentStatus === 'active' || currentStatus === 'published'
+    const newStatus = isCurrentlyActive ? 'pending' : 'active'
+    const newVerified = !isCurrentlyActive
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('sport_spaces')
+      .update({ status: newStatus, is_verified: newVerified })
+      .eq('id', spaceId)
+
+    if (!error) {
+      setSpaces(prev => prev.map(s => s.id === spaceId ? { ...s, status: newStatus, is_verified: newVerified } : s))
+      
+      // Audit log
+      await supabase.from('audit_logs').insert([{
+        action: 'UPDATE_STATUS',
+        table_name: 'sport_spaces',
+        user_email: 'admin@find4sport.pt',
+        new_data: { space_id: spaceId, status: newStatus }
+      }])
+    }
   }
-  load()
- }, [sortBy])
 
- useEffect(() => {
-  if (activeFilter === 'all') {
-   setFilteredSpaces(spaces)
-  } else if (activeFilter === 'active') {
-   setFilteredSpaces(spaces.filter(s => s.status === 'published' || s.is_verified))
-  } else if (activeFilter === 'draft') {
-   setFilteredSpaces(spaces.filter(s => s.status === 'draft'))
-  } else if (activeFilter === 'pending') {
-   setFilteredSpaces(spaces.filter(s => !s.is_verified))
+  const handleCreate = async () => {
+    if (!createForm.name || !createForm.address) return
+    setCreating(true)
+    const supabase = createClient()
+    
+    const slug = createForm.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4)
+    
+    const newSpace = {
+      name: createForm.name,
+      slug,
+      address: createForm.address,
+      status: 'active', // Default to Active so it appears online immediately!
+      is_verified: true
+    }
+    
+    const { data, error } = await supabase.from('sport_spaces').insert([newSpace]).select()
+    
+    if (!error && data) {
+      setSpaces(prev => [data[0], ...prev])
+      await supabase.from('audit_logs').insert([{
+        action: 'INSERT',
+        table_name: 'sport_spaces',
+        user_email: 'admin@find4sport.pt',
+        new_data: { action: `Espaço ${createForm.name} criado e ativado` }
+      }])
+    }
+    
+    setCreating(false)
+    setIsCreateOpen(false)
+    setCreateForm({ name: '', address: '' })
   }
- }, [activeFilter, spaces])
 
- const handleCreate = async () => {
-  if (!createForm.name || !createForm.address) return
-  setCreating(true)
-  const supabase = createClient()
-  
-  const newSpace = {
-   name: createForm.name,
-   address: createForm.address,
-   status: 'draft',
-   is_verified: false
+  const handleClaim = async (id: string, action: 'approved' | 'rejected') => {
+    const supabase = createClient()
+    const { error } = await supabase.from('space_claims').update({ status: action }).eq('id', id)
+    if (!error) {
+      setClaims(prev => prev.filter(c => c.id !== id))
+    }
   }
-  
-  const { data, error } = await supabase.from('sport_spaces').insert([newSpace]).select()
-  
-  if (!error && data) {
-   setSpaces(prev => [...prev, data[0]])
-   await supabase.from('audit_logs').insert([{
-    action: 'INSERT',
-    table_name: 'sport_spaces',
-    user_email: 'admin@find4sport.pt',
-    new_data: { action: `Espaço ${createForm.name} criado` }
-   }])
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar este espaço?')) return
+    const supabase = createClient()
+    const { error } = await supabase.from('sport_spaces').delete().eq('id', id)
+    if (!error) {
+      setSpaces(prev => prev.filter(s => s.id !== id))
+    }
   }
-  
-  setCreating(false)
-  setIsCreateOpen(false)
-  setCreateForm({ name: '', address: '' })
- }
 
- const handleClaim = async (id: string, action: 'approved' | 'rejected') => {
-  const supabase = createClient()
-  const { error } = await supabase.from('space_claims').update({ status: action }).eq('id', id)
-  if (!error) {
-   setClaims(prev => prev.filter(c => c.id !== id))
-  }
- }
+  return (
+    <div className="space-y-6">
+      {/* Welcome & Actions */}
+      <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 pb-6 border-b border-border">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Gestão de Espaços Desportivos</h1>
+          <p className="text-base text-muted-foreground mt-1">Administre os locais cadastrados, altere o estado para Ativo/Online e gira solicitações.</p>
+        </div>
 
- const simulateGoogleImport = () => {
-  setSimulatingImport(true)
-  setTimeout(() => {
-   setSimulatingImport(false)
-   alert('Importação simulada com sucesso (mock)')
-  }, 1500)
- }
+        <div className="flex gap-3">
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
+              <Plus className="h-4 w-4" />
+              Cadastrar Novo Espaço
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Novo Espaço Desportivo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Nome do Espaço</Label>
+                  <Input 
+                    value={createForm.name} 
+                    onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} 
+                    placeholder="Ex: Clube de Ténis de Cascais" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Morada / Endereço</Label>
+                  <Input 
+                    value={createForm.address} 
+                    onChange={e => setCreateForm(prev => ({ ...prev, address: e.target.value }))} 
+                    placeholder="Av. Principal, Lote 2, Lisboa" 
+                  />
+                </div>
+                <Button className="w-full" onClick={handleCreate} disabled={creating}>
+                  {creating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                  Cadastrar e Ativar Espaço
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </section>
 
- return (
-  <div className="space-y-6">
-   {/* Welcome & Actions */}
-   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-    <div>
-     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Gestão de Espaços Esportivos</h1>
-     <p className="text-muted-foreground mt-1 text-sm">Administre, valide e importe novos locais para o ecossistema.</p>
-    </div>
-    <div className="flex gap-3">
-     <button 
-      onClick={simulateGoogleImport}
-      disabled={simulatingImport}
-      className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all disabled:opacity-50"
-     >
-      {simulatingImport ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-       <img alt="Google Logo" className="w-4 h-4" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwFewsTcDPucJ8u_tKlx0Hxt5G2r2qQU4BKY62WYYKr3dmMBs8t8lJDc2-Uj6wWWDzGC_LD9O7eAtMpeCDTf8LsTQK6wKwzCq8lOFy_KQ7VMKPsNPYwJIbCbePvLVhPiOaRhTl1KJZcjjFQwXA5llJxwlEKH_ET50WYouIF76JV_Y3WHms3SZjWjobwekhV2L2KDo3AQ53Qhw9oxRa7aVcAUmnGPDONzM0REp6u0Yb0LtdkV7ysBV6UwmHOQxffYhls1lwgY6A" />
+      {/* Stats Overview */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Building2 className="h-16 w-16" />
+          </div>
+          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Total de Espaços</p>
+          <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.total}</h3>
+        </div>
+
+        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-emerald-500">
+            <Building className="h-16 w-16" />
+          </div>
+          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Espaços Ativos / Online</p>
+          <h3 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{loading ? '...' : stats.activeCount}</h3>
+        </div>
+
+        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-amber-500">
+            <AlertCircle className="h-16 w-16" />
+          </div>
+          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Reivindicações Pendentes</p>
+          <h3 className="text-3xl font-bold text-amber-600 dark:text-amber-400">{loading ? '...' : stats.pendingClaims}</h3>
+        </div>
+      </section>
+
+      {/* Claims Section */}
+      {claims.length > 0 && (
+        <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-border flex justify-between items-center bg-amber-500/10">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <BellRing className="text-amber-500 h-5 w-5" />
+              Solicitações de Propriedade Pendentes
+            </h3>
+            <Badge variant="warning">{claims.length} Pendentes</Badge>
+          </div>
+          <div className="divide-y divide-border">
+            {claims.map(claim => (
+              <div key={claim.id} className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-muted/50 transition-colors">
+                <div className="flex gap-3 items-center">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0">
+                    <Store className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-foreground">{claim.sport_spaces?.name || 'Espaço'}</h4>
+                    <p className="text-xs text-muted-foreground">Solicitado por: <span className="font-semibold">{claim.user_id}</span></p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleClaim(claim.id, 'rejected')}>
+                    Negar
+                  </Button>
+                  <Button size="sm" onClick={() => handleClaim(claim.id, 'approved')}>
+                    Aprovar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
-      Importar do Google Places
-     </button>
 
-     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-      <DialogTrigger className="flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary rounded-lg font-medium text-sm hover:shadow-lg hover:shadow-primary/20 transition-all">
-<span className="material-symbols-outlined text-[20px]">add</span>
-        Cadastrar Espaço
-</DialogTrigger>
-      <DialogContent>
-       <DialogHeader>
-        <DialogTitle>Novo Espaço Desportivo</DialogTitle>
-       </DialogHeader>
-       <div className="space-y-4 pt-4">
-        <div className="space-y-2">
-         <Label>Nome do Espaço</Label>
-         <Input value={createForm.name} onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Ex: Clube de Ténis de Cascais" />
-        </div>
-        <div className="space-y-2">
-         <Label>Morada/Endereço</Label>
-         <Input value={createForm.address} onChange={e => setCreateForm(prev => ({ ...prev, address: e.target.value }))} placeholder="Av. Principal, Lote 2" />
-        </div>
-        <Button className="w-full bg-primary hover:bg-primary/90 text-white" onClick={handleCreate} disabled={creating}>
-         {creating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-         Cadastrar
-        </Button>
-       </div>
-      </DialogContent>
-     </Dialog>
-    </div>
-   </section>
-
-   {/* Stats Overview */}
-   <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-    <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-      <span className="material-symbols-outlined text-[64px]" data-icon="stadium">stadium</span>
-     </div>
-     <p className="text-muted-foreground font-medium text-sm mb-2">Total de Espaços</p>
-     <h3 className="text-2xl font-bold text-foreground">{loading ? '...' : stats.total}</h3>
-    </div>
-    <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-primary">
-      <span className="material-symbols-outlined text-[64px]" data-icon="add_business">add_business</span>
-     </div>
-     <p className="text-muted-foreground font-medium text-sm mb-2">Novos (30 dias)</p>
-     <div className="flex items-end gap-2">
-      <h3 className="text-2xl font-bold text-foreground">{loading ? '...' : stats.new30d}</h3>
-      <span className="text-primary font-medium text-sm bg-primary/10 px-2 py-0.5 rounded-full mb-1">+12%</span>
-     </div>
-    </div>
-    <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 relative overflow-hidden group">
-     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-destructive">
-      <span className="material-symbols-outlined text-[64px]" data-icon="assignment_late">assignment_late</span>
-     </div>
-     <p className="text-muted-foreground font-medium text-sm mb-2">Aguardando Aprovação</p>
-     <div className="flex items-end gap-2">
-      <h3 className="text-2xl font-bold text-destructive">{loading ? '...' : stats.pendingClaims}</h3>
-      <span className="text-destructive font-medium text-sm">Reivindicações</span>
-     </div>
-    </div>
-    <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-secondary-foreground">
-      <span className="material-symbols-outlined text-[64px]" data-icon="analytics">analytics</span>
-     </div>
-     <p className="text-muted-foreground font-medium text-sm mb-2">Ocupação Média</p>
-     <div className="flex items-end gap-2">
-      <h3 className="text-2xl font-bold text-foreground">68%</h3>
-      <span className="text-muted-foreground font-medium text-sm mb-1">Horário Nobre</span>
-     </div>
-    </div>
-   </section>
-
-   {/* Claims Section */}
-   {claims.length > 0 && (
-    <section className="bg-card rounded-xl border border-border overflow-hidden">
-     <div className="p-6 border-b border-border flex justify-between items-center bg-destructive/5">
-      <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-       <span className="material-symbols-outlined text-destructive">notification_important</span>
-       Solicitações de Propriedade
-      </h3>
-      <span className="bg-destructive text-white font-medium text-sm px-3 py-1 rounded-full">{claims.length} Pendentes</span>
-     </div>
-     <div className="divide-y divide-outline-variant">
-      {claims.map(claim => (
-       <div key={claim.id} className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-muted/50 transition-colors">
-        <div className="flex gap-4 items-start">
-         <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-muted-foreground">store</span>
-         </div>
-         <div>
-          <h4 className="text-lg font-bold">{claim.sport_spaces?.name || 'Espaço Desconhecido'}</h4>
-          <p className="text-sm text-muted-foreground">Solicitado por: <span className="font-bold">{claim.auth_users?.email || claim.user_id}</span></p>
-          {claim.message && <p className="text-sm text-muted-foreground mt-1 italic">"{claim.message}"</p>}
-         </div>
-        </div>
-        <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">
-         <button className="flex-1 md:flex-none px-4 py-2 border border-border rounded-lg font-medium text-sm text-foreground hover:bg-muted transition-all flex items-center justify-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">description</span> Docs
-         </button>
-         <button onClick={() => handleClaim(claim.id, 'rejected')} className="flex-1 md:flex-none px-4 py-2 border border-destructive text-destructive rounded-lg font-medium text-sm hover:bg-destructive/10 transition-all">Negar</button>
-         <button onClick={() => handleClaim(claim.id, 'approved')} className="flex-1 md:flex-none px-4 py-2 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-all shadow-sm">Aprovar</button>
-        </div>
-       </div>
-      ))}
-     </div>
-    </section>
-   )}
-
-   {/* Spaces List Section */}
-   <section className="bg-card rounded-xl border border-border overflow-hidden">
-    <div className="p-6 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-     <div className="flex items-center gap-2">
-      <h3 className="text-xl font-bold text-foreground">Diretório de Espaços</h3>
-     </div>
-     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-      <div className="flex bg-muted/30 p-1 rounded-lg">
-       <button onClick={() => setActiveFilter('all')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all ${activeFilter === 'all' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'}`}>Todos</button>
-       <button onClick={() => setActiveFilter('active')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all ${activeFilter === 'active' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'}`}>Ativos</button>
-       <button onClick={() => setActiveFilter('draft')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all ${activeFilter === 'draft' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'}`}>Rascunhos</button>
-       <button onClick={() => setActiveFilter('pending')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all ${activeFilter === 'pending' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground'}`}>Pendentes</button>
-      </div>
-      <div className="relative">
-       <select 
-        className="appearance-none pl-4 pr-10 py-2 bg-background border border-border rounded-lg font-medium text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary h-full w-full sm:w-auto"
-        value={sortBy}
-        onChange={e => setSortBy(e.target.value as any)}
-       >
-        <option value="name">Ordenar por Nome</option>
-        <option value="created_at">Mais Recentes</option>
-       </select>
-       <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">arrow_drop_down</span>
-      </div>
-     </div>
-    </div>
-
-    <div className="overflow-x-auto">
-     <table className="w-full text-left">
-      <thead className="bg-muted/30 border-b border-border">
-       <tr>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Espaço / Nome</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs hidden md:table-cell">Localização</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Status</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs hidden md:table-cell">Gestor</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs text-right">Ações</th>
-       </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-       {loading ? (
-        <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">A carregar espaços...</td></tr>
-       ) : filteredSpaces.length === 0 ? (
-        <tr><td colSpan={5} className="text-center py-10 text-muted-foreground">Nenhum espaço encontrado.</td></tr>
-       ) : (
-        paginatedData.map((space) => (
-         <tr key={space.id} className="hover:bg-muted/30 transition-colors">
-          <td className="px-6 py-4">
-           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-muted rounded-lg border border-border flex items-center justify-center overflow-hidden shrink-0">
-             {space.image_url ? (
-              <img src={space.image_url} alt={space.name} className="w-full h-full object-cover" />
-             ) : (
-              <span className="material-symbols-outlined text-muted-foreground">image</span>
-             )}
+      {/* Spaces Directory List Section */}
+      <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold text-foreground">Diretório de Espaços</h3>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="flex bg-muted p-1 rounded-lg">
+              <button 
+                onClick={() => setActiveFilter('all')} 
+                className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'all' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground'}`}
+              >
+                Todos ({spaces.length})
+              </button>
+              <button 
+                onClick={() => setActiveFilter('active')} 
+                className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'active' ? 'bg-background shadow-sm font-bold text-primary' : 'text-muted-foreground'}`}
+              >
+                Ativos ({spaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified).length})
+              </button>
+              <button 
+                onClick={() => setActiveFilter('draft')} 
+                className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'draft' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground'}`}
+              >
+                Rascunhos / Inativos ({spaces.filter(s => s.status !== 'active' && s.status !== 'published' && !s.is_verified).length})
+              </button>
             </div>
-            <div>
-             <p className="font-semibold text-foreground truncate max-w-[200px]">{space.name}</p>
-             <p className="text-xs text-muted-foreground mt-0.5">Criado em {new Date(space.created_at).toLocaleDateString('pt-PT')}</p>
+
+            <div className="relative">
+              <select 
+                className="appearance-none pl-3 pr-8 py-1.5 bg-background border border-border rounded-lg font-medium text-xs focus:outline-none focus:ring-1 focus:ring-primary h-full w-full sm:w-auto"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+              >
+                <option value="name">Ordenar por Nome</option>
+                <option value="created_at">Mais Recentes</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground h-4 w-4" />
             </div>
-           </div>
-          </td>
-          <td className="px-6 py-4 hidden md:table-cell">
-           <p className="text-sm text-foreground max-w-[200px] truncate" title={space.address}>{space.address || 'Não definido'}</p>
-          </td>
-          <td className="px-6 py-4">
-           <div className="flex gap-2">
-            {space.is_verified ? (
-             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-600 dark:text-green-400 rounded-full text-[11px] font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary"></span> Verificado
-             </span>
-            ) : (
-             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-muted text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-wider">
-              Pendente
-             </span>
-            )}
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-             space.status === 'published' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-            }`}>
-             {space.status === 'published' ? 'Publicado' : 'Rascunho'}
-            </span>
-           </div>
-          </td>
-          <td className="px-6 py-4">
-           {space.owner_id ? (
-            <div className="flex items-center gap-2">
-             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">ID</div>
-             <span className="text-sm">Reivindicado</span>
-            </div>
-           ) : (
-            <span className="text-sm text-muted-foreground italic">Sem Gestor</span>
-           )}
-          </td>
-          <td className="px-6 py-4 text-right">
-           <div className="flex justify-end gap-1">
-            <button className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Editar">
-             <span className="material-symbols-outlined text-[20px]">edit</span>
-            </button>
-            <button className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Ver Público">
-             <span className="material-symbols-outlined text-[20px]">open_in_new</span>
-            </button>
-            <button className="p-2 hover:bg-destructive/20 text-muted-foreground hover:text-destructive rounded-lg transition-colors" title="Remover">
-             <span className="material-symbols-outlined text-[20px]">delete</span>
-            </button>
-           </div>
-          </td>
-         </tr>
-        ))
-       )}
-      </tbody>
-     </table>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-muted/50 border-b border-border">
+              <tr>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Espaço</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden md:table-cell">Endereço</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Estado Online</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Ações de Ativação</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-sm">A carregar diretório de espaços...</p>
+                  </td>
+                </tr>
+              ) : filteredSpaces.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <Building2 className="h-10 w-10 mx-auto mb-2 opacity-40 text-primary" />
+                    <p className="text-sm font-medium">Nenhum espaço encontrado no filtro selecionado.</p>
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((space) => {
+                  const isOnline = space.status === 'active' || space.status === 'published' || space.is_verified
+
+                  return (
+                    <tr key={space.id} className="hover:bg-muted/30 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl border border-border flex items-center justify-center overflow-hidden shrink-0">
+                            {space.image_url ? (
+                              <img src={space.image_url} alt={space.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Building className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-foreground truncate max-w-[220px]">{space.name}</p>
+                            <p className="text-xs text-muted-foreground">Criado em {new Date(space.created_at).toLocaleDateString('pt-PT')}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 hidden md:table-cell">
+                        <p className="text-xs text-muted-foreground max-w-[240px] truncate" title={space.address}>
+                          {space.address || 'Endereço não definido'}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {isOnline ? (
+                            <Badge variant="success" className="gap-1 font-semibold text-xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Ativo / Online
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="gap-1 text-xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>
+                              Rascunho / Inativo
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          {/* Main Action Button: Pass to Active / Online */}
+                          <Button
+                            variant={isOnline ? "outline" : "default"}
+                            size="sm"
+                            onClick={() => handleToggleStatus(space.id, space.status)}
+                            className="gap-1.5 text-xs font-semibold"
+                          >
+                            <Power className="h-3.5 w-3.5" />
+                            {isOnline ? 'Desativar' : 'Passar para Ativo'}
+                          </Button>
+
+                          <Link href={`/espacos/${space.slug || space.id}`} target="_blank">
+                            <Button variant="ghost" size="icon" title="Ver Página Pública">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(space.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Remover Espaço"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
-   </section>
-  </div>
- )
+  )
 }

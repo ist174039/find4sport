@@ -1,3 +1,4 @@
+import { Globe, Lock, Plus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ComunidadesFilterModal } from '@/components/comunidades-filter-modal'
@@ -45,7 +46,7 @@ export default async function CommunitiesPage({
             <div className="flex items-center gap-3">
               <ComunidadesFilterModal />
               <Link href="/comunidades/criar" className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <Plus className="text-[18px]" />
                 Criar
               </Link>
             </div>
@@ -80,13 +81,11 @@ export default async function CommunitiesPage({
                     </p>
                     <div className="mt-auto flex items-center justify-between text-xs font-medium text-muted-foreground border-t border-border pt-4">
                       <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]">groups</span>
+                        <Users className="text-[16px]" />
                         {memberCount} {memberCount === 1 ? 'membro' : 'membros'}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]">
-                          {community.is_private ? 'lock' : 'public'}
-                        </span>
+                        {community.is_private ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                         {community.is_private ? 'Privada' : 'Pública'}
                       </div>
                     </div>
@@ -98,7 +97,7 @@ export default async function CommunitiesPage({
           
           {safeCommunities.length === 0 && (
             <div className="py-12 text-center border border-dashed border-border rounded-xl bg-muted/20">
-              <span className="material-symbols-outlined text-4xl text-muted-foreground mb-3">groups</span>
+              <Users className="text-4xl text-muted-foreground mb-3 h-5 w-5" />
               <p className="text-lg font-medium text-foreground">Ainda não existem comunidades.</p>
               <p className="text-sm text-muted-foreground mt-1">Seja o primeiro a criar um grupo!</p>
             </div>

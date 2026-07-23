@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Filter } from 'lucide-react'
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -40,7 +41,7 @@ export function ComunidadesFilterModal() {
     <Dialog>
       <DialogTrigger render={
         <button className="bg-secondary text-secondary-foreground px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:bg-secondary/80 transition-colors border border-border shadow-sm">
-          <span className="material-symbols-outlined text-[18px]">filter_list</span>
+          <Filter className="text-[18px]" />
           Filtros
         </button>
       } />

@@ -136,7 +136,6 @@ export default function RegisterSpacePage() {
         website: formData.website || null,
         amenities: formData.amenities ? formData.amenities.split(',').map((a) => a.trim()) : [],
         status: 'pending',
-        source: 'manual',
         created_by: user.id,
         owner_user_id: user.id,
       })

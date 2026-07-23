@@ -31,7 +31,7 @@ async function getProfessionalsData(searchParams: { category?: string; q?: strin
         category:categories(*)
       )
     `)
-    .eq('status', 'approved')
+    .in('status', ['active', 'published', 'approved'])
 
   // Apply filters
   if (searchParams.q) {

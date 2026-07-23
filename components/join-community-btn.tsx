@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Check, UserPlus } from 'lucide-react'
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -46,7 +47,7 @@ export function JoinCommunityBtn({ communityId, isPrivate }: { communityId: stri
   if (joined) {
     return (
       <button className="w-full sm:w-auto bg-muted text-muted-foreground font-bold px-8 py-3 rounded-xl flex items-center justify-center gap-2 cursor-default">
-        <span className="material-symbols-outlined text-[20px]">check</span>
+        <Check className="text-[20px]" />
         {isPrivate ? 'Pedido Pendente' : 'Membro'}
       </button>
     )
@@ -58,7 +59,7 @@ export function JoinCommunityBtn({ communityId, isPrivate }: { communityId: stri
       disabled={loading}
       className="w-full sm:w-auto bg-primary text-primary-foreground font-bold px-8 py-3 rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
     >
-      <span className="material-symbols-outlined text-[20px]">group_add</span>
+      <UserPlus className="text-[20px]" />
       {loading ? 'A processar...' : 'Juntar à Comunidade'}
     </button>
   )

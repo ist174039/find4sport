@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Play, Share2, User } from 'lucide-react'
 
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -64,15 +65,15 @@ export default function PostCard({ post }: { post: any }) {
               <img className="w-10 h-10 rounded-full object-cover border border-border" src={authorAvatar} alt={authorName} />
             ) : (
               <div className="w-10 h-10 rounded-full bg-primary/10 border border-border flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary">
-                  {post.professional_id ? 'person' : 'location_city'}
-                </span>
+                {post.professional_id ? (
+                  <User className="h-5 w-5 text-primary" />
+                ) : (
+                  <Building2 className="h-5 w-5 text-primary" />
+                )}
               </div>
             )}
             {post.professional_id && post.professionals?.is_verified && (
-              <span className="absolute -bottom-1 -right-1 bg-emerald-100 text-emerald-700 text-[10px] rounded-full p-0.5 border border-emerald-200 material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-                verified
-              </span>
+              <BadgeCheck className="absolute -bottom-1 -right-1 bg-emerald-100 text-emerald-700 text-[10px] rounded-full p-0.5 border border-emerald-200" />
             )}
           </Link>
           <div>
@@ -85,16 +86,16 @@ export default function PostCard({ post }: { post: any }) {
               </span>
             </div>
             <p className="text-muted-foreground text-xs flex items-center gap-1 font-medium mt-0.5">
-              {timeAgo} • <span className="material-symbols-outlined text-[12px]">{post.professional_id ? 'public' : 'location_on'}</span> {post.professional_id ? 'Público' : 'Local'}
+              {timeAgo} • {post.professional_id ? <Globe className="h-3 w-3 inline" /> : <MapPin className="h-3 w-3 inline" />} {post.professional_id ? 'Público' : 'Local'}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
           <button className="text-muted-foreground hover:text-destructive transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Denunciar">
-            <span className="material-symbols-outlined text-[20px]">flag</span>
+            <Flag className="text-[20px]" />
           </button>
           <button className="text-muted-foreground hover:text-primary transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center">
-            <span className="material-symbols-outlined text-[20px]">more_vert</span>
+            <MoreVertical className="text-[20px]" />
           </button>
         </div>
       </div>
@@ -108,7 +109,7 @@ export default function PostCard({ post }: { post: any }) {
           <img className="w-full h-full object-cover" src={post.media_url} alt="Post media" />
           {post.media_type === 'video' && (
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="material-symbols-outlined text-white text-[64px] drop-shadow-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
+              <Play className="text-white text-[64px] drop-shadow-lg" />
             </div>
           )}
         </div>
@@ -120,21 +121,21 @@ export default function PostCard({ post }: { post: any }) {
             onClick={handleLike}
             className={`flex items-center gap-2 transition-all active:scale-90 ${isLiked ? 'text-destructive font-semibold' : 'text-muted-foreground hover:text-destructive font-medium'}`}
           >
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: isLiked ? "'FILL' 1" : "'FILL' 0" }}>favorite</span>
+            <Heart className="h-5 w-5" />
             <span className="text-sm">{likesCount}</span>
           </button>
           <button 
             onClick={handleComment}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all"
           >
-            <span className="material-symbols-outlined">comment</span>
+            <MessageSquare className="h-5 w-5" />
             <span className="text-sm">{commentsCount}</span>
           </button>
           <button 
             onClick={handleShare}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all"
           >
-            <span className="material-symbols-outlined">share</span>
+            <Share2 className="h-5 w-5" />
             <span className="text-sm">Partilhar</span>
           </button>
         </div>

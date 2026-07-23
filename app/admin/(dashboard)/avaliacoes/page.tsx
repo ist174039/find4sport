@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Building2, Download, Flag, MessageSquare, Reply, Search, Star, ThumbsDown, ThumbsUp, Trash2, User } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -83,9 +84,7 @@ export default function Page() {
 
  const renderStars = (rating: number) => {
   return Array(5).fill(0).map((_, i) => (
-   <span key={i} className={`material-symbols-outlined text-[16px] ${i < rating ? 'text-trust-gold' : 'text-outline-variant'}`}>
-    star
-   </span>
+   <Star key={i} className={`h-4 w-4 inline ${i < rating ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/30'}`} />
   ))
  }
 
@@ -99,7 +98,7 @@ export default function Page() {
     </div>
     <div className="flex gap-3">
      <button className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all">
-      <span className="material-symbols-outlined text-[20px]">download</span>
+      <Download className="text-[20px]" />
       Exportar CSV
      </button>
     </div>
@@ -109,7 +108,7 @@ export default function Page() {
    <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-primary">
-      <span className="material-symbols-outlined text-[64px]" data-icon="forum">forum</span>
+      <MessageSquare className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Total de Avaliações</p>
      <div className="flex items-end gap-2">
@@ -117,18 +116,18 @@ export default function Page() {
      </div>
     </div>
     <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-trust-gold">
-      <span className="material-symbols-outlined text-[64px]" data-icon="star">star</span>
+     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-amber-500">
+      <Star className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Média Global</p>
      <div className="flex items-end gap-2">
       <h3 className="text-2xl font-bold text-foreground">{loading ? '...' : stats.avg}</h3>
-      <span className="text-trust-gold font-medium text-sm bg-trust-gold/10 px-2 py-0.5 rounded-full mb-1">/ 5.0</span>
+      <span className="text-amber-500 font-medium text-sm bg-trust-gold/10 px-2 py-0.5 rounded-full mb-1">/ 5.0</span>
      </div>
     </div>
     <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 relative overflow-hidden group">
      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-destructive">
-      <span className="material-symbols-outlined text-[64px]" data-icon="report">report</span>
+      <Flag className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Críticas (≤ 2 Estrelas)</p>
      <div className="flex items-end gap-2">
@@ -146,17 +145,17 @@ export default function Page() {
       <div className="flex bg-muted/30 p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
        <button onClick={() => setActiveFilter('all')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Todas</button>
        <button onClick={() => setActiveFilter('high')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap flex items-center gap-1 ${activeFilter === 'high' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-        Positivas <span className="material-symbols-outlined text-[14px]">thumb_up</span>
+        Positivas <ThumbsUp className="text-[14px]" />
        </button>
        <button onClick={() => setActiveFilter('low')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap flex items-center gap-1 ${activeFilter === 'low' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-        Críticas <span className="material-symbols-outlined text-[14px] text-destructive">thumb_down</span>
+        Críticas <ThumbsDown className="text-[14px] text-destructive" />
        </button>
        <button onClick={() => setActiveFilter('pending')} className={`px-4 py-1.5 font-medium text-sm rounded-md transition-all whitespace-nowrap ${activeFilter === 'pending' ? 'bg-white shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}>Denunciadas</button>
       </div>
       
       {/* Quick Search */}
       <div className="relative flex-1 sm:max-w-xs ml-auto">
-       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]">search</span>
+       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]" />
        <input 
         type="text" 
         placeholder="Pesquisar..." 
@@ -202,12 +201,12 @@ export default function Page() {
           <td className="px-6 py-4">
            {review.professionals && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold">
-             <span className="material-symbols-outlined text-[12px]">person</span> {review.professionals.full_name}
+             <User className="text-[12px]" /> {review.professionals.full_name}
             </span>
            )}
            {review.sport_spaces && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary/10 text-secondary rounded-full text-[11px] font-bold mt-1">
-             <span className="material-symbols-outlined text-[12px]">stadium</span> {review.sport_spaces.name}
+             <Building2 className="text-[12px]" /> {review.sport_spaces.name}
             </span>
            )}
           </td>
@@ -215,7 +214,7 @@ export default function Page() {
            <div className="flex justify-end gap-1">
             <Dialog>
              <DialogTrigger className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Responder">
-<span className="material-symbols-outlined text-[20px]">reply</span>
+<Reply className="text-[20px]" />
 </DialogTrigger>
              <DialogContent>
               <DialogHeader>
@@ -232,7 +231,7 @@ export default function Page() {
              </DialogContent>
             </Dialog>
             <button onClick={() => handleDelete(review.id)} className="p-2 hover:bg-destructive/20 text-muted-foreground hover:text-destructive rounded-lg transition-colors" title="Apagar">
-             <span className="material-symbols-outlined text-[20px]">delete</span>
+             <Trash2 className="text-[20px]" />
             </button>
            </div>
           </td>

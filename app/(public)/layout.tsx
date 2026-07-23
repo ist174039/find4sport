@@ -22,7 +22,7 @@ export default async function PublicLayout({
   return (
     <>
       <Header user={userProfile} notificationCount={notificationCount} />
-      <main className="min-h-screen bg-background text-text-primary overflow-hidden flex flex-col">
+      <main className="min-h-screen bg-background text-foreground overflow-hidden flex flex-col">
         {children}
       </main>
       <Footer />

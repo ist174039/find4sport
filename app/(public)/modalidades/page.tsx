@@ -1,3 +1,4 @@
+import { Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
@@ -74,7 +75,7 @@ export default async function ModalitiesPage() {
           {/* Hero CTA below grid */}
           <div className="mt-16 bg-card border border-border rounded-2xl p-8 md:p-12 text-center relative overflow-hidden shadow-sm">
             <div className="absolute -right-16 -top-16 opacity-[0.03] text-foreground">
-              <span className="material-symbols-outlined text-[300px]">sports_tennis</span>
+              <Activity className="text-[300px]" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 relative z-10">Não encontras o que procuras?</h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8 relative z-10">

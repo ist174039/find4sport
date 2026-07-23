@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Search, Phone, Video, MoreVertical, Send, CheckCheck, Plus } from 'lucide-react'
+import { CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { sendMessage, markAsRead } from '@/app/actions/messages'
 import { createClient } from '@/lib/supabase/client'
@@ -409,9 +409,7 @@ export function ChatInterface({
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-            <span className="material-symbols-outlined text-5xl mb-4 opacity-50">
-              forum
-            </span>
+            <MessageSquare className="text-5xl mb-4 opacity-50 h-5 w-5" />
             <p className="text-sm">Selecione uma conversa para começar</p>
           </div>
         )}

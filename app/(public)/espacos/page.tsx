@@ -30,7 +30,7 @@ async function getSpacesData(searchParams: { category?: string; q?: string; loca
         category:categories(*)
       )
     `)
-    .eq('status', 'approved')
+    .in('status', ['active', 'published', 'approved'])
 
   // Apply filters
   if (searchParams.q) {

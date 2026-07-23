@@ -1,3 +1,4 @@
+import { Globe, Lock, MessageSquare, User, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -57,7 +58,7 @@ export default async function CommunityProfilePage(props: {
               <div>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shrink-0">
-                    <span className="material-symbols-outlined text-[36px]">groups</span>
+                    <Users className="text-[36px]" />
                   </div>
                   <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-md">
@@ -68,13 +69,11 @@ export default async function CommunityProfilePage(props: {
                         {community.sport_category || 'Desporto'}
                       </span>
                       <span className="flex items-center gap-1 font-medium drop-shadow">
-                        <span className="material-symbols-outlined text-[18px]">person</span>
+                        <User className="text-[18px]" />
                         {memberCount} membros
                       </span>
                       <span className="flex items-center gap-1 font-medium drop-shadow">
-                        <span className="material-symbols-outlined text-[18px]">
-                          {community.is_private ? 'lock' : 'public'}
-                        </span>
+                        {community.is_private ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                         {community.is_private ? 'Privada' : 'Pública'}
                       </span>
                     </div>
@@ -115,7 +114,7 @@ export default async function CommunityProfilePage(props: {
               ))
             ) : (
               <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground flex flex-col items-center justify-center">
-                <span className="material-symbols-outlined text-4xl mb-4 opacity-50">forum</span>
+                <MessageSquare className="text-4xl mb-4 opacity-50 h-5 w-5" />
                 <p className="text-lg font-medium text-foreground">Sem publicações ainda</p>
                 <p className="text-sm mt-1">Sê o primeiro a partilhar algo com a comunidade!</p>
               </div>

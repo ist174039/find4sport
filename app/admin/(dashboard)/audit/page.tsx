@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Download, Edit, PlusCircle, Search, Shield, Trash2 } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -63,7 +64,7 @@ export default function Page() {
     </div>
     <div className="flex gap-3">
      <button className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all">
-      <span className="material-symbols-outlined text-[20px]">download</span>
+      <Download className="text-[20px]" />
       Exportar Logs
      </button>
     </div>
@@ -83,7 +84,7 @@ export default function Page() {
       
       {/* Quick Search */}
       <div className="relative flex-1 sm:max-w-xs ml-auto">
-       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]">search</span>
+       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]" />
        <input 
         type="text" 
         placeholder="Pesquisar por email, tabela..." 
@@ -116,17 +117,17 @@ export default function Page() {
           <td className="px-6 py-4">
            {log.action === 'INSERT' && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full text-[11px] font-bold uppercase tracking-wider">
-             <span className="material-symbols-outlined text-[12px]">add_circle</span> Insert
+             <PlusCircle className="text-[12px]" /> Insert
             </span>
            )}
            {log.action === 'UPDATE' && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold uppercase tracking-wider">
-             <span className="material-symbols-outlined text-[12px]">edit</span> Update
+             <Edit className="text-[12px]" /> Update
             </span>
            )}
            {log.action === 'DELETE' && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-destructive/10 text-destructive rounded-full text-[11px] font-bold uppercase tracking-wider">
-             <span className="material-symbols-outlined text-[12px]">delete</span> Delete
+             <Trash2 className="text-[12px]" /> Delete
             </span>
            )}
           </td>
@@ -136,7 +137,7 @@ export default function Page() {
           </td>
           <td className="px-6 py-4">
            <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-muted-foreground text-[18px]">admin_panel_settings</span>
+            <Shield className="text-muted-foreground text-[18px]" />
             <span className="text-sm font-bold text-foreground">{log.user_email || log.user_id || 'Sistema'}</span>
            </div>
           </td>

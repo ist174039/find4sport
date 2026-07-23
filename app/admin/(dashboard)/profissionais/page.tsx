@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Activity, Ban, ChevronLeft, ChevronRight, Clock, Edit, Eye, Filter, Flag, Loader2, MapPin, Star, UserMinus, UserPlus, Users } from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
 
 export default function Page() {
@@ -127,13 +127,13 @@ export default function Page() {
     </div>
     <div className="flex gap-3">
      <button className="flex items-center gap-2 px-4 py-2.5 bg-background border border-border rounded-lg text-foreground font-medium text-sm hover:bg-muted transition-all">
-      <span className="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+      <Filter className="h-5 w-5" />
       Filtros Avançados
      </button>
      
      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
       <DialogTrigger className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm hover:opacity-90 shadow-sm transition-all">
-<span className="material-symbols-outlined" data-icon="person_add">person_add</span>
+<UserPlus className="h-5 w-5" />
         Convidar Profissional
 </DialogTrigger>
       <DialogContent>
@@ -163,14 +163,14 @@ export default function Page() {
    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-section-gap print:hidden">
     <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
      <div className="flex justify-between items-start mb-4">
-      <span className="p-2 bg-primary/20 text-primary rounded-lg material-symbols-outlined" data-icon="group">group</span>
+      <Users className="p-2 bg-primary/20 text-primary rounded-lg h-5 w-5" />
      </div>
      <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Total de Profissionais</p>
      <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.total}</p>
     </div>
     <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
      <div className="flex justify-between items-start mb-4">
-      <span className="p-2 bg-secondary/50 text-secondary-foreground-variant rounded-lg material-symbols-outlined" data-icon="pending_actions">pending_actions</span>
+      <Clock className="p-2 bg-secondary/50 text-secondary-foreground-variant rounded-lg h-5 w-5" />
       {stats.pending > 0 && <span className="bg-destructive/20 text-destructive font-semibold font-medium text-sm px-2 py-0.5 rounded-full">Urgente</span>}
      </div>
      <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Aguardando Aprovação</p>
@@ -178,15 +178,15 @@ export default function Page() {
     </div>
     <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
      <div className="flex justify-between items-start mb-4">
-      <span className="p-2 bg-secondary text-secondary-foreground-variant rounded-lg material-symbols-outlined" data-icon="star">star</span>
-      <span className="text-trust-gold font-medium text-sm">Global</span>
+      <Star className="p-2 bg-secondary text-secondary-foreground-variant rounded-lg h-5 w-5" />
+      <span className="text-amber-500 font-medium text-sm">Global</span>
      </div>
      <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Média de Avaliação</p>
      <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.avgRating}</p>
     </div>
     <div className="bg-card p-6 rounded-lg border border-border hover:shadow-md transition-all">
      <div className="flex justify-between items-start mb-4">
-      <span className="p-2 bg-mutedest text-foreground rounded-lg material-symbols-outlined" data-icon="report">report</span>
+      <Flag className="p-2 bg-mutedest text-foreground rounded-lg h-5 w-5" />
      </div>
      <p className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Denúncias Ativas</p>
      <p className="text-3xl font-bold text-foreground mt-1">{loading ? '...' : stats.reports}</p>
@@ -265,13 +265,13 @@ export default function Page() {
           </td>
           <td className="px-6 py-5 hidden lg:table-cell">
            <p className="text-foreground text-sm flex items-center gap-1.5 truncate max-w-[150px]">
-            <span className="material-symbols-outlined text-[16px] text-muted-foreground">location_on</span>
+            <MapPin className="text-[16px] text-muted-foreground" />
             {prof.address || 'Não definida'}
            </p>
           </td>
           <td className="px-6 py-5">
            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-medium text-sm ${
-            prof.is_verified ? 'bg-success-mint text-green-600 dark:text-green-400' : 'bg-secondary/50 text-secondary-foreground-variant'
+            prof.is_verified ? 'bg-emerald-500/10 text-green-600 dark:text-green-400' : 'bg-secondary/50 text-secondary-foreground-variant'
            }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${prof.is_verified ? 'bg-primary' : 'bg-secondary'}`}></span>
             {prof.is_verified ? 'Verificado' : 'Pendente'}
@@ -280,10 +280,10 @@ export default function Page() {
           <td className="px-6 py-5 text-right print:hidden">
            <div className="flex justify-end gap-2">
             <button className="p-2 text-muted-foreground hover:text-green-600 dark:text-green-400 hover:bg-primary/20/20 rounded-lg transition-all" title="Ver Detalhes">
-             <span className="material-symbols-outlined">visibility</span>
+             <Eye className="h-5 w-5" />
             </button>
             <button className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Bloquear">
-             <span className="material-symbols-outlined">block</span>
+             <Ban className="h-5 w-5" />
             </button>
            </div>
           </td>
@@ -299,10 +299,10 @@ export default function Page() {
      <p className="text-sm text-sm text-muted-foreground">Mostrando <strong>{filteredProfessionals.length}</strong> profissionais</p>
      <div className="flex gap-2">
       <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
-       <span className="material-symbols-outlined">chevron_left</span>
+       <ChevronLeft className="h-5 w-5" />
       </button>
       <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
-       <span className="material-symbols-outlined">chevron_right</span>
+       <ChevronRight className="h-5 w-5" />
       </button>
      </div>
     </div>
@@ -319,14 +319,12 @@ export default function Page() {
        logs.map((log) => (
         <div key={log.id} className="flex gap-4">
          <div className={`mt-1 w-8 h-8 rounded-full flex items-center justify-center ${
-          log.action === 'INSERT' ? 'bg-success-mint text-green-600 dark:text-green-400' : 
+          log.action === 'INSERT' ? 'bg-emerald-500/10 text-green-600 dark:text-green-400' : 
           log.action === 'DELETE' ? 'bg-destructive/10 text-destructive' : 
           'bg-secondary text-secondary-foreground'
          }`}>
-          <span className="material-symbols-outlined text-[18px]">
-           {log.action === 'INSERT' ? 'person_add' : log.action === 'DELETE' ? 'person_remove' : 'edit'}
-          </span>
-         </div>
+           {log.action === 'INSERT' ? <UserPlus className="h-4.5 w-4.5" /> : log.action === 'DELETE' ? <UserMinus className="h-4.5 w-4.5" /> : <Edit className="h-4.5 w-4.5" />}
+          </div>
          <div>
           <p className="text-sm text-sm text-foreground">
            <span className="font-bold">{log.user_email || 'Sistema'}</span>{' '}
@@ -342,7 +340,7 @@ export default function Page() {
      </div>
     </div>
     
-    <div className="bg-primary p-8 rounded-lg text-on-primary-container relative overflow-hidden flex flex-col justify-between">
+    <div className="bg-primary p-8 rounded-lg text-primary relative overflow-hidden flex flex-col justify-between">
      <div className="relative z-10">
       <h4 className="text-xl font-bold font-bold mb-4">Relatório de Profissionais</h4>
       <p className="text-sm text-sm mb-6 text-white/90">
@@ -355,7 +353,7 @@ export default function Page() {
      >
       Exportar Lista (PDF/Imprimir)
      </button>
-     <span className="material-symbols-outlined absolute -right-4 -bottom-4 text-[160px] opacity-10 pointer-events-none" data-icon="monitoring">monitoring</span>
+     <Activity className="absolute -right-4 -bottom-4 text-[160px] opacity-10 pointer-events-none" />
     </div>
    </div>
   </div>

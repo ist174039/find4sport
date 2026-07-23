@@ -1,128 +1,286 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { 
   CalendarCheck, Heart, MapPin, 
-  ArrowRight, Search, Activity
+  ArrowRight, Search, Activity, Calendar, Star, Loader2, Sparkles
 } from 'lucide-react'
-import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatDate } from '@/lib/utils'
 
 export function UserDashboard({ user }: { user: any }) {
+  const [loading, setLoading] = useState(true)
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
+  const [favorites, setFavorites] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    favoritesCount: 0,
+    eventsCount: 0,
+  })
+
+  useEffect(() => {
+    async function loadUserData() {
+      if (!user?.id) return
+      setLoading(true)
+      const supabase = createClient()
+
+      try {
+        // 1. Fetch user's real favorites from database
+        const { data: favsData, count: favsCount } = await supabase
+          .from('favorites')
+          .select(`
+            *,
+            professional:professionals(*),
+            space:sport_spaces(*),
+            event:events(*)
+          `, { count: 'exact' })
+          .eq('user_id', user.id)
+          .limit(5)
+
+        setFavorites(favsData || [])
+
+        // 2. Fetch real upcoming published events from database
+        const { data: eventsData, count: eventsCount } = await supabase
+          .from('events')
+          .select(`
+            *,
+            category:categories(*),
+            space:sport_spaces(name, address)
+          `, { count: 'exact' })
+          .gte('start_date', new Date().toISOString())
+          .order('start_date', { ascending: true })
+          .limit(4)
+
+        setUpcomingEvents(eventsData || [])
+
+        setStats({
+          favoritesCount: favsCount || 0,
+          eventsCount: eventsCount || 0,
+        })
+      } catch (err) {
+        console.error('Error loading user dashboard data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadUserData()
+  }, [user?.id])
+
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Atleta'
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-1">
-            Pronto para treinar, {user?.user_metadata?.full_name?.split(' ')[0] || 'Atleta'}? 🏃‍♂️
+            Pronto para treinar, {firstName}? 🏃‍♂️
           </h1>
-          <p className="text-muted-foreground">Aqui tens o resumo da tua atividade e os teus próximos desafios.</p>
+          <p className="text-muted-foreground">Aqui tens o resumo da tua atividade e os próximos eventos na plataforma.</p>
         </div>
+        
         <div className="flex items-center gap-3">
-          <Link href="/pesquisa" className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-primary/90 transition-all shadow-sm">
-            <Search className="h-4 w-4" />
-            Descobrir
+          <Link href="/pesquisa">
+            <Button className="gap-2 shadow-sm">
+              <Search className="h-4 w-4" />
+              Descobrir Espaços & Pros
+            </Button>
           </Link>
         </div>
+      </div>
+
+      {/* KPI Stats Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="transition-all hover:shadow-md">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Favoritos Guardados</p>
+              <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.favoritesCount}</h3>
+            </div>
+            <div className="p-3 bg-red-500/10 text-red-500 rounded-xl">
+              <Heart className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="transition-all hover:shadow-md">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Próximos Eventos</p>
+              <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.eventsCount}</h3>
+            </div>
+            <div className="p-3 bg-primary/10 text-primary rounded-xl">
+              <CalendarCheck className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="transition-all hover:shadow-md">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Estado da Conta</p>
+              <h3 className="text-lg font-bold text-foreground">Utilizador Ativo</h3>
+            </div>
+            <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
+              <Activity className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Left Column (Main Focus) */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Left Column: Real Upcoming Events */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <CalendarCheck className="h-5 w-5 text-primary" />
+              Próximos Eventos Disponíveis
+            </h2>
+            <Link href="/eventos">
+              <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                Ver Todos <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </div>
           
-          {/* Próximos Eventos / Reservas */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <CalendarCheck className="h-5 w-5 text-primary" />
-                Os Meus Próximos Eventos
-              </h2>
+          {loading ? (
+            <div className="flex items-center justify-center p-12 bg-card rounded-2xl border border-border">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-            
+          ) : upcomingEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { 
-                  title: 'Aula de Padel Iniciação', 
-                  date: 'Amanhã, 18:30', 
-                  loc: 'Padel Club Porto',
-                  status: 'Confirmado'
-                },
-                { 
-                  title: 'Treino de Força (PT Igor)', 
-                  date: 'Sábado, 10:00', 
-                  loc: 'Ginásio Iron',
-                  status: 'Pendente'
-                }
-              ].map((evt, idx) => (
-                <div key={idx} className="bg-card border border-border p-5 rounded-2xl hover:shadow-md transition-shadow relative overflow-hidden">
-                  <div className={`absolute top-0 left-0 w-1 h-full ${evt.status === 'Confirmado' ? 'bg-primary' : 'bg-amber-500'}`}></div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold uppercase ${evt.status === 'Confirmado' ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-600'}`}>
-                      {evt.status}
-                    </span>
+              {upcomingEvents.map((evt) => (
+                <div key={evt.id} className="bg-card border border-border p-5 rounded-2xl hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <Badge variant="outline" className="text-xs">
+                        {evt.category?.name || 'Evento'}
+                      </Badge>
+                      {evt.price_min ? (
+                        <span className="text-xs font-bold text-primary">{evt.price_min}€</span>
+                      ) : (
+                        <Badge variant="success" className="text-[10px]">Grátis</Badge>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-semibold text-base text-foreground mb-2 line-clamp-1">{evt.title}</h3>
+                    
+                    <div className="space-y-1.5 text-xs text-muted-foreground">
+                      <p className="flex items-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 text-primary" />
+                        {formatDate(evt.start_date, "dd 'de' MMMM 'às' HH:mm")}
+                      </p>
+                      {evt.address && (
+                        <p className="flex items-center gap-2 line-clamp-1">
+                          <MapPin className="h-3.5 w-3.5 text-primary" />
+                          {evt.address}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-lg text-foreground mb-1 truncate">{evt.title}</h3>
-                  <div className="space-y-1 mt-3">
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <CalendarCheck className="h-4 w-4" /> {evt.date}
-                    </p>
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <MapPin className="h-4 w-4" /> {evt.loc}
-                    </p>
-                  </div>
-                  <button className="mt-4 w-full py-2 bg-muted hover:bg-primary/10 hover:text-primary transition-colors rounded-xl text-sm font-medium">
-                    Ver Detalhes
-                  </button>
+
+                  <Link href={`/eventos/${evt.slug || evt.id}`} className="mt-5">
+                    <Button variant="secondary" size="sm" className="w-full">
+                      Ver Detalhes do Evento
+                    </Button>
+                  </Link>
                 </div>
               ))}
-              
-              <div className="bg-card border border-dashed border-border p-5 rounded-2xl flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer min-h-[200px]">
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-3">
-                  <Activity className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">Junta-te a mais uma aula</h3>
-                <p className="text-sm text-muted-foreground">Explora novas modalidades</p>
-              </div>
             </div>
-          </div>
-
+          ) : (
+            <EmptyState
+              icon={CalendarCheck}
+              title="Sem eventos próximos no momento"
+              description="Explore todos os eventos e torneios organizados na plataforma."
+              action={
+                <Link href="/eventos">
+                  <Button size="sm" className="gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Explorar Eventos
+                  </Button>
+                </Link>
+              }
+            />
+          )}
         </div>
 
-        {/* Right Column */}
-        <div className="lg:col-span-1 space-y-8">
-          
-          {/* Favoritos */}
-          <div className="bg-card rounded-2xl border border-border p-6">
+        {/* Right Column: Real User Favorites */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
-                <Heart className="h-5 w-5 text-red-500" /> Favoritos
+                <Heart className="h-5 w-5 text-red-500 fill-red-500" /> Os Meus Favoritos
               </h2>
             </div>
             
-            <div className="space-y-4">
-              {[
-                { name: 'Igor Sanchez', type: 'Personal Trainer' },
-                { name: 'Yoga Studio Lx', type: 'Espaço Desportivo' },
-              ].map((fav, idx) => (
-                <div key={idx} className="flex gap-4 p-3 rounded-xl border border-border hover:bg-muted transition-colors cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-secondary-foreground font-bold">
-                    {fav.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{fav.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{fav.type}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <button className="w-full mt-6 py-2 bg-muted text-muted-foreground rounded-xl font-medium text-sm hover:text-foreground transition-all flex items-center justify-center gap-2">
-              Ver Todos <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+            {loading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : favorites.length > 0 ? (
+              <div className="space-y-3">
+                {favorites.map((fav) => {
+                  const target = fav.professional || fav.space || fav.event
+                  const name = target?.name || target?.full_name || target?.title || 'Favorito'
+                  const type = fav.professional ? 'Profissional' : fav.space ? 'Espaço' : 'Evento'
+                  const link = fav.professional 
+                    ? `/profissionais/${target?.public_slug || target?.id}` 
+                    : fav.space 
+                    ? `/espacos/${target?.slug || target?.id}` 
+                    : `/eventos/${target?.slug || target?.id}`
 
+                  return (
+                    <Link key={fav.id} href={link}>
+                      <div className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted transition-colors cursor-pointer mb-2">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 text-primary font-bold text-sm">
+                          {name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate text-foreground">{name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{type}</p>
+                        </div>
+                        {target?.rating_avg && (
+                          <div className="flex items-center gap-1 text-xs text-amber-500 font-semibold shrink-0">
+                            <Star className="h-3 w-3 fill-amber-500" />
+                            {target.rating_avg}
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Heart}
+                title="Sem favoritos salvos"
+                description="Guarde espaços e profissionais favoritos para aceder facilmente."
+                action={
+                  <Link href="/pesquisa">
+                    <Button variant="outline" size="sm">
+                      Pesquisar
+                    </Button>
+                  </Link>
+                }
+              />
+            )}
+            
+            <Link href="/dashboard/favoritos" className="block mt-4">
+              <Button variant="outline" className="w-full justify-between text-xs">
+                Gerir Todos os Favoritos
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
+
       </div>
     </div>
   )

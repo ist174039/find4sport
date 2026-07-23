@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Gavel } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -44,7 +45,7 @@ export default function Page() {
 
    <section className="bg-card rounded-xl border border-border overflow-hidden">
     <div className="p-6 border-b border-border flex items-center gap-2">
-     <span className="material-symbols-outlined text-destructive">gavel</span>
+     <Gavel className="text-destructive h-5 w-5" />
      <h3 className="text-xl font-bold text-foreground">Fila de Moderação (Conteúdo Sensível)</h3>
     </div>
     

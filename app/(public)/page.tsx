@@ -1,3 +1,4 @@
+import { Activity, ArrowRight, BadgeCheck, Building, Heart, MapPin, MessageSquare, ShoppingBag, Star, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { HeroCarousel } from '@/components/hero-carousel'
@@ -37,42 +38,42 @@ export default async function Page() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
             <Link href="/pesquisa?type=spaces" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">apartment</span>
+                <Building className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Espaços</h3>
               <p className="text-xs text-muted-foreground">Reserva online</p>
             </Link>
             <Link href="/pesquisa" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">person_celebrate</span>
+                <UserCheck className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Profissionais</h3>
               <p className="text-xs text-muted-foreground">PT, fisio, nutrição</p>
             </Link>
             <Link href="/pesquisa?category=saude" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-pink-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">favorite</span>
+                <Heart className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Saúde</h3>
               <p className="text-xs text-muted-foreground">Recovery & bem-estar</p>
             </Link>
             <Link href="/pesquisa?category=viagens" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-orange-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">kayaking</span>
+                <Activity className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Viagens</h3>
               <p className="text-xs text-muted-foreground">Desporto aventura</p>
             </Link>
             <Link href="/pesquisa?category=marketplace" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-purple-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">shopping_bag</span>
+                <ShoppingBag className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Marketplace</h3>
               <p className="text-xs text-muted-foreground">Equipamento</p>
             </Link>
             <Link href="/comunidades" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <span className="material-symbols-outlined text-[28px]">forum</span>
+                <MessageSquare className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Comunidade</h3>
               <p className="text-xs text-muted-foreground">Inspire-se</p>
@@ -90,7 +91,7 @@ export default async function Page() {
               <p className="mt-2 text-muted-foreground">Os profissionais mais reconhecidos da nossa rede</p>
             </div>
             <Link href="/pesquisa" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
-              Ver todos <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              Ver todos <ArrowRight className="text-sm h-5 w-5" />
             </Link>
           </div>
           
@@ -104,15 +105,13 @@ export default async function Page() {
                     src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
                   />
                   {prof.is_verified && (
-                    <span className="absolute bottom-1 right-1 bg-emerald-100 text-emerald-700 p-0.5 rounded-full border border-emerald-200 material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                      verified
-                    </span>
+                    <BadgeCheck className="absolute bottom-1 right-1 bg-emerald-100 text-emerald-700 p-0.5 rounded-full border border-emerald-200 text-[12px]" />
                   )}
                 </div>
                 <div className="pt-4 flex-1 flex flex-col items-center text-center">
                   <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">{prof.full_name}</h3>
                   <div className="flex items-center gap-1 mt-1 bg-muted px-2 py-0.5 rounded-md text-xs">
-                    <span className="material-symbols-outlined text-yellow-500 text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <Star className="text-yellow-500 text-[12px]" />
                     <span className="font-semibold text-foreground">{prof.rating_avg?.toFixed(1) || 'Novo'}</span>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-3 flex-1">
@@ -142,7 +141,7 @@ export default async function Page() {
               <p className="mt-2 text-muted-foreground">Os espaços desportivos mais bem avaliados pela comunidade</p>
             </div>
             <Link href="/pesquisa?type=spaces" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
-              Ver todos <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              Ver todos <ArrowRight className="text-sm h-5 w-5" />
             </Link>
           </div>
           
@@ -156,14 +155,14 @@ export default async function Page() {
                     src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
                   />
                   <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-md flex items-center gap-1 shadow-sm">
-                    <span className="material-symbols-outlined text-yellow-500 text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    <Star className="text-yellow-500 text-[14px]" />
                     <span className="font-semibold text-xs text-foreground">{space.rating_avg?.toFixed(1) || 'Novo'}</span>
                   </div>
                 </div>
                 <div className="p-5 flex-1 flex flex-col">
                   <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">{space.name}</h3>
                   <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
-                    <span className="material-symbols-outlined text-[16px]">location_on</span> {space.address || 'Localização não disponível'}
+                    <MapPin className="text-[16px]" /> {space.address || 'Localização não disponível'}
                   </p>
                   <div className="mt-auto pt-4 flex justify-between items-center">
                     <span className="text-primary font-medium text-sm">Ver detalhes</span>

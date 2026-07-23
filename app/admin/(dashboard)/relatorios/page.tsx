@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { Activity, Building2, Calendar, FileText, LineChart, Loader2, Star, Store, Users } from 'lucide-react'
 
 export default function Page() {
  const [stats, setStats] = useState<any>(null)
@@ -50,7 +50,7 @@ export default function Page() {
     </div>
     <div className="flex gap-3">
      <button onClick={exportPDF} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm hover:opacity-90 shadow-sm transition-all">
-      <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+      <FileText className="text-[20px]" />
       Exportar Relatório Global
      </button>
     </div>
@@ -59,12 +59,12 @@ export default function Page() {
    {/* Report Container to print */}
    <div className="bg-card rounded-xl border border-border p-8 print:border-none print:p-0">
     <div className="hidden print:block mb-8 border-b border-border pb-6">
-     <h1 className="font-headline-lg text-3xl font-bold text-foreground">Find4Sport - Relatório Global de Plataforma</h1>
+     <h1 className="font-bold text-2xl text-3xl font-bold text-foreground">Find4Sport - Relatório Global de Plataforma</h1>
      <p className="text-muted-foreground mt-2">Gerado em: {new Date().toLocaleDateString('pt-PT')}</p>
     </div>
 
     <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-     <span className="material-symbols-outlined text-primary">monitoring</span> Resumo de Métricas Atuais
+     <Activity className="text-primary h-5 w-5" /> Resumo de Métricas Atuais
     </h3>
 
     {loading ? (
@@ -76,7 +76,7 @@ export default function Page() {
       <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
        <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-         <span className="material-symbols-outlined">group</span>
+         <Users className="h-5 w-5" />
         </div>
         <h4 className="text-lg font-semibold">Utilizadores Registados</h4>
        </div>
@@ -86,7 +86,7 @@ export default function Page() {
       <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
        <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-secondary/50 text-secondary-foreground rounded-lg flex items-center justify-center">
-         <span className="material-symbols-outlined">store</span>
+         <Store className="h-5 w-5" />
         </div>
         <h4 className="text-lg font-semibold">Profissionais & Entidades</h4>
        </div>
@@ -96,7 +96,7 @@ export default function Page() {
       <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
        <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-green-500/10 text-green-600 dark:text-green-400 rounded-lg flex items-center justify-center">
-         <span className="material-symbols-outlined">stadium</span>
+         <Building2 className="h-5 w-5" />
         </div>
         <h4 className="text-lg font-semibold">Espaços Desportivos</h4>
        </div>
@@ -106,7 +106,7 @@ export default function Page() {
       <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
        <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center">
-         <span className="material-symbols-outlined">event</span>
+         <Calendar className="h-5 w-5" />
         </div>
         <h4 className="text-lg font-semibold">Eventos & Torneios</h4>
        </div>
@@ -115,8 +115,8 @@ export default function Page() {
 
       <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
        <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-trust-gold/10 text-trust-gold rounded-lg flex items-center justify-center">
-         <span className="material-symbols-outlined">star</span>
+        <div className="w-10 h-10 bg-trust-gold/10 text-amber-500 rounded-lg flex items-center justify-center">
+         <Star className="h-5 w-5" />
         </div>
         <h4 className="text-lg font-semibold">Avaliações Recebidas</h4>
        </div>
@@ -127,7 +127,7 @@ export default function Page() {
 
     <div className="mt-8 p-6 bg-primary/5 rounded-xl border border-primary/20 print:border-border">
      <h4 className="text-lg font-bold text-primary mb-2 flex items-center gap-2">
-      <span className="material-symbols-outlined text-[20px]">insights</span>
+      <LineChart className="text-[20px]" />
       Resumo Executivo
      </h4>
      <p className="text-sm text-muted-foreground leading-relaxed">

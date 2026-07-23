@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { Check, FileText, Filter, Info, X } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -85,7 +86,7 @@ export default function Page() {
 <aside className="w-1/4 flex flex-col gap-4 overflow-hidden">
 <div className="flex justify-between items-center">
 <h2 className="text-xl font-bold text-foreground">Pendentes ({claims.filter(c => c.status === 'pending').length})</h2>
-<span className="material-symbols-outlined text-muted-foreground cursor-pointer">filter_list</span>
+<Filter className="text-muted-foreground cursor-pointer h-5 w-5" />
 </div>
 <div className="flex-1 overflow-y-auto pr-2 flex flex-col gap-3 scroll-hide">
  {loading ? (
@@ -125,7 +126,7 @@ export default function Page() {
 </aside>
 {!selectedClaim ? (
  <section className="flex-1 flex flex-col items-center justify-center p-8 bg-card border border-border rounded-xl text-center">
-  <span className="material-symbols-outlined text-4xl text-muted-foreground mb-4">info</span>
+  <Info className="text-4xl text-muted-foreground mb-4 h-5 w-5" />
   <h3 className="font-bold text-foreground">Nenhuma Reivindicação Selecionada</h3>
   <p className="text-sm text-muted-foreground mt-1">Selecione um pedido na lista à esquerda para analisar.</p>
  </section>
@@ -157,7 +158,7 @@ export default function Page() {
      <div className="space-y-6">
       <div>
        <h4 className="font-bold text-muted-foreground uppercase text-[12px] tracking-widest mb-2">Justificação do Pedido</h4>
-       <p className="text-body-lg text-foreground leading-relaxed">
+       <p className="text-base text-foreground leading-relaxed">
         "{selectedClaim.justification || 'Nenhuma justificação fornecida.'}"
        </p>
       </div>
@@ -173,7 +174,7 @@ export default function Page() {
          rel="noreferrer" 
          className="text-primary font-bold hover:underline inline-flex items-center gap-2"
         >
-         <span className="material-symbols-outlined">description</span>
+         <FileText className="h-5 w-5" />
          Visualizar Documento de Prova
         </a>
        </div>
@@ -204,14 +205,14 @@ export default function Page() {
         onClick={handleReject}
         className="px-8 py-3 rounded-lg border-2 border-destructive text-destructive font-bold hover:bg-destructive/5 transition-colors flex items-center gap-2 cursor-pointer"
        >
-        <span className="material-symbols-outlined">close</span>
+        <X className="h-5 w-5" />
         Rejeitar Claim
        </button>
        <button 
         onClick={handleApprove}
         className="px-8 py-3 rounded-lg bg-primary text-white font-bold hover:bg-primary/20 transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
        >
-        <span className="material-symbols-outlined">check</span>
+        <Check className="h-5 w-5" />
         Aprovar Claim
        </button>
       </div>
@@ -226,10 +227,10 @@ export default function Page() {
     <h4 className="font-bold text-[12px] uppercase tracking-widest text-muted-foreground mb-4">Métricas Globais</h4>
     <div className="space-y-4">
      <div className="flex flex-col">
-      <span className="text-display-lg text-primary font-display-lg">94%</span>
+      <span className="text-display-lg text-primary font-bold text-3xl">94%</span>
       <span className="text-xs font-medium text-muted-foreground">SLA de Resposta</span>
      </div>
-     <div className="h-1 bg-outline-variant w-full rounded-full overflow-hidden">
+     <div className="h-1 bg-border w-full rounded-full overflow-hidden">
       <div className="h-full bg-primary w-[94%]"></div>
      </div>
     </div>

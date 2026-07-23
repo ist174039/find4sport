@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import React from 'react'
 
 interface TablePaginationProps {
@@ -34,7 +35,7 @@ export function TablePagination({
           className="p-1.5 rounded border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Página Anterior"
         >
-          <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+          <ChevronLeft className="text-[20px]" />
         </button>
         <div className="text-sm font-medium px-3 text-muted-foreground">
           Página <span className="text-foreground">{currentPage}</span> de {Math.max(1, totalPages)}
@@ -45,7 +46,7 @@ export function TablePagination({
           className="p-1.5 rounded border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Próxima Página"
         >
-          <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+          <ChevronRight className="text-[20px]" />
         </button>
       </div>
     </div>

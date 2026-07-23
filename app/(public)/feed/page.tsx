@@ -1,3 +1,4 @@
+import { ChevronRight, FilePlus, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
 import Link from 'next/link'
@@ -54,7 +55,7 @@ export default async function Page() {
         <aside className="hidden lg:block lg:col-span-3 space-y-6">
           <div className="bg-primary/10 text-primary-foreground p-6 rounded-2xl shadow-sm border border-primary/20">
             <div className="flex items-start gap-3 mb-4 text-primary">
-              <span className="material-symbols-outlined text-[28px]">verified_user</span>
+              <ShieldCheck className="text-[28px]" />
               <h3 className="text-lg font-bold leading-tight">Publicações Seguras</h3>
             </div>
             <p className="text-sm text-foreground opacity-90 mb-4">
@@ -128,7 +129,7 @@ export default async function Page() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-foreground">Destaques</h2>
               <Link href="/pesquisa" className="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
-                Ver todos <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                Ver todos <ChevronRight className="text-[16px]" />
               </Link>
             </div>
             
@@ -155,7 +156,7 @@ export default async function Page() {
             ))
           ) : (
             <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
-              <span className="material-symbols-outlined text-[48px] text-muted-foreground mb-4">post_add</span>
+              <FilePlus className="text-[48px] text-muted-foreground mb-4" />
               <h3 className="font-bold text-lg text-foreground mb-2">Ainda não há publicações</h3>
               <p className="text-muted-foreground text-sm">Segue mais profissionais e espaços para veres as suas novidades aqui.</p>
             </div>
@@ -172,7 +173,7 @@ export default async function Page() {
               <h4 className="font-bold text-base mb-4 text-foreground relative z-10">Comunidade em Destaque</h4>
               <div className="flex items-center gap-3 mb-6 relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[28px]">groups</span>
+                  <Users className="text-[28px]" />
                 </div>
                 <div>
                   <Link href={`/comunidades/${topCommunity.id}`}>

@@ -28,8 +28,7 @@ async function getEventsData(searchParams: { category?: string; q?: string; loca
       *,
       category:categories(*)
     `)
-    .eq('status', 'approved')
-    .gte('start_date', new Date().toISOString())
+    .in('status', ['active', 'published', 'approved'])
 
   // Apply filters
   if (searchParams.q) {

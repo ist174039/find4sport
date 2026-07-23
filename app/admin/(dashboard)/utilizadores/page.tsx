@@ -1,5 +1,6 @@
 
-'use client'
+'use client';
+import { Activity, Ban, Download, Edit, Key, Search, Shield, Store, UserPlus, Users } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -97,12 +98,12 @@ export default function Page() {
     </div>
     <div className="flex gap-3">
      <button className="flex items-center gap-2 px-5 py-2.5 bg-muted border border-border rounded-lg font-medium text-sm hover:bg-muted transition-all">
-      <span className="material-symbols-outlined text-[20px]">download</span>
+      <Download className="text-[20px]" />
       Exportar CSV
      </button>
      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
       <DialogTrigger className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-all shadow-sm">
-       <span className="material-symbols-outlined text-[20px]">person_add</span>
+       <UserPlus className="text-[20px]" />
        Criar Utilizador
       </DialogTrigger>
       <DialogContent>
@@ -143,7 +144,7 @@ export default function Page() {
    <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-primary">
-      <span className="material-symbols-outlined text-[64px]" data-icon="group">group</span>
+      <Users className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Total Registados</p>
      <div className="flex items-end gap-2">
@@ -152,7 +153,7 @@ export default function Page() {
     </div>
     <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-secondary-foreground">
-      <span className="material-symbols-outlined text-[64px]" data-icon="sports">sports</span>
+      <Activity className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Profissionais</p>
      <div className="flex items-end gap-2">
@@ -162,7 +163,7 @@ export default function Page() {
     </div>
     <div className="bg-destructive/10 p-6 rounded-xl border border-border relative overflow-hidden group">
      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-destructive">
-      <span className="material-symbols-outlined text-[64px]" data-icon="admin_panel_settings">admin_panel_settings</span>
+      <Shield className="text-[64px]" />
      </div>
      <p className="text-muted-foreground font-medium text-sm mb-2">Administradores</p>
      <div className="flex items-end gap-2">
@@ -185,7 +186,7 @@ export default function Page() {
       
       {/* Quick Search */}
       <div className="relative flex-1 sm:max-w-xs ml-auto">
-       <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]">search</span>
+       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-[20px]" />
        <input 
         type="text" 
         placeholder="Pesquisar utilizador..." 
@@ -229,12 +230,12 @@ export default function Page() {
           <td className="px-6 py-4 hidden md:table-cell">
            {user.admin_type === 'general' && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-destructive/20/30 text-destructive rounded-full text-[11px] font-bold uppercase tracking-wider">
-             <span className="material-symbols-outlined text-[12px]">security</span> General
+             <Shield className="text-[12px]" /> General
             </span>
            )}
            {user.admin_type === 'operacional' && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-secondary/50 text-secondary-foreground rounded-full text-[11px] font-bold uppercase tracking-wider">
-             <span className="material-symbols-outlined text-[12px]">store</span> Operacional
+             <Store className="text-[12px]" /> Operacional
             </span>
            )}
           </td>
@@ -244,13 +245,13 @@ export default function Page() {
           <td className="px-6 py-4 text-right">
            <div className="flex justify-end gap-1">
             <button className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Editar">
-             <span className="material-symbols-outlined text-[20px]">edit</span>
+             <Edit className="text-[20px]" />
             </button>
             <button className="p-2 hover:bg-muted text-muted-foreground hover:text-primary rounded-lg transition-colors" title="Reset Password" onClick={() => alert('Reset Password')}>
-             <span className="material-symbols-outlined text-[20px]">lock_reset</span>
+             <Key className="text-[20px]" />
             </button>
             <button className="p-2 hover:bg-destructive/20 text-muted-foreground hover:text-destructive rounded-lg transition-colors" title="Bloquear Conta">
-             <span className="material-symbols-outlined text-[20px]">block</span>
+             <Ban className="text-[20px]" />
             </button>
            </div>
           </td>

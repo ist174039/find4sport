@@ -2,7 +2,11 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Clock, Globe, Loader2, Mail, MapPin, Share2, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,23 +87,21 @@ export default function ContactPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="fullName" className="text-sm font-medium text-foreground">Nome Completo</label>
-                      <input 
+                      <Label htmlFor="fullName">Nome Completo</Label>
+                      <Input 
                         id="fullName"
                         name="fullName"
                         required
-                        className="w-full h-11 bg-muted border border-border rounded-lg px-4 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
                         placeholder="Ex: João Silva" 
                         type="text"
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label htmlFor="email" className="text-sm font-medium text-foreground">E-mail</label>
-                      <input 
+                      <Label htmlFor="email">E-mail</Label>
+                      <Input 
                         id="email"
                         name="email"
                         required
-                        className="w-full h-11 bg-muted border border-border rounded-lg px-4 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" 
                         placeholder="joao@exemplo.pt" 
                         type="email"
                       />
@@ -107,12 +109,12 @@ export default function ContactPage() {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="subject" className="text-sm font-medium text-foreground">Assunto</label>
+                    <Label htmlFor="subject">Assunto</Label>
                     <select 
                       id="subject"
                       name="subject"
                       required
-                      className="w-full h-11 bg-muted border border-border rounded-lg px-4 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      className="h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <option value="Suporte Técnico">Suporte Técnico</option>
                       <option value="Dúvidas sobre Subscrição">Dúvidas sobre Subscrição</option>
@@ -123,15 +125,14 @@ export default function ContactPage() {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    <label htmlFor="message" className="text-sm font-medium text-foreground">Mensagem</label>
-                    <textarea 
+                    <Label htmlFor="message">Mensagem</Label>
+                    <Textarea 
                       id="message"
                       name="message"
                       required
-                      className="w-full bg-muted border border-border rounded-lg p-4 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none" 
                       placeholder="Como podemos ajudar?" 
                       rows={5}
-                    ></textarea>
+                    />
                   </div>
                   
                   {error && (
@@ -139,21 +140,21 @@ export default function ContactPage() {
                       {error}
                     </div>
                   )}
-
-                  <button 
+                  
+                  <Button 
+                    type="submit" 
                     disabled={isSubmitting}
-                    className="w-full md:w-auto bg-primary text-primary-foreground px-10 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed" 
-                    type="submit"
+                    className="w-full h-11"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        A enviar...
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        A enviar mensagem...
                       </>
                     ) : (
                       'Enviar Mensagem'
                     )}
-                  </button>
+                  </Button>
                 </form>
               )}
             </section>
@@ -168,21 +169,21 @@ export default function ContactPage() {
                 
                 <div className="space-y-6 relative z-10">
                   <div className="flex items-start gap-4">
-                    <span className="material-symbols-outlined bg-white/20 p-2 rounded-xl backdrop-blur-sm">mail</span>
+                    <Mail className="bg-white/20 p-2 rounded-xl backdrop-blur-sm h-5 w-5" />
                     <div>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Email</p>
                       <p className="font-medium">ajuda@find4sport.pt</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <span className="material-symbols-outlined bg-white/20 p-2 rounded-xl backdrop-blur-sm">location_on</span>
+                    <MapPin className="bg-white/20 p-2 rounded-xl backdrop-blur-sm h-5 w-5" />
                     <div>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Morada</p>
                       <p className="font-medium">Avenida da Liberdade, 110<br/>1269-046 Lisboa, Portugal</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
-                    <span className="material-symbols-outlined bg-white/20 p-2 rounded-xl backdrop-blur-sm">schedule</span>
+                    <Clock className="bg-white/20 p-2 rounded-xl backdrop-blur-sm h-5 w-5" />
                     <div>
                       <p className="text-xs font-bold opacity-80 uppercase tracking-wider mb-1">Horário</p>
                       <p className="font-medium">Segunda – Sexta: 09:00 – 19:00<br/>Sábado: 10:00 – 14:00</p>
@@ -192,13 +193,13 @@ export default function ContactPage() {
                 
                 <div className="mt-10 pt-6 border-t border-white/20 flex gap-4 relative z-10">
                   <a className="bg-white text-primary w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted transition-colors shadow-sm" href="#">
-                    <span className="material-symbols-outlined text-[20px]">share</span>
+                    <Share2 className="text-[20px]" />
                   </a>
                   <a className="bg-white text-primary w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted transition-colors shadow-sm" href="#">
-                    <span className="material-symbols-outlined text-[20px]">group</span>
+                    <Users className="text-[20px]" />
                   </a>
                   <a className="bg-white text-primary w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted transition-colors shadow-sm" href="#">
-                    <span className="material-symbols-outlined text-[20px]">public</span>
+                    <Globe className="text-[20px]" />
                   </a>
                 </div>
               </div>
@@ -212,7 +213,7 @@ export default function ContactPage() {
                 />
                 <div className="absolute inset-0 bg-primary/5 group-hover:bg-transparent transition-colors"></div>
                 <div className="absolute bottom-4 left-4 bg-background px-4 py-2 rounded-xl shadow-md flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                  <MapPin className="text-primary text-[20px]" />
                   <span className="text-sm font-semibold text-foreground">Lisboa, Portugal</span>
                 </div>
               </div>

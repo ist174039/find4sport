@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { MapPin, Star } from 'lucide-react'
 
 import { useState } from 'react'
 
@@ -7,24 +8,24 @@ export default function Page() {
 
   return (
     <>
-      <header className="w-full sticky top-0 bg-surface z-50 border-b border-border-subtle">
+      <header className="w-full sticky top-0 bg-background z-50 border-b border-border">
       </header>
       <main className="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-10 min-h-screen">
         {/*  Header Section  */}
         <div className="mb-10">
-          <h1 className="font-headline-lg text-headline-lg text-text-primary mb-2">As Minhas Reservas</h1>
-          <p className="text-text-secondary font-body-lg">Gira as tuas marcações de atividades desportivas e espaços.</p>
+          <h1 className="font-bold text-2xl text-2xl text-foreground mb-2">As Minhas Reservas</h1>
+          <p className="text-muted-foreground text-base">Gira as tuas marcações de atividades desportivas e espaços.</p>
         </div>
         {/*  Layout Wrapper  */}
         <div className="flex flex-col lg:flex-row gap-gutter">
           {/*  Left Sidebar Navigation (User Profile Context)  */}
           <aside className="w-full lg:w-64 flex-shrink-0">
-            <div className="bg-surface-container-lowest rounded-xl p-4 border border-border-subtle">
+            <div className="bg-card rounded-xl p-4 border border-border">
               <div className="flex items-center gap-3 mb-6 p-2">
                 <img alt="Profile" className="w-12 h-12 rounded-full object-cover" data-alt="A professional close-up portrait of a cheerful young man with a friendly smile, set against a soft, blurred studio background. The lighting is bright and airy, typical of a high-end clean corporate profile photo, emphasizing healthy skin tones and a modern, minimalist aesthetic that aligns with the athletic and professional brand." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBT7-yLkJhSvsxKf5u2BL1Lx0CRvOjELdM299IUa-JpWODWUvD4jruo49LnzPPm4_6zkSyeQfx-i94aElwCcykE6AvH41gNhnCr8WSRqfLw-3IcByCRXe8SsBQ0AFNEsW_Wgd_3lk0kMarbreFw8x2J5Fh7wWohCK7AXzRaQyClC0XcvAhwZ_lWpxEcJs-nJHiX21KjckNbhNSuMExRNFkKOOEcRwNnW989M7uKgvpey8oVNpgM9nBtRiCZEoZZXDogfU_YFvy_" />
                 <div>
-                  <p className="font-headline-md text-label-md text-text-primary">João Silva</p>
-                  <p className="text-label-md text-text-secondary">Membro desde 2023</p>
+                  <p className="font-semibold text-xl text-sm text-foreground">João Silva</p>
+                  <p className="text-sm text-muted-foreground">Membro desde 2023</p>
                 </div>
               </div>
             </div>
@@ -32,24 +33,24 @@ export default function Page() {
           {/*  Main Content Area: Reservations  */}
           <div className="flex-grow">
             {/*  Filter Tabs  */}
-            <div className="flex gap-8 border-b border-border-subtle mb-8">
+            <div className="flex gap-8 border-b border-border mb-8">
               <button 
                 onClick={() => setActiveTab('proximas')} 
-                className={`${activeTab === 'proximas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-text-secondary hover:text-primary'} pb-4 font-label-md transition-all`} 
+                className={`${activeTab === 'proximas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-muted-foreground hover:text-primary'} pb-4 font-medium text-sm transition-all`} 
                 id="tab-proximas"
               >
                 Próximas
               </button>
               <button 
                 onClick={() => setActiveTab('passadas')} 
-                className={`${activeTab === 'passadas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-text-secondary hover:text-primary'} pb-4 font-label-md transition-all`} 
+                className={`${activeTab === 'passadas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-muted-foreground hover:text-primary'} pb-4 font-medium text-sm transition-all`} 
                 id="tab-passadas"
               >
                 Passadas
               </button>
               <button 
                 onClick={() => setActiveTab('canceladas')} 
-                className={`${activeTab === 'canceladas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-text-secondary hover:text-primary'} pb-4 font-label-md transition-all`} 
+                className={`${activeTab === 'canceladas' ? 'border-b-2 border-primary text-primary font-bold' : 'text-muted-foreground hover:text-primary'} pb-4 font-medium text-sm transition-all`} 
                 id="tab-canceladas"
               >
                 Canceladas
@@ -60,7 +61,7 @@ export default function Page() {
               {activeTab === 'proximas' ? (
                 <>
                   {/*  Reservation Card 1 (Upcoming)  */}
-                  <div className="bg-surface-container-lowest border border-border-subtle rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
+                  <div className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
                     <div className="flex flex-col md:flex-row">
                       <div className="md:w-48 h-40 md:h-auto overflow-hidden">
                         <img alt="Campo de Padel" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A gym facility" src="https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=300" />
@@ -70,47 +71,47 @@ export default function Page() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="bg-secondary-fixed text-on-secondary-fixed-variant text-[10px] uppercase font-bold px-2 py-0.5 rounded tracking-wider">Espaço</span>
-                              <span className="flex items-center gap-1 text-trust-gold">
-                                <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                                <span className="font-label-md">4.9</span>
+                              <span className="flex items-center gap-1 text-amber-500">
+                                <Star className="text-sm h-5 w-5" />
+                                <span className="font-medium text-sm">4.9</span>
                               </span>
                             </div>
-                            <h3 className="font-headline-md text-headline-md text-text-primary">Clube de Padel Quinta da Marinha</h3>
-                            <p className="text-text-secondary text-body-md flex items-center gap-1">
-                              <span className="material-symbols-outlined text-base">location_on</span> Cascais, Portugal
+                            <h3 className="font-semibold text-xl text-xl text-foreground">Clube de Padel Quinta da Marinha</h3>
+                            <p className="text-muted-foreground text-sm flex items-center gap-1">
+                              <MapPin className="text-base h-5 w-5" /> Cascais, Portugal
                             </p>
                           </div>
                           <div className="mt-4 md:mt-0 text-right">
-                            <span className="bg-success-mint text-primary font-label-md px-3 py-1 rounded-full border border-primary/20">Confirmada</span>
+                            <span className="bg-emerald-500/10 text-primary font-medium text-sm px-3 py-1 rounded-full border border-primary/20">Confirmada</span>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-border-subtle/50 mb-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-border/50 mb-4">
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Data</p>
-                            <p className="font-body-lg text-text-primary">24 Out 2024</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Data</p>
+                            <p className="text-base text-foreground">24 Out 2024</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Hora</p>
-                            <p className="font-body-lg text-text-primary">18:30 - 20:00</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Hora</p>
+                            <p className="text-base text-foreground">18:30 - 20:00</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Preço</p>
-                            <p className="font-body-lg text-text-primary">32,00 €</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Preço</p>
+                            <p className="text-base text-foreground">32,00 €</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Campo</p>
-                            <p className="font-body-lg text-text-primary">Nº 4 (Panorâmico)</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Campo</p>
+                            <p className="text-base text-foreground">Nº 4 (Panorâmico)</p>
                           </div>
                         </div>
                         <div className="flex justify-end gap-3">
-                          <button className="px-4 py-2 text-error font-label-md hover:bg-error/5 rounded-lg transition-colors">Cancelar Reserva</button>
-                          <button className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label-md hover:bg-primary-container transition-all">Ver Detalhes</button>
+                          <button className="px-4 py-2 text-destructive font-medium text-sm hover:bg-destructive/5 rounded-lg transition-colors">Cancelar Reserva</button>
+                          <button className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-medium text-sm hover:bg-primary/10 transition-all">Ver Detalhes</button>
                         </div>
                       </div>
                     </div>
                   </div>
                   {/*  Reservation Card 2 (Pending)  */}
-                  <div className="bg-surface-container-lowest border border-border-subtle rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
+                  <div className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
                     <div className="flex flex-col md:flex-row">
                       <div className="md:w-48 h-40 md:h-auto overflow-hidden">
                         <img alt="Personal Trainer" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A personal trainer" src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=300" />
@@ -120,48 +121,48 @@ export default function Page() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="bg-tertiary-fixed text-on-tertiary-fixed-variant text-[10px] uppercase font-bold px-2 py-0.5 rounded tracking-wider">Profissional</span>
-                              <span className="flex items-center gap-1 text-trust-gold">
-                                <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                                <span className="font-label-md">5.0</span>
+                              <span className="flex items-center gap-1 text-amber-500">
+                                <Star className="text-sm h-5 w-5" />
+                                <span className="font-medium text-sm">5.0</span>
                               </span>
                             </div>
-                            <h3 className="font-headline-md text-headline-md text-text-primary">Ricardo Mendes — PT High Performance</h3>
-                            <p className="text-text-secondary text-body-md flex items-center gap-1">
-                              <span className="material-symbols-outlined text-base">location_on</span> Fitness Center Colombo
+                            <h3 className="font-semibold text-xl text-xl text-foreground">Ricardo Mendes — PT High Performance</h3>
+                            <p className="text-muted-foreground text-sm flex items-center gap-1">
+                              <MapPin className="text-base h-5 w-5" /> Fitness Center Colombo
                             </p>
                           </div>
                           <div className="mt-4 md:mt-0 text-right">
-                            <span className="bg-surface-container-high text-text-secondary font-label-md px-3 py-1 rounded-full border border-outline-variant/30">Pendente</span>
+                            <span className="bg-muted text-muted-foreground font-medium text-sm px-3 py-1 rounded-full border border-border/30">Pendente</span>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-border-subtle/50 mb-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-border/50 mb-4">
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Data</p>
-                            <p className="font-body-lg text-text-primary">28 Out 2024</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Data</p>
+                            <p className="text-base text-foreground">28 Out 2024</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Hora</p>
-                            <p className="font-body-lg text-text-primary">08:00 - 09:00</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Hora</p>
+                            <p className="text-base text-foreground">08:00 - 09:00</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Preço</p>
-                            <p className="font-body-lg text-text-primary">45,00 €</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Preço</p>
+                            <p className="text-base text-foreground">45,00 €</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-text-secondary uppercase font-bold mb-1">Sessão</p>
-                            <p className="font-body-lg text-text-primary">Treino Funcional</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Sessão</p>
+                            <p className="text-base text-foreground">Treino Funcional</p>
                           </div>
                         </div>
                         <div className="flex justify-end gap-3">
-                          <button className="px-4 py-2 text-error font-label-md hover:bg-error/5 rounded-lg transition-colors">Cancelar Pedido</button>
-                          <button className="bg-primary text-on-primary px-6 py-2 rounded-lg font-label-md hover:bg-primary-container transition-all">Ver Detalhes</button>
+                          <button className="px-4 py-2 text-destructive font-medium text-sm hover:bg-destructive/5 rounded-lg transition-colors">Cancelar Pedido</button>
+                          <button className="bg-primary text-primary-foreground px-6 py-2 rounded-lg font-medium text-sm hover:bg-primary/10 transition-all">Ver Detalhes</button>
                         </div>
                       </div>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="text-center py-20 bg-surface-container-lowest border border-border-subtle rounded-xl text-text-secondary text-sm">
+                <div className="text-center py-20 bg-card border border-border rounded-xl text-muted-foreground text-sm">
                   Sem reservas registadas nesta categoria.
                 </div>
               )}

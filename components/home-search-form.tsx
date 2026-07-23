@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { MapPin, Search } from 'lucide-react'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -27,7 +28,7 @@ export function HomeSearchForm() {
   return (
     <form onSubmit={handleSearch} className="bg-card border border-border rounded-2xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center w-full">
       <div className="flex-1 w-full flex items-center bg-muted/50 rounded-xl px-4 border border-border focus-within:ring-2 focus-within:ring-primary/20 transition-all h-12">
-        <span className="material-symbols-outlined text-muted-foreground mr-3 text-[20px]">search</span>
+        <Search className="text-muted-foreground mr-3 text-[20px]" />
         <input 
           className="w-full bg-transparent border-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground outline-none" 
           placeholder="Pesquisar espaços, treinos, modalidades..." 
@@ -38,7 +39,7 @@ export function HomeSearchForm() {
       </div>
       
       <div className="flex-1 w-full flex items-center bg-muted/50 rounded-xl px-4 border border-border focus-within:ring-2 focus-within:ring-primary/20 transition-all h-12 relative">
-        <span className="material-symbols-outlined text-muted-foreground mr-3 text-[20px]">location_on</span>
+        <MapPin className="text-muted-foreground mr-3 text-[20px]" />
         <input 
           className="w-full bg-transparent border-none focus:ring-0 text-sm text-foreground placeholder:text-muted-foreground outline-none" 
           placeholder="Localização..." 

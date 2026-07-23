@@ -1,4 +1,5 @@
-'use client'
+'use client';
+import { AlertTriangle, ArrowRight, BellRing, Building2, Database, Dumbbell, Edit, History, Info, PlusCircle, Trash2, Users } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -59,7 +60,7 @@ export default function Page() {
   <div className="space-y-6">
    <header className="mb-10">
     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl">Dashboard Global</h1>
-    <p className="font-body-lg text-muted-foreground">Bem-vindo de volta ao centro de operações da FIND4SPORT.</p>
+    <p className="text-base text-muted-foreground">Bem-vindo de volta ao centro de operações da FIND4SPORT.</p>
    </header>
 
    {/* KPI Cards Grid */}
@@ -68,7 +69,7 @@ export default function Page() {
     <div className="bg-card p-6 rounded-xl border border-border hover:shadow-lg transition-all duration-300">
      <div className="flex justify-between items-start mb-4">
       <div className="p-2 bg-primary/20 rounded-lg">
-       <span className="material-symbols-outlined text-primary" data-icon="groups">groups</span>
+       <Users className="text-primary h-5 w-5" />
       </div>
      </div>
      <p className="text-muted-foreground font-medium text-sm">Total Profissionais</p>
@@ -81,7 +82,7 @@ export default function Page() {
     <div className="bg-card p-6 rounded-xl border border-border hover:shadow-lg transition-all duration-300">
      <div className="flex justify-between items-start mb-4">
       <div className="p-2 bg-secondary/50 rounded-lg">
-       <span className="material-symbols-outlined text-secondary-foreground" data-icon="stadium">stadium</span>
+       <Building2 className="text-secondary-foreground h-5 w-5" />
       </div>
      </div>
      <p className="text-muted-foreground font-medium text-sm">Total Espaços</p>
@@ -94,7 +95,7 @@ export default function Page() {
     <div className="bg-card p-6 rounded-xl border border-border hover:shadow-lg transition-all duration-300">
      <div className="flex justify-between items-start mb-4">
       <div className="p-2 bg-secondary rounded-lg">
-       <span className="material-symbols-outlined text-secondary-foreground" data-icon="exercise">exercise</span>
+       <Dumbbell className="text-secondary-foreground h-5 w-5" />
       </div>
       <div className="flex items-center gap-1 text-secondary-foreground">
        <span className="text-xs font-medium text-sm font-bold">Ativo</span>
@@ -110,7 +111,7 @@ export default function Page() {
     <div className="bg-destructive/10 p-6 rounded-xl border border-destructive/20 hover:shadow-lg transition-all duration-300">
      <div className="flex justify-between items-start mb-4">
       <div className="p-2 bg-destructive/20 rounded-lg">
-       <span className="material-symbols-outlined text-destructive" data-icon="notification_important">notification_important</span>
+       <BellRing className="text-destructive h-5 w-5" />
       </div>
       <span className="text-xs font-medium text-sm text-destructive font-bold italic">Ação Necessária</span>
      </div>
@@ -133,11 +134,11 @@ export default function Page() {
       <div className="flex gap-2">
        <button 
         onClick={() => setChartPeriod('monthly')}
-        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${chartPeriod === 'monthly' ? 'bg-primary text-on-primary' : 'bg-muted/30 border border-border'}`}
+        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${chartPeriod === 'monthly' ? 'bg-primary text-primary-foreground' : 'bg-muted/30 border border-border'}`}
        >Mensal</button>
        <button 
         onClick={() => setChartPeriod('weekly')}
-        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${chartPeriod === 'weekly' ? 'bg-primary text-on-primary' : 'bg-muted/30 border border-border'}`}
+        className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${chartPeriod === 'weekly' ? 'bg-primary text-primary-foreground' : 'bg-muted/30 border border-border'}`}
        >Semanal</button>
       </div>
      </div>
@@ -164,13 +165,13 @@ export default function Page() {
     {/* Alerts Panel */}
     <div className="bg-card p-8 rounded-xl border border-border flex flex-col">
      <div className="flex items-center gap-2 mb-6">
-      <span className="material-symbols-outlined text-destructive" data-icon="warning">warning</span>
+      <AlertTriangle className="text-destructive h-5 w-5" />
       <h4 className="text-xl font-bold text-foreground">Alertas Críticos</h4>
      </div>
      <div className="space-y-4 flex-grow">
       {stats.pendingReviews > 0 && (
        <div className="p-4 bg-destructive/10 border-l-4 border-destructive rounded-r-lg flex gap-4 items-start">
-        <span className="material-symbols-outlined text-destructive mt-1" data-icon="history">history</span>
+        <History className="text-destructive mt-1 h-5 w-5" />
         <div>
          <p className="font-medium text-sm text-destructive font-semibold font-bold">Avaliações Negativas</p>
          <p className="text-sm text-muted-foreground">{stats.pendingReviews} avaliações com rating baixo requerem atenção.</p>
@@ -179,7 +180,7 @@ export default function Page() {
       )}
       
       <div className="p-4 bg-destructive/10 border-l-4 border-destructive rounded-r-lg flex gap-4 items-start">
-       <span className="material-symbols-outlined text-destructive mt-1" data-icon="database">database</span>
+       <Database className="text-destructive mt-1 h-5 w-5" />
        <div>
         <p className="font-medium text-sm text-destructive font-semibold font-bold">Aprovação de Espaços</p>
         <p className="text-sm text-muted-foreground">Reivindicações de espaços desportivos aguardam aprovação manual.</p>
@@ -187,7 +188,7 @@ export default function Page() {
       </div>
 
       <div className="p-4 bg-primary/10 border-l-4 border-primary rounded-r-lg flex gap-4 items-start">
-       <span className="material-symbols-outlined text-primary mt-1" data-icon="info">info</span>
+       <Info className="text-primary mt-1 h-5 w-5" />
        <div>
         <p className="font-medium text-sm text-primary font-bold">Atualização do Sistema</p>
         <p className="text-sm text-muted-foreground">O painel foi atualizado para carregar dados reais do Supabase.</p>
@@ -208,7 +209,7 @@ export default function Page() {
       <div className="flex justify-between items-center mb-8">
        <h4 className="text-xl font-bold text-foreground">Atividade Recente</h4>
        <button onClick={() => router.push('/admin/audit')} className="text-primary font-medium text-sm flex items-center gap-1 hover:underline">
-        Ver todo o log <span className="material-symbols-outlined text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+        Ver todo o log <ArrowRight className="text-[18px]" />
        </button>
       </div>
       
@@ -246,9 +247,9 @@ export default function Page() {
            return (
             <tr key={log.id} className="border-b border-border hover:bg-muted/30 transition-all">
              <td className="py-4 px-2 flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colorClass}`}>
-               <span className="material-symbols-outlined text-[18px]" data-icon={icon}>{icon}</span>
-              </div>
+               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colorClass}`}>
+                {log.action === 'INSERT' ? <PlusCircle className="h-4 w-4" /> : log.action === 'DELETE' ? <Trash2 className="h-4 w-4" /> : <Edit className="h-4 w-4" />}
+               </div>
               {log.action}
              </td>
              <td className="py-4 px-2 font-bold capitalize">{log.table_name}</td>
