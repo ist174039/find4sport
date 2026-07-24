@@ -1,6 +1,7 @@
 import { Activity } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { SuggestModalityModal } from '@/components/suggest-modality-modal'
 
 export default async function ModalitiesPage() {
   const supabase = await createClient()
@@ -81,9 +82,7 @@ export default async function ModalitiesPage() {
             <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8 relative z-10">
               A nossa plataforma está em constante expansão. Diz-nos qual é a modalidade que gostarias de ver aqui.
             </p>
-            <button className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-medium shadow-sm hover:bg-primary/90 transition-all relative z-10">
-              Sugerir Modalidade
-            </button>
+            <SuggestModalityModal />
           </div>
         </div>
       </section>

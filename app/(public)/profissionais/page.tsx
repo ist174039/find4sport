@@ -31,7 +31,6 @@ async function getProfessionalsData(searchParams: { category?: string; q?: strin
         category:categories(*)
       )
     `)
-    .in('status', ['active', 'published', 'approved'])
 
   // Apply filters
   if (searchParams.q) {
@@ -43,7 +42,6 @@ async function getProfessionalsData(searchParams: { category?: string; q?: strin
   }
 
   const { data: professionals } = await query
-    .order('rating_avg', { ascending: false })
     .limit(24)
 
   // Filter by category after fetch (due to nested relation)

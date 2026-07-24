@@ -31,59 +31,64 @@ export default async function SpaceProfilePage(props: {
   const description = space.description || 'Este espaço desportivo oferece excelentes condições para a sua prática desportiva. Venha conhecer as nossas instalações!'
 
   return (
-    <main className="pb-20 max-w-[1280px] mx-auto">
+    <main className="flex flex-col min-h-screen bg-background">
       {/* Immersive Cover Section (Full Width Top) */}
-      <div className="relative w-full h-[300px] md:h-[400px] mb-8 bg-accent">
+      <section className="relative w-full h-[250px] md:h-[350px] bg-muted">
         <img src={coverUrl} alt="Capa do espaço" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
         
         {/* Cover Content Bottom Aligned */}
-        <div className="absolute bottom-0 left-0 w-full px-4 md:px-12 md:pl-64 pb-8">
-          <div className="flex flex-col md:flex-row items-end gap-6 relative">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl border-4 border-surface bg-background shadow-xl overflow-hidden shrink-0 mt-4 md:mt-0 relative z-10 -mb-12 md:-mb-16">
-              <img src={logoUrl} alt={space.name} className="w-full h-full object-cover bg-white" />
-            </div>
+        <div className="absolute bottom-0 left-0 w-full px-4 sm:px-6 lg:px-8 pb-8">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-end justify-between gap-6 relative">
             
             <div className="flex-1 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="font-bold text-2xl text-3xl md:text-4xl font-bold text-white drop-shadow-md">
-                    {space.name}
-                  </h1>
-                  {space.is_verified && (
-                    <BadgeCheck className="text-amber-500 text-[28px] drop-shadow-md" />
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-white/90 text-sm mt-2">
-                  <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded uppercase tracking-wider text-[10px] font-bold border border-white/10">
-                    Espaço Desportivo
-                  </span>
-                  {space.address && (
-                    <span className="flex items-center gap-1 drop-shadow">
-                      <MapPin className="text-[16px]" />
-                      {space.address}
-                    </span>
-                  )}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary-foreground shadow-lg shrink-0 overflow-hidden">
+                    <img src={logoUrl} alt={space.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-md">
+                        {space.name}
+                      </h1>
+                      {space.is_verified && (
+                        <BadgeCheck className="text-amber-500 text-[28px] drop-shadow-md" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-white/90 text-sm mt-2">
+                      <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[11px] border border-white/10">
+                        Espaço Desportivo
+                      </span>
+                      {space.address && (
+                        <span className="flex items-center gap-1 font-medium drop-shadow">
+                          <MapPin className="text-[18px]" />
+                          {space.address}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pb-1 w-full md:w-auto">
-                <button className="flex-1 md:flex-none bg-white text-foreground px-8 py-3 rounded-xl font-medium text-base shadow-lg hover:bg-card transition-all flex items-center justify-center gap-2">
-                  <Calendar className="text-[24px]" />
+              <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
+                <button className="w-full sm:w-auto bg-primary text-primary-foreground font-bold px-8 py-3 rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm">
+                  <Calendar className="text-[20px]" />
                   Reservar Espaço
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Content Grid */}
-      <div className="px-4 md:px-12 md:pl-64 pt-8 md:pt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <section className="px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column (Main Info) */}
-        <div className="lg:col-span-2 space-y-8">
-          <section className="bg-card p-8 rounded-3xl border border-border shadow-sm">
+        <div className="lg:col-span-2 space-y-6">
+          <section className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
             <h2 className="font-semibold text-xl text-2xl mb-4 text-foreground">O Espaço</h2>
             <p className="text-base text-foreground leading-relaxed whitespace-pre-line">
               {description}
@@ -91,7 +96,7 @@ export default async function SpaceProfilePage(props: {
           </section>
 
           {/* Infrastructure/Amenities */}
-          <section className="bg-card p-8 rounded-3xl border border-border shadow-sm">
+          <section className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
             <h2 className="font-semibold text-xl text-2xl mb-6 text-foreground flex items-center gap-2">
               <Building2 className="text-primary h-5 w-5" />
               Infraestruturas & Comodidades
@@ -126,7 +131,7 @@ export default async function SpaceProfilePage(props: {
 
           {/* Gallery */}
           {space.gallery_urls && space.gallery_urls.length > 0 && (
-            <section className="bg-card p-8 rounded-3xl border border-border shadow-sm">
+            <section className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
               <h2 className="font-semibold text-xl text-2xl mb-6 text-foreground flex items-center gap-2">
                 <Images className="text-primary h-5 w-5" />
                 Galeria
@@ -143,9 +148,9 @@ export default async function SpaceProfilePage(props: {
         </div>
 
         {/* Right Column (Sidebar Info) */}
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Map/Location Section */}
-          <section className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden flex flex-col">
+          <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
             <div className="h-40 bg-accent relative">
               {/* Fake Map background for visual */}
               <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600&auto=format&fit=crop" className="w-full h-full object-cover opacity-60 mix-blend-luminosity" alt="Map" />
@@ -164,7 +169,7 @@ export default async function SpaceProfilePage(props: {
           </section>
 
           {/* Contact Section */}
-          <section className="bg-card p-6 rounded-3xl border border-border shadow-sm">
+          <section className="bg-card p-6 rounded-2xl border border-border shadow-sm">
             <h3 className="font-semibold text-lg text-lg mb-4 text-foreground">Contactos</h3>
             <ul className="space-y-4">
               {space.phone && (
@@ -182,7 +187,8 @@ export default async function SpaceProfilePage(props: {
             </ul>
           </section>
         </div>
-      </div>
+        </div>
+      </section>
     </main>
   )
 }

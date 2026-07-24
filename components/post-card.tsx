@@ -1,15 +1,23 @@
 'use client';
-import { BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Play, Share2, User } from 'lucide-react'
+import {  BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Play, Share2, User  } from 'lucide-react'
+import { useModal } from '@/components/providers/modal-provider'
 
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
+import { toggleLikeAction, addCommentAction } from '@/app/actions/feed'
+import { Loader2 } from 'lucide-react'
 
 export default function PostCard({ post }: { post: any }) {
+  const { showAlert } = useModal()
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0)
   const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0)
-  const [isLiked, setIsLiked] = useState(false)
+  const [isLiked, setIsLiked] = useState(false) // Ideally this should be determined by the backend if user liked it
+  const [showComments, setShowComments] = useState(false)
+  const [commentText, setCommentText] = useState('')
+  const [commenting, setCommenting] = useState(false)
+  const [commentsList, setCommentsList] = useState<{id: string, content: string}[]>([])
 
   const authorName = post.professional_id ? post.professionals?.full_name : post.sport_spaces?.name
   const authorAvatar = post.professional_id ? post.professionals?.avatar_url : post.sport_spaces?.logo_url
@@ -24,13 +32,18 @@ export default function PostCard({ post }: { post: any }) {
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })
 
-  const handleLike = () => {
-    if (isLiked) {
-      setLikesCount(likesCount - 1)
-      setIsLiked(false)
-    } else {
-      setLikesCount(likesCount + 1)
-      setIsLiked(true)
+  const handleLike = async () => {
+    // Optimistic UI update
+    setIsLiked(!isLiked)
+    setLikesCount((prev: number) => isLiked ? prev - 1 : prev + 1)
+    
+    try {
+      const result = await toggleLikeAction(post.id)
+      setIsLiked(result.liked)
+    } catch (err) {
+      // Revert if error
+      setIsLiked(isLiked)
+      setLikesCount((prev: number) => isLiked ? prev + 1 : prev - 1)
     }
   }
 
@@ -44,7 +57,7 @@ export default function PostCard({ post }: { post: any }) {
         })
       } else {
         await navigator.clipboard.writeText(postUrl)
-        alert('Link copiado para a área de transferência!')
+        showAlert('Sucesso', 'Link copiado para a área de transferência!', 'success')
       }
     } catch (e) {
       console.error(e)
@@ -52,8 +65,26 @@ export default function PostCard({ post }: { post: any }) {
   }
 
   const handleComment = () => {
-    // For now, since we don't have a comment section built, we alert the user
-    alert('A funcionalidade de comentários será lançada na próxima versão!')
+    setShowComments(!showComments)
+  }
+
+  const submitComment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!commentText.trim()) return
+
+    setCommenting(true)
+    try {
+      await addCommentAction(post.id, commentText)
+      
+      // Optimistic locally added comment
+      setCommentsList([...commentsList, { id: Math.random().toString(), content: commentText }])
+      setCommentsCount((prev: number) => prev + 1)
+      setCommentText('')
+    } catch (err: any) {
+      showAlert('Erro', err.message || 'Erro ao comentar', 'error')
+    } finally {
+      setCommenting(false)
+    }
   }
 
   return (
@@ -145,6 +176,38 @@ export default function PostCard({ post }: { post: any }) {
            </Link>
         )}
       </div>
+
+      {showComments && (
+        <div className="bg-muted/30 border-t border-border p-4 animate-in fade-in duration-200">
+          <form onSubmit={submitComment} className="flex gap-2 mb-4">
+            <input 
+              type="text"
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              placeholder="Escreve um comentário..."
+              className="flex-1 bg-background border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <button 
+              type="submit"
+              disabled={commenting || !commentText.trim()}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[80px]"
+            >
+              {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar'}
+            </button>
+          </form>
+
+          {commentsList.length > 0 && (
+            <div className="space-y-3 mt-4">
+              {commentsList.map(c => (
+                <div key={c.id} className="bg-background border border-border p-3 rounded-lg text-sm text-foreground">
+                  <span className="font-bold mr-2 text-primary">Tu:</span>
+                  {c.content}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </article>
   )
 }

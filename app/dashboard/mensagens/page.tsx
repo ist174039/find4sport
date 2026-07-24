@@ -11,6 +11,15 @@ export default async function MensagensPage() {
     redirect('/auth/login')
   }
 
+  // Obter perfil do utilizador atual para determinar o seu tipo (role)
+  const { data: profile } = await supabase
+    .from('platform_users')
+    .select('type')
+    .eq('id', user.id)
+    .single()
+    
+  const currentUserRole = profile?.type || 'user'
+
   // Obter todas as mensagens enviadas ou recebidas por este utilizador
   const { data: messagesData, error: messagesError } = await supabase
     .from('messages')
@@ -67,7 +76,8 @@ export default async function MensagensPage() {
     <ChatInterface 
       initialContacts={contacts} 
       initialMessages={messages} 
-      currentUserId={user.id} 
+      currentUserId={user.id}
+      currentUserRole={currentUserRole}
     />
   )
 }

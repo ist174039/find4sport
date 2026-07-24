@@ -1,10 +1,29 @@
 import { ChevronRight, FilePlus, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
+import { CreatePostBox } from '@/components/create-post-box'
 import Link from 'next/link'
 
 export default async function Page() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let currentUserType = 'user'
+  let currentUserName = ''
+  let currentUserAvatar = ''
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('platform_users')
+      .select('type, full_name, avatar_url')
+      .eq('id', user.id)
+      .single()
+    if (profile) {
+      currentUserType = profile.type
+      currentUserName = profile.full_name || ''
+      currentUserAvatar = profile.avatar_url || ''
+    }
+  }
   
   // 1. Fetch Posts
   const { data: posts } = await supabase
@@ -148,6 +167,12 @@ export default async function Page() {
               ))}
             </div>
           </section>
+
+          <CreatePostBox 
+            currentUserType={currentUserType}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+          />
 
           {/* Posts Feed */}
           {posts && posts.length > 0 ? (

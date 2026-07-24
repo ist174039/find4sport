@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
 import './globals.css'
+import { ModalProvider } from '@/components/providers/modal-provider'
 
 const inter = Inter({ 
   variable: '--font-inter', 
@@ -54,8 +55,10 @@ export default function RootLayout({
   return (
     <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable} bg-background`}>
       <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <ModalProvider>
+          {children}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </ModalProvider>
       </body>
     </html>
   )

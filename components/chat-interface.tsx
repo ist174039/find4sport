@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video } from 'lucide-react'
+import {  CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video, MessageSquarePlus  } from 'lucide-react'
+import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
 import { sendMessage, markAsRead } from '@/app/actions/messages'
 import { createClient } from '@/lib/supabase/client'
+import { NewConversationModal } from './new-conversation-modal'
 
 export type Message = {
   id: string
@@ -31,16 +33,20 @@ export function ChatInterface({
   initialContacts,
   initialMessages,
   currentUserId,
+  currentUserRole = 'user'
 }: {
   initialContacts: Contact[]
   initialMessages: Message[]
   currentUserId: string
+  currentUserRole?: string
 }) {
+  const { showAlert } = useModal()
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [activeContactId, setActiveContactId] = useState<string | null>(initialContacts[0]?.id || null)
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const activeContact = contacts.find((c) => c.id === activeContactId)
@@ -159,7 +165,7 @@ export function ChatInterface({
       setNewMessage('')
     } catch (error) {
       console.error(error)
-      alert('Erro ao enviar mensagem')
+      showAlert('Erro', 'Erro ao enviar mensagem', 'error')
     } finally {
       setIsSending(false)
     }
@@ -196,14 +202,23 @@ export function ChatInterface({
       {/* Left Sidebar - Contacts List */}
       <div className="w-full md:w-80 lg:w-96 flex flex-col rounded-xl border border-border bg-card overflow-hidden shrink-0 hidden md:flex">
         <div className="p-4 border-b border-border bg-muted/20">
-          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-            Conversas{' '}
-            {contacts.reduce((acc, c) => acc + c.unread, 0) > 0 && (
-              <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                {contacts.reduce((acc, c) => acc + c.unread, 0)}
-              </span>
-            )}
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              Conversas{' '}
+              {contacts.reduce((acc, c) => acc + c.unread, 0) > 0 && (
+                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                  {contacts.reduce((acc, c) => acc + c.unread, 0)}
+                </span>
+              )}
+            </h2>
+            <button 
+              onClick={() => setIsNewChatModalOpen(true)}
+              className="p-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
+              title="Nova Conversa"
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+            </button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
@@ -411,9 +426,32 @@ export function ChatInterface({
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <MessageSquare className="text-5xl mb-4 opacity-50 h-5 w-5" />
             <p className="text-sm">Selecione uma conversa para começar</p>
+            <button 
+              onClick={() => setIsNewChatModalOpen(true)}
+              className="mt-4 px-6 py-2 bg-primary text-primary-foreground font-medium rounded-lg text-sm hover:bg-primary/90 transition-all flex items-center gap-2"
+            >
+              <MessageSquarePlus className="w-4 h-4" /> Nova Conversa
+            </button>
           </div>
         )}
       </div>
+
+      <NewConversationModal 
+        open={isNewChatModalOpen} 
+        onClose={() => setIsNewChatModalOpen(false)}
+        currentUserRole={currentUserRole}
+        onSelectContact={(contact) => {
+          setIsNewChatModalOpen(false)
+          // Add contact to list if not exists, and set as active
+          setContacts(prev => {
+            if (!prev.find(c => c.id === contact.id)) {
+              return [contact, ...prev]
+            }
+            return prev
+          })
+          setActiveContactId(contact.id)
+        }}
+      />
     </div>
   )
 }

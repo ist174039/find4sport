@@ -11,6 +11,9 @@ export default async function CommunityProfilePage(props: {
   const supabase = await createClient()
   const params = await props.params
 
+  // Get current user to check membership
+  const { data: { user } } = await supabase.auth.getUser()
+
   // Fetch community details
   const { data: community, error } = await supabase
     .from('communities')
@@ -39,6 +42,24 @@ export default async function CommunityProfilePage(props: {
     .order('created_at', { ascending: false })
 
   const memberCount = community.community_members?.[0]?.count || 0
+
+  // Fetch current user membership separately to avoid relation errors
+  let initialJoined = false
+  if (user) {
+    const { data: membership } = await supabase
+      .from('community_members')
+      .select('id')
+      .eq('community_id', community.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    
+    if (membership) {
+      initialJoined = true
+    }
+  }
+  
+  // Use mock display members for now since we don't have the user join relation mapped
+  const displayMembers = []
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -82,7 +103,11 @@ export default async function CommunityProfilePage(props: {
               </div>
 
               <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
-                <JoinCommunityBtn communityId={community.id} isPrivate={community.is_private} />
+                <JoinCommunityBtn 
+                  communityId={community.id} 
+                  isPrivate={community.is_private} 
+                  initialJoined={initialJoined}
+                />
               </div>
             </div>
           </div>
