@@ -83,15 +83,17 @@ export function SpaceCard({
                   ))}
                 </div>
               )}
+              {space.rating_avg != null && (
               <div className="mt-2 flex items-center gap-3 text-sm">
                 <span className="flex items-center gap-1 text-amber-500">
                   <Star className="h-4 w-4 fill-current" />
                   {space.rating_avg.toFixed(1)}
                 </span>
                 <span className="text-muted-foreground">
-                  ({space.review_count} avaliacoes)
+                  ({space.review_count ?? 0} avaliações)
                 </span>
               </div>
+              )}
             </div>
           </CardContent>
         </Link>
@@ -155,10 +157,12 @@ export function SpaceCard({
                 <BadgeCheck className="h-4 w-4 text-primary" />
               )}
             </h3>
+            {space.rating_avg != null && (
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="h-4 w-4 fill-current" />
               <span className="text-sm font-medium">{space.rating_avg.toFixed(1)}</span>
             </div>
+            )}
           </div>
 
           {space.address && (
@@ -198,7 +202,7 @@ export function SpaceCard({
           )}
 
           <p className="mt-2 text-xs text-muted-foreground">
-            {space.review_count} avaliacoes
+            {space.review_count ?? 0} avaliações
           </p>
         </CardContent>
       </Link>

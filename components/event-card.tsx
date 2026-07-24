@@ -27,10 +27,11 @@ export function EventCard({
   className,
 }: EventCardProps) {
   const placeholderImage = `https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=400&fit=crop`
-  const startDate = new Date(event.start_date)
+  const startDate = event.start_date ? new Date(event.start_date) : null
   const endDate = event.end_date ? new Date(event.end_date) : null
 
   const formatEventDate = () => {
+    if (!startDate) return { day: '—', month: '—' }
     const day = format(startDate, 'd', { locale: pt })
     const month = format(startDate, 'MMM', { locale: pt }).toUpperCase()
     return { day, month }
@@ -67,8 +68,8 @@ export function EventCard({
                   <h3 className="font-semibold text-foreground">{event.title}</h3>
                   <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
                     <Clock className="h-3.5 w-3.5" />
-                    {format(startDate, 'HH:mm', { locale: pt })}
-                    {endDate && ` - ${format(endDate, 'HH:mm', { locale: pt })}`}
+                    {startDate ? format(startDate, 'HH:mm', { locale: pt }) : '--:--'}
+                    {endDate && startDate && ` - ${format(endDate, 'HH:mm', { locale: pt })}`}
                   </p>
                   {event.address && (
                     <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
@@ -176,8 +177,8 @@ export function EventCard({
           <div className="mt-2 space-y-1">
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="h-3.5 w-3.5 shrink-0" />
-              {format(startDate, 'HH:mm', { locale: pt })}
-              {endDate && ` - ${format(endDate, 'HH:mm', { locale: pt })}`}
+              {startDate ? format(startDate, 'HH:mm', { locale: pt }) : '--:--'}
+              {endDate && startDate && ` - ${format(endDate, 'HH:mm', { locale: pt })}`}
             </p>
             {event.address && (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">

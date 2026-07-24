@@ -113,6 +113,8 @@ export default async function EspacosPage({ searchParams }: PageProps) {
                 defaultLocation={filters.location}
                 defaultType="espacos"
                 showFilters
+                filterType="espacos"
+                currentFilters={filters as Record<string, string>}
               />
             </div>
           </div>

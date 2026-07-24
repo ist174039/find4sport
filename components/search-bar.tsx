@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, MapPin, SlidersHorizontal } from 'lucide-react'
+import { Search, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { FilterModal } from '@/components/filter-modal'
 import { cn } from '@/lib/utils'
 
 interface SearchBarProps {
@@ -24,6 +25,8 @@ interface SearchBarProps {
   defaultLocation?: string
   defaultType?: string
   onSearch?: (params: { query: string; location: string; type: string }) => void
+  filterType?: 'espacos' | 'profissionais' | 'eventos'
+  currentFilters?: Record<string, string>
 }
 
 const searchTypes = [
@@ -43,6 +46,8 @@ export function SearchBar({
   defaultLocation = '',
   defaultType = 'all',
   onSearch,
+  filterType,
+  currentFilters = {},
 }: SearchBarProps) {
   const router = useRouter()
   const [query, setQuery] = useState(defaultQuery)
@@ -132,11 +137,8 @@ export function SearchBar({
 
       {/* Actions */}
       <div className="flex gap-2">
-        {showFilters && (
-          <Button variant="outline" size="icon" className="shrink-0">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span className="sr-only">Filtros</span>
-          </Button>
+        {showFilters && filterType && (
+          <FilterModal type={filterType} currentFilters={currentFilters} />
         )}
         <Button onClick={handleSearch} className={cn('shrink-0', isHero && 'px-6')}>
           <Search className="mr-2 h-4 w-4 sm:hidden" />

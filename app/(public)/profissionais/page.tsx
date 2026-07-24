@@ -114,6 +114,8 @@ export default async function ProfissionaisPage({ searchParams }: PageProps) {
                 defaultLocation={filters.location}
                 defaultType="profissionais"
                 showFilters
+                filterType="profissionais"
+                currentFilters={filters as Record<string, string>}
               />
             </div>
           </div>

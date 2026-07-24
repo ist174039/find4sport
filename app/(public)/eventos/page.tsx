@@ -104,6 +104,8 @@ export default async function EventosPage({ searchParams }: PageProps) {
                 defaultLocation={filters.location}
                 defaultType="eventos"
                 showFilters
+                filterType="eventos"
+                currentFilters={filters as Record<string, string>}
               />
             </div>
           </div>

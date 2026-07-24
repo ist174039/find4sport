@@ -88,15 +88,17 @@ export function ProfessionalCard({
                   ))}
                 </div>
               )}
+              {professional.rating_avg != null && (
               <div className="mt-2 flex items-center gap-3 text-sm">
                 <span className="flex items-center gap-1 text-amber-500">
                   <Star className="h-4 w-4 fill-current" />
                   {professional.rating_avg.toFixed(1)}
                 </span>
                 <span className="text-muted-foreground">
-                  ({professional.review_count} avaliacoes)
+                  ({professional.review_count ?? 0} avaliações)
                 </span>
               </div>
+              )}
             </div>
           </CardContent>
         </Link>
@@ -171,12 +173,14 @@ export function ProfessionalCard({
                 <BadgeCheck className="h-4 w-4 text-primary" />
               )}
             </h3>
+            {professional.rating_avg != null && (
             <div className="flex items-center gap-1 text-amber-500">
               <Star className="h-4 w-4 fill-current" />
               <span className="text-sm font-medium">
                 {professional.rating_avg.toFixed(1)}
               </span>
             </div>
+            )}
           </div>
 
           {professional.address && (
@@ -202,7 +206,7 @@ export function ProfessionalCard({
           )}
 
           <p className="mt-2 text-xs text-muted-foreground">
-            {professional.review_count} avaliacoes
+            {professional.review_count ?? 0} avaliações
           </p>
         </CardContent>
       </Link>

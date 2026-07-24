@@ -4,21 +4,26 @@ import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-export default async function EventProfilePage({
-  params
-}: {
-  params: { id: string }
+export default async function EventProfilePage(props: {
+  params: Promise<{ id: string }>
 }) {
   const supabase = await createClient()
+  const { id: rawId } = await props.params
 
-  // 1. Fetch event data
-  const { data: event, error } = await supabase
-    .from('events')
-    .select('*')
-    .eq('id', params.id)
-    .single()
+  // Fetch event by UUID or by slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
 
-  if (error || !event) {
+  let event = null
+  if (isUuid) {
+    const { data } = await supabase.from('events').select('*').eq('id', rawId).maybeSingle()
+    event = data
+  }
+  if (!event) {
+    const { data } = await supabase.from('events').select('*').eq('slug', rawId).maybeSingle()
+    event = data
+  }
+
+  if (!event) {
     return notFound()
   }
 
@@ -27,13 +32,12 @@ export default async function EventProfilePage({
   const description = event.description || 'Junta-te a nós neste evento desportivo incrível. Vagas limitadas, garante já o teu lugar!'
   const organizer = event.organizer_name || 'Organização FIND4SPORT'
   
-  // Fake date if not present for layout purposes
-  const startDate = event.created_at ? new Date(event.created_at) : new Date()
-  // Add 7 days to start date for a fake event date if real one doesn't exist
-  startDate.setDate(startDate.getDate() + 7) 
+  // Use real start_date if available
+  const startDate = event.start_date ? new Date(event.start_date) : new Date()
   
   const formattedDate = format(startDate, "d 'de' MMMM, yyyy", { locale: ptBR })
   const formattedTime = format(startDate, "HH:mm")
+  const eventTitle = event.title || event.slug?.replace(/-/g, ' ') || 'Evento Desportivo'
 
   return (
     <main className="pt-24 pb-20 max-w-[1280px] mx-auto px-4 md:px-12 md:pl-64">
@@ -71,7 +75,7 @@ export default async function EventProfilePage({
                 Evento Desportivo
               </span>
               <h1 className="font-bold text-2xl text-3xl md:text-4xl font-bold text-foreground leading-tight">
-                {event.slug ? event.slug.replace(/-/g, ' ').toUpperCase() : 'Evento Exclusivo FIND4SPORT'}
+                {eventTitle}
               </h1>
             </div>
             
