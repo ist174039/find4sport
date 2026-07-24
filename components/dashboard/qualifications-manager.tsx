@@ -104,7 +104,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
       </div>
 
       {/* Form to Add New Qualification */}
-      <form onSubmit={handleAdd} className="bg-muted/30 p-4 rounded-xl border border-border space-y-4">
+      <div className="bg-muted/30 p-4 rounded-xl border border-border space-y-4">
         <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
           Adicionar Nova Certificação ou Diploma
         </h4>
@@ -116,7 +116,6 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
               value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })}
               placeholder="Ex: Licenciatura em Educação Física / CÉTP TEF"
-              required
               className="h-9 text-xs rounded-lg bg-background"
             />
           </div>
@@ -144,7 +143,8 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
 
         <div className="flex justify-end">
           <Button 
-            type="submit"
+            type="button"
+            onClick={handleAdd}
             disabled={adding || !form.title.trim()}
             className="h-8 px-4 text-xs font-bold gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer disabled:opacity-50"
           >
@@ -152,7 +152,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
             Adicionar Certificação
           </Button>
         </div>
-      </form>
+      </div>
 
       {/* Qualifications List */}
       {loading ? (

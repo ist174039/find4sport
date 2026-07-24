@@ -96,15 +96,24 @@ export default function LoginPage() {
       
       if (signInError) throw signInError
       
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('platform_users')
         .select('type')
         .eq('id', data.user.id)
-        .single()
+        .maybeSingle()
 
-      if (profileError || !profile) {
-        await supabase.auth.signOut()
-        throw new Error('Acesso negado. Utilize a área correta para aceder à sua conta.')
+      const targetType = selectedType === 'profissional' ? 'professional' : selectedType
+
+      if (!profile) {
+        await supabase.from('platform_users').upsert({
+          id: data.user.id,
+          full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
+          type: targetType as any,
+        })
+      } else if (selectedType === 'profissional' && profile.type !== 'professional' && profile.type !== 'profissional') {
+        // Upgrade/set type to professional
+        await supabase.from('platform_users').update({ type: 'professional' as any }).eq('id', data.user.id)
+        await supabase.auth.updateUser({ data: { type: 'professional' } })
       }
       
       window.location.href = redirectByType[selectedType]

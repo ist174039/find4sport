@@ -238,46 +238,67 @@ export default function ProfessionalRegisterPage() {
 
       if (!user) throw new Error('Não autenticado')
 
-      // Create professional profile
-      const { data: professional, error: profError } = await supabase
+      // Check if professional profile already exists for this user
+      const { data: existingProf } = await supabase
         .from('professionals')
-        .insert({
-          user_id: user.id,
-          full_name: formData.full_name,
-          professional_name: formData.professional_name || null,
-          bio: formData.bio || null,
-          email: formData.email,
-          phone: formData.phone || null,
-          whatsapp: formData.whatsapp || null,
-          address: formData.address || null,
-          website: formData.website || null,
-          service_radius_km: formData.service_radius_km,
-          nif: formData.nif || null,
-          status: 'pending',
-          gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
-        })
         .select('id')
-        .single()
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-      if (profError) throw new Error(`Erro na base de dados (professionals): ${profError.message}`)
+      let professionalId = existingProf?.id
+
+      const profPayload = {
+        user_id: user.id,
+        full_name: formData.full_name,
+        professional_name: formData.professional_name || null,
+        bio: formData.bio || null,
+        email: formData.email,
+        phone: formData.phone || null,
+        whatsapp: formData.whatsapp || null,
+        address: formData.address || null,
+        website: formData.website || null,
+        service_radius_km: formData.service_radius_km,
+        nif: formData.nif || null,
+        status: 'pending',
+        gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
+      }
+
+      if (professionalId) {
+        const { error: profError } = await supabase
+          .from('professionals')
+          .update(profPayload)
+          .eq('id', professionalId)
+
+        if (profError) throw new Error(`Erro ao atualizar perfil profissional: ${profError.message}`)
+      } else {
+        const { data: newProf, error: profError } = await supabase
+          .from('professionals')
+          .insert(profPayload)
+          .select('id')
+          .single()
+
+        if (profError) throw new Error(`Erro na base de dados (professionals): ${profError.message}`)
+        professionalId = newProf.id
+      }
 
       // Add categories
-      if (selectedCategories.length > 0 && professional) {
+      if (selectedCategories.length > 0 && professionalId) {
+        await supabase.from('professional_categories').delete().eq('professional_id', professionalId)
         const { error: catError } = await supabase
           .from('professional_categories')
           .insert(selectedCategories.map(catId => ({
-            professional_id: professional.id,
+            professional_id: professionalId,
             category_id: catId,
           })))
         if (catError) console.error('Error adding categories:', catError)
       }
 
       // Add qualifications
-      if (qualifications.length > 0 && professional) {
+      if (qualifications.length > 0 && professionalId) {
         const { error: qualError } = await supabase
           .from('qualifications')
           .insert(qualifications.map(q => ({
-            professional_id: professional.id,
+            professional_id: professionalId,
             title: q.title,
             issuer: q.issuer || null,
             issue_date: q.issue_date || null,
@@ -285,10 +306,18 @@ export default function ProfessionalRegisterPage() {
         if (qualError) console.error('Error adding qualifications:', qualError)
       }
 
-      // Update user type
+      // Update user type in platform_users and auth metadata
       await supabase.from('platform_users').upsert({
         id: user.id,
-        type: 'profissional',
+        full_name: formData.full_name,
+        type: 'professional',
+      })
+
+      await supabase.auth.updateUser({
+        data: {
+          full_name: formData.full_name,
+          type: 'professional',
+        }
       })
 
       router.push('/profissional/estado')
