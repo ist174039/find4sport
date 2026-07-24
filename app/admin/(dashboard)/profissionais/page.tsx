@@ -14,6 +14,7 @@ export default function Page() {
   const [filteredProfessionals, setFilteredProfessionals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'pending'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [stats, setStats] = useState({ total: 0, pending: 0, avgRating: 0, reports: 0 })
   const [logs, setLogs] = useState<any[]>([])
   
@@ -73,14 +74,26 @@ export default function Page() {
  }, [])
 
  useEffect(() => {
-  if (activeFilter === 'all') {
-   setFilteredProfessionals(professionals)
-  } else if (activeFilter === 'active') {
-   setFilteredProfessionals(professionals.filter(p => p.is_verified))
+  let filtered = professionals
+  if (activeFilter === 'active') {
+   filtered = filtered.filter(p => p.is_verified)
   } else if (activeFilter === 'pending') {
-   setFilteredProfessionals(professionals.filter(p => !p.is_verified))
+   filtered = filtered.filter(p => !p.is_verified)
   }
- }, [activeFilter, professionals])
+  if (searchQuery.trim()) {
+   const q = searchQuery.toLowerCase()
+   filtered = filtered.filter(p =>
+    (p.full_name || '').toLowerCase().includes(q) ||
+    (p.specialty || '').toLowerCase().includes(q) ||
+    (p.email || '').toLowerCase().includes(q) ||
+    (p.location || '').toLowerCase().includes(q)
+   )
+  }
+  setFilteredProfessionals(filtered)
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [activeFilter, searchQuery, professionals])
+
+
 
  const handleInvite = async () => {
   if (!inviteForm.name || !inviteForm.email) return
@@ -111,6 +124,31 @@ export default function Page() {
   setInviting(false)
   setIsInviteOpen(false)
   setInviteForm({ name: '', email: '' })
+ }
+
+ const handleApprove = async (profId: string) => {
+  const supabase = createClient()
+  const { error } = await supabase
+   .from('professionals')
+   .update({ status: 'active', is_verified: true })
+   .eq('id', profId)
+  if (!error) {
+   setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, status: 'active', is_verified: true } : p))
+  } else {
+   alert(`Erro ao aprovar: ${error.message}`)
+  }
+ }
+
+ const handleBan = async (profId: string) => {
+  if (!window.confirm('Bloquear este profissional?')) return
+  const supabase = createClient()
+  const { error } = await supabase
+   .from('professionals')
+   .update({ status: 'suspended', is_verified: false })
+   .eq('id', profId)
+  if (!error) {
+   setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, status: 'suspended', is_verified: false } : p))
+  }
  }
 
  const exportPDF = () => {
@@ -195,25 +233,28 @@ export default function Page() {
 
    {/* Professional Management Table Container */}
    <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden print:border-none print:shadow-none">
-    <div className="p-6 border-b border-border flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-     <h3 className="text-xl font-bold text-foreground">Base de Profissionais</h3>
-     <div className="flex gap-2">
-      <div className="bg-muted/30 p-1 rounded-lg flex">
-       <button 
-        onClick={() => setActiveFilter('all')}
-        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'all' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
-       >Todos</button>
-       <button 
-        onClick={() => setActiveFilter('active')}
-        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'active' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
-       >Ativos</button>
-       <button 
-        onClick={() => setActiveFilter('pending')}
-        className={`px-4 py-1.5 font-medium text-sm rounded shadow-sm transition-all ${activeFilter === 'pending' ? 'bg-white text-green-600 dark:text-green-400' : 'text-muted-foreground hover:text-foreground'}`}
-       >Pendentes</button>
+    <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between items-center gap-3 print:hidden">
+      <h3 className="text-lg font-bold text-foreground shrink-0">Base de Profissionais</h3>
+      <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+       {/* Search */}
+       <div className="relative">
+        <input
+         type="text"
+         placeholder="Pesquisar por nome, especialidade..."
+         value={searchQuery}
+         onChange={e => setSearchQuery(e.target.value)}
+         className="pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+       </div>
+       {/* Filter tabs */}
+       <div className="bg-muted/30 p-1 rounded-lg flex shrink-0">
+        <button onClick={() => setActiveFilter('all')} className={`px-3 py-1.5 font-medium text-xs rounded transition-all ${activeFilter === 'all' ? 'bg-white dark:bg-muted shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Todos ({professionals.length})</button>
+        <button onClick={() => setActiveFilter('active')} className={`px-3 py-1.5 font-medium text-xs rounded transition-all ${activeFilter === 'active' ? 'bg-white dark:bg-muted shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Verificados</button>
+        <button onClick={() => setActiveFilter('pending')} className={`px-3 py-1.5 font-medium text-xs rounded transition-all ${activeFilter === 'pending' ? 'bg-white dark:bg-muted shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Pendentes</button>
+       </div>
       </div>
      </div>
-    </div>
     
     <div className="hidden print:block mb-4">
      <h2 className="text-2xl font-bold">Relatório de Profissionais - FIND4SPORT</h2>
@@ -279,11 +320,24 @@ export default function Page() {
           </td>
           <td className="px-6 py-5 text-right print:hidden">
            <div className="flex justify-end gap-2">
-            <button className="p-2 text-muted-foreground hover:text-green-600 dark:text-green-400 hover:bg-primary/20/20 rounded-lg transition-all" title="Ver Detalhes">
-             <Eye className="h-5 w-5" />
+            {!prof.is_verified && (
+             <button 
+              onClick={() => handleApprove(prof.id)}
+              className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all"
+              title="Aprovar"
+             >
+              Aprovar
+             </button>
+            )}
+            <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all" title="Ver Perfil Público" onClick={() => window.open(`/profissionais/${prof.public_slug || prof.id}`, '_blank')}>
+             <Eye className="h-4 w-4" />
             </button>
-            <button className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all" title="Bloquear">
-             <Ban className="h-5 w-5" />
+            <button 
+             onClick={() => handleBan(prof.id)}
+             className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all" 
+             title="Bloquear"
+            >
+             <Ban className="h-4 w-4" />
             </button>
            </div>
           </td>
@@ -295,17 +349,28 @@ export default function Page() {
     </div>
     
     {/* Pagination Footer */}
-    <div className="p-6 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4 bg-muted/30 print:hidden">
-     <p className="text-sm text-sm text-muted-foreground">Mostrando <strong>{filteredProfessionals.length}</strong> profissionais</p>
-     <div className="flex gap-2">
-      <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
-       <ChevronLeft className="h-5 w-5" />
-      </button>
-      <button className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-white transition-all disabled:opacity-50" disabled>
-       <ChevronRight className="h-5 w-5" />
-      </button>
+     <div className="p-4 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-muted/30 print:hidden">
+      <p className="text-sm text-muted-foreground">
+       Mostrando <strong>{Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredProfessionals.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredProfessionals.length)}</strong> de <strong>{filteredProfessionals.length}</strong> profissionais
+      </p>
+      <div className="flex gap-2 items-center">
+       <button 
+        className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+        disabled={currentPage <= 1}
+        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+       >
+        <ChevronLeft className="h-4 w-4" />
+       </button>
+       <span className="text-sm font-medium text-foreground px-2">{currentPage} / {Math.max(1, totalPages)}</span>
+       <button 
+        className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+        disabled={currentPage >= totalPages}
+        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+       >
+        <ChevronRight className="h-4 w-4" />
+       </button>
+      </div>
      </div>
-    </div>
    </div>
 
    {/* Activity Logs & Report Card */}

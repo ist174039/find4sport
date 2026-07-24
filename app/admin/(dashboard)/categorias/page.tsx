@@ -93,10 +93,8 @@ export default function Page() {
     const newCategory = {
       name: createForm.name,
       slug: createForm.slug.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description: createForm.description,
       emoji: createForm.emoji || '⚽',
       color: '#14b8a6',
-      image_url: createForm.image_url || null
     }
     
     const { data, error } = await supabase.from('categories').insert([newCategory]).select()
@@ -110,17 +108,7 @@ export default function Page() {
         new_data: { action: `Categoria ${createForm.name} criada` }
       }])
     } else if (error) {
-      // Fallback if image_url isn't in categories table schema, try without image_url
-      const fallbackCat = {
-        name: createForm.name,
-        slug: createForm.slug.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        description: createForm.description,
-        emoji: createForm.emoji || '⚽'
-      }
-      const { data: fbData } = await supabase.from('categories').insert([fallbackCat]).select()
-      if (fbData) {
-        setCategories(prev => [...prev, { ...fbData[0], image_url: createForm.image_url }].sort((a, b) => a.name.localeCompare(b.name)))
-      }
+      alert(`Erro ao criar categoria: ${error.message}`)
     }
     
     setCreating(false)

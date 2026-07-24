@@ -19,6 +19,8 @@ export default function Page() {
   const [claims, setClaims] = useState<any[]>([])
   const [filteredSpaces, setFilteredSpaces] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedClaimModal, setSelectedClaimModal] = useState<any | null>(null)
   
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'draft' | 'pending'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name')
@@ -47,7 +49,7 @@ export default function Page() {
         { data: claimsData }
       ] = await Promise.all([
         supabase.from('sport_spaces').select('*').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
-        supabase.from('space_claims').select('*, sport_spaces(name)').eq('status', 'pending')
+        supabase.from('space_claims').select('*, sport_spaces(name, address), platform_users(full_name, email)').eq('status', 'pending')
       ])
 
       const loadedSpaces = spacesData || []
@@ -71,16 +73,23 @@ export default function Page() {
   }, [sortBy])
 
   useEffect(() => {
-    if (activeFilter === 'all') {
-      setFilteredSpaces(spaces)
-    } else if (activeFilter === 'active') {
-      setFilteredSpaces(spaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified))
+    let filtered = spaces
+    if (activeFilter === 'active') {
+      filtered = filtered.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified)
     } else if (activeFilter === 'draft') {
-      setFilteredSpaces(spaces.filter(s => s.status === 'draft' || s.status === 'suspended'))
+      filtered = filtered.filter(s => s.status === 'draft' || s.status === 'suspended')
     } else if (activeFilter === 'pending') {
-      setFilteredSpaces(spaces.filter(s => s.status === 'pending' || !s.is_verified))
+      filtered = filtered.filter(s => s.status === 'pending' || !s.is_verified)
     }
-  }, [activeFilter, spaces])
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter(s =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.address || '').toLowerCase().includes(q)
+      )
+    }
+    setFilteredSpaces(filtered)
+  }, [activeFilter, searchQuery, spaces])
 
   // Toggle Space Status (Draft -> Active / Online)
   const handleToggleStatus = async (spaceId: string, currentStatus: string) => {
@@ -248,11 +257,15 @@ export default function Page() {
                   </div>
                   <div>
                     <h4 className="text-base font-bold text-foreground">{claim.sport_spaces?.name || 'Espaço'}</h4>
-                    <p className="text-xs text-muted-foreground">Solicitado por: <span className="font-semibold">{claim.user_id}</span></p>
+                    <p className="text-xs text-muted-foreground">Solicitado por: <span className="font-semibold">{claim.platform_users?.full_name || claim.user_id}</span></p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleClaim(claim.id, 'rejected')}>
+                  <Button variant="outline" size="sm" onClick={() => setSelectedClaimModal(claim)}>
+                    <Eye className="h-3.5 w-3.5 mr-1" />
+                    Ver Mensagem
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-destructive border-destructive/40" onClick={() => handleClaim(claim.id, 'rejected')}>
                     Negar
                   </Button>
                   <Button size="sm" onClick={() => handleClaim(claim.id, 'approved')}>
@@ -265,13 +278,75 @@ export default function Page() {
         </section>
       )}
 
+      {/* Claim Detail Modal */}
+      {selectedClaimModal && (
+        <Dialog open={!!selectedClaimModal} onOpenChange={() => setSelectedClaimModal(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-amber-500" />
+                Reivindicação — {selectedClaimModal.sport_spaces?.name || 'Espaço'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/40 p-3 rounded-lg">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Requerente</p>
+                  <p className="text-sm font-semibold text-foreground">{selectedClaimModal.platform_users?.full_name || '—'}</p>
+                  <p className="text-xs text-muted-foreground">{selectedClaimModal.platform_users?.email || selectedClaimModal.user_id}</p>
+                </div>
+                <div className="bg-muted/40 p-3 rounded-lg">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Espaço</p>
+                  <p className="text-sm font-semibold text-foreground">{selectedClaimModal.sport_spaces?.name || '—'}</p>
+                  <p className="text-xs text-muted-foreground">{selectedClaimModal.sport_spaces?.address || 'Sem morada'}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Data do Pedido</p>
+                <p className="text-sm text-foreground">{new Date(selectedClaimModal.created_at).toLocaleString('pt-PT')}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Mensagem / Justificação</p>
+                <div className="bg-muted/30 border border-border rounded-lg p-4">
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                    {selectedClaimModal.message || 'Sem mensagem fornecida.'}
+                  </p>
+                </div>
+              </div>
+              {selectedClaimModal.documents_url && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Documento Comprovativo</p>
+                  <a href={selectedClaimModal.documents_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary font-bold hover:underline">
+                    <FileText className="h-4 w-4" /> Visualizar Documento
+                  </a>
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                <Button variant="outline" onClick={() => setSelectedClaimModal(null)}>Fechar</Button>
+                <Button variant="outline" className="text-destructive border-destructive/40" onClick={() => { handleClaim(selectedClaimModal.id, 'rejected'); setSelectedClaimModal(null) }}>Rejeitar</Button>
+                <Button onClick={() => { handleClaim(selectedClaimModal.id, 'approved'); setSelectedClaimModal(null) }}>Aprovar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Spaces Directory List Section */}
       <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-muted/20">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-foreground">Diretório de Espaços</h3>
-          </div>
+        <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-muted/20">
+          <h3 className="text-lg font-bold text-foreground shrink-0">Diretório de Espaços</h3>
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Pesquisar por nome ou morada..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 text-sm bg-background border border-border rounded-lg w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
             <div className="flex bg-muted p-1 rounded-lg">
               <button 
                 onClick={() => setActiveFilter('all')} 
