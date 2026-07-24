@@ -2,6 +2,7 @@ import { BadgeCheck, Building2, Calendar, Car, Coffee, Images, Mail, MapPin, Nav
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
+import { ReviewsSection } from '@/components/reviews-section'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -190,6 +191,13 @@ export default async function SpaceProfilePage(props: {
             </ul>
           </section>
         </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <ReviewsSection targetType="space" targetId={space.id} />
         </div>
       </section>
     </main>

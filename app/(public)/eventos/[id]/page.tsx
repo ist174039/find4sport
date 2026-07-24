@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { JoinEventBtn } from '@/components/join-event-btn'
+import { ReviewsSection } from '@/components/reviews-section'
 
 export default async function EventProfilePage(props: {
   params: Promise<{ id: string }>
@@ -160,6 +161,13 @@ export default async function EventProfilePage(props: {
               </div>
             </section>
           </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <ReviewsSection targetType="event" targetId={event.id} />
         </div>
       </section>
     </main>

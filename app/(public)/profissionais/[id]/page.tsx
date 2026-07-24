@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ContactarProfissionalBtn } from '@/components/professional-actions'
 import { ObterDirecoesBtn } from '@/components/space-actions'
+import { ReviewsSection } from '@/components/reviews-section'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -350,6 +351,13 @@ export default async function ProfessionalProfilePage(props: {
               </ul>
             </section>
           </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <ReviewsSection targetType="professional" targetId={professional.id} />
         </div>
       </section>
     </main>
