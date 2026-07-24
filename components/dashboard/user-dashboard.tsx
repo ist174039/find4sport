@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/utils'
 
 export function UserDashboard({ user }: { user: any }) {
   const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
   const [favorites, setFavorites] = useState<any[]>([])
   const [stats, setStats] = useState({
@@ -29,8 +30,8 @@ export function UserDashboard({ user }: { user: any }) {
       const supabase = createClient()
 
       try {
-        // 1. Fetch user's real favorites from database
-        const { data: favsData, count: favsCount } = await supabase
+        // 1a. Fetch user's real favorites from database
+        const { data: favsData, count: favsCount, error: favError } = await supabase
           .from('favorites')
           .select(`
             *,
@@ -39,29 +40,56 @@ export function UserDashboard({ user }: { user: any }) {
             event:events(*)
           `, { count: 'exact' })
           .eq('user_id', user.id)
-          .limit(5)
+          
+        if (favError) setErrorMsg(prev => (prev ? prev + ' | ' : '') + 'Fav Error: ' + favError.message)
 
-        setFavorites(favsData || [])
-
-        // 2. Fetch real upcoming published events from database
-        const { data: eventsData, count: eventsCount } = await supabase
-          .from('events')
+        // 1b. Fetch user's joined communities (counted as favorites)
+        const { data: commData, count: commCount, error: commError } = await supabase
+          .from('community_members')
           .select(`
             *,
-            category:categories(*),
-            space:sport_spaces(name, address)
+            community:communities(*)
           `, { count: 'exact' })
-          .gte('start_date', new Date().toISOString())
-          .order('start_date', { ascending: true })
-          .limit(4)
+          .eq('user_id', user.id)
 
-        setUpcomingEvents(eventsData || [])
+        if (commError) setErrorMsg(prev => (prev ? prev + ' | ' : '') + 'Comm Error: ' + commError.message)
+
+        const combinedFavs = [
+          ...(favsData || []),
+          ...(commData || []).map(c => ({
+            id: c.id,
+            community: c.community,
+          }))
+        ]
+
+        setFavorites(combinedFavs.slice(0, 5))
+
+        // 2. Fetch user's enrolled events (consistent with /dashboard/eventos)
+        const { data: participantsData, count: eventsCount, error: evError } = await supabase
+          .from('event_participants')
+          .select(`
+            *,
+            event:events(
+              *,
+              category:categories(*),
+              space:sport_spaces(name, address)
+            )
+          `, { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(4)
+          
+        if (evError) setErrorMsg(prev => (prev ? prev + ' | ' : '') + 'Events Error: ' + evError.message)
+
+        const userEvents = (participantsData || []).map(p => p.event).filter(Boolean)
+        setUpcomingEvents(userEvents)
 
         setStats({
-          favoritesCount: favsCount || 0,
+          favoritesCount: (favsCount || 0) + (commCount || 0),
           eventsCount: eventsCount || 0,
         })
-      } catch (err) {
+      } catch (err: any) {
+        setErrorMsg(prev => (prev ? prev + ' | ' : '') + 'JS Error: ' + err.message)
         console.error('Error loading user dashboard data:', err)
       } finally {
         setLoading(false)
@@ -227,13 +255,15 @@ export function UserDashboard({ user }: { user: any }) {
             ) : favorites.length > 0 ? (
               <div className="space-y-3">
                 {favorites.map((fav) => {
-                  const target = fav.professional || fav.space || fav.event
+                  const target = fav.professional || fav.space || fav.event || fav.community
                   const name = target?.name || target?.full_name || target?.title || 'Favorito'
-                  const type = fav.professional ? 'Profissional' : fav.space ? 'Espaço' : 'Evento'
+                  const type = fav.professional ? 'Profissional' : fav.space ? 'Espaço' : fav.community ? 'Comunidade' : 'Evento'
                   const link = fav.professional 
                     ? `/profissionais/${target?.public_slug || target?.id}` 
                     : fav.space 
                     ? `/espacos/${target?.slug || target?.id}` 
+                    : fav.community
+                    ? `/comunidades/${target?.id}`
                     : `/eventos/${target?.slug || target?.id}`
 
                   return (

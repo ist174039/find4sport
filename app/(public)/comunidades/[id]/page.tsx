@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PostCard from '@/components/post-card'
 import { JoinCommunityBtn } from '@/components/join-community-btn'
+import { CreateCommunityPostBox } from '@/components/create-community-post-box'
+import { CommunityMembersList } from '@/components/community-members-list'
 
 export default async function CommunityProfilePage(props: {
   params: Promise<{ id: string }>
@@ -35,16 +37,28 @@ export default async function CommunityProfilePage(props: {
       *,
       professionals (id, full_name, avatar_url, public_slug),
       sport_spaces (id, name, slug),
+      platform_users (id, full_name, avatar_url),
       likes:post_likes(count),
       comments:post_comments(count)
     `)
     .eq('community_id', community.id)
     .order('created_at', { ascending: false })
 
-  const memberCount = community.community_members?.[0]?.count || 0
+  // Fetch active members to show in sidebar
+  const { data: members } = await supabase
+    .from('community_members')
+    .select('id, role, platform_users(id, full_name, avatar_url)')
+    .eq('community_id', community.id)
+    .order('joined_at', { ascending: false })
+
+  const displayMembers = members || []
+  const memberCount = displayMembers.length
 
   // Fetch current user membership separately to avoid relation errors
   let initialJoined = false
+  let currentUserName = ''
+  let currentUserAvatar = ''
+
   if (user) {
     const { data: membership } = await supabase
       .from('community_members')
@@ -56,10 +70,18 @@ export default async function CommunityProfilePage(props: {
     if (membership) {
       initialJoined = true
     }
+
+    const { data: profile } = await supabase
+      .from('platform_users')
+      .select('type, full_name, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle()
+    
+    if (profile) {
+      currentUserName = profile.full_name || ''
+      currentUserAvatar = profile.avatar_url || user?.user_metadata?.avatar_url || ''
+    }
   }
-  
-  // Use mock display members for now since we don't have the user join relation mapped
-  const displayMembers = []
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -130,8 +152,15 @@ export default async function CommunityProfilePage(props: {
             {/* Placeholder for Community Feed */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-foreground">Publicações Recentes</h3>
-              <button className="text-primary font-medium hover:underline text-sm">Ver todas</button>
             </div>
+            
+            {initialJoined && (
+              <CreateCommunityPostBox 
+                communityId={community.id}
+                currentUserName={currentUserName}
+                currentUserAvatar={currentUserAvatar}
+              />
+            )}
             
             {posts && posts.length > 0 ? (
               posts.map((post: any) => (
@@ -157,24 +186,7 @@ export default async function CommunityProfilePage(props: {
               </ol>
             </div>
 
-            <div className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg text-foreground">Membros Ativos</h3>
-                <span className="text-primary text-xs font-bold cursor-pointer hover:underline">Ver Todos</span>
-              </div>
-              <div className="flex -space-x-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="w-12 h-12 rounded-full border-2 border-background bg-muted overflow-hidden relative shadow-sm">
-                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="Membro" className="w-full h-full object-cover" />
-                  </div>
-                ))}
-                {memberCount > 5 && (
-                  <div className="w-12 h-12 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shadow-sm relative z-10">
-                    +{memberCount - 5}
-                  </div>
-                )}
-              </div>
-            </div>
+            <CommunityMembersList members={displayMembers} memberCount={memberCount} />
           </div>
           
         </div>

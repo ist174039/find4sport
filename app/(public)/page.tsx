@@ -36,47 +36,47 @@ export default async function Page() {
           <p className="mt-4 text-muted-foreground text-lg mb-16">O ecossistema desportivo mais completo de Portugal</p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            <Link href="/pesquisa?type=spaces" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
+            <Link href="/pesquisa?type=espacos" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Building className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Espaços</h3>
               <p className="text-xs text-muted-foreground">Reserva online</p>
             </Link>
-            <Link href="/pesquisa" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group">
+            <Link href="/pesquisa?type=profissionais" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <UserCheck className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Profissionais</h3>
               <p className="text-xs text-muted-foreground">PT, fisio, nutrição</p>
             </Link>
-            <Link href="/pesquisa?category=saude" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-pink-500/50 transition-all cursor-pointer group">
+            <Link href="/pesquisa?q=Saúde" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-pink-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Heart className="text-[28px]" />
               </div>
               <h3 className="font-semibold text-foreground text-sm mb-1">Saúde</h3>
               <p className="text-xs text-muted-foreground">Recovery & bem-estar</p>
             </Link>
-            <Link href="/pesquisa?category=viagens" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-orange-500/50 transition-all cursor-pointer group">
+            <Link href="/pesquisa?type=eventos" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-orange-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <Activity className="text-[28px]" />
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Viagens</h3>
-              <p className="text-xs text-muted-foreground">Desporto aventura</p>
+              <h3 className="font-semibold text-foreground text-sm mb-1">Eventos</h3>
+              <p className="text-xs text-muted-foreground">Provas & torneios</p>
             </Link>
-            <Link href="/pesquisa?category=marketplace" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-purple-500/50 transition-all cursor-pointer group">
+            <Link href="/feed" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-purple-500/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <ShoppingBag className="text-[28px]" />
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Marketplace</h3>
-              <p className="text-xs text-muted-foreground">Equipamento</p>
+              <h3 className="font-semibold text-foreground text-sm mb-1">Feed</h3>
+              <p className="text-xs text-muted-foreground">Publicações & notícias</p>
             </Link>
             <Link href="/comunidades" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
               <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <MessageSquare className="text-[28px]" />
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Comunidade</h3>
-              <p className="text-xs text-muted-foreground">Inspire-se</p>
+              <h3 className="font-semibold text-foreground text-sm mb-1">Comunidades</h3>
+              <p className="text-xs text-muted-foreground">Inspire-se & Junte-se</p>
             </Link>
           </div>
         </div>

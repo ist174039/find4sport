@@ -2,11 +2,22 @@ import { ChevronRight, FilePlus, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
 import { CreatePostBox } from '@/components/create-post-box'
+import { FeedFilterModal } from '@/components/feed-filter-modal'
 import Link from 'next/link'
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const params = await searchParams
+  const dateParam = typeof params.date === 'string' ? params.date : null
+  const authorTypeParam = typeof params.authorType === 'string' ? params.authorType : null
+  const categoryParam = typeof params.category === 'string' ? params.category : null
+  const searchParam = typeof params.search === 'string' ? params.search : null
 
   let currentUserType = 'user'
   let currentUserName = ''
@@ -25,8 +36,8 @@ export default async function Page() {
     }
   }
   
-  // 1. Fetch Posts
-  const { data: posts } = await supabase
+  // 1. Fetch Posts with Filters
+  let postsQuery = supabase
     .from('posts')
     .select(`
       *,
@@ -35,9 +46,92 @@ export default async function Page() {
       likes:post_likes(count),
       comments:post_comments(count)
     `)
+    .is('community_id', null)
     .order('created_at', { ascending: false })
 
-  // 2. Fetch suggestions (2 professionals, 1 space)
+  if (authorTypeParam === 'pro') {
+    postsQuery = postsQuery.not('professional_id', 'is', null)
+  } else if (authorTypeParam === 'space') {
+    postsQuery = postsQuery.not('sport_space_id', 'is', null)
+  }
+
+  if (dateParam === 'today') {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    postsQuery = postsQuery.gte('created_at', today.toISOString())
+  } else if (dateParam === 'week') {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    postsQuery = postsQuery.gte('created_at', weekAgo.toISOString())
+  } else if (dateParam === 'month') {
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    postsQuery = postsQuery.gte('created_at', monthAgo.toISOString())
+  }
+
+  const keyword = categoryParam || searchParam
+  if (keyword) {
+    postsQuery = postsQuery.ilike('content', `%${keyword}%`)
+  }
+
+  const { data: posts } = await postsQuery
+
+  // 2. Calculate Real Trending Tags for "Em Destaque"
+  const { data: allPublicPosts } = await supabase
+    .from('posts')
+    .select('content')
+    .is('community_id', null)
+
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('name')
+
+  const tagCounts: Record<string, number> = {}
+
+  // Extract #hashtags from post content
+  if (allPublicPosts) {
+    allPublicPosts.forEach((p: any) => {
+      const matches = p.content?.match(/#[\wÀ-ÿ]+/g)
+      if (matches) {
+        matches.forEach((t: string) => {
+          const tag = t.startsWith('#') ? t : `#${t}`
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1
+        })
+      }
+    })
+  }
+
+  // Count mentions of categories as fallback tags
+  if (categories) {
+    categories.forEach((c: any) => {
+      const tagName = `#${c.name}`
+      if (!tagCounts[tagName]) {
+        let count = 0
+        if (allPublicPosts) {
+          allPublicPosts.forEach((p: any) => {
+            if (p.content?.toLowerCase().includes(c.name.toLowerCase())) {
+              count++
+            }
+          })
+        }
+        if (count > 0) {
+          tagCounts[tagName] = count
+        }
+      }
+    })
+  }
+
+  // Fallback defaults if database has few posts
+  if (Object.keys(tagCounts).length === 0) {
+    tagCounts['#desafio10k'] = 1
+    tagCounts['#Padel'] = 1
+    tagCounts['#Corrida'] = 1
+  }
+
+  const trendingTags = Object.entries(tagCounts)
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4)
+
+  // 3. Fetch suggestions (2 professionals, 1 space)
   const { data: suggestedProfs } = await supabase
     .from('professionals')
     .select('id, full_name, avatar_url, public_slug')
@@ -48,23 +142,11 @@ export default async function Page() {
     .select('id, name, logo_url, slug')
     .limit(1)
 
-  // 3. Fetch Highlights / Stories (Top professionals)
+  // 4. Fetch Highlights / Stories (Top professionals)
   const { data: highlightProfs } = await supabase
     .from('professionals')
     .select('id, full_name, avatar_url, is_verified, public_slug')
     .limit(4)
-
-  // 4. Fetch a Community for the right sidebar
-  const { data: topCommunity } = await supabase
-    .from('communities')
-    .select(`
-      id, 
-      name, 
-      sport_category,
-      community_members(count)
-    `)
-    .limit(1)
-    .single()
 
   return (
     <div className="bg-background min-h-screen">
@@ -121,35 +203,40 @@ export default async function Page() {
             </div>
           </div>
 
-          {/* Trending Topics */}
+          {/* Real Dynamic Trending Topics */}
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
             <h4 className="font-bold text-base mb-4 text-foreground">Em Destaque</h4>
             <div className="space-y-4">
-              <Link className="block group" href="/pesquisa?q=Padel">
-                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">#LigaPadel2024</p>
-                <p className="text-xs text-muted-foreground mt-0.5">1.2k publicações esta semana</p>
-              </Link>
-              <Link className="block group" href="/pesquisa?q=Corrida">
-                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">#MaratonaLisboa</p>
-                <p className="text-xs text-muted-foreground mt-0.5">850 publicações</p>
-              </Link>
-              <Link className="block group" href="/pesquisa?q=Crossfit">
-                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">#CrossfitOpen</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Publicações recentes</p>
-              </Link>
+              {trendingTags.map(({ tag, count }) => {
+                const tagSearch = tag.replace('#', '')
+                const isSelected = keyword?.toLowerCase() === tagSearch.toLowerCase()
+
+                return (
+                  <Link 
+                    key={tag} 
+                    className="block group" 
+                    href={isSelected ? '/feed' : `/feed?category=${encodeURIComponent(tagSearch)}`}
+                  >
+                    <p className={`text-sm font-semibold transition-colors ${isSelected ? 'text-primary font-bold' : 'text-foreground group-hover:text-primary'}`}>
+                      {tag}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {count} {count === 1 ? 'publicação' : 'publicações'}
+                    </p>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         </aside>
 
-        {/* Feed Center Column */}
-        <div className="lg:col-span-6 space-y-6">
+        {/* Feed Center Column (Wider layout) */}
+        <div className="lg:col-span-9 space-y-6">
           {/* Stories/Momentos Section */}
           <section className="relative">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-foreground">Destaques</h2>
-              <Link href="/pesquisa" className="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
-                Ver todos <ChevronRight className="text-[16px]" />
-              </Link>
+              <FeedFilterModal />
             </div>
             
             <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
@@ -168,11 +255,15 @@ export default async function Page() {
             </div>
           </section>
 
-          <CreatePostBox 
-            currentUserType={currentUserType}
-            currentUserName={currentUserName}
-            currentUserAvatar={currentUserAvatar}
-          />
+          {/* Active Filter Banner */}
+          {keyword && (
+            <div className="flex items-center justify-between p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm font-semibold">
+              <span>Publicações filtradas por: <strong>#{keyword}</strong></span>
+              <Link href="/feed" className="hover:underline text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg font-bold">
+                Limpar Filtro
+              </Link>
+            </div>
+          )}
 
           {/* Posts Feed */}
           {posts && posts.length > 0 ? (
@@ -187,49 +278,6 @@ export default async function Page() {
             </div>
           )}
         </div>
-
-        {/* Right Sidebar (Desktop only) */}
-        <aside className="hidden lg:block lg:col-span-3 space-y-6">
-          
-          {/* Community Badge */}
-          {topCommunity && (
-            <div className="bg-card border border-border rounded-2xl p-6 relative overflow-hidden group shadow-sm">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:scale-110"></div>
-              <h4 className="font-bold text-base mb-4 text-foreground relative z-10">Comunidade em Destaque</h4>
-              <div className="flex items-center gap-3 mb-6 relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Users className="text-[28px]" />
-                </div>
-                <div>
-                  <Link href={`/comunidades/${topCommunity.id}`}>
-                    <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{topCommunity.name}</p>
-                  </Link>
-                  <p className="text-xs font-medium text-muted-foreground mt-0.5">{topCommunity.community_members?.[0]?.count || 0} membros ativos</p>
-                </div>
-              </div>
-              <Link href={`/comunidades/${topCommunity.id}`} className="block w-full py-2.5 border-2 border-primary text-primary font-bold rounded-xl text-center text-sm hover:bg-primary hover:text-primary-foreground transition-all relative z-10">
-                Ver Tópicos
-              </Link>
-            </div>
-          )}
-
-          {/* Promotion / Ad Space */}
-          <div className="rounded-2xl overflow-hidden relative h-64 shadow-sm group border border-border">
-            <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Promo" src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1920&auto=format&fit=crop" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent p-6 flex flex-col justify-end">
-              <span className="bg-yellow-500 text-black text-[10px] px-2 py-0.5 rounded font-bold self-start mb-3 tracking-wider">DESTAQUE PROMO</span>
-              <h5 className="text-white font-bold text-[18px] leading-tight mb-3">Treino Personalizado: 20% OFF esta semana</h5>
-              <Link href="/pesquisa?type=profissionais" className="bg-white text-black px-5 py-2.5 rounded-xl text-sm font-bold w-max hover:bg-muted transition-colors">Saiba Mais</Link>
-            </div>
-          </div>
-          
-          <div className="pt-4 flex flex-wrap gap-x-4 gap-y-2">
-            <Link className="text-muted-foreground text-xs hover:text-primary transition-colors font-medium" href="/privacidade">Privacidade</Link>
-            <Link className="text-muted-foreground text-xs hover:text-primary transition-colors font-medium" href="/termos">Termos</Link>
-            <Link className="text-muted-foreground text-xs hover:text-primary transition-colors font-medium" href="/contacto">Ajuda</Link>
-            <p className="text-muted-foreground text-xs w-full mt-2 font-medium">© 2026 FIND4SPORT</p>
-          </div>
-        </aside>
       </div>
     </div>
   )

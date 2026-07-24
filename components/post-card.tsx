@@ -7,28 +7,44 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { toggleLikeAction, addCommentAction } from '@/app/actions/feed'
+import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 
 export default function PostCard({ post }: { post: any }) {
   const { showAlert } = useModal()
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0)
   const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0)
-  const [isLiked, setIsLiked] = useState(false) // Ideally this should be determined by the backend if user liked it
+  const [isLiked, setIsLiked] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [loadingComments, setLoadingComments] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [commenting, setCommenting] = useState(false)
-  const [commentsList, setCommentsList] = useState<{id: string, content: string}[]>([])
+  const [commentsList, setCommentsList] = useState<any[]>([])
 
-  const authorName = post.professional_id ? post.professionals?.full_name : post.sport_spaces?.name
-  const authorAvatar = post.professional_id ? post.professionals?.avatar_url : post.sport_spaces?.logo_url
-  const authorType = post.professional_id ? 'PRO' : 'ESPAÇO'
+  const authorName = post.professional_id 
+    ? post.professionals?.full_name 
+    : post.sport_space_id 
+    ? post.sport_spaces?.name 
+    : post.platform_users?.full_name || 'Utilizador'
+
+  const authorAvatar = post.professional_id 
+    ? post.professionals?.avatar_url 
+    : post.sport_space_id 
+    ? post.sport_spaces?.logo_url 
+    : post.platform_users?.avatar_url
+
+  const authorType = post.professional_id ? 'PRO' : post.sport_space_id ? 'ESPAÇO' : 'MEMBRO'
   
   // Resolve link properly using public_slug if available, otherwise fallback to id
   const authorSlug = post.professional_id 
     ? (post.professionals?.public_slug || post.professional_id)
-    : (post.sport_spaces?.slug || post.sport_space_id)
+    : post.sport_space_id
+    ? (post.sport_spaces?.slug || post.sport_space_id)
+    : null
   
-  const authorLink = post.professional_id ? `/profissionais/${authorSlug}` : `/espacos/${authorSlug}`
+  const authorLink = authorSlug 
+    ? (post.professional_id ? `/profissionais/${authorSlug}` : `/espacos/${authorSlug}`)
+    : '#'
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })
 
@@ -64,8 +80,35 @@ export default function PostCard({ post }: { post: any }) {
     }
   }
 
+  const fetchComments = async () => {
+    setLoadingComments(true)
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('post_comments')
+        .select(`
+          *,
+          platform_users (id, full_name, avatar_url)
+        `)
+        .eq('post_id', post.id)
+        .order('created_at', { ascending: true })
+
+      if (data) {
+        setCommentsList(data)
+      }
+    } catch (e) {
+      console.error('Error fetching comments:', e)
+    } finally {
+      setLoadingComments(false)
+    }
+  }
+
   const handleComment = () => {
-    setShowComments(!showComments)
+    const nextState = !showComments
+    setShowComments(nextState)
+    if (nextState) {
+      fetchComments()
+    }
   }
 
   const submitComment = async (e: React.FormEvent) => {
@@ -75,11 +118,9 @@ export default function PostCard({ post }: { post: any }) {
     setCommenting(true)
     try {
       await addCommentAction(post.id, commentText)
-      
-      // Optimistic locally added comment
-      setCommentsList([...commentsList, { id: Math.random().toString(), content: commentText }])
       setCommentsCount((prev: number) => prev + 1)
       setCommentText('')
+      await fetchComments()
     } catch (err: any) {
       showAlert('Erro', err.message || 'Erro ao comentar', 'error')
     } finally {
@@ -157,7 +198,7 @@ export default function PostCard({ post }: { post: any }) {
           </button>
           <button 
             onClick={handleComment}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all"
+            className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all cursor-pointer"
           >
             <MessageSquare className="h-5 w-5" />
             <span className="text-sm">{commentsCount}</span>
@@ -196,15 +237,40 @@ export default function PostCard({ post }: { post: any }) {
             </button>
           </form>
 
-          {commentsList.length > 0 && (
-            <div className="space-y-3 mt-4">
-              {commentsList.map(c => (
-                <div key={c.id} className="bg-background border border-border p-3 rounded-lg text-sm text-foreground">
-                  <span className="font-bold mr-2 text-primary">Tu:</span>
-                  {c.content}
-                </div>
-              ))}
+          {loadingComments ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
+          ) : commentsList.length > 0 ? (
+            <div className="space-y-3 mt-4">
+              {commentsList.map(c => {
+                const u = c.platform_users
+                const name = u?.full_name || 'Utilizador'
+                const avatar = u?.avatar_url
+                const commentTime = c.created_at ? formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR }) : ''
+
+                return (
+                  <div key={c.id} className="flex gap-3 bg-background border border-border p-3 rounded-xl text-sm">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden text-xs border border-border">
+                      {avatar ? (
+                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="font-semibold text-xs text-foreground">{name}</span>
+                        {commentTime && <span className="text-[10px] text-muted-foreground">{commentTime}</span>}
+                      </div>
+                      <p className="text-sm text-foreground leading-snug">{c.content}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">Sem comentários ainda. Sê o primeiro a comentar!</p>
           )}
         </div>
       )}

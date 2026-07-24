@@ -26,7 +26,8 @@ export default async function PesquisaPage(props: {
   const supabase = await createClient()
   
   const searchParams = props.searchParams ? await props.searchParams : {}
-  const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : ''
+  const categoryParam = typeof searchParams.category === 'string' ? searchParams.category.trim() : ''
+  const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : categoryParam
   const typeParam = (typeof searchParams.type === 'string' ? searchParams.type : typeof searchParams.tipo === 'string' ? searchParams.tipo : 'todos').toLowerCase()
   const ratingParam = typeof searchParams.rating === 'string' ? parseFloat(searchParams.rating) : null
 

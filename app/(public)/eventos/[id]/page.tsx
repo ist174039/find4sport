@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { JoinEventBtn } from '@/components/join-event-btn'
 
 export default async function EventProfilePage(props: {
   params: Promise<{ id: string }>
@@ -78,10 +79,9 @@ export default async function EventProfilePage(props: {
               </div>
 
               <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
-                <button className="w-full sm:w-auto bg-primary text-primary-foreground font-bold px-8 py-3 rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm">
-                  <Ticket className="text-[20px]" />
-                  Comprar Bilhete
-                </button>
+                <div className="w-full sm:w-auto min-w-[200px]">
+                  <JoinEventBtn eventId={event.id} />
+                </div>
               </div>
             </div>
           </div>
@@ -140,13 +140,11 @@ export default async function EventProfilePage(props: {
                 </div>
               </div>
 
-              <button className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-bold text-base shadow-md hover:shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
-                <Ticket className="h-5 w-5" />
-                Comprar Bilhete
-              </button>
+              <JoinEventBtn eventId={event.id} />
+              
               <p className="text-center text-[11px] text-muted-foreground mt-3 flex items-center justify-center gap-1">
                 <Lock className="text-[14px]" />
-                Pagamento 100% Seguro
+                Inscrição 100% Segura
               </p>
             </section>
 

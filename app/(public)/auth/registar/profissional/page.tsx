@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { adminCreateUser } from '@/app/actions/auth'
@@ -159,10 +159,34 @@ export default function ProfessionalRegisterPage() {
     setQualifications(prev => prev.filter((_, i) => i !== index))
   }
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   function addPhoto() {
     if (!newPhotoUrl.trim()) return
     setGalleryUrls(prev => [...prev, newPhotoUrl.trim()])
     setNewPhotoUrl('')
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+
+    files.forEach(file => {
+      if (galleryUrls.length >= 12) return
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result as string
+        if (result) {
+          setGalleryUrls(prev => {
+            if (prev.length >= 12) return prev
+            return [...prev, result]
+          })
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+
+    if (e.target) e.target.value = ''
   }
 
   function removePhoto(index: number) {
@@ -588,40 +612,68 @@ export default function ProfessionalRegisterPage() {
           {/* Step 4: Galeria */}
           {step === 'galeria' && (
             <div className="space-y-6">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <Label>URL da Foto</Label>
-                <div className="mt-2 flex gap-2">
-                  <Input
-                    value={newPhotoUrl}
-                    onChange={(e) => setNewPhotoUrl(e.target.value)}
-                    placeholder="https://exemplo.com/foto.jpg"
-                  />
+              <input 
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center space-y-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Button
-                    onClick={addPhoto}
-                    disabled={!newPhotoUrl.trim() || galleryUrls.length >= 12}
-                    className="bg-teal-600 hover:bg-teal-700"
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={galleryUrls.length >= 12}
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl px-6 py-2.5 flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
                   >
-                    <Image className="mr-1 h-4 w-4" /> Adicionar
+                    <Upload className="h-4 w-4" />
+                    Carregar Ficheiros do PC
                   </Button>
+                  <span className="text-xs text-gray-400 font-medium">ou</span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">{galleryUrls.length}/12 fotos</p>
+
+                <div className="pt-2 border-t border-gray-200/60">
+                  <Label className="text-xs text-gray-600 mb-1 block text-left sm:text-center">Adicionar por URL de imagem:</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newPhotoUrl}
+                      onChange={(e) => setNewPhotoUrl(e.target.value)}
+                      placeholder="https://exemplo.com/foto.jpg"
+                      className="bg-white rounded-xl text-sm"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addPhoto}
+                      disabled={!newPhotoUrl.trim() || galleryUrls.length >= 12}
+                      variant="outline"
+                      className="rounded-xl shrink-0"
+                    >
+                      <Image className="mr-1 h-4 w-4" /> Adicionar
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-medium">{galleryUrls.length}/12 fotos adicionadas</p>
               </div>
 
               {galleryUrls.length > 0 && (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                   {galleryUrls.map((url, i) => (
-                    <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                    <div key={i} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm">
                       <img
                         src={url}
                         alt={`Foto ${i + 1}`}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/300x300/e2e8f0/94a3b8?text=Sem+Imagem' }}
                       />
                       <button
+                        type="button"
                         onClick={() => removePhoto(i)}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover:opacity-100 shadow-md cursor-pointer"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
@@ -629,9 +681,13 @@ export default function ProfessionalRegisterPage() {
               )}
 
               {galleryUrls.length === 0 && (
-                <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center">
-                  <Camera className="mx-auto h-8 w-8 text-gray-300" />
-                  <p className="mt-2 text-sm text-gray-500">Adiciona fotos do teu trabalho ou espaço</p>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-2xl border-2 border-dashed border-gray-300 hover:border-teal-500 p-8 text-center cursor-pointer transition-colors bg-white hover:bg-teal-50/20"
+                >
+                  <Camera className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                  <p className="text-sm font-semibold text-gray-700">Clica aqui para escolher fotos do teu computador</p>
+                  <p className="text-xs text-gray-400 mt-1">Formatos suportados: JPG, PNG, WEBP (máx. 12 fotos)</p>
                 </div>
               )}
             </div>

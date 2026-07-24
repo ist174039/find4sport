@@ -10,7 +10,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink } from 'lucide-react'
+import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import type { Professional, Category } from '@/lib/types'
 
 export default function ProfilePage() {
@@ -193,15 +195,22 @@ export default function ProfilePage() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
       
       {/* Header Section - Standard Homepage Layout */}
-      <div className="flex justify-between items-end mb-10 pb-6 border-b border-border">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">O Meu Perfil</h1>
-          <p className="mt-2 text-muted-foreground">
-            {isProfessional ? 'Gere a tua presença pública na plataforma.' : 'Atualiza os teus dados pessoais.'}
+          <p className="mt-1 text-muted-foreground text-sm">
+            {isProfessional ? 'Gere a tua presença pública e atualiza as tuas informações na plataforma.' : 'Atualiza os teus dados pessoais.'}
           </p>
         </div>
-        {isProfessional && (
-          <Badge className="bg-primary text-primary-foreground text-xs px-3 py-1 rounded-md font-bold">Conta Profissional</Badge>
+        
+        {isProfessional && professional && (
+          <Link href={`/profissionais/${professional.public_slug || professional.id}`} target="_blank">
+            <Button variant="outline" className="gap-2 font-bold rounded-xl border-primary text-primary hover:bg-primary/10 shadow-sm">
+              <Globe className="w-4 h-4" />
+              Ver Perfil Público Online
+              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+            </Button>
+          </Link>
         )}
       </div>
 
@@ -355,6 +364,11 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
+
+            {/* Qualifications & Certifications Manager */}
+            {professional && (
+              <QualificationsManager professionalId={professional.id} />
+            )}
 
             <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
               <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">

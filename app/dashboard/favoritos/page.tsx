@@ -7,10 +7,11 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export default function FavoritosPage() {
-  const [favorites, setFavorites] = useState<{ professionals: any[], spaces: any[], events: any[] }>({
+  const [favorites, setFavorites] = useState<{ professionals: any[], spaces: any[], events: any[], communities: any[] }>({
     professionals: [],
     spaces: [],
-    events: []
+    events: [],
+    communities: []
   })
   const [loading, setLoading] = useState(true)
 
@@ -34,7 +35,19 @@ export default function FavoritosPage() {
         const professionals = data.filter(f => f.professional_id).map(f => f.professional)
         const spaces = data.filter(f => f.space_id).map(f => f.space)
         const events = data.filter(f => f.event_id).map(f => f.event)
-        setFavorites({ professionals, spaces, events })
+        
+        // Fetch communities from community_members
+        const { data: commData } = await supabase
+          .from('community_members')
+          .select(`
+            *,
+            community:communities(*)
+          `)
+          .eq('user_id', user.id)
+
+        const communities = commData ? commData.map(c => c.community) : []
+
+        setFavorites({ professionals, spaces, events, communities })
       }
       setLoading(false)
     }
@@ -136,8 +149,48 @@ export default function FavoritosPage() {
             </div>
           )}
 
+          {/* Comunidades Section */}
+          {favorites.communities.length > 0 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <Users className="h-5 w-5 text-indigo-500" /> As Minhas Comunidades
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {favorites.communities.map((comm, idx) => (
+                  <div key={idx} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
+                    <div className="relative aspect-square rounded-full w-24 h-24 mx-auto mt-4 overflow-hidden bg-muted border border-border group-hover:border-primary/50 transition-colors">
+                      {comm?.icon_url ? (
+                        <img src={comm.icon_url} alt={comm.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-primary font-bold text-xl">
+                          {comm?.name?.charAt(0) || 'C'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="pt-4 flex-1 flex flex-col items-center text-center">
+                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">
+                        {comm?.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1 bg-secondary px-2 py-0.5 rounded-full">
+                        {comm?.sport_category || 'Comunidade'}
+                      </p>
+                      
+                      <div className="mt-6 pt-4 border-t border-border w-full">
+                        <Button asChild variant="ghost" className="w-full text-primary hover:text-primary/95 transition-all text-sm font-medium gap-1">
+                          <Link href={`/comunidades/${comm?.id}`}>
+                            Ver Hub <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Empty State Standard */}
-          {favorites.professionals.length === 0 && favorites.spaces.length === 0 && favorites.events.length === 0 && (
+          {favorites.professionals.length === 0 && favorites.spaces.length === 0 && favorites.events.length === 0 && favorites.communities.length === 0 && (
             <div className="bg-card border border-border p-12 rounded-xl flex flex-col items-center justify-center text-center">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                 <Heart className="h-8 w-8 text-muted-foreground" />

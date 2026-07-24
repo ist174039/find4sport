@@ -1,6 +1,7 @@
 import { BadgeCheck, Building2, Calendar, Car, Coffee, Images, Mail, MapPin, Navigation, Phone, ShowerHead, Wifi } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -72,10 +73,10 @@ export default async function SpaceProfilePage(props: {
               </div>
 
               <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
-                <button className="w-full sm:w-auto bg-primary text-primary-foreground font-bold px-8 py-3 rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-sm">
-                  <Calendar className="text-[20px]" />
-                  Reservar Espaço
-                </button>
+                <ReserveSpaceBtn 
+                  spaceName={space.name} 
+                  ownerUserId={space.owner_user_id || space.created_by} 
+                />
               </div>
             </div>
           </div>
@@ -161,10 +162,12 @@ export default async function SpaceProfilePage(props: {
             <div className="p-6">
               <h3 className="font-semibold text-lg text-lg mb-2 text-foreground">Localização</h3>
               <p className="text-sm text-muted-foreground mb-4">{space.address}</p>
-              <button className="w-full py-2.5 border border-primary text-primary font-bold rounded-xl text-sm hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
-                <Navigation className="text-[18px]" />
-                Obter Direções
-              </button>
+              <ObterDirecoesBtn 
+                address={space.address} 
+                name={space.name} 
+                latitude={space.latitude} 
+                longitude={space.longitude} 
+              />
             </div>
           </section>
 

@@ -22,6 +22,7 @@ import {
   DollarSign,
   Menu,
   Bell,
+  Camera,
 } from 'lucide-react'
 
 interface DashboardSidebarProps {
@@ -41,6 +42,7 @@ export function DashboardSidebar({ professional, space }: DashboardSidebarProps)
       { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
       { name: 'Reservas', href: `${basePath}/reservas`, icon: CalendarCheck },
       { name: 'O Meu Espaço', href: `${basePath}/espaco`, icon: Building2 },
+      { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
       { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
       { name: 'Faturação', href: `${basePath}/faturacao`, icon: DollarSign },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
@@ -51,9 +53,11 @@ export function DashboardSidebar({ professional, space }: DashboardSidebarProps)
   } else if (professional) {
     navItems = [
       { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
+      { name: 'O Meu Perfil', href: `${basePath}/perfil`, icon: User },
       { name: 'Agenda & Eventos', href: `${basePath}/agenda`, icon: Calendar },
       { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
       { name: 'Serviços', href: `${basePath}/servicos`, icon: Activity },
+      { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
       { name: 'Avaliações', href: `${basePath}/avaliacoes`, icon: Star },
       { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
