@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
+import { resolveSessionAccess } from '@/lib/auth/access'
 
 export default async function DashboardLayout({
   children,
@@ -14,46 +15,29 @@ export default async function DashboardLayout({
     redirect('/auth/login?redirect=/dashboard')
   }
 
-  // Check if user has a professional profile
-  let { data: professional } = await supabase
-    .from('professionals')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  const access = await resolveSessionAccess(supabase, user)
 
-  // Check if user has a space profile
-  const { data: space } = await supabase
-    .from('sport_spaces')
-    .select('*')
-    .eq('owner_user_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (!professional && !space) {
-    const { data: platformUser } = await supabase
-      .from('platform_users')
-      .select('type, full_name')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    const userType = platformUser?.type || user.user_metadata?.type
-
-    if (userType === 'professional' || userType === 'profissional') {
-      const { data: newProf } = await supabase
-        .from('professionals')
-        .insert({
-          user_id: user.id,
-          full_name: platformUser?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Profissional',
-          email: user.email!,
-          status: 'pending',
-        })
-        .select('*')
-        .maybeSingle()
-
-      professional = newProf
-    }
+  if (!access || !access.canAccessDashboard) {
+    redirect('/auth/login?redirect=/dashboard')
   }
+
+  const [professionalResult, spaceResult] = await Promise.all([
+    supabase
+      .from('professionals')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('sport_spaces')
+      .select('*')
+      .eq('owner_user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const professional = professionalResult.data
+  const space = spaceResult.data
 
   return (
     <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">

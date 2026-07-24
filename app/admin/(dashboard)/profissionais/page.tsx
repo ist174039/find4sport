@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { adminCreateProfessional, adminUpdateProfessional } from '@/app/actions/auth'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -98,27 +99,25 @@ export default function Page() {
  const handleInvite = async () => {
   if (!inviteForm.name || !inviteForm.email) return
   setInviting(true)
-  const supabase = createClient()
-  
-  // Create a dummy record just for the UI simulation
-  const newProf = {
+  const publicSlug = 'convidado-' + Date.now()
+  const result = await adminCreateProfessional({
    full_name: inviteForm.name,
    email: inviteForm.email,
-   is_verified: false,
-   public_slug: 'convidado-' + Date.now()
-  }
+   professional_name: inviteForm.name,
+   public_slug: publicSlug,
+  })
   
-  const { data, error } = await supabase.from('professionals').insert([newProf]).select()
-  
-  if (!error && data) {
-   setProfessionals(prev => [...prev, data[0]])
-   // Also log it
+  if (result.professional) {
+   setProfessionals(prev => [...prev, result.professional])
+   const supabase = createClient()
    await supabase.from('audit_logs').insert([{
     action: 'INSERT',
     table_name: 'professionals',
     user_email: 'admin@find4sport.pt',
     new_data: { action: `Profissional ${inviteForm.name} convidado` }
    }])
+  } else if (result.error) {
+   alert(`Erro ao convidar: ${result.error}`)
   }
   
   setInviting(false)
@@ -127,27 +126,19 @@ export default function Page() {
  }
 
  const handleApprove = async (profId: string) => {
-  const supabase = createClient()
-  const { error } = await supabase
-   .from('professionals')
-   .update({ status: 'active', is_verified: true })
-   .eq('id', profId)
-  if (!error) {
-   setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, status: 'active', is_verified: true } : p))
-  } else {
-   alert(`Erro ao aprovar: ${error.message}`)
+  const result = await adminUpdateProfessional(profId, { status: 'active', is_verified: true })
+  if (result.professional) {
+   setProfessionals(prev => prev.map(p => p.id === profId ? result.professional : p))
+  } else if (result.error) {
+   alert(`Erro ao aprovar: ${result.error}`)
   }
  }
 
  const handleBan = async (profId: string) => {
   if (!window.confirm('Bloquear este profissional?')) return
-  const supabase = createClient()
-  const { error } = await supabase
-   .from('professionals')
-   .update({ status: 'suspended', is_verified: false })
-   .eq('id', profId)
-  if (!error) {
-   setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, status: 'suspended', is_verified: false } : p))
+  const result = await adminUpdateProfessional(profId, { status: 'suspended', is_verified: false })
+  if (result.professional) {
+   setProfessionals(prev => prev.map(p => p.id === profId ? result.professional : p))
   }
  }
 

@@ -25,7 +25,8 @@ export default async function GaleriaPage() {
     .eq('owner_user_id', user.id)
     .maybeSingle()
 
-  const entity = prof ? { type: 'professional', data: prof } : space ? { type: 'space', data: space } : null
+  const entity: { type: 'professional' | 'space'; data: typeof prof | typeof space } | null =
+    prof ? { type: 'professional', data: prof } : space ? { type: 'space', data: space } : null
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">

@@ -26,6 +26,14 @@ export default function Page() {
  useEffect(() => {
   async function loadData() {
    const supabase = createClient()
+
+   const safeRpc = async <T,>(rpcCall: PromiseLike<T>) => {
+    try {
+     return await rpcCall
+    } catch {
+     return { data: null } as T
+    }
+   }
    
    const [
     { count: userCount },
@@ -50,12 +58,12 @@ export default function Page() {
     supabase.from('space_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(6),
     // Weekly growth data (last 8 weeks) using RPC
-    supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'platform_users' }).catch(() => ({ data: null })),
-    supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'professionals' }).catch(() => ({ data: null })),
-    supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'sport_spaces' }).catch(() => ({ data: null })),
-    supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'platform_users' }).catch(() => ({ data: null })),
-    supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'professionals' }).catch(() => ({ data: null })),
-    supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'sport_spaces' }).catch(() => ({ data: null })),
+    safeRpc(supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'platform_users' })),
+    safeRpc(supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'professionals' })),
+    safeRpc(supabase.rpc('get_weekly_registrations', { weeks_back: 8, table_name: 'sport_spaces' })),
+    safeRpc(supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'platform_users' })),
+    safeRpc(supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'professionals' })),
+    safeRpc(supabase.rpc('get_monthly_registrations', { months_back: 6, table_name: 'sport_spaces' })),
    ])
 
    setStats({
