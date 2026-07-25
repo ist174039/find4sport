@@ -145,10 +145,15 @@ function RegisterForm() {
     const supabase = createClient()
     setError(null)
     try {
+      let nextParam = ''
+      if (selectedType === 'profissional') nextParam = '?next=/auth/registar/profissional&type=professional'
+      else if (selectedType === 'espaco') nextParam = '?next=/auth/registar/espaco&type=venue_manager'
+      else if (selectedType === 'utilizador') nextParam = '?next=/dashboard&type=athlete'
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback${nextParam}`,
         },
       })
       if (error) throw error

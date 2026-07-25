@@ -12,6 +12,14 @@ export default async function DashboardPage() {
     redirect('/auth/login?redirect=/dashboard')
   }
 
+  const { data: platformUser } = await supabase
+    .from('platform_users')
+    .select('type, full_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const userType = platformUser?.type || user.user_metadata?.type
+
   // Priority 1: Check if user has a space profile
   const { data: space } = await supabase
     .from('sport_spaces')
@@ -23,6 +31,8 @@ export default async function DashboardPage() {
 
   if (space) {
     return <SpaceDashboard space={space} />
+  } else if (userType === 'venue_manager' || userType === 'espaco') {
+    redirect('/auth/registar/espaco')
   }
 
   // Priority 2: Check if user has a professional profile
@@ -32,35 +42,12 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  // Auto-heal / fallback check for professional role
-  if (!professional) {
-    const { data: platformUser } = await supabase
-      .from('platform_users')
-      .select('type, full_name')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    const userType = platformUser?.type || user.user_metadata?.type
-
-    if (userType === 'professional' || userType === 'profissional') {
-      const { data: newProf } = await supabase
-        .from('professionals')
-        .insert({
-          user_id: user.id,
-          full_name: platformUser?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Profissional',
-          email: user.email!,
-          status: 'pending',
-        })
-        .select('*')
-        .maybeSingle()
-
-      professional = newProf
-    }
-  }
-
   if (professional) {
     return <ProfessionalDashboard professional={professional} />
+  } else if (userType === 'professional' || userType === 'profissional') {
+    redirect('/auth/registar/profissional')
   }
+
 
   // Otherwise, normal user (Priority 3)
   return <UserDashboard user={user} />
