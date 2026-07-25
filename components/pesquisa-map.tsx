@@ -38,6 +38,22 @@ function FitBounds({ items }: { items: any[] }) {
   return null
 }
 
+// Helper component to invalidate size on container resize (fixes gray tiles on mobile toggle)
+function MapResizer() {
+  const map = useMap()
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize()
+    })
+    const container = map.getContainer()
+    if (container) {
+      observer.observe(container)
+    }
+    return () => observer.disconnect()
+  }, [map])
+  return null
+}
+
 interface PesquisaMapProps {
   items: any[]
 }
@@ -113,6 +129,7 @@ export function PesquisaMap({ items = [] }: PesquisaMapProps) {
         ))}
 
         {itemsWithLocations.length > 0 && <FitBounds items={itemsWithLocations} />}
+        <MapResizer />
       </MapContainer>
     </div>
   )
