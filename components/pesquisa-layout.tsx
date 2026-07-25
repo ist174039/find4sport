@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Map, List } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -13,15 +13,22 @@ export function PesquisaLayout({
 }) {
   const [view, setView] = useState<'list' | 'map'>('list')
 
+  // Force map to update size when toggling views on mobile
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('map-toggle'))
+    }
+  }, [view])
+
   return (
     <main className="flex-1 flex flex-col md:flex-row overflow-hidden border-t border-border relative">
       {/* Results Pane */}
-      <section className={`w-full md:w-[600px] lg:w-[640px] flex-col bg-background border-r border-border h-[calc(100vh-64px)] ${view === 'list' ? 'flex' : 'hidden md:flex'}`}>
+      <section className={`w-full md:w-[600px] lg:w-[640px] flex-col bg-background border-r border-border h-[calc(100dvh-64px)] ${view === 'list' ? 'flex' : 'hidden md:flex'}`}>
         {resultsPane}
       </section>
       
       {/* Map Pane */}
-      <section className={`flex-1 relative bg-muted h-[calc(100vh-64px)] z-0 ${view === 'map' ? 'flex' : 'hidden md:flex'}`}>
+      <section className={`flex-1 relative bg-muted h-[calc(100dvh-64px)] z-0 w-full ${view === 'map' ? 'block' : 'hidden md:block'}`}>
         {mapPane}
       </section>
 

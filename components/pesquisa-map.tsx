@@ -45,11 +45,28 @@ function MapResizer() {
     const observer = new ResizeObserver(() => {
       map.invalidateSize()
     })
+    
+    // Multiple fallbacks for mobile browsers/CSS transitions
+    const timeouts = [50, 150, 300, 500, 1000].map(ms => 
+      setTimeout(() => map.invalidateSize(), ms)
+    )
+
     const container = map.getContainer()
     if (container) {
       observer.observe(container)
     }
-    return () => observer.disconnect()
+
+    const handleToggle = () => {
+      const delays = [50, 150, 300, 500]
+      delays.forEach(ms => setTimeout(() => map.invalidateSize(), ms))
+    }
+    window.addEventListener('map-toggle', handleToggle)
+    
+    return () => {
+      observer.disconnect()
+      timeouts.forEach(clearTimeout)
+      window.removeEventListener('map-toggle', handleToggle)
+    }
   }, [map])
   return null
 }
