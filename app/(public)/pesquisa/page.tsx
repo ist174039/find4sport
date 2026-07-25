@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { PesquisaFiltros } from '@/components/pesquisa-filtros'
 import { PesquisaMapWrapper } from '@/components/pesquisa-map-wrapper'
+import { PesquisaLayout } from '@/components/pesquisa-layout'
 import { Badge } from '@/components/ui/badge'
 
 export interface UnifiedResultItem {
@@ -129,15 +130,14 @@ export default async function PesquisaPage(props: {
   }
 
   return (
-    <main className="flex-1 flex flex-col md:flex-row overflow-hidden border-t border-border">
-      
-      {/* Results Pane */}
-      <section className="w-full md:w-[600px] lg:w-[640px] flex flex-col bg-background border-r border-border h-[calc(100vh-64px)]">
-        {/* Filters Header */}
-        <PesquisaFiltros initialQuery={query} totalResults={results.length} />
-        
-        {/* Scrollable Results List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
+    <PesquisaLayout 
+      resultsPane={
+        <>
+          {/* Filters Header */}
+          <PesquisaFiltros initialQuery={query} totalResults={results.length} />
+          
+          {/* Scrollable Results List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
           {results.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <div className="p-4 rounded-full bg-primary/10 text-primary mb-4">
@@ -213,13 +213,12 @@ export default async function PesquisaPage(props: {
               </Link>
             ))
           )}
-        </div>
-      </section>
-      
-      {/* Map Pane */}
-      <section className="hidden md:flex flex-1 relative bg-muted h-[calc(100vh-64px)] z-0">
+          </div>
+        </>
+      }
+      mapPane={
         <PesquisaMapWrapper items={results} />
-      </section>
-    </main>
+      }
+    />
   )
 }
