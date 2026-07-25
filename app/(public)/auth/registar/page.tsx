@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { User, Trophy, Building2, ArrowRight, ArrowLeft, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -72,15 +72,27 @@ function RegisterForm() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
 
   const router = useRouter()
   const selectedTypeData = accountTypes.find((t) => t.id === selectedType)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const supabase = createClient()
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (currentUser) {
+        setUser(currentUser)
+      }
+    }
+    checkUser()
+  }, [])
 
   const handleTypeSelect = (type: AccountType) => {
     setSelectedType(type)
   }
 
-  const handleContinueFromType = () => {
+  const handleContinueFromType = async () => {
     if (!selectedType) return
     if (selectedType === 'profissional') {
       router.push('/auth/registar/profissional')
@@ -90,6 +102,25 @@ function RegisterForm() {
       router.push('/auth/registar/espaco')
       return
     }
+    
+    if (user) {
+      setIsLoading(true)
+      const supabase = createClient()
+      const { error: upsertError } = await supabase.from('platform_users').upsert({
+        id: user.id,
+        type: 'athlete',
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.email?.split('@')[0]
+      })
+      if (!upsertError) {
+        window.location.href = '/dashboard'
+      } else {
+        setError('Ocorreu um erro ao atualizar o perfil. ' + upsertError.message)
+        setIsLoading(false)
+      }
+      return
+    }
+
     setStep('formulario')
   }
 
@@ -215,8 +246,12 @@ function RegisterForm() {
             {step === 'tipo' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <div className="mb-8">
-                  <h1 className="text-2xl font-bold text-foreground mb-1">Criar Conta</h1>
-                  <p className="text-muted-foreground text-sm">Que tipo de conta pretende criar na plataforma?</p>
+                  <h1 className="text-2xl font-bold text-foreground mb-1">
+                    {user ? 'Falta apenas um passo!' : 'Criar Conta'}
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    {user ? 'Escolha o tipo de perfil para concluir o seu registo.' : 'Que tipo de conta pretende criar na plataforma?'}
+                  </p>
                 </div>
 
                 <div className="grid gap-4 mb-8">
@@ -293,12 +328,52 @@ function RegisterForm() {
                   {selectedType && <ArrowRight className="h-4 w-4" />}
                 </button>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  Já tem uma conta?{' '}
-                  <Link href="/auth/login" className="text-primary font-semibold hover:underline">
-                    Entrar
-                  </Link>
-                </p>
+                {!user && (
+                  <>
+                    {/* Divider */}
+                    <div className="relative flex items-center py-5">
+                      <div className="flex-grow border-t border-border" />
+                      <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">ou</span>
+                      <div className="flex-grow border-t border-border" />
+                    </div>
+
+                    {/* OAuth Login */}
+                    <div className="flex flex-col gap-3">
+                      <button
+                        type="button"
+                        className="w-full h-11 border border-border bg-background rounded-xl text-sm font-medium text-foreground flex items-center justify-center gap-3 hover:bg-muted transition-all active:scale-[0.98]"
+                        onClick={() => handleOAuthSignUp('google')}
+                        id="google-register-btn"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Registar com Google
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full h-11 border border-border bg-[#1877F2] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-3 hover:bg-[#1877F2]/90 transition-all active:scale-[0.98]"
+                        onClick={() => handleOAuthSignUp('facebook')}
+                        id="facebook-register-btn"
+                      >
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Registar com Facebook
+                      </button>
+                    </div>
+
+                    <p className="text-center text-sm text-muted-foreground mt-4">
+                      Já tem uma conta?{' '}
+                      <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+                        Entrar
+                      </Link>
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
