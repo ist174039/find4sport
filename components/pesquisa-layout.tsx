@@ -28,7 +28,7 @@ export function PesquisaLayout({
       </section>
       
       {/* Map Pane */}
-      <section className={`flex-1 relative bg-muted h-[calc(100dvh-64px)] z-0 w-full ${view === 'map' ? 'block' : 'hidden md:block'}`}>
+      <section className={`z-0 bg-muted ${view === 'map' ? 'absolute inset-0 block md:relative md:inset-auto md:flex-1 md:h-[calc(100dvh-64px)]' : 'hidden md:block md:flex-1 md:relative md:h-[calc(100dvh-64px)]'}`}>
         {mapPane}
       </section>
 

@@ -96,13 +96,13 @@ export function PesquisaMap({ items = [] }: PesquisaMapProps) {
   }
 
   return (
-    <div className="relative w-full h-full z-0">
+    <div className="absolute inset-0 z-0">
       <MapContainer 
         center={defaultCenter} 
         zoom={12} 
         scrollWheelZoom={true} 
         style={{ height: '100%', width: '100%' }}
-        className="z-0"
+        className="z-0 h-full w-full"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
