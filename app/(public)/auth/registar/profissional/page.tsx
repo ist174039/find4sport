@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { adminCreateUser } from '@/app/actions/auth'
+import { registerProfessionalInitial } from '@/app/actions/register'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -238,15 +239,6 @@ export default function ProfessionalRegisterPage() {
 
       if (!user) throw new Error('Não autenticado')
 
-      // Check if professional profile already exists for this user
-      const { data: existingProf } = await supabase
-        .from('professionals')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      let professionalId = existingProf?.id
-
       const profPayload = {
         user_id: user.id,
         full_name: formData.full_name,
@@ -262,56 +254,17 @@ export default function ProfessionalRegisterPage() {
         status: 'pending',
         gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
       }
+      const result = await registerProfessionalInitial(
+        formData.email,
+        user.id,
+        profPayload,
+        selectedCategories,
+        qualifications
+      )
 
-      if (professionalId) {
-        const { error: profError } = await supabase
-          .from('professionals')
-          .update(profPayload)
-          .eq('id', professionalId)
-
-        if (profError) throw new Error(`Erro ao atualizar perfil profissional: ${profError.message}`)
-      } else {
-        const { data: newProf, error: profError } = await supabase
-          .from('professionals')
-          .insert(profPayload)
-          .select('id')
-          .single()
-
-        if (profError) throw new Error(`Erro na base de dados (professionals): ${profError.message}`)
-        professionalId = newProf.id
+      if (result.error) {
+        throw new Error(result.error)
       }
-
-      // Add categories
-      if (selectedCategories.length > 0 && professionalId) {
-        await supabase.from('professional_categories').delete().eq('professional_id', professionalId)
-        const { error: catError } = await supabase
-          .from('professional_categories')
-          .insert(selectedCategories.map(catId => ({
-            professional_id: professionalId,
-            category_id: catId,
-          })))
-        if (catError) console.error('Error adding categories:', catError)
-      }
-
-      // Add qualifications
-      if (qualifications.length > 0 && professionalId) {
-        const { error: qualError } = await supabase
-          .from('qualifications')
-          .insert(qualifications.map(q => ({
-            professional_id: professionalId,
-            title: q.title,
-            issuer: q.issuer || null,
-            issue_date: q.issue_date || null,
-          })))
-        if (qualError) console.error('Error adding qualifications:', qualError)
-      }
-
-      // Update user type in platform_users and auth metadata
-      await supabase.from('platform_users').upsert({
-        id: user.id,
-        full_name: formData.full_name,
-        type: 'professional',
-      })
 
       await supabase.auth.updateUser({
         data: {

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { adminCreateUser } from '@/app/actions/auth'
+import { registerSpaceInitial } from '@/app/actions/register'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -127,7 +128,7 @@ export default function RegisterSpacePage() {
         throw new Error('Não foi possível autenticar o utilizador')
       }
 
-      const { error: spaceError } = await supabase.from('sport_spaces').insert({
+      const spacePayload = {
         name: formData.name,
         description: formData.description || null,
         address: formData.address || null,
@@ -138,10 +139,15 @@ export default function RegisterSpacePage() {
         status: 'pending',
         created_by: user.id,
         owner_user_id: user.id,
-      })
+      }
 
-      if (spaceError) throw new Error(`Erro na base de dados (sport_spaces): ${spaceError.message}`)
-      router.push('/')
+      const result = await registerSpaceInitial(user.id, spacePayload, formData.name)
+
+      if (result.error) {
+        throw new Error(`Erro ao registar espaço: ${result.error}`)
+      }
+
+      router.push('/auth/confirmar-email')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao registar espaço')
     } finally {
