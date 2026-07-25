@@ -69,10 +69,10 @@ export function Footer() {
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <span className="text-lg font-bold text-primary-foreground">F4</span>
+                <span className="text-lg font-bold text-primary-foreground">F4S</span>
               </div>
-              <span className="text-xl font-bold tracking-tight">
-                FIND<span className="text-primary">4</span>SPORT
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                F<span className="text-primary">4</span>S
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">

@@ -63,10 +63,10 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
-            <span className="text-lg font-bold text-white">F4</span>
+            <span className="text-lg font-bold text-white">F4S</span>
           </div>
           <span className="hidden text-xl font-bold tracking-tight text-foreground sm:block">
-            FIND<span className="text-primary">4</span>SPORT
+            F<span className="text-primary">4</span>S
           </span>
         </Link>
 
