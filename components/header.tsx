@@ -189,7 +189,7 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     render={
-                      <Link href="/auth/logout" className="flex cursor-pointer items-center text-destructive">
+                      <Link href="/auth/logout" prefetch={false} className="flex cursor-pointer items-center text-destructive">
                         <LogOut className="mr-2 h-4 w-4" />
                         Terminar Sessao
                       </Link>
@@ -273,6 +273,7 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
                     </Link>
                     <Link
                       href="/auth/logout"
+                      prefetch={false}
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-destructive hover:bg-destructive/10"
                     >
