@@ -83,7 +83,7 @@ export function DashboardSidebar({ professional, space }: DashboardSidebarProps)
             <span className="text-lg font-bold text-white">F4S</span>
           </div>
           <span className="hidden text-xl font-bold tracking-tight text-foreground sm:block">
-            F<span className="text-primary">4</span>S
+            FIND<span className="text-primary">4</span>SPORT
           </span>
         </Link>
       </div>

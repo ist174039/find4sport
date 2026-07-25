@@ -72,7 +72,7 @@ export function Footer() {
                 <span className="text-lg font-bold text-primary-foreground">F4S</span>
               </div>
               <span className="text-2xl font-bold tracking-tight text-foreground">
-                F<span className="text-primary">4</span>S
+                FIND<span className="text-primary">4</span>SPORT
               </span>
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">

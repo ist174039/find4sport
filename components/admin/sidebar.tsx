@@ -105,7 +105,7 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
           </div>
           <div className="flex items-center">
             <span className="text-xl font-bold tracking-tight text-foreground">
-              F<span className="text-primary">4</span>S
+              FIND<span className="text-primary">4</span>SPORT
             </span>
             <Badge variant="secondary" className="ml-2 text-[10px] py-0 px-1.5 uppercase font-bold tracking-wider">
               Admin
