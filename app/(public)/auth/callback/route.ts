@@ -20,11 +20,18 @@ export async function GET(request: NextRequest) {
         
       if (!profile || !profile.type) {
         if (requestedType) {
-          await supabase
+          const { error: upsertError } = await supabase
             .from('platform_users')
-            .update({ type: requestedType })
-            .eq('id', sessionData.user.id)
-          profile = { type: requestedType }
+            .upsert({ 
+              id: sessionData.user.id,
+              type: requestedType,
+              email: sessionData.user.email,
+              full_name: sessionData.user.user_metadata?.full_name || sessionData.user.email?.split('@')[0]
+            })
+          
+          if (!upsertError) {
+            profile = { type: requestedType }
+          }
         } else {
           if (next && next.includes('/auth/registar/')) {
             return NextResponse.redirect(`${origin}${next}`)

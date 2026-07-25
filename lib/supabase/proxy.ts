@@ -59,7 +59,7 @@ export async function updateSession(request: NextRequest) {
 
     if (!profile) {
       const url = request.nextUrl.clone()
-      url.pathname = '/auth/login'
+      url.pathname = '/auth/registar'
       return NextResponse.redirect(url)
     }
   }
