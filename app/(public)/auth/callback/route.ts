@@ -42,7 +42,13 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.redirect(`${origin}${next}`)
     }
+    
+    // Se chegou aqui com código mas deu erro (ex: expirado ou já usado)
+    if (error) {
+      return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(error.message || 'Código de confirmação inválido ou já utilizado.')}`)
+    }
   }
 
-  return NextResponse.redirect(`${origin}/auth/error`)
+  const errorDesc = searchParams.get('error_description') || 'Código inválido ou expirado. Pode já ter sido utilizado.'
+  return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(errorDesc)}`)
 }

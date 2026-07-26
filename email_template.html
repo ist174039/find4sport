@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      padding: 30px 40px;
+      text-align: center;
+    }
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-box {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #0f172a, #2dd4bf);
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .logo-text {
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: -0.5px;
+    }
+    .logo-text span {
+      color: #2dd4bf;
+    }
+    .content {
+      padding: 40px;
+    }
+    h1 {
+      color: #0f172a;
+      font-size: 24px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #475569;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 500;
+      font-size: 16px;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .footer {
+      background: #f1f5f9;
+      padding: 24px 40px;
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .footer a {
+      color: #0f172a;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-container">
+        <div class="logo-box">F4S</div>
+        <div class="logo-text">FIND<span>4</span>SPORT</div>
+      </div>
+    </div>
+    <div class="content">
+      <h1>Confirme o seu email</h1>
+      <p>Bem-vindo(a) à plataforma FIND4SPORT! Estamos muito felizes por se juntar à maior comunidade desportiva de Portugal.</p>
+      <p>Para concluir o seu registo e ativar a sua conta, clique no botão abaixo:</p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{{ .ConfirmationURL }}" class="btn">Confirmar o meu Email</a>
+      </div>
+      <p style="font-size: 14px; color: #94a3b8;">
+        Se o botão não funcionar, copie e cole o seguinte link no seu navegador:<br>
+        <span style="color: #64748b; word-break: break-all;">{{ .ConfirmationURL }}</span>
+      </p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 FIND4SPORT. Todos os direitos reservados.</p>
+    </div>
+  </div>
+</body>
+</html>
