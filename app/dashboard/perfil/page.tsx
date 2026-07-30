@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import Link from 'next/link'
-import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X } from 'lucide-react'
+import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X, Search } from 'lucide-react'
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import type { Professional, Category } from '@/lib/types'
 
@@ -24,6 +24,7 @@ export default function ProfilePage() {
   const [professional, setProfessional] = useState<Professional | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [categorySearch, setCategorySearch] = useState('')
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -420,13 +421,34 @@ export default function ProfilePage() {
                   )}
                 </div>
 
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar modalidades..."
+                    value={categorySearch}
+                    onChange={(e) => setCategorySearch(e.target.value)}
+                    className="pl-9 h-10 bg-background rounded-lg"
+                  />
+                </div>
+
                 <div className="border rounded-lg overflow-hidden bg-background">
                   <Accordion className="w-full">
-                    {categories.filter(c => !c.parent_id).map((parent) => {
+                    {categories.filter(c => !c.parent_id).filter(parent => {
+                      if (!categorySearch) return true
+                      const lowerSearch = categorySearch.toLowerCase()
                       const children = categories.filter(c => c.parent_id === parent.id)
+                      return parent.name.toLowerCase().includes(lowerSearch) || children.some(child => child.name.toLowerCase().includes(lowerSearch))
+                    }).map((parent) => {
+                      const lowerSearch = categorySearch.toLowerCase()
+                      const parentMatches = parent.name.toLowerCase().includes(lowerSearch)
+                      
+                      const allChildren = categories.filter(c => c.parent_id === parent.id)
+                      const children = categorySearch 
+                        ? allChildren.filter(child => parentMatches || child.name.toLowerCase().includes(lowerSearch))
+                        : allChildren
                       
                       // Se não tem filhos, apresentamos a própria categoria como selecionável (fallback)
-                      if (children.length === 0) {
+                      if (allChildren.length === 0) {
                         const isSelected = selectedCategories.includes(parent.id)
                         return (
                           <div key={parent.id} className="p-3 border-b last:border-0 flex items-center justify-between hover:bg-muted/50">
@@ -448,7 +470,7 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-2">
                               <span>{parent.emoji} {parent.name}</span>
                               <Badge variant="secondary" className="text-[10px] ml-2 font-normal">
-                                {children.length} opções
+                                {children.length} {children.length === 1 ? 'opção' : 'opções'}
                               </Badge>
                             </div>
                           </AccordionTrigger>
