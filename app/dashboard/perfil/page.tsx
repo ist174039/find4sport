@@ -68,9 +68,9 @@ export default function ProfilePage() {
         .getPublicUrl(filePath)
 
       setFormData(prev => ({ ...prev, avatar_url: publicUrlData.publicUrl }))
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading avatar:', error)
-      alert('Erro ao fazer upload da imagem. Verifique se o tamanho é inferior a 2MB.')
+      alert(`Erro ao fazer upload: ${error?.message || 'Erro desconhecido'}`)
     } finally {
       setSaving(false)
     }
