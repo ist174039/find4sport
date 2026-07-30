@@ -29,7 +29,8 @@ export async function createPostAction(content: string, media_url?: string | nul
       .from('sport_spaces')
       .select('id')
       .eq('owner_user_id', user.id)
-      .single()
+      .limit(1)
+      .maybeSingle()
       
     if (!space) {
       throw new Error('Espaço não encontrado para este utilizador.')
