@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function createPostAction(content: string, media_url?: string | null, media_type?: string | null) {
@@ -38,7 +39,8 @@ export async function createPostAction(content: string, media_url?: string | nul
     sport_space_id = space.id
   }
 
-  const { error } = await supabase.from('posts').insert({
+  const supabaseAdmin = createAdminClient()
+  const { error } = await supabaseAdmin.from('posts').insert({
     professional_id,
     sport_space_id,
     content,
