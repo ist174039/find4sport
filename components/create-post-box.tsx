@@ -75,7 +75,12 @@ export function CreatePostBox({
         media_type = mediaFile.type.startsWith('video/') ? 'video' : 'image'
       }
 
-      await createPostAction(content, media_url, media_type)
+      const result = await createPostAction(content, media_url, media_type)
+      
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
       setContent('')
       clearMedia()
     } catch (err: any) {

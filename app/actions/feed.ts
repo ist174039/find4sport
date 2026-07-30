@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function createPostAction(content: string, media_url?: string | null, media_type?: string | null) {
-  const supabase = await createClient()
+  try {
+    const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Utilizador não autenticado')
 
@@ -49,12 +50,16 @@ export async function createPostAction(content: string, media_url?: string | nul
   })
 
   if (error) {
-    console.error(error)
-    throw new Error('Erro ao publicar')
+    console.error('Supabase insert error:', error)
+    return { error: error.message || 'Erro ao criar publicação na base de dados.' }
   }
 
   revalidatePath('/feed')
   return { success: true }
+} catch (err: any) {
+  console.error('Server action catch error:', err)
+  return { error: err.message || 'Ocorreu um erro no servidor.' }
+}
 }
 
 export async function toggleLikeAction(postId: string) {
