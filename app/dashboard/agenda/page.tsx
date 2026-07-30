@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock, MapPin, ExternalLink } from 'lucide-react'
+import { Calendar, Clock, MapPin, ExternalLink, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -65,9 +65,17 @@ export default function DashboardAgendaPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Agenda</h1>
-        <p className="text-sm text-muted-foreground">Gerir a tua agenda de eventos.</p>
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Agenda</h1>
+          <p className="text-sm text-muted-foreground">Gerir a tua agenda de eventos.</p>
+        </div>
+        <Button asChild>
+          <Link href="/dashboard/eventos/criar">
+            <Plus className="mr-2 h-4 w-4" />
+            Criar Evento
+          </Link>
+        </Button>
       </div>
 
       <Tabs defaultValue="upcoming">
