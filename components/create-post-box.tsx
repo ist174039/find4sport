@@ -18,7 +18,7 @@ export function CreatePostBox({
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
 
-  if (currentUserType !== 'professional') {
+  if (currentUserType !== 'professional' && currentUserType !== 'espaco') {
     return null
   }
 

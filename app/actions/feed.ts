@@ -15,12 +15,31 @@ export async function createPostAction(content: string) {
     .eq('id', user.id)
     .single()
 
-  if (profile?.type !== 'professional') {
-    throw new Error('Apenas profissionais podem publicar.')
+  if (profile?.type !== 'professional' && profile?.type !== 'espaco') {
+    throw new Error('Apenas profissionais e espaços podem publicar no feed público.')
+  }
+
+  let professional_id = null
+  let sport_space_id = null
+
+  if (profile.type === 'professional') {
+    professional_id = user.id
+  } else if (profile.type === 'espaco') {
+    const { data: space } = await supabase
+      .from('sport_spaces')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+      
+    if (!space) {
+      throw new Error('Espaço não encontrado para este utilizador.')
+    }
+    sport_space_id = space.id
   }
 
   const { error } = await supabase.from('posts').insert({
-    professional_id: user.id,
+    professional_id,
+    sport_space_id,
     content,
     // defaults
     media_url: null,

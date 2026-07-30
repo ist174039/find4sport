@@ -265,6 +265,13 @@ export default async function Page({
             </div>
           )}
 
+          {/* Create Post Box */}
+          <CreatePostBox 
+            currentUserType={currentUserType}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+          />
+
           {/* Posts Feed */}
           {posts && posts.length > 0 ? (
             posts.map((post: any) => (
