@@ -2,10 +2,12 @@
 
 import { 
   Building2, Users, Star, Activity, 
-  ArrowRight, ShieldCheck, CalendarCheck 
+  ArrowRight, ShieldCheck, CalendarCheck, Globe
 } from 'lucide-react'
 
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export function SpaceDashboard({ space }: { space: any }) {
   const router = useRouter()
@@ -20,6 +22,12 @@ export function SpaceDashboard({ space }: { space: any }) {
           <p className="text-muted-foreground">Monitorize as reservas, visualizações e desempenho do seu espaço.</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/espacos/${space?.id}`} target="_blank">
+            <Button variant="outline" className="gap-2 shadow-sm border-primary text-primary hover:bg-primary/10">
+              <Globe className="h-4 w-4" />
+              Ver Perfil Público
+            </Button>
+          </Link>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-600 rounded-full border border-green-500/20">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             <span className="text-sm font-medium">{space?.is_verified ? 'Recinto Verificado' : 'Recinto Ativo'}</span>

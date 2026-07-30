@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
   Calendar, Users, MessageSquare, Star, 
   Activity, ArrowRight, ShieldCheck, Camera, 
-  Upload, X, Plus, Image as ImageIcon, Loader2, Save
+  Upload, X, Plus, Image as ImageIcon, Loader2, Save, Globe
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useModal } from '@/components/providers/modal-provider'
+import { Button } from '@/components/ui/button'
 
 export function ProfessionalDashboard({ professional }: { professional: any }) {
   const router = useRouter()
@@ -90,6 +92,12 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
           <p className="text-muted-foreground">Gerencie o seu perfil, galeria de fotos, serviços e clientes.</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href={`/profissionais/${professional?.public_slug || professional?.id}`} target="_blank">
+            <Button variant="outline" className="gap-2 shadow-sm border-primary text-primary hover:bg-primary/10">
+              <Globe className="h-4 w-4" />
+              Ver Perfil Público
+            </Button>
+          </Link>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-600 rounded-full border border-green-500/20">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             <span className="text-sm font-medium">Perfil Ativo</span>

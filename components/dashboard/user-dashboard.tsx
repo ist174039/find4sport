@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { 
   CalendarCheck, Heart, MapPin, 
-  ArrowRight, Search, Activity, Calendar, Star, Loader2, Sparkles
+  ArrowRight, Search, Activity, Calendar, Star, Loader2, Sparkles, User
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -113,6 +113,12 @@ export function UserDashboard({ user }: { user: any }) {
         </div>
         
         <div className="flex items-center gap-3">
+          <Link href={`/utilizadores/${user?.id}`} target="_blank">
+            <Button variant="outline" className="gap-2 shadow-sm border-primary text-primary hover:bg-primary/10">
+              <User className="h-4 w-4" />
+              Ver Perfil Público
+            </Button>
+          </Link>
           <Link href="/pesquisa">
             <Button className="gap-2 shadow-sm">
               <Search className="h-4 w-4" />
