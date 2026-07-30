@@ -110,10 +110,10 @@ export default function LoginPage() {
           full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
           type: targetType as any,
         })
-      } else if (selectedType === 'profissional' && profile.type !== 'professional' && profile.type !== 'profissional') {
-        // Upgrade/set type to professional
-        await supabase.from('platform_users').update({ type: 'professional' as any }).eq('id', data.user.id)
-        await supabase.auth.updateUser({ data: { type: 'professional' } })
+      } else if (profile.type !== targetType) {
+        // Update user type to match login selection
+        await supabase.from('platform_users').update({ type: targetType as any }).eq('id', data.user.id)
+        await supabase.auth.updateUser({ data: { type: targetType } })
       }
       
       window.location.href = redirectByType[selectedType]

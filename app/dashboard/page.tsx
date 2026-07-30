@@ -31,8 +31,6 @@ export default async function DashboardPage() {
 
   if (space) {
     return <SpaceDashboard space={space} />
-  } else if (userType === 'venue_manager' || userType === 'espaco') {
-    redirect('/auth/registar/espaco')
   }
 
   // Priority 2: Check if user has a professional profile
@@ -44,8 +42,6 @@ export default async function DashboardPage() {
 
   if (professional) {
     return <ProfessionalDashboard professional={professional} />
-  } else if (userType === 'professional' || userType === 'profissional') {
-    redirect('/auth/registar/profissional')
   }
 
 
