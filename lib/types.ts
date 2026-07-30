@@ -27,6 +27,7 @@ export interface Category {
   id: string
   name: string
   slug: string
+  parent_id: string | null
   emoji: string | null
   color: string | null
   pro_count: number

@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import Link from 'next/link'
-import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink } from 'lucide-react'
+import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X } from 'lucide-react'
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import type { Professional, Category } from '@/lib/types'
 
@@ -391,23 +392,88 @@ export default function ProfilePage() {
                 />
               </div>
               
-              <div className="space-y-2 pt-2">
-                <Label className="text-xs font-semibold text-foreground/80">Modalidades</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {categories.map((category) => {
-                    const isSelected = selectedCategories.includes(category.id)
-                    return (
-                      <Badge
-                        key={category.id}
-                        variant={isSelected ? 'default' : 'outline'}
-                        className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
-                        onClick={() => toggleCategory(category.id)}
-                      >
-                        {category.emoji} {category.name}
-                        {isSelected && <CheckCircle className="h-3 w-3 ml-1.5" />}
-                      </Badge>
-                    )
-                  })}
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label className="text-xs font-semibold text-foreground/80 mb-2 block">Modalidades Selecionadas</Label>
+                  {selectedCategories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">Nenhuma modalidade selecionada.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {selectedCategories.map((catId) => {
+                        const cat = categories.find(c => c.id === catId)
+                        if (!cat) return null
+                        return (
+                          <Badge
+                            key={cat.id}
+                            variant="default"
+                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-primary hover:bg-primary/90"
+                          >
+                            {cat.emoji} {cat.name}
+                            <X 
+                              className="h-3 w-3 cursor-pointer ml-1 hover:text-white/70" 
+                              onClick={(e) => { e.preventDefault(); toggleCategory(cat.id); }} 
+                            />
+                          </Badge>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border rounded-lg overflow-hidden bg-background">
+                  <Accordion className="w-full">
+                    {categories.filter(c => !c.parent_id).map((parent) => {
+                      const children = categories.filter(c => c.parent_id === parent.id)
+                      
+                      // Se não tem filhos, apresentamos a própria categoria como selecionável (fallback)
+                      if (children.length === 0) {
+                        const isSelected = selectedCategories.includes(parent.id)
+                        return (
+                          <div key={parent.id} className="p-3 border-b last:border-0 flex items-center justify-between hover:bg-muted/50">
+                            <span className="text-sm font-medium">{parent.emoji} {parent.name}</span>
+                            <Badge
+                              variant={isSelected ? 'default' : 'outline'}
+                              className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
+                              onClick={() => toggleCategory(parent.id)}
+                            >
+                              {isSelected ? 'Selecionado' : 'Selecionar'}
+                            </Badge>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <AccordionItem value={parent.id} key={parent.id} className="border-b last:border-0 px-1">
+                          <AccordionTrigger className="hover:no-underline hover:bg-muted/30 px-3 py-3 rounded-md text-sm font-semibold">
+                            <div className="flex items-center gap-2">
+                              <span>{parent.emoji} {parent.name}</span>
+                              <Badge variant="secondary" className="text-[10px] ml-2 font-normal">
+                                {children.length} opções
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-3 pb-4">
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              {children.map(child => {
+                                const isSelected = selectedCategories.includes(child.id)
+                                return (
+                                  <Badge
+                                    key={child.id}
+                                    variant={isSelected ? 'default' : 'outline'}
+                                    className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
+                                    onClick={() => toggleCategory(child.id)}
+                                  >
+                                    {child.emoji} {child.name}
+                                    {isSelected && <CheckCircle className="h-3 w-3 ml-1.5" />}
+                                  </Badge>
+                                )
+                              })}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      )
+                    })}
+                  </Accordion>
                 </div>
               </div>
             </div>
