@@ -12,9 +12,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar, Loader2, ArrowLeft, Check, Image as ImageIcon, X } from 'lucide-react'
 
-export default function CriarEventoProfissionalPage() {
+export default function EditarEventoProfissionalPage({ params }: { params: { id: string } }) {
   const router = useRouter()
+  const { id } = params
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [categories, setCategories] = useState<{ id: string; name: string; emoji: string | null }[]>([])
@@ -30,12 +32,41 @@ export default function CriarEventoProfissionalPage() {
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
 
+  const [existingBannerUrl, setExistingBannerUrl] = useState<string | null>(null)
+  const [existingGalleryUrls, setExistingGalleryUrls] = useState<string[]>([])
+
   useEffect(() => {
     const supabase = createClient()
     supabase.from('categories').select('id, name, emoji').then(({ data }) => {
       setCategories(data || [])
     })
-  }, [])
+
+    // Fetch existing event
+    supabase.from('events').select('*').eq('id', id).single().then(({ data, error }) => {
+      if (data) {
+        setFormData({
+          title: data.title || '',
+          description: data.description || '',
+          category_id: data.category_id || '',
+          address: data.address || '',
+          start_date: data.start_date ? new Date(data.start_date).toISOString().slice(0,16) : '',
+          end_date: data.end_date ? new Date(data.end_date).toISOString().slice(0,16) : '',
+          capacity: data.capacity?.toString() || '',
+          price_min: data.price_min?.toString() || '',
+          price_max: data.price_max?.toString() || '',
+        })
+        if (data.image_url) {
+          setExistingBannerUrl(data.image_url)
+          setBannerPreview(data.image_url)
+        }
+        if (data.gallery_urls) {
+          setExistingGalleryUrls(data.gallery_urls)
+          setGalleryPreviews(data.gallery_urls)
+        }
+      }
+      setFetching(false)
+    })
+  }, [id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,9 +79,9 @@ export default function CriarEventoProfissionalPage() {
       if (!user) throw new Error('Não autenticado')
 
       setUploading(true)
-      let bannerUrl = null;
-      let galleryUrls: string[] = [];
-      const eventFolderId = crypto.randomUUID();
+      let bannerUrl = existingBannerUrl;
+      let galleryUrls: string[] = [...existingGalleryUrls];
+      const eventFolderId = id;
 
       // Upload Banner
       if (bannerFile) {
@@ -79,7 +110,7 @@ export default function CriarEventoProfissionalPage() {
         }
       }
 
-      const { error: insertError } = await supabase.from('events').insert({
+      const { error: updateError } = await supabase.from('events').update({
         title: formData.title,
         description: formData.description,
         category_id: formData.category_id || null,
@@ -91,13 +122,12 @@ export default function CriarEventoProfissionalPage() {
         price_max: formData.price_max ? parseFloat(formData.price_max) : null,
         image_url: bannerUrl,
         gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
-        created_by: user.id,
         status: 'pending',
-      })
+      }).eq('id', id)
 
-      if (insertError) throw insertError
+      if (updateError) throw updateError
       setSuccess(true)
-      setTimeout(() => router.push('/dashboard/eventos'), 2000)
+      setTimeout(() => router.push('/dashboard/agenda'), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar evento')
     } finally {
@@ -124,8 +154,26 @@ export default function CriarEventoProfissionalPage() {
   }
 
   const removeGalleryImage = (index: number) => {
-    setGalleryFiles(prev => prev.filter((_, i) => i !== index))
+    // Determine if the removed image was an existing one or a new one
+    const previewUrl = galleryPreviews[index];
+    if (existingGalleryUrls.includes(previewUrl)) {
+      setExistingGalleryUrls(prev => prev.filter(url => url !== previewUrl))
+    } else {
+      // Find the index in the new files array. Since we append new files to the end:
+      const newFileIndex = index - existingGalleryUrls.length;
+      if (newFileIndex >= 0) {
+        setGalleryFiles(prev => prev.filter((_, i) => i !== newFileIndex))
+      }
+    }
     setGalleryPreviews(prev => prev.filter((_, i) => i !== index))
+  }
+
+  if (fetching) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (success) {
@@ -135,9 +183,9 @@ export default function CriarEventoProfissionalPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <Check className="h-8 w-8 text-green-600" />
           </div>
-          <h2 className="mt-4 text-xl font-bold">Evento Criado! 🎉</h2>
+          <h2 className="mt-4 text-xl font-bold">Evento Atualizado! 🎉</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            O teu evento foi submetido para aprovação.
+            As tuas alterações foram gravadas com sucesso.
           </p>
         </CardContent>
       </Card>
@@ -146,14 +194,14 @@ export default function CriarEventoProfissionalPage() {
 
   return (
     <div>
-      <Link href="/dashboard/eventos" className="mb-6 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="mr-1 h-4 w-4" /> Voltar aos Eventos
+      <Link href="/dashboard/agenda" className="mb-6 inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="mr-1 h-4 w-4" /> Voltar à Agenda
       </Link>
 
       <Card>
         <CardHeader>
-          <CardTitle>Criar Novo Evento</CardTitle>
-          <CardDescription>Preenche os dados para criares um evento desportivo.</CardDescription>
+          <CardTitle>Editar Evento</CardTitle>
+          <CardDescription>Atualiza os dados do teu evento desportivo.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -282,7 +330,7 @@ export default function CriarEventoProfissionalPage() {
 
             <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700 mt-6" disabled={loading || uploading}>
               {(loading || uploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Calendar className="mr-2 h-4 w-4" />}
-              {uploading ? 'A enviar imagens...' : loading ? 'A criar...' : 'Criar Evento'}
+              {uploading ? 'A enviar imagens...' : loading ? 'A guardar...' : 'Atualizar Evento'}
             </Button>
           </form>
         </CardContent>

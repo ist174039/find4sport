@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock, MapPin, ExternalLink, Plus } from 'lucide-react'
+import { Calendar, Clock, MapPin, ExternalLink, Plus, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
@@ -128,11 +128,18 @@ export default function DashboardAgendaPage() {
                       )}
                     </div>
                   </div>
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link href={`/eventos/${item.ref_id}`}>
-                      <ExternalLink className="h-4 w-4" />
-                    </Link>
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/dashboard/eventos/${item.ref_id}/editar`}>
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button size="sm" variant="ghost" asChild>
+                      <Link href={`/eventos/${item.ref_id}`}>
+                        <ExternalLink className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))
