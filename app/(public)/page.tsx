@@ -10,8 +10,8 @@ export default async function Page() {
     supabase.from('sport_spaces').select('id', { count: 'exact', head: true }),
     supabase.from('professionals').select('id', { count: 'exact', head: true }),
     supabase.from('events').select('id', { count: 'exact', head: true }),
-    supabase.from('sport_spaces').select('*').order('review_count', { ascending: false }).limit(4),
-    supabase.from('professionals').select('*').order('rating_avg', { ascending: false }).limit(4),
+    supabase.from('sport_spaces').select('*').order('review_count', { ascending: false }).limit(6),
+    supabase.from('professionals').select('*').order('rating_avg', { ascending: false }).limit(6),
     supabase.from('carousel_slides').select('*').eq('is_active', true).order('display_order', { ascending: true })
   ])
   
@@ -87,7 +87,7 @@ export default async function Page() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Top Profissionais</h2>
+              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Top Profissionais, Lisboa, Portugal</h2>
               <p className="mt-2 text-muted-foreground">Os profissionais mais reconhecidos da nossa rede</p>
             </div>
             <Link href="/pesquisa" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
@@ -95,30 +95,38 @@ export default async function Page() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {profs.map((prof) => (
-              <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
-                <div className="relative aspect-square rounded-full w-24 h-24 mx-auto mt-4 overflow-hidden bg-muted border-2 border-border group-hover:border-primary/50 transition-colors">
-                  <img 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                    alt={prof.full_name} 
-                    src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
-                  />
-                  {prof.is_verified && (
-                    <BadgeCheck className="absolute bottom-1 right-1 bg-emerald-100 text-emerald-700 p-0.5 rounded-full border border-emerald-200 text-[12px]" />
-                  )}
+              <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="relative group aspect-square rounded-xl overflow-hidden bg-muted block shadow-sm hover:shadow-xl hover:z-10 transition-all duration-300">
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                  alt={prof.full_name} 
+                  src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
+                />
+                
+                {/* Always visible base overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 group-hover:opacity-0"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3 transition-opacity duration-300 group-hover:opacity-0 flex items-center justify-between">
+                  <h3 className="text-white font-semibold text-sm truncate flex-1">{prof.full_name}</h3>
+                  {prof.is_verified && <BadgeCheck className="text-emerald-400 h-4 w-4 ml-1 flex-shrink-0" />}
                 </div>
-                <div className="pt-4 flex-1 flex flex-col items-center text-center">
-                  <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">{prof.full_name}</h3>
-                  <div className="flex items-center gap-1 mt-1 bg-muted px-2 py-0.5 rounded-md text-xs">
-                    <Star className="text-yellow-500 text-[12px]" />
-                    <span className="font-semibold text-foreground">{prof.rating_avg?.toFixed(1) || 'Novo'}</span>
+
+                {/* Hover expanded info overlay */}
+                <div className="absolute inset-0 bg-black/80 p-3 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-all duration-300 text-white text-center">
+                  <div className="flex items-center justify-center gap-1 mb-2 w-full">
+                    <h3 className="font-semibold text-sm line-clamp-1">{prof.full_name}</h3>
+                    {prof.is_verified && <BadgeCheck className="text-emerald-400 h-4 w-4 flex-shrink-0" />}
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-3 flex-1">
-                    {prof.bio || 'Especialista em desporto e performance.'}
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-border w-full">
-                    <span className="text-primary font-medium text-sm">Ver perfil</span>
+                  <div className="flex items-center gap-1 mb-2 bg-black/40 px-2 py-0.5 rounded-full text-xs backdrop-blur-sm">
+                    <Star className="text-yellow-500 text-[12px]" />
+                    <span>{prof.rating_avg?.toFixed(1) || 'Novo'}</span>
+                  </div>
+                  <div className="text-[10px] mb-2 font-medium bg-primary px-2 py-0.5 rounded text-primary-foreground line-clamp-1">
+                    {prof.specialty || 'Personal Trainer'}
+                  </div>
+                  <div className="flex justify-between w-full text-[10px] sm:text-xs mt-auto px-1 opacity-90">
+                    <span>{prof.distance || '2 km'}</span>
+                    <span className="font-medium">{prof.price_avg ? `€${prof.price_avg}/h` : '€30/h'}</span>
                   </div>
                 </div>
               </Link>
@@ -137,7 +145,7 @@ export default async function Page() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Espaços Populares</h2>
+              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Espaços Populares, Lisboa, Portugal</h2>
               <p className="mt-2 text-muted-foreground">Os espaços desportivos mais bem avaliados pela comunidade</p>
             </div>
             <Link href="/pesquisa?type=spaces" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
@@ -145,27 +153,34 @@ export default async function Page() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {spaces.map((space) => (
-              <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group">
-                <div className="relative aspect-[4/3] bg-muted">
-                  <img 
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                    alt={space.name} 
-                    src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
-                  />
-                  <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-md flex items-center gap-1 shadow-sm">
-                    <Star className="text-yellow-500 text-[14px]" />
-                    <span className="font-semibold text-xs text-foreground">{space.rating_avg?.toFixed(1) || 'Novo'}</span>
-                  </div>
+              <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="relative group aspect-square rounded-xl overflow-hidden bg-muted block shadow-sm hover:shadow-xl hover:z-10 transition-all duration-300">
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                  alt={space.name} 
+                  src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
+                />
+                
+                {/* Always visible base overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 group-hover:opacity-0"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-3 transition-opacity duration-300 group-hover:opacity-0">
+                  <h3 className="text-white font-semibold text-sm truncate">{space.name}</h3>
                 </div>
-                <div className="p-5 flex-1 flex flex-col">
-                  <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">{space.name}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
-                    <MapPin className="text-[16px]" /> {space.address || 'Localização não disponível'}
-                  </p>
-                  <div className="mt-auto pt-4 flex justify-between items-center">
-                    <span className="text-primary font-medium text-sm">Ver detalhes</span>
+
+                {/* Hover expanded info overlay */}
+                <div className="absolute inset-0 bg-black/80 p-3 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-all duration-300 text-white text-center">
+                  <h3 className="font-semibold text-sm line-clamp-1 mb-2">{space.name}</h3>
+                  <div className="flex items-center gap-1 mb-2 bg-black/40 px-2 py-0.5 rounded-full text-xs backdrop-blur-sm">
+                    <Star className="text-yellow-500 text-[12px]" />
+                    <span>{space.rating_avg?.toFixed(1) || 'Novo'}</span>
+                  </div>
+                  <div className="text-[10px] mb-2 font-medium bg-primary px-2 py-0.5 rounded text-primary-foreground line-clamp-1">
+                    {space.specialty || 'Multidesportos'}
+                  </div>
+                  <div className="flex justify-between w-full text-[10px] sm:text-xs mt-auto px-1 opacity-90">
+                    <span>{space.distance || '5 km'}</span>
+                    <span className="font-medium">{space.price_avg ? `€${space.price_avg}/h` : '€15/h'}</span>
                   </div>
                 </div>
               </Link>

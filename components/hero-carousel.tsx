@@ -64,7 +64,7 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
               alt={slide.title || 'Slide'} 
               src={slide.image_url} 
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/60 to-background/90"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
           </div>
         ))}
       </div>
@@ -82,17 +82,17 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
                   : 'opacity-0 pointer-events-none transform -translate-y-4 scale-95'
               }`}
             >
-              <h1 className="text-4xl font-extrabold text-foreground sm:text-5xl lg:text-6xl mb-4 tracking-tight">
+              <h1 className="text-4xl font-extrabold text-white sm:text-5xl lg:text-6xl mb-4 tracking-tight [text-shadow:_0_2px_4px_rgb(0_0_0_/_80%),_0_0_10px_rgb(0_0_0_/_50%)] [-webkit-text-stroke:1px_rgba(0,0,0,0.5)]">
                 {slide.title?.includes('Encontra a') ? (
                   <>
                     Onde a Performance <br className="hidden sm:block" />
-                    <span className="text-primary">Encontra a Reputação</span>
+                    <span className="text-primary [text-shadow:_0_2px_4px_rgb(0_0_0_/_80%),_0_0_10px_rgb(0_0_0_/_50%)] [-webkit-text-stroke:1px_rgba(0,0,0,0.5)]">Encontra a Reputação</span>
                   </>
                 ) : (
                   slide.title
                 )}
               </h1>
-              <p className="text-base text-muted-foreground sm:text-lg max-w-2xl mx-auto font-medium">
+              <p className="text-base text-white/90 sm:text-lg max-w-2xl mx-auto font-medium [text-shadow:_0_1px_2px_rgb(0_0_0_/_80%)]">
                 {slide.subtitle}
               </p>
             </div>
