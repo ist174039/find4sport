@@ -40,6 +40,42 @@ export default function ProfilePage() {
     nif: ''
   })
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `${fileName}`
+
+      setSaving(true)
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      setFormData(prev => ({ ...prev, avatar_url: publicUrlData.publicUrl }))
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      alert('Erro ao fazer upload da imagem. Verifique se o tamanho é inferior a 2MB.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient()
@@ -138,6 +174,7 @@ export default function ProfilePage() {
             whatsapp: formData.whatsapp,
             address: formData.address,
             website: formData.website,
+            avatar_url: formData.avatar_url,
             service_radius_km: formData.service_radius_km,
             updated_at: new Date().toISOString(),
           })
@@ -218,21 +255,31 @@ export default function ProfilePage() {
         
         {/* Avatar Section - Standard Card */}
         <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
-          <div className="relative group cursor-pointer shrink-0">
+          <div className="relative group shrink-0">
             <Avatar className="h-24 w-24 border border-border shadow-sm">
               <AvatarImage src={formData.avatar_url || undefined} />
               <AvatarFallback className="text-3xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
             </Avatar>
-            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <label htmlFor="avatar-upload" className="cursor-pointer absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <Camera className="h-6 w-6 text-white" />
-            </div>
+            </label>
           </div>
           <div className="text-center sm:text-left">
             <h3 className="font-bold text-base mb-1">Fotografia de Perfil</h3>
             <p className="text-xs text-muted-foreground mb-4 max-w-sm">Esta imagem será visível para todos os utilizadores da plataforma.</p>
-            <Button type="button" variant="outline" className="rounded-lg border-border hover:bg-muted text-xs h-9 gap-1.5">
-              <Upload className="h-3.5 w-3.5" /> Alterar Foto
-            </Button>
+            <div className="relative inline-block">
+              <Button type="button" variant="outline" className="rounded-lg border-border hover:bg-muted text-xs h-9 gap-1.5 pointer-events-none">
+                <Upload className="h-3.5 w-3.5" /> Alterar Foto
+              </Button>
+              <input 
+                id="avatar-upload"
+                type="file" 
+                accept="image/*" 
+                onChange={handleAvatarUpload}
+                disabled={saving}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 

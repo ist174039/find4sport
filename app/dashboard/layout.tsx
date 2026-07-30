@@ -42,7 +42,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
       <div className="flex w-full">
-        <DashboardSidebar professional={professional} space={space} />
+        <DashboardSidebar professional={professional} space={space} user={user} />
         <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
           <div className="max-w-6xl mx-auto w-full">
             {children}

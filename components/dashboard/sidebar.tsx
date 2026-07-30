@@ -28,9 +28,10 @@ import {
 interface DashboardSidebarProps {
   professional: any | null
   space: any | null
+  user?: any | null
 }
 
-export function DashboardSidebar({ professional, space }: DashboardSidebarProps) {
+export function DashboardSidebar({ professional, space, user }: DashboardSidebarProps) {
   const pathname = usePathname()
   
   const basePath = '/dashboard'
@@ -117,11 +118,15 @@ export function DashboardSidebar({ professional, space }: DashboardSidebarProps)
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold">
-              U
+            <div className="w-10 h-10 rounded-full bg-secondary/10 overflow-hidden flex items-center justify-center text-secondary font-bold">
+              {user?.user_metadata?.avatar_url ? (
+                <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                user?.user_metadata?.full_name?.charAt(0) || 'U'
+              )}
             </div>
             <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">Utilizador</p>
+              <p className="font-semibold text-sm truncate">{user?.user_metadata?.full_name || 'Utilizador'}</p>
               <p className="text-xs text-muted-foreground truncate">Atleta</p>
             </div>
           </div>
