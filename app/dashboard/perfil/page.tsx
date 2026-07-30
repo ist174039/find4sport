@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import Link from 'next/link'
-import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X, Search } from 'lucide-react'
+import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X, Search, Image as ImageIcon } from 'lucide-react'
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import type { Professional, Category } from '@/lib/types'
 
@@ -39,7 +39,8 @@ export default function ProfilePage() {
     avatar_url: '',
     location: '',
     language: 'pt',
-    nif: ''
+    nif: '',
+    banner_url: ''
   })
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,6 +79,43 @@ export default function ProfilePage() {
     }
   }
 
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}-banner-${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = `${fileName}`
+
+      setSaving(true)
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      setFormData(prev => ({ ...prev, banner_url: publicUrl }))
+      
+    } catch (error: any) {
+      console.error('Error uploading banner:', error)
+      alert(`Erro ao fazer upload: ${error?.message || 'Erro desconhecido'}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient()
@@ -96,7 +134,7 @@ export default function ProfilePage() {
 
       const { data: platformUser } = await supabase
         .from('platform_users')
-        .select('location, language')
+        .select('location, language, banner_url')
         .eq('id', user.id)
         .single()
 
@@ -116,7 +154,8 @@ export default function ProfilePage() {
           avatar_url: proData.avatar_url || user.user_metadata?.avatar_url || '',
           location: platformUser?.location || '',
           language: platformUser?.language || 'pt',
-          nif: proData.nif || user.user_metadata?.nif || ''
+          nif: proData.nif || user.user_metadata?.nif || '',
+          banner_url: platformUser?.banner_url || ''
         })
         setSelectedCategories(
           proData.professional_categories?.map((pc: { category_id: string }) => pc.category_id) || []
@@ -134,7 +173,8 @@ export default function ProfilePage() {
           location: platformUser?.location || '',
           language: platformUser?.language || 'pt',
           phone: user.user_metadata?.phone || '',
-          nif: user.user_metadata?.nif || ''
+          nif: user.user_metadata?.nif || '',
+          banner_url: platformUser?.banner_url || ''
         }))
       }
 
@@ -208,7 +248,8 @@ export default function ProfilePage() {
         .update({
           full_name: formData.full_name,
           location: formData.location,
-          language: formData.language
+          language: formData.language,
+          banner_url: formData.banner_url
         })
         .eq('id', user.id)
 
@@ -254,6 +295,35 @@ export default function ProfilePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* Banner Section */}
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm mb-6">
+          <h3 className="font-bold text-base mb-4">Imagem de Fundo (Banner)</h3>
+          <p className="text-xs text-muted-foreground mb-4">Esta imagem vai aparecer no topo do seu perfil público.</p>
+          <div className="relative group rounded-xl overflow-hidden h-32 md:h-48 bg-muted border border-border flex items-center justify-center">
+            {formData.banner_url ? (
+              <img src={formData.banner_url} alt="Banner" className="w-full h-full object-cover" />
+            ) : (
+              <div className="text-muted-foreground flex flex-col items-center">
+                <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
+                <span className="text-sm font-medium">Nenhum banner</span>
+              </div>
+            )}
+            <label htmlFor="banner-upload" className="cursor-pointer absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Button type="button" variant="secondary" className="pointer-events-none gap-2">
+                <Upload className="w-4 h-4" /> Alterar Banner
+              </Button>
+            </label>
+            <input 
+              id="banner-upload"
+              type="file" 
+              accept="image/*" 
+              onChange={handleBannerUpload}
+              disabled={saving}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
+        </div>
         
         {/* Avatar Section - Standard Card */}
         <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 shadow-sm">

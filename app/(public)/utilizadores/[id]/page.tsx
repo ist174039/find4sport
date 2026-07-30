@@ -71,6 +71,9 @@ export default async function UserProfilePage({
     <div className="flex flex-col min-h-screen bg-background pb-16 animate-in fade-in duration-500">
       {/* Top Banner / Cover */}
       <section className="relative w-full h-[200px] md:h-[280px] bg-gradient-to-r from-primary/20 via-primary/10 to-muted">
+        {profile.banner_url && (
+          <img src={profile.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+        )}
         <div className="absolute top-6 left-6 z-10">
           <Button asChild variant="secondary" size="sm" className="gap-2 backdrop-blur-md bg-background/80 shadow-sm">
             <Link href="/comunidades">
