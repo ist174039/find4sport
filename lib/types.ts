@@ -8,6 +8,7 @@ export type ReviewStatus = 'pending' | 'approved' | 'rejected' | 'flagged'
 export type ContactStatus = 'pending' | 'read' | 'responded' | 'archived'
 export type NotificationStatus = 'unread' | 'read' | 'archived'
 export type NotificationType = 'contact_request' | 'review' | 'message' | 'favorite' | 'event' | 'system' | 'moderation'
+export type ReservationStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled' | 'completed'
 
 // Database types
 export interface UserProfile {
@@ -79,6 +80,37 @@ export interface Service {
   modality: string | null
   is_active: boolean
   created_at: string
+}
+
+export interface ProfessionalAvailability {
+  id: string
+  professional_id: string
+  day_of_week: number
+  start_time: string
+  end_time: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface Reservation {
+  id: string
+  user_id: string
+  professional_id: string
+  service_id: string
+  space_id: string | null
+  date: string
+  start_time: string
+  end_time: string
+  status: ReservationStatus
+  amount: number
+  stripe_session_id: string | null
+  payment_status: string
+  created_at: string
+  updated_at: string
+  // Relations
+  service?: Service
+  user?: UserProfile
+  professional?: Professional
 }
 
 export interface Qualification {

@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation'
 import { ContactarProfissionalBtn } from '@/components/professional-actions'
 import { ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
+import { ProfessionalServices } from '@/components/professional-services'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -55,6 +56,14 @@ export default async function ProfessionalProfilePage(props: {
     .eq('user_id', professional.user_id)
 
   const communities = memberData?.map((m: any) => m.community).filter(Boolean) || []
+
+  // Fetch active services
+  const { data: services } = await supabase
+    .from('services')
+    .select('*')
+    .eq('professional_id', professional.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
 
   // Fetch associated sport space (if owner or created_by)
   const { data: associatedSpace } = await supabase
@@ -154,6 +163,9 @@ export default async function ProfessionalProfilePage(props: {
                 {bio}
               </p>
             </section>
+
+            {/* Services Section */}
+            <ProfessionalServices services={services || []} professionalId={professional.id} />
 
             {/* Specialties & Categories */}
             {categoriesList.length > 0 && (
