@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function createPostAction(content: string) {
+export async function createPostAction(content: string, media_url?: string | null, media_type?: string | null) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Utilizador não autenticado')
@@ -28,7 +28,7 @@ export async function createPostAction(content: string) {
     const { data: space } = await supabase
       .from('sport_spaces')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('owner_user_id', user.id)
       .single()
       
     if (!space) {
@@ -41,9 +41,8 @@ export async function createPostAction(content: string) {
     professional_id,
     sport_space_id,
     content,
-    // defaults
-    media_url: null,
-    media_type: null
+    media_url: media_url || null,
+    media_type: media_type || null
   })
 
   if (error) {

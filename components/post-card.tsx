@@ -178,11 +178,10 @@ export default function PostCard({ post }: { post: any }) {
       
       {post.media_url && (
         <div className="relative group aspect-video bg-muted border-y border-border overflow-hidden">
-          <img className="w-full h-full object-cover" src={post.media_url} alt="Post media" />
-          {post.media_type === 'video' && (
-            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Play className="text-white text-[64px] drop-shadow-lg" />
-            </div>
+          {post.media_type === 'video' ? (
+            <video className="w-full h-full object-contain bg-black/5" src={post.media_url} controls playsInline />
+          ) : (
+            <img className="w-full h-full object-cover" src={post.media_url} alt="Post media" />
           )}
         </div>
       )}
