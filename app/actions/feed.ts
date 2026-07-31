@@ -17,9 +17,7 @@ export async function createPostAction(content: string, media_url?: string | nul
     .eq('id', user.id)
     .single()
 
-  if (profile?.type !== 'professional' && profile?.type !== 'espaco') {
-    throw new Error('Apenas profissionais e espaços podem publicar no feed público.')
-  }
+  // Logic below will check for sport_spaces or professionals entries to validate permissions
 
   let professional_id = null
   let sport_space_id = null
