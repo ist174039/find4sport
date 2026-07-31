@@ -39,13 +39,27 @@ export default async function Page({
       if (currentUserType !== 'admin') {
         const { data: space } = await supabase
           .from('sport_spaces')
-          .select('id')
+          .select('id, name, logo_url')
           .eq('owner_user_id', user.id)
           .limit(1)
           .maybeSingle()
         
         if (space) {
           currentUserType = 'espaco'
+          currentUserName = space.name || ''
+          currentUserAvatar = space.logo_url || ''
+        } else if (currentUserType === 'professional') {
+          // Check professional profile
+          const { data: prof } = await supabase
+            .from('professionals')
+            .select('full_name, avatar_url')
+            .eq('user_id', user.id)
+            .maybeSingle()
+            
+          if (prof) {
+            currentUserName = prof.full_name || ''
+            currentUserAvatar = prof.avatar_url || ''
+          }
         }
       }
     }
