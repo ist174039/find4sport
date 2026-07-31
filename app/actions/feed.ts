@@ -24,20 +24,29 @@ export async function createPostAction(content: string, media_url?: string | nul
   let professional_id = null
   let sport_space_id = null
 
-  if (profile.type === 'professional') {
-    professional_id = user.id
-  } else if (profile.type === 'espaco') {
-    const { data: space } = await supabase
-      .from('sport_spaces')
+  // Check if they manage a space
+  const { data: space } = await supabase
+    .from('sport_spaces')
+    .select('id')
+    .eq('owner_user_id', user.id)
+    .limit(1)
+    .maybeSingle()
+
+  if (space) {
+    sport_space_id = space.id
+  } else {
+    // If no space, they must be a professional
+    const { data: prof } = await supabase
+      .from('professionals')
       .select('id')
-      .eq('owner_user_id', user.id)
-      .limit(1)
+      .eq('user_id', user.id)
       .maybeSingle()
       
-    if (!space) {
-      throw new Error('Espaço não encontrado para este utilizador.')
+    if (prof) {
+      professional_id = prof.id
+    } else {
+      throw new Error('Apenas profissionais registados e espaços podem publicar.')
     }
-    sport_space_id = space.id
   }
 
   const supabaseAdmin = createAdminClient()
