@@ -29,10 +29,25 @@ export default async function Page({
       .select('type, full_name, avatar_url')
       .eq('id', user.id)
       .single()
+
     if (profile) {
-      currentUserType = profile.type
+      currentUserType = profile.type || 'user'
       currentUserName = profile.full_name || ''
       currentUserAvatar = profile.avatar_url || ''
+
+      // Se não for admin, verificar se gere algum espaço para lhe dar permissões no feed
+      if (currentUserType !== 'admin') {
+        const { data: space } = await supabase
+          .from('sport_spaces')
+          .select('id')
+          .eq('owner_user_id', user.id)
+          .limit(1)
+          .maybeSingle()
+        
+        if (space) {
+          currentUserType = 'espaco'
+        }
+      }
     }
   }
   
