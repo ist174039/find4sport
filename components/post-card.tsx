@@ -101,21 +101,41 @@ export default function PostCard({ post }: { post: any }) {
     setLoadingComments(true)
     try {
       const supabase = createClient()
-      const { data } = await supabase
+      
+      // Step 1: Get comments
+      const { data: commentsData } = await supabase
         .from('post_comments')
-        .select(`
-          *,
-          platform_users (
-            id, full_name, avatar_url, type,
-            professionals (public_slug),
-            sport_spaces (slug)
-          )
-        `)
+        .select('*')
         .eq('post_id', post.id)
         .order('created_at', { ascending: true })
 
-      if (data) {
-        setCommentsList(data)
+      if (commentsData && commentsData.length > 0) {
+        const userIds = commentsData.map((c: any) => c.user_id)
+        
+        // Step 2: Get user details for comments
+        const { data: usersData } = await supabase
+          .from('platform_users')
+          .select(`
+            id, full_name, avatar_url, type,
+            professionals (public_slug),
+            sport_spaces (slug)
+          `)
+          .in('id', userIds)
+
+        if (usersData) {
+          // Combine comments with their user profiles
+          const combined = commentsData.map((comment: any) => {
+            return {
+              ...comment,
+              platform_users: usersData.find(u => u.id === comment.user_id) || null
+            }
+          })
+          setCommentsList(combined)
+        } else {
+          setCommentsList(commentsData)
+        }
+      } else {
+        setCommentsList([])
       }
     } catch (e) {
       console.error('Error fetching comments:', e)
@@ -128,20 +148,40 @@ export default function PostCard({ post }: { post: any }) {
     setLoadingLikes(true)
     try {
       const supabase = createClient()
-      const { data } = await supabase
+      
+      // Step 1: get user_ids of likes
+      const { data: likesData } = await supabase
         .from('post_likes')
-        .select(`
-          id,
-          platform_users (
+        .select('id, user_id')
+        .eq('post_id', post.id)
+
+      if (likesData && likesData.length > 0) {
+        const userIds = likesData.map((l: any) => l.user_id)
+        
+        // Step 2: get platform_users with nested profiles
+        const { data: usersData } = await supabase
+          .from('platform_users')
+          .select(`
             id, full_name, avatar_url, type,
             professionals (public_slug),
             sport_spaces (slug)
-          )
-        `)
-        .eq('post_id', post.id)
+          `)
+          .in('id', userIds)
 
-      if (data) {
-        setLikesList(data)
+        if (usersData) {
+          // Map back to the shape expected by the UI
+          const combined = likesData.map(like => {
+            return {
+              id: like.id,
+              platform_users: usersData.find(u => u.id === like.user_id) || null
+            }
+          })
+          setLikesList(combined)
+        } else {
+          setLikesList([])
+        }
+      } else {
+        setLikesList([])
       }
     } catch (e) {
       console.error('Error fetching likes:', e)
