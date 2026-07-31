@@ -1,6 +1,8 @@
 'use client';
 import {  BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Play, Share2, User  } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -9,6 +11,17 @@ import Link from 'next/link'
 import { toggleLikeAction, addCommentAction } from '@/app/actions/feed'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+
+// Helper function to resolve user link
+const resolveUserLink = (u: any) => {
+  if (!u) return '#'
+  if (u.type === 'professional') {
+    return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
+  } else if (u.type === 'espaco') {
+    return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
+  }
+  return `/utilizadores/${u.id}`
+}
 
 export default function PostCard({ post }: { post: any }) {
   const { showAlert } = useModal()
@@ -20,6 +33,10 @@ export default function PostCard({ post }: { post: any }) {
   const [commentText, setCommentText] = useState('')
   const [commenting, setCommenting] = useState(false)
   const [commentsList, setCommentsList] = useState<any[]>([])
+  
+  const [showLikesModal, setShowLikesModal] = useState(false)
+  const [likesList, setLikesList] = useState<any[]>([])
+  const [loadingLikes, setLoadingLikes] = useState(false)
 
   const authorName = post.professional_id 
     ? post.professionals?.full_name 
@@ -88,7 +105,11 @@ export default function PostCard({ post }: { post: any }) {
         .from('post_comments')
         .select(`
           *,
-          platform_users (id, full_name, avatar_url)
+          platform_users (
+            id, full_name, avatar_url, type,
+            professionals (public_slug),
+            sport_spaces (slug)
+          )
         `)
         .eq('post_id', post.id)
         .order('created_at', { ascending: true })
@@ -101,6 +122,37 @@ export default function PostCard({ post }: { post: any }) {
     } finally {
       setLoadingComments(false)
     }
+  }
+
+  const fetchLikesList = async () => {
+    setLoadingLikes(true)
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('post_likes')
+        .select(`
+          id,
+          platform_users (
+            id, full_name, avatar_url, type,
+            professionals (public_slug),
+            sport_spaces (slug)
+          )
+        `)
+        .eq('post_id', post.id)
+
+      if (data) {
+        setLikesList(data)
+      }
+    } catch (e) {
+      console.error('Error fetching likes:', e)
+    } finally {
+      setLoadingLikes(false)
+    }
+  }
+
+  const handleOpenLikesModal = () => {
+    setShowLikesModal(true)
+    fetchLikesList()
   }
 
   const handleComment = () => {
@@ -188,13 +240,20 @@ export default function PostCard({ post }: { post: any }) {
       
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <button 
-            onClick={handleLike}
-            className={`flex items-center gap-2 transition-all active:scale-90 ${isLiked ? 'text-destructive font-semibold' : 'text-muted-foreground hover:text-destructive font-medium'}`}
-          >
-            <Heart className="h-5 w-5" />
-            <span className="text-sm">{likesCount}</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={handleLike}
+              className={`flex items-center justify-center p-1.5 rounded-full transition-all active:scale-90 ${isLiked ? 'text-destructive font-semibold hover:bg-destructive/10' : 'text-muted-foreground hover:text-destructive hover:bg-muted font-medium'}`}
+            >
+              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+            </button>
+            <button 
+              onClick={handleOpenLikesModal}
+              className="text-sm font-medium hover:underline text-muted-foreground hover:text-foreground"
+            >
+              {likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}
+            </button>
+          </div>
           <button 
             onClick={handleComment}
             className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all cursor-pointer"
@@ -248,18 +307,20 @@ export default function PostCard({ post }: { post: any }) {
                 const avatar = u?.avatar_url
                 const commentTime = c.created_at ? formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR }) : ''
 
+                const userLink = resolveUserLink(u)
+
                 return (
                   <div key={c.id} className="flex gap-3 bg-background border border-border p-3 rounded-xl text-sm">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden text-xs border border-border">
+                    <Link href={userLink} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden text-xs border border-border hover:opacity-80 transition-opacity">
                       {avatar ? (
                         <img src={avatar} alt={name} className="w-full h-full object-cover" />
                       ) : (
                         name.charAt(0).toUpperCase()
                       )}
-                    </div>
+                    </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="font-semibold text-xs text-foreground">{name}</span>
+                        <Link href={userLink} className="font-semibold text-xs text-foreground hover:underline">{name}</Link>
                         {commentTime && <span className="text-[10px] text-muted-foreground">{commentTime}</span>}
                       </div>
                       <p className="text-sm text-foreground leading-snug">{c.content}</p>
@@ -273,6 +334,47 @@ export default function PostCard({ post }: { post: any }) {
           )}
         </div>
       )}
+
+      {/* Likes Modal */}
+      <Dialog open={showLikesModal} onOpenChange={setShowLikesModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Gostos</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[300px] overflow-y-auto mt-4 pr-2 space-y-4">
+            {loadingLikes ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : likesList.length > 0 ? (
+              likesList.map((like) => {
+                const u = like.platform_users
+                if (!u) return null
+                const name = u.full_name || 'Utilizador'
+                const avatar = u.avatar_url
+                const userLink = resolveUserLink(u)
+
+                return (
+                  <div key={like.id} className="flex items-center gap-3">
+                    <Link href={userLink} className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden border border-border hover:opacity-80 transition-opacity">
+                      {avatar ? (
+                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                      ) : (
+                        name.charAt(0).toUpperCase()
+                      )}
+                    </Link>
+                    <Link href={userLink} className="font-semibold text-sm text-foreground hover:underline">
+                      {name}
+                    </Link>
+                  </div>
+                )
+              })
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">Nenhum gosto encontrado.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
   )
 }
