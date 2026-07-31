@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
   AlertCircle, BarChart, BellRing, Building, Building2, ChevronDown, 
-  Edit, ExternalLink, FileText, Image, Loader2, Plus, Store, Trash2, CheckCircle2, Power, Eye
+  Edit, ExternalLink, FileText, Image, Loader2, Plus, Store, Trash2, CheckCircle2, Power, Eye, Users
 } from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
 import Link from 'next/link'
@@ -22,10 +22,10 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClaimModal, setSelectedClaimModal] = useState<any | null>(null)
   
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'draft' | 'pending'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'draft' | 'pending' | 'with_manager' | 'no_manager'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name')
   
-  const [stats, setStats] = useState({ total: 0, activeCount: 0, pendingClaims: 0 })
+  const [stats, setStats] = useState({ total: 0, activeCount: 0, pendingClaims: 0, noManager: 0 })
   
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -48,7 +48,7 @@ export default function Page() {
         { data: spacesData },
         { data: claimsData }
       ] = await Promise.all([
-        supabase.from('sport_spaces').select('*').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
+        supabase.from('sport_spaces').select('*, owner:platform_users!sport_spaces_owner_user_id_fkey(id, full_name, email, type)').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
         supabase.from('space_claims').select('*, sport_spaces(name, address), platform_users(full_name, email)').eq('status', 'pending')
       ])
 
@@ -60,11 +60,13 @@ export default function Page() {
 
       const total = loadedSpaces.length
       const activeCount = loadedSpaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified).length
+      const noManager = loadedSpaces.filter(s => !s.owner_user_id).length
       
       setStats({
         total,
         activeCount,
-        pendingClaims: (claimsData || []).length
+        pendingClaims: (claimsData || []).length,
+        noManager
       })
       
       setLoading(false)
@@ -77,9 +79,13 @@ export default function Page() {
     if (activeFilter === 'active') {
       filtered = filtered.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified)
     } else if (activeFilter === 'draft') {
-      filtered = filtered.filter(s => s.status === 'draft' || s.status === 'suspended')
+      filtered = filtered.filter(s => s.status !== 'active' && s.status !== 'published' && !s.is_verified)
     } else if (activeFilter === 'pending') {
       filtered = filtered.filter(s => s.status === 'pending' || !s.is_verified)
+    } else if (activeFilter === 'with_manager') {
+      filtered = filtered.filter(s => !!s.owner_user_id)
+    } else if (activeFilter === 'no_manager') {
+      filtered = filtered.filter(s => !s.owner_user_id)
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -212,7 +218,7 @@ export default function Page() {
       </section>
 
       {/* Stats Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <Building2 className="h-16 w-16" />
@@ -235,6 +241,18 @@ export default function Page() {
           </div>
           <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Reivindicações Pendentes</p>
           <h3 className="text-3xl font-bold text-amber-600 dark:text-amber-400">{loading ? '...' : stats.pendingClaims}</h3>
+        </div>
+
+        <div
+          className="bg-card p-6 rounded-xl border border-orange-200 dark:border-orange-900/40 relative overflow-hidden group cursor-pointer hover:border-orange-400 transition-colors"
+          onClick={() => setActiveFilter('no_manager')}
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-orange-500">
+            <Users className="h-16 w-16" />
+          </div>
+          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Sem Gestor</p>
+          <h3 className="text-3xl font-bold text-orange-600 dark:text-orange-400">{loading ? '...' : stats.noManager}</h3>
+          <p className="text-xs text-orange-500 mt-1">Clique para filtrar</p>
         </div>
       </section>
 
@@ -347,7 +365,7 @@ export default function Page() {
               />
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             </div>
-            <div className="flex bg-muted p-1 rounded-lg">
+            <div className="flex bg-muted p-1 rounded-lg flex-wrap gap-1">
               <button 
                 onClick={() => setActiveFilter('all')} 
                 className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'all' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground'}`}
@@ -364,7 +382,19 @@ export default function Page() {
                 onClick={() => setActiveFilter('draft')} 
                 className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'draft' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground'}`}
               >
-                Rascunhos / Inativos ({spaces.filter(s => s.status !== 'active' && s.status !== 'published' && !s.is_verified).length})
+                Inativos ({spaces.filter(s => s.status !== 'active' && s.status !== 'published' && !s.is_verified).length})
+              </button>
+              <button 
+                onClick={() => setActiveFilter('with_manager')} 
+                className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'with_manager' ? 'bg-background shadow-sm font-bold text-emerald-600' : 'text-muted-foreground'}`}
+              >
+                Com Gestor ({spaces.filter(s => !!s.owner_user_id).length})
+              </button>
+              <button 
+                onClick={() => setActiveFilter('no_manager')} 
+                className={`px-3 py-1 font-medium text-xs rounded-md transition-all ${activeFilter === 'no_manager' ? 'bg-background shadow-sm font-bold text-orange-600' : 'text-muted-foreground'}`}
+              >
+                Sem Gestor ({spaces.filter(s => !s.owner_user_id).length})
               </button>
             </div>
 
@@ -388,8 +418,9 @@ export default function Page() {
               <tr>
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Espaço</th>
                 <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden md:table-cell">Endereço</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Estado Online</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Ações de Ativação</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Gestor</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -435,17 +466,37 @@ export default function Page() {
                         </p>
                       </td>
 
+                      {/* Manager Column */}
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        {space.owner?.full_name ? (
+                          <div>
+                            <p className="text-sm font-semibold text-foreground truncate max-w-[160px]">{space.owner.full_name}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[160px]">{space.owner.email}</p>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-full border border-orange-200 dark:border-orange-900/50">
+                            <AlertCircle className="h-3 w-3" /> Sem Gestor
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
                           {isOnline ? (
-                            <Badge variant="success" className="gap-1 font-semibold text-xs">
+                            <Badge variant="success" className="gap-1 font-semibold text-xs w-fit">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                               Ativo / Online
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="gap-1 text-xs">
+                            <Badge variant="secondary" className="gap-1 text-xs w-fit">
                               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>
-                              Rascunho / Inativo
+                              Inativo
+                            </Badge>
+                          )}
+                          {space.is_verified && (
+                            <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300 w-fit">
+                              <CheckCircle2 className="h-3 w-3" /> Verificado
                             </Badge>
                           )}
                         </div>

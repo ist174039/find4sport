@@ -89,36 +89,68 @@ export default function RegisterSpacePage() {
         if (!formData.email) {
           throw new Error('Email é obrigatório')
         }
-        // Create user
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+
+        // STEP 1: Try signing in first to detect existing accounts with same email
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
-          options: {
-            data: {
-              full_name: formData.name,
-              type: 'espaco',
-            },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          }
         })
 
-        if (signUpError) {
-          // If rate limited, bypass via server action (Admin API)
-          if (signUpError.message.toLowerCase().includes('rate limit')) {
-            const adminRes = await adminCreateUser(formData.email, formData.password, formData.name, 'espaco')
-            if (adminRes.error) throw new Error(adminRes.error)
-            
-            // Now log the user in to get the session needed for RLS
-            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-              email: formData.email,
-              password: formData.password,
-            })
-            if (signInError) throw signInError
-            user = signInData.user
+        if (signInData?.user) {
+          // Email + password match an existing account — reuse it
+          user = signInData.user
+        } else if (signInError && signInError.message.toLowerCase().includes('invalid login credentials')) {
+          // Email might not exist yet — proceed to signUp
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                full_name: formData.name,
+                type: 'espaco',
+              },
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            }
+          })
+
+          if (signUpError) {
+            // If rate limited, bypass via server action (Admin API)
+            if (signUpError.message.toLowerCase().includes('rate limit')) {
+              const adminRes = await adminCreateUser(formData.email, formData.password, formData.name, 'espaco')
+              if (adminRes.error) throw new Error(adminRes.error)
+              
+              const { data: signInData2, error: signInError2 } = await supabase.auth.signInWithPassword({
+                email: formData.email,
+                password: formData.password,
+              })
+              if (signInError2) throw signInError2
+              user = signInData2.user
+            } else {
+              throw signUpError
+            }
           } else {
-            throw signUpError
+            // Check if Supabase silently accepted but email already exists (identities empty)
+            if (signUpData?.user?.identities?.length === 0) {
+              throw new Error('Este email já está registado. Inicia sessão e associa o teu espaço a partir do dashboard.')
+            }
+            if (!signUpData.user) throw new Error('Falha ao criar utilizador')
+            user = signUpData.user
           }
-        } else {
+        } else if (signInError) {
+          // Some other sign-in error (e.g. email not confirmed) — check if it's about email confirmation
+          if (signInError.message.toLowerCase().includes('email not confirmed')) {
+            throw new Error('Já tens uma conta com este email mas ainda não foi confirmada. Verifica o teu email.')
+          }
+          // Otherwise try signUp as normal
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: { full_name: formData.name, type: 'espaco' },
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            }
+          })
+          if (signUpError) throw signUpError
           if (!signUpData.user) throw new Error('Falha ao criar utilizador')
           user = signUpData.user
         }
