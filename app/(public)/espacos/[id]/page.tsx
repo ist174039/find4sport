@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
 import { FollowButton } from '@/components/follow-button'
+import { FollowStats } from '@/components/follow-stats'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -93,8 +94,12 @@ export default async function SpaceProfilePage(props: {
                         </span>
                       )}
                       <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
-                      <span className="font-bold drop-shadow">{followersCount || 0} <span className="font-normal text-white/80">Seguidores</span></span>
-                      <span className="font-bold drop-shadow">{followingCount || 0} <span className="font-normal text-white/80">A Seguir</span></span>
+                      <FollowStats
+                        targetUserId={space.owner_user_id}
+                        followersCount={followersCount || 0}
+                        followingCount={followingCount || 0}
+                        variant="dark"
+                      />
                     </div>
                   </div>
                 </div>

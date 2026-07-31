@@ -23,6 +23,7 @@ import {
   Menu,
   Bell,
   Camera,
+  UserRound,
 } from 'lucide-react'
 
 interface DashboardSidebarProps {
@@ -46,6 +47,7 @@ export function DashboardSidebar({ professional, space, user }: DashboardSidebar
       { name: 'O Meu Espaço', href: `${basePath}/espaco`, icon: Building2 },
       { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
       { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
+      { name: 'Seguidores', href: `${basePath}/seguidores`, icon: UserRound },
       { name: 'Faturação', href: `${basePath}/faturacao`, icon: DollarSign },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
       { name: 'Avaliações', href: `${basePath}/avaliacoes`, icon: Star },
@@ -58,6 +60,7 @@ export function DashboardSidebar({ professional, space, user }: DashboardSidebar
       { name: 'O Meu Perfil', href: `${basePath}/perfil`, icon: User },
       { name: 'Agenda & Eventos', href: `${basePath}/agenda`, icon: Calendar },
       { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
+      { name: 'Seguidores', href: `${basePath}/seguidores`, icon: UserRound },
       { name: 'Serviços', href: `${basePath}/servicos`, icon: Activity },
       { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
@@ -71,6 +74,7 @@ export function DashboardSidebar({ professional, space, user }: DashboardSidebar
       { name: 'Próximos Eventos', href: `${basePath}/eventos`, icon: CalendarCheck },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
       { name: 'Favoritos', href: `${basePath}/favoritos`, icon: Heart },
+      { name: 'A Seguir', href: `${basePath}/seguidores`, icon: UserRound },
       { name: 'O Meu Perfil', href: `${basePath}/perfil`, icon: User },
       { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
       { name: 'Definições', href: `${basePath}/definicoes`, icon: Settings },
