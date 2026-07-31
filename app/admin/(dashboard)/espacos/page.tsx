@@ -45,22 +45,48 @@ export default function Page() {
       const supabase = createClient()
       
       const [
-        { data: spacesData },
+        { data: spacesData, error: spacesError },
         { data: claimsData }
       ] = await Promise.all([
-        supabase.from('sport_spaces').select('*, owner:platform_users!sport_spaces_owner_user_id_fkey(id, full_name, email, type)').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
+        supabase.from('sport_spaces').select('*').order(sortBy, { ascending: sortBy === 'name' ? true : false }),
         supabase.from('space_claims').select('*, sport_spaces(name, address), platform_users(full_name, email)').eq('status', 'pending')
       ])
 
+      if (spacesError) {
+        console.error('Error loading spaces:', spacesError)
+      }
+
       const loadedSpaces = spacesData || []
-      setSpaces(loadedSpaces)
-      setFilteredSpaces(loadedSpaces)
+
+      // Fetch owner profiles for spaces that have an owner_user_id
+      const ownerIds = [...new Set(loadedSpaces.map(s => s.owner_user_id).filter(Boolean))]
+      let ownerMap: Record<string, any> = {}
+      
+      if (ownerIds.length > 0) {
+        const { data: ownersData } = await supabase
+          .from('platform_users')
+          .select('id, full_name, email, type')
+          .in('id', ownerIds)
+        
+        for (const owner of ownersData || []) {
+          ownerMap[owner.id] = owner
+        }
+      }
+
+      // Merge owner data into spaces
+      const spacesWithOwner = loadedSpaces.map(s => ({
+        ...s,
+        owner: s.owner_user_id ? ownerMap[s.owner_user_id] || null : null
+      }))
+
+      setSpaces(spacesWithOwner)
+      setFilteredSpaces(spacesWithOwner)
       
       setClaims(claimsData || [])
 
-      const total = loadedSpaces.length
-      const activeCount = loadedSpaces.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified).length
-      const noManager = loadedSpaces.filter(s => !s.owner_user_id).length
+      const total = spacesWithOwner.length
+      const activeCount = spacesWithOwner.filter(s => s.status === 'active' || s.status === 'published' || s.is_verified).length
+      const noManager = spacesWithOwner.filter(s => !s.owner_user_id).length
       
       setStats({
         total,
@@ -73,6 +99,7 @@ export default function Page() {
     }
     load()
   }, [sortBy])
+
 
   useEffect(() => {
     let filtered = spaces
