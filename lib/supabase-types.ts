@@ -1060,6 +1060,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_follows: {
+        Row: {
+          id: string
+          follower_id: string
+          following_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          follower_id: string
+          following_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          follower_id?: string
+          following_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_follows_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "platform_users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       geography_columns: {

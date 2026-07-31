@@ -8,6 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
+import { FollowButton } from '@/components/follow-button'
 
 export default async function UserProfilePage({
   params,
@@ -23,6 +24,29 @@ export default async function UserProfilePage({
     .select('*')
     .eq('id', id)
     .maybeSingle()
+
+  // 1b. Fetch Follow stats
+  const { count: followersCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('following_id', id)
+
+  const { count: followingCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('follower_id', id)
+
+  let isFollowing = false
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user && user.id !== id) {
+    const { data: followRel } = await supabase
+      .from('user_follows')
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', id)
+      .maybeSingle()
+    if (followRel) isFollowing = true
+  }
 
   if (!profile) {
     return notFound()
@@ -136,16 +160,28 @@ export default async function UserProfilePage({
             </div>
 
             {/* Quick Stats Summary Badges */}
-            <div className="flex items-center gap-4 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 w-full md:w-auto justify-center">
-              <div className="text-center px-4">
-                <p className="text-2xl font-bold text-foreground">{communities.length}</p>
-                <p className="text-xs text-muted-foreground">Comunidades</p>
+            <div className="flex flex-col md:flex-row items-center gap-4 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 w-full md:w-auto justify-center">
+              <div className="flex items-center gap-4">
+                <div className="text-center px-4">
+                  <p className="text-2xl font-bold text-foreground">{followersCount || 0}</p>
+                  <p className="text-xs text-muted-foreground">Seguidores</p>
+                </div>
+                <div className="h-8 w-px bg-border"></div>
+                <div className="text-center px-4">
+                  <p className="text-2xl font-bold text-foreground">{followingCount || 0}</p>
+                  <p className="text-xs text-muted-foreground">A Seguir</p>
+                </div>
               </div>
-              <div className="h-8 w-px bg-border"></div>
-              <div className="text-center px-4">
-                <p className="text-2xl font-bold text-foreground">{events.length}</p>
-                <p className="text-xs text-muted-foreground">Eventos</p>
-              </div>
+              
+              {user && user.id !== id && (
+                <div className="mt-2 md:mt-0 md:ml-4 w-full md:w-auto">
+                  <FollowButton 
+                    targetUserId={id} 
+                    initialIsFollowing={isFollowing} 
+                    className="w-full md:w-auto px-6 py-2 text-sm" 
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

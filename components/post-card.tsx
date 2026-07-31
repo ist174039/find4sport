@@ -265,7 +265,7 @@ export default function PostCard({ post }: { post: any }) {
       </div>
       
       <div className="px-4 pb-3">
-        <p className="text-sm text-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: post.content.replace(/#(\w+)/g, '<Link href="/pesquisa?q=$1" class="text-primary font-semibold hover:underline">#$1</Link>') }}></p>
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.content.replace(/#(\w+)/g, '<Link href="/pesquisa?q=$1" class="text-primary font-semibold hover:underline">#$1</Link>') }}></p>
       </div>
       
       {post.media_url && (
@@ -278,102 +278,96 @@ export default function PostCard({ post }: { post: any }) {
         </div>
       )}
       
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1.5">
+      <div className="px-4 py-3">
+        {/* Interaction Buttons */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-4">
             <button 
               onClick={handleLike}
-              className={`flex items-center justify-center p-1.5 rounded-full transition-all active:scale-90 ${isLiked ? 'text-destructive font-semibold hover:bg-destructive/10' : 'text-muted-foreground hover:text-destructive hover:bg-muted font-medium'}`}
+              className={`flex items-center justify-center transition-transform active:scale-75 ${isLiked ? 'text-destructive' : 'text-foreground hover:text-muted-foreground'}`}
             >
-              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className={`h-6 w-6 transition-all ${isLiked ? 'fill-current scale-110' : ''}`} />
             </button>
             <button 
-              onClick={handleOpenLikesModal}
-              className="text-sm font-medium hover:underline text-muted-foreground hover:text-foreground"
+              onClick={handleComment}
+              className="flex items-center justify-center text-foreground hover:text-muted-foreground transition-transform active:scale-90"
             >
+              <MessageSquare className="h-6 w-6" />
+            </button>
+            <button 
+              onClick={handleShare}
+              className="flex items-center justify-center text-foreground hover:text-muted-foreground transition-transform active:scale-90"
+            >
+              <Share2 className="h-6 w-6" />
+            </button>
+          </div>
+          {post.sport_space_id && (
+             <Link href={authorLink} className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-xs font-bold hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 border border-primary/20">
+               Reservar
+             </Link>
+          )}
+        </div>
+
+        {/* Likes Social Text */}
+        {likesCount > 0 && (
+          <div className="mb-2">
+            <button onClick={handleOpenLikesModal} className="text-sm font-semibold hover:underline cursor-pointer">
               {likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}
             </button>
           </div>
-          <button 
-            onClick={handleComment}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all cursor-pointer"
-          >
-            <MessageSquare className="h-5 w-5" />
-            <span className="text-sm">{commentsCount}</span>
-          </button>
-          <button 
-            onClick={handleShare}
-            className="flex items-center gap-2 text-muted-foreground hover:text-primary font-medium active:scale-90 transition-all"
-          >
-            <Share2 className="h-5 w-5" />
-            <span className="text-sm">Partilhar</span>
-          </button>
-        </div>
-        {post.sport_space_id && (
-           <Link href={authorLink} className="bg-primary/10 text-primary px-4 py-2 rounded-xl text-sm font-semibold hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 border border-primary/20">
-             Reservar
-           </Link>
         )}
-      </div>
 
-      {showComments && (
-        <div className="bg-muted/30 border-t border-border p-4 animate-in fade-in duration-200">
-          <form onSubmit={submitComment} className="flex gap-2 mb-4">
-            <input 
-              type="text"
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              placeholder="Escreve um comentário..."
-              className="flex-1 bg-background border border-border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+        {/* Comments Section */}
+        {commentsCount > 0 && !showComments && (
+          <button onClick={handleComment} className="text-sm text-muted-foreground mb-2 hover:underline">
+            Ver {commentsCount === 1 ? 'o comentário' : `todos os ${commentsCount} comentários`}
+          </button>
+        )}
+
+        {showComments && (
+          <div className="mb-3 animate-in fade-in duration-300">
+            {loadingComments ? (
+              <div className="flex justify-center py-2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : commentsList.length > 0 ? (
+              <div className="space-y-1 mt-2">
+                {commentsList.map(c => {
+                  const u = c.platform_users
+                  const name = u?.full_name || 'Utilizador'
+                  
+                  return (
+                    <div key={c.id} className="text-sm leading-tight mb-1">
+                      <Link href={resolveUserLink(u)} className="font-semibold hover:underline mr-1.5">{name}</Link>
+                      <span>{c.content}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Always visible comment input */}
+        <form onSubmit={submitComment} className="flex gap-2 items-center mt-2">
+          <input 
+            type="text"
+            value={commentText}
+            onChange={e => setCommentText(e.target.value)}
+            placeholder="Adiciona um comentário..."
+            className="flex-1 bg-transparent border-none text-sm focus:outline-none focus:ring-0 px-0 placeholder:text-muted-foreground"
+          />
+          {commentText.trim() && (
             <button 
               type="submit"
-              disabled={commenting || !commentText.trim()}
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold text-sm shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[80px]"
+              disabled={commenting}
+              className="text-primary font-semibold text-sm hover:text-primary/80 transition-colors"
             >
-              {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enviar'}
+              {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Publicar'}
             </button>
-          </form>
-
-          {loadingComments ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
-            </div>
-          ) : commentsList.length > 0 ? (
-            <div className="space-y-3 mt-4">
-              {commentsList.map(c => {
-                const u = c.platform_users
-                const name = u?.full_name || 'Utilizador'
-                const avatar = u?.avatar_url
-                const commentTime = c.created_at ? formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: ptBR }) : ''
-
-                const userLink = resolveUserLink(u)
-
-                return (
-                  <div key={c.id} className="flex gap-3 bg-background border border-border p-3 rounded-xl text-sm">
-                    <Link href={userLink} className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden text-xs border border-border hover:opacity-80 transition-opacity">
-                      {avatar ? (
-                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                      ) : (
-                        name.charAt(0).toUpperCase()
-                      )}
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <Link href={userLink} className="font-semibold text-xs text-foreground hover:underline">{name}</Link>
-                        {commentTime && <span className="text-[10px] text-muted-foreground">{commentTime}</span>}
-                      </div>
-                      <p className="text-sm text-foreground leading-snug">{c.content}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">Sem comentários ainda. Sê o primeiro a comentar!</p>
           )}
-        </div>
-      )}
+        </form>
+      </div>
 
       {/* Likes Modal */}
       <Dialog open={showLikesModal} onOpenChange={setShowLikesModal}>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
 import { CreatePostBox } from '@/components/create-post-box'
 import { FeedFilterModal } from '@/components/feed-filter-modal'
+import { FollowButton } from '@/components/follow-button'
 import Link from 'next/link'
 
 export default async function Page({
@@ -18,6 +19,7 @@ export default async function Page({
   const authorTypeParam = typeof params.authorType === 'string' ? params.authorType : null
   const categoryParam = typeof params.category === 'string' ? params.category : null
   const searchParam = typeof params.search === 'string' ? params.search : null
+  const tabParam = typeof params.tab === 'string' ? params.tab : 'foryou'
 
   let currentUserType = 'user'
   let currentUserName = ''
@@ -64,6 +66,19 @@ export default async function Page({
       }
     }
   }
+
+  // 0. Fetch Following IDs if authenticated
+  let followingIds: string[] = []
+  if (user) {
+    const { data: follows } = await supabase
+      .from('user_follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+    
+    if (follows) {
+      followingIds = follows.map(f => f.following_id)
+    }
+  }
   
   // 1. Fetch Posts with Filters
   let postsQuery = supabase
@@ -77,6 +92,27 @@ export default async function Page({
     `)
     .is('community_id', null)
     .order('created_at', { ascending: false })
+
+  if (tabParam === 'following' && user && followingIds.length > 0) {
+    // Get professional IDs for followed users
+    const { data: followedProfs } = await supabase.from('professionals').select('id').in('user_id', followingIds)
+    // Get space IDs for followed users
+    const { data: followedSpaces } = await supabase.from('sport_spaces').select('id').in('owner_user_id', followingIds)
+    
+    const profIds = followedProfs?.map(p => p.id) || []
+    const spaceIds = followedSpaces?.map(s => s.id) || []
+    
+    const orQueries = []
+    if (profIds.length > 0) orQueries.push(`professional_id.in.(${profIds.join(',')})`)
+    if (spaceIds.length > 0) orQueries.push(`sport_space_id.in.(${spaceIds.join(',')})`)
+    // Also include posts by normal users they follow:
+    orQueries.push(`user_id.in.(${followingIds.join(',')})`)
+    
+    postsQuery = postsQuery.or(orQueries.join(','))
+  } else if (tabParam === 'following') {
+    // If not logged in or doesn't follow anyone, show nothing on following tab
+    postsQuery = postsQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+  }
 
   if (authorTypeParam === 'pro') {
     postsQuery = postsQuery.not('professional_id', 'is', null)
@@ -163,12 +199,12 @@ export default async function Page({
   // 3. Fetch suggestions (2 professionals, 1 space)
   const { data: suggestedProfs } = await supabase
     .from('professionals')
-    .select('id, full_name, avatar_url, public_slug')
+    .select('id, user_id, full_name, avatar_url, public_slug')
     .limit(2)
     
   const { data: suggestedSpaces } = await supabase
     .from('sport_spaces')
-    .select('id, name, logo_url, slug')
+    .select('id, owner_user_id, name, logo_url, slug')
     .limit(1)
 
   // 4. Fetch Highlights / Stories (Top professionals)
@@ -210,7 +246,13 @@ export default async function Page({
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Profissional</p>
                     </div>
                   </Link>
-                  <button className="text-primary font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">Seguir</button>
+                  {user && (
+                    <FollowButton 
+                      targetUserId={prof.user_id} 
+                      initialIsFollowing={followingIds.includes(prof.user_id)} 
+                      variant="outline" 
+                    />
+                  )}
                 </div>
               ))}
 
@@ -226,7 +268,13 @@ export default async function Page({
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Espaço</p>
                     </div>
                   </Link>
-                  <button className="text-primary font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">Seguir</button>
+                  {user && space.owner_user_id && (
+                    <FollowButton 
+                      targetUserId={space.owner_user_id} 
+                      initialIsFollowing={followingIds.includes(space.owner_user_id)} 
+                      variant="outline" 
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -261,6 +309,27 @@ export default async function Page({
 
         {/* Feed Center Column (Wider layout) */}
         <div className="lg:col-span-9 space-y-6">
+
+          {/* Feed Tabs */}
+          <div className="flex items-center gap-6 border-b border-border pb-px px-2">
+            <Link 
+              href="/feed?tab=foryou" 
+              className={`pb-3 text-sm font-bold transition-colors relative ${tabParam !== 'following' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Para Ti
+              {tabParam !== 'following' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>}
+            </Link>
+            {user && (
+              <Link 
+                href="/feed?tab=following" 
+                className={`pb-3 text-sm font-bold transition-colors relative ${tabParam === 'following' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                A Seguir
+                {tabParam === 'following' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>}
+              </Link>
+            )}
+          </div>
+
           {/* Stories/Momentos Section */}
           <section className="relative">
             <div className="flex items-center justify-between mb-4">

@@ -1,74 +1,74 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { UserPlus, UserMinus, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { toggleFollowAction } from '@/app/actions/follow'
+import { Loader2 } from 'lucide-react'
 
-type FollowButtonProps = {
-  professionalId: string
-  variant?: 'default' | 'outline' | 'ghost'
-  size?: 'default' | 'sm' | 'lg'
+interface FollowButtonProps {
+  targetUserId: string
+  initialIsFollowing: boolean
+  pathToRevalidate?: string
   className?: string
+  variant?: 'default' | 'outline'
 }
 
-export function FollowButton({ professionalId, variant = 'outline', size = 'sm', className }: FollowButtonProps) {
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-  const router = useRouter()
+export function FollowButton({ 
+  targetUserId, 
+  initialIsFollowing, 
+  pathToRevalidate,
+  className = '',
+  variant = 'default'
+}: FollowButtonProps) {
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    async function checkFollow() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (loading) return
+    setLoading(true)
 
-      const { data } = await supabase.from('favorites').select('id')
-        .eq('user_id', user.id)
-        .eq('professional_id', professionalId)
-        .single()
-      setIsFollowing(!!data)
-      setLoading(false)
-    }
-    checkFollow()
-  }, [professionalId])
+    // Optimistic update
+    setIsFollowing(!isFollowing)
 
-  async function handleFollow() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth/login'); return }
-
-    setActionLoading(true)
-    if (isFollowing) {
-      await supabase.from('favorites').delete()
-        .eq('user_id', user.id)
-        .eq('professional_id', professionalId)
-      setIsFollowing(false)
+    const result = await toggleFollowAction(targetUserId, pathToRevalidate)
+    
+    if (result.error) {
+      // Revert if error
+      setIsFollowing(isFollowing)
+      console.error(result.error)
     } else {
-      await supabase.from('favorites').insert({
-        user_id: user.id,
-        professional_id: professionalId,
-        item_type: 'professional',
-      })
-      setIsFollowing(true)
+      setIsFollowing(result.isFollowing || false)
     }
-    setActionLoading(false)
+    
+    setLoading(false)
   }
 
-  if (loading) return <Button variant={variant} size={size} disabled className={className}><Loader2 className="h-4 w-4 animate-spin" /></Button>
+  const baseClasses = "font-bold text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+  
+  const variants = {
+    default: isFollowing 
+      ? "bg-muted text-foreground hover:bg-destructive/10 hover:text-destructive" 
+      : "bg-primary text-primary-foreground hover:bg-primary/90",
+    outline: isFollowing
+      ? "border border-border text-foreground hover:border-destructive hover:text-destructive"
+      : "border border-primary text-primary hover:bg-primary/10"
+  }
 
   return (
-    <Button variant={isFollowing ? 'default' : variant} size={size} onClick={handleFollow} disabled={actionLoading} className={className}>
-      {actionLoading ? (
-        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+    <button 
+      onClick={handleFollow}
+      disabled={loading}
+      className={`${baseClasses} ${variants[variant]} ${className}`}
+    >
+      {loading ? (
+        <Loader2 className="w-3 h-3 animate-spin" />
       ) : isFollowing ? (
-        <UserMinus className="mr-1 h-4 w-4" />
+        'A Seguir'
       ) : (
-        <UserPlus className="mr-1 h-4 w-4" />
+        'Seguir'
       )}
-      {isFollowing ? 'A Seguir' : 'Seguir'}
-    </Button>
+    </button>
   )
 }

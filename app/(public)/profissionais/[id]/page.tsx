@@ -10,6 +10,7 @@ import { ContactarProfissionalBtn } from '@/components/professional-actions'
 import { ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
 import { ProfessionalServices } from '@/components/professional-services'
+import { FollowButton } from '@/components/follow-button'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -72,6 +73,29 @@ export default async function ProfessionalProfilePage(props: {
     .or(`owner_user_id.eq.${professional.user_id},created_by.eq.${professional.user_id}`)
     .maybeSingle()
 
+  // Fetch Follow stats
+  const { count: followersCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('following_id', professional.user_id)
+
+  const { count: followingCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('follower_id', professional.user_id)
+
+  let isFollowing = false
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user && user.id !== professional.user_id) {
+    const { data: followRel } = await supabase
+      .from('user_follows')
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', professional.user_id)
+      .maybeSingle()
+    if (followRel) isFollowing = true
+  }
+
   // Fallback values
   const coverUrl = professional.cover_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1920&auto=format&fit=crop'
   const avatarUrl = professional.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'
@@ -132,12 +156,21 @@ export default async function ProfessionalProfilePage(props: {
                           <span className="text-white/70 font-normal">({professional.review_count || 0})</span>
                         </span>
                       )}
+                      <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
+                      <span className="font-bold drop-shadow">{followersCount || 0} <span className="font-normal text-white/80">Seguidores</span></span>
+                      <span className="font-bold drop-shadow">{followingCount || 0} <span className="font-normal text-white/80">A Seguir</span></span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
+              <div className="flex flex-wrap gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
+                {user && user.id !== professional.user_id && (
+                  <FollowButton 
+                    targetUserId={professional.user_id} 
+                    initialIsFollowing={isFollowing} 
+                  />
+                )}
                 <ContactarProfissionalBtn 
                   profName={professional.full_name} 
                   userId={professional.user_id} 

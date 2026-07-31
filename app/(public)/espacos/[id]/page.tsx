@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
+import { FollowButton } from '@/components/follow-button'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -25,6 +26,29 @@ export default async function SpaceProfilePage(props: {
 
   if (!space) {
     return notFound()
+  }
+
+  // Fetch Follow stats
+  const { count: followersCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('following_id', space.owner_user_id)
+
+  const { count: followingCount } = await supabase
+    .from('user_follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('follower_id', space.owner_user_id)
+
+  let isFollowing = false
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user && user.id !== space.owner_user_id) {
+    const { data: followRel } = await supabase
+      .from('user_follows')
+      .select('id')
+      .eq('follower_id', user.id)
+      .eq('following_id', space.owner_user_id)
+      .maybeSingle()
+    if (followRel) isFollowing = true
   }
 
   // Fallback values
@@ -68,12 +92,21 @@ export default async function SpaceProfilePage(props: {
                           {space.address}
                         </span>
                       )}
+                      <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
+                      <span className="font-bold drop-shadow">{followersCount || 0} <span className="font-normal text-white/80">Seguidores</span></span>
+                      <span className="font-bold drop-shadow">{followingCount || 0} <span className="font-normal text-white/80">A Seguir</span></span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
+              <div className="flex flex-wrap gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
+                {user && user.id !== space.owner_user_id && space.owner_user_id && (
+                  <FollowButton 
+                    targetUserId={space.owner_user_id} 
+                    initialIsFollowing={isFollowing} 
+                  />
+                )}
                 <ReserveSpaceBtn 
                   spaceName={space.name} 
                   ownerUserId={space.owner_user_id || space.created_by} 
