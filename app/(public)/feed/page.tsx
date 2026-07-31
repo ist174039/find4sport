@@ -105,10 +105,13 @@ export default async function Page({
     const orQueries = []
     if (profIds.length > 0) orQueries.push(`professional_id.in.(${profIds.join(',')})`)
     if (spaceIds.length > 0) orQueries.push(`sport_space_id.in.(${spaceIds.join(',')})`)
-    // Also include posts by normal users they follow:
-    orQueries.push(`user_id.in.(${followingIds.join(',')})`)
     
-    postsQuery = postsQuery.or(orQueries.join(','))
+    if (orQueries.length > 0) {
+      postsQuery = postsQuery.or(orQueries.join(','))
+    } else {
+      // Follows exist but none of the followed users are pros/spaces with posts
+      postsQuery = postsQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+    }
   } else if (tabParam === 'following') {
     // If not logged in or doesn't follow anyone, show nothing on following tab
     postsQuery = postsQuery.eq('id', '00000000-0000-0000-0000-000000000000')
@@ -375,6 +378,15 @@ export default async function Page({
             posts.map((post: any) => (
               <PostCard key={post.id} post={post} />
             ))
+          ) : tabParam === 'following' ? (
+            <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
+              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="font-bold text-lg text-foreground mb-2">O teu feed está vazio</h3>
+              <p className="text-muted-foreground text-sm mb-6">Começa a seguir profissionais e espaços para veres as suas publicações aqui.</p>
+              <Link href="/profissionais" className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors">
+                Descobrir Profissionais
+              </Link>
+            </div>
           ) : (
             <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
               <FilePlus className="text-[48px] text-muted-foreground mb-4" />
