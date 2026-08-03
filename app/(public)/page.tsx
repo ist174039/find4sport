@@ -36,47 +36,71 @@ export default async function Page() {
           <p className="mt-4 text-muted-foreground text-lg mb-16">O ecossistema desportivo mais completo de Portugal</p>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            <Link href="/pesquisa?type=espacos" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Building className="text-[28px]" />
+            <Link href="/pesquisa?type=espacos" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop" alt="Espaços" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <Building className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Espaços</h3>
+                <p className="text-xs text-gray-200 text-center">Reserva online</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Espaços</h3>
-              <p className="text-xs text-muted-foreground">Reserva online</p>
             </Link>
-            <Link href="/pesquisa?type=profissionais" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <UserCheck className="text-[28px]" />
+            <Link href="/pesquisa?type=profissionais" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=600&auto=format&fit=crop" alt="Profissionais" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <UserCheck className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Profissionais</h3>
+                <p className="text-xs text-gray-200 text-center">PT, fisio, nutrição</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Profissionais</h3>
-              <p className="text-xs text-muted-foreground">PT, fisio, nutrição</p>
             </Link>
-            <Link href="/pesquisa?q=Saúde" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-pink-500/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Heart className="text-[28px]" />
+            <Link href="/pesquisa?q=Saúde" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=600&auto=format&fit=crop" alt="Saúde" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <Heart className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Saúde</h3>
+                <p className="text-xs text-gray-200 text-center">Recovery & bem-estar</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Saúde</h3>
-              <p className="text-xs text-muted-foreground">Recovery & bem-estar</p>
             </Link>
-            <Link href="/pesquisa?type=eventos" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-orange-500/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Activity className="text-[28px]" />
+            <Link href="/pesquisa?type=eventos" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop" alt="Eventos" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <Activity className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Eventos</h3>
+                <p className="text-xs text-gray-200 text-center">Provas & torneios</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Eventos</h3>
-              <p className="text-xs text-muted-foreground">Provas & torneios</p>
             </Link>
-            <Link href="/feed" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-purple-500/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <ShoppingBag className="text-[28px]" />
+            <Link href="/feed" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=600&auto=format&fit=crop" alt="Feed" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <ShoppingBag className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Feed</h3>
+                <p className="text-xs text-gray-200 text-center">Publicações & notícias</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Feed</h3>
-              <p className="text-xs text-muted-foreground">Publicações & notícias</p>
             </Link>
-            <Link href="/comunidades" className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
-              <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <MessageSquare className="text-[28px]" />
+            <Link href="/comunidades" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
+              <img src="https://images.unsplash.com/photo-1526676037777-05a232554f77?q=80&w=600&auto=format&fit=crop" alt="Comunidades" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
+              <div className="relative z-10 flex flex-col items-center w-full h-full">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                  <MessageSquare className="text-[28px]" />
+                </div>
+                <h3 className="font-semibold text-white text-sm mb-1 text-center">Comunidades</h3>
+                <p className="text-xs text-gray-200 text-center">Inspire-se & Junte-se</p>
               </div>
-              <h3 className="font-semibold text-foreground text-sm mb-1">Comunidades</h3>
-              <p className="text-xs text-muted-foreground">Inspire-se & Junte-se</p>
             </Link>
           </div>
         </div>
@@ -97,36 +121,30 @@ export default async function Page() {
           
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {profs.map((prof) => (
-              <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="relative group aspect-square rounded-xl overflow-hidden bg-muted block shadow-sm hover:shadow-xl hover:z-10 transition-all duration-300">
-                <img 
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                  alt={prof.full_name} 
-                  src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
-                />
-                
-                {/* Always visible base overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 group-hover:opacity-0"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-3 transition-opacity duration-300 group-hover:opacity-0 flex items-center justify-between">
-                  <h3 className="text-white font-semibold text-sm truncate flex-1">{prof.full_name}</h3>
-                  {prof.is_verified && <BadgeCheck className="text-emerald-400 h-4 w-4 ml-1 flex-shrink-0" />}
-                </div>
-
-                {/* Hover expanded info overlay */}
-                <div className="absolute inset-0 bg-black/80 p-3 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-all duration-300 text-white text-center">
-                  <div className="flex items-center justify-center gap-1 mb-2 w-full">
-                    <h3 className="font-semibold text-sm line-clamp-1">{prof.full_name}</h3>
-                    {prof.is_verified && <BadgeCheck className="text-emerald-400 h-4 w-4 flex-shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-1 mb-2 bg-black/40 px-2 py-0.5 rounded-full text-xs backdrop-blur-sm">
-                    <Star className="text-yellow-500 text-[12px]" />
+              <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
+                <div className="relative aspect-square w-full overflow-hidden">
+                  <img 
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                    alt={prof.full_name} 
+                    src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm">
+                    <Star className="text-yellow-500 text-[12px] fill-yellow-500" />
                     <span>{prof.rating_avg?.toFixed(1) || 'Novo'}</span>
                   </div>
-                  <div className="text-[10px] mb-2 font-medium bg-primary px-2 py-0.5 rounded text-primary-foreground line-clamp-1">
-                    {prof.specialty || 'Personal Trainer'}
+                </div>
+                
+                <div className="p-3 flex flex-col gap-1 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <h3 className="font-semibold text-sm line-clamp-1 text-foreground" title={prof.full_name}>{prof.full_name}</h3>
+                    {prof.is_verified && <BadgeCheck className="text-emerald-500 h-4 w-4 flex-shrink-0" />}
                   </div>
-                  <div className="flex justify-between w-full text-[10px] sm:text-xs mt-auto px-1 opacity-90">
-                    <span>{prof.distance || '2 km'}</span>
-                    <span className="font-medium">{prof.price_avg ? `€${prof.price_avg}/h` : '€30/h'}</span>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="line-clamp-1">{prof.distance || 'Lisboa'}</span>
+                  </div>
+                  <div className="mt-auto pt-2 font-medium text-sm text-foreground">
+                    {prof.price_avg ? `€${prof.price_avg}/h` : 'Preço sob consulta'}
                   </div>
                 </div>
               </Link>
@@ -155,32 +173,27 @@ export default async function Page() {
           
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {spaces.map((space) => (
-              <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="relative group aspect-square rounded-xl overflow-hidden bg-muted block shadow-sm hover:shadow-xl hover:z-10 transition-all duration-300">
-                <img 
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                  alt={space.name} 
-                  src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
-                />
-                
-                {/* Always visible base overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-300 group-hover:opacity-0"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-3 transition-opacity duration-300 group-hover:opacity-0">
-                  <h3 className="text-white font-semibold text-sm truncate">{space.name}</h3>
-                </div>
-
-                {/* Hover expanded info overlay */}
-                <div className="absolute inset-0 bg-black/80 p-3 flex flex-col justify-center items-center opacity-0 group-hover:opacity-100 transition-all duration-300 text-white text-center">
-                  <h3 className="font-semibold text-sm line-clamp-1 mb-2">{space.name}</h3>
-                  <div className="flex items-center gap-1 mb-2 bg-black/40 px-2 py-0.5 rounded-full text-xs backdrop-blur-sm">
-                    <Star className="text-yellow-500 text-[12px]" />
+              <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
+                <div className="relative aspect-square w-full overflow-hidden">
+                  <img 
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                    alt={space.name} 
+                    src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm">
+                    <Star className="text-yellow-500 text-[12px] fill-yellow-500" />
                     <span>{space.rating_avg?.toFixed(1) || 'Novo'}</span>
                   </div>
-                  <div className="text-[10px] mb-2 font-medium bg-primary px-2 py-0.5 rounded text-primary-foreground line-clamp-1">
-                    {space.specialty || 'Multidesportos'}
+                </div>
+                
+                <div className="p-3 flex flex-col gap-1 flex-1">
+                  <h3 className="font-semibold text-sm line-clamp-1 text-foreground" title={space.name}>{space.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="line-clamp-1">{space.distance || 'Lisboa'}</span>
                   </div>
-                  <div className="flex justify-between w-full text-[10px] sm:text-xs mt-auto px-1 opacity-90">
-                    <span>{space.distance || '5 km'}</span>
-                    <span className="font-medium">{space.price_avg ? `€${space.price_avg}/h` : '€15/h'}</span>
+                  <div className="mt-auto pt-2 font-medium text-sm text-foreground">
+                    {space.price_avg ? `€${space.price_avg}/h` : 'Preço sob consulta'}
                   </div>
                 </div>
               </Link>
