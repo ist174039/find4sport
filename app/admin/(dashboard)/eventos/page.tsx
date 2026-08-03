@@ -1,7 +1,7 @@
 'use client';
 import { AlertTriangle, Calendar, CheckCircle, CheckSquare, Edit, Filter, MapPin, Plus, Search, Trash2, XCircle, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getAdminEvents, approveEventAction, rejectEventAction, deleteEventAction, createAdminEventAction } from './actions'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,13 +43,7 @@ export default function Page() {
   }, [filteredEvents.length])
 
   const loadEvents = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .order('start_date', { ascending: false })
-    
-    const loadedEvents = data || []
+    const loadedEvents = await getAdminEvents()
     setEvents(loadedEvents)
     setFilteredEvents(loadedEvents)
 
@@ -58,13 +52,13 @@ export default function Page() {
     nextWeek.setDate(now.getDate() + 7)
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     
-    const totalMonth = loadedEvents.filter(e => new Date(e.start_date) >= thisMonthStart).length
-    const next7Days = loadedEvents.filter(e => {
+    const totalMonth = loadedEvents.filter((e: any) => new Date(e.start_date) >= thisMonthStart).length
+    const next7Days = loadedEvents.filter((e: any) => {
       const d = new Date(e.start_date)
       return d >= now && d <= nextWeek
     }).length
-    const pending = loadedEvents.filter(e => e.status === 'pending').length
-    const cancelled = loadedEvents.filter(e => e.status === 'cancelled').length
+    const pending = loadedEvents.filter((e: any) => e.status === 'pending').length
+    const cancelled = loadedEvents.filter((e: any) => e.status === 'cancelled').length
 
     setStats({ totalMonth, next7Days, pending, cancelled })
     setLoading(false)
@@ -101,41 +95,24 @@ export default function Page() {
   }, [activeFilter, events, searchQuery])
 
   const handleApprove = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('events').update({ status: 'published' }).eq('id', id)
+    const { error } = await approveEventAction(id)
     if (!error) {
       setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'published' } : e))
       showToast('Evento aprovado e publicado com sucesso!')
-      
-      await supabase.from('audit_logs').insert([{
-        action: 'UPDATE', 
-        table_name: 'events', 
-        user_email: 'admin@find4sport.pt',
-        new_data: { action: `Evento ${id} aprovado` }
-      }])
     }
   }
 
   const handleReject = async (id: string) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', id)
+    const { error } = await rejectEventAction(id)
     if (!error) {
       setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'cancelled' } : e))
       showToast('Evento rejeitado / cancelado com sucesso!')
-      
-      await supabase.from('audit_logs').insert([{
-        action: 'UPDATE', 
-        table_name: 'events', 
-        user_email: 'admin@find4sport.pt',
-        new_data: { action: `Evento ${id} rejeitado` }
-      }])
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja remover este evento?')) return
-    const supabase = createClient()
-    const { error } = await supabase.from('events').delete().eq('id', id)
+    const { error } = await deleteEventAction(id)
     if (!error) {
       setEvents(prev => prev.filter(e => e.id !== id))
       showToast('Evento removido com sucesso.')
@@ -145,13 +122,13 @@ export default function Page() {
   const handleCreateEvent = async () => {
     if (!createForm.title || !createForm.address) return
     setCreating(true)
-    const supabase = createClient()
 
     const newEvent = {
       title: createForm.title,
       address: createForm.address,
       start_date: new Date(createForm.start_date).toISOString(),
-      price: parseFloat(createForm.price) || 0,
+      price_min: parseFloat(createForm.price) || 0,
+      price_max: parseFloat(createForm.price) || 0,
       capacity: parseInt(createForm.capacity) || 50,
       description: createForm.description || null,
       status: 'published', // Published directly by Admin
@@ -159,7 +136,7 @@ export default function Page() {
       image_url: 'https://images.unsplash.com/photo-1517649763962-0c623266010b?q=80&w=600'
     }
 
-    const { data, error } = await supabase.from('events').insert([newEvent]).select()
+    const { data, error } = await createAdminEventAction(newEvent)
 
     if (!error && data) {
       setEvents(prev => [data[0], ...prev])
