@@ -50,14 +50,6 @@ export function NewConversationModal({
         .ilike('full_name', `%${query}%`)
         .limit(10)
 
-      // Se for utilizador, procura apenas profissionais ou espaços.
-      // Se for profissional, procura apenas profissionais (aqui simplificado para todos os profissionais).
-      if (currentUserRole !== 'professional') {
-        dbQuery = dbQuery.in('type', ['professional', 'sport_space'])
-      } else {
-        dbQuery = dbQuery.eq('type', 'professional')
-      }
-
       const { data } = await dbQuery
       setResults(data || [])
       setLoading(false)
@@ -96,7 +88,7 @@ export function NewConversationModal({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={currentUserRole === 'professional' ? "Pesquisar outros profissionais..." : "Pesquisar profissionais ou espaços..."}
+              placeholder="Pesquisar utilizadores, profissionais ou espaços..."
               className="w-full bg-muted/30 border border-border rounded-xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
             />
           </div>
@@ -146,9 +138,7 @@ export function NewConversationModal({
               <MessageSquarePlus className="w-8 h-8 mb-3 opacity-20" />
               <p className="text-sm">Escreva o nome de quem procura para iniciar uma nova conversa.</p>
               <p className="text-xs mt-2 opacity-60 max-w-[250px]">
-                {currentUserRole === 'professional' 
-                  ? 'Como profissional, pode contactar outros parceiros.'
-                  : 'Pode contactar qualquer profissional ou espaço desportivo.'}
+                Pode contactar qualquer utilizador, profissional ou espaço desportivo na rede.
               </p>
             </div>
           )}

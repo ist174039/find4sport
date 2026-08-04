@@ -10,8 +10,8 @@ export default async function Page() {
     supabase.from('sport_spaces').select('id', { count: 'exact', head: true }),
     supabase.from('professionals').select('id', { count: 'exact', head: true }),
     supabase.from('events').select('id', { count: 'exact', head: true }),
-    supabase.from('sport_spaces').select('*').order('review_count', { ascending: false }).limit(6),
-    supabase.from('professionals').select('*').order('rating_avg', { ascending: false }).limit(6),
+    supabase.from('sport_spaces').select('*').order('review_count', { ascending: false }).limit(8),
+    supabase.from('professionals').select('*').order('rating_avg', { ascending: false }).limit(8),
     supabase.from('carousel_slides').select('*').eq('is_active', true).order('display_order', { ascending: true })
   ])
   
@@ -92,7 +92,7 @@ export default async function Page() {
               </div>
             </Link>
             <Link href="/comunidades" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1526676037777-05a232554f77?q=80&w=600&auto=format&fit=crop" alt="Comunidades" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+              <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=600&auto=format&fit=crop" alt="Comunidades" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
               <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
               <div className="relative z-10 flex flex-col items-center w-full h-full">
                 <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
@@ -119,7 +119,7 @@ export default async function Page() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {profs.map((prof) => (
               <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
                 <div className="relative aspect-square w-full overflow-hidden">
@@ -171,7 +171,7 @@ export default async function Page() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {spaces.map((space) => (
               <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
                 <div className="relative aspect-square w-full overflow-hidden">

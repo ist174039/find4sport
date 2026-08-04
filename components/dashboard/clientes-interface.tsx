@@ -37,7 +37,7 @@ export function ClientesInterface({ initialClientes }: { initialClientes: Client
       const supabase = createClient()
       const { data, error } = await supabase
         .from('platform_users')
-        .select('id, full_name, email, avatar_url')
+        .select('id, full_name, avatar_url')
         .ilike('full_name', `%${searchUserQuery}%`)
         .limit(10)
 
@@ -62,7 +62,7 @@ export function ClientesInterface({ initialClientes }: { initialClientes: Client
       const newClient: Cliente = {
         id: user.id,
         name: user.full_name || 'Utilizador',
-        email: user.email,
+        email: 'Email privado',
         avatar: user.avatar_url,
         total_bookings: 0,
         last_booking: new Date().toISOString(),
@@ -138,7 +138,6 @@ export function ClientesInterface({ initialClientes }: { initialClientes: Client
                         />
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{user.full_name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         </div>
                       </div>
                       <Button 

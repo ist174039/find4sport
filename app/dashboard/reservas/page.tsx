@@ -43,17 +43,26 @@ export default function ReservasPage() {
         .eq('user_id', user.id)
         .single()
 
+      const { data: spaces } = await supabase
+        .from('sport_spaces')
+        .select('id')
+        .eq('owner_user_id', user.id)
+
+      let reservationsData: any[] = []
+      
       if (professional) {
         setProfessionalId(professional.id)
         
-        // Load reservations
+        // Load professional reservations
         const { data: resData } = await supabase
           .from('reservations')
           .select('*, service:services(*), user:platform_users(full_name, email)')
           .eq('professional_id', professional.id)
           .order('date', { ascending: false })
           
-        if (resData) setReservations(resData)
+        if (resData) {
+          reservationsData = [...reservationsData, ...resData]
+        }
 
         // Load availability
         const { data: availData } = await supabase
@@ -67,7 +76,6 @@ export default function ReservasPage() {
           setAvailForm(prev => prev.map(def => {
             const found = availData.find(a => a.day_of_week === def.day_of_week)
             if (found) {
-              // Convert "09:00:00" to "09:00"
               return { 
                 day_of_week: found.day_of_week, 
                 start_time: found.start_time.substring(0, 5), 
@@ -79,6 +87,28 @@ export default function ReservasPage() {
           }))
         }
       }
+
+      if (spaces && spaces.length > 0) {
+        // We have spaces, let's load reservations for those spaces too
+        // Because of the 'professionalId' hook requirement below to save availability, 
+        // we might set professionalId to 'space_owner' just to bypass the strict check if they have no prof profile
+        if (!professional) {
+          setProfessionalId('space_owner')
+        }
+        
+        const spaceIds = spaces.map(s => s.id)
+        const { data: spaceResData } = await supabase
+          .from('reservations')
+          .select('*, service:services(*), user:platform_users(full_name, email)')
+          .in('space_id', spaceIds)
+          .order('date', { ascending: false })
+          
+        if (spaceResData) {
+          reservationsData = [...reservationsData, ...spaceResData]
+        }
+      }
+
+      setReservations(reservationsData)
       setLoading(false)
     }
 
@@ -86,7 +116,10 @@ export default function ReservasPage() {
   }, [])
 
   const saveAvailability = async () => {
-    if (!professionalId) return
+    if (!professionalId || professionalId === 'space_owner') {
+      alert('Gestores de espaço configuram a disponibilidade diretamente na página do Espaço.')
+      return
+    }
     setSaving(true)
     const supabase = createClient()
 
@@ -143,7 +176,7 @@ export default function ReservasPage() {
     return (
       <div className="space-y-6 max-w-5xl">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Gestão de Reservas</h1>
-        <Card><CardContent className="pt-6">Precisa de criar um perfil profissional primeiro.</CardContent></Card>
+        <Card><CardContent className="pt-6">Precisa de criar um perfil profissional ou registar um espaço primeiro.</CardContent></Card>
       </div>
     )
   }
