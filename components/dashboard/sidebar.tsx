@@ -30,9 +30,10 @@ interface DashboardSidebarProps {
   professional: any | null
   space: any | null
   user?: any | null
+  notificationCount?: number
 }
 
-export function DashboardSidebar({ professional, space, user }: DashboardSidebarProps) {
+export function DashboardSidebar({ professional, space, user, notificationCount = 0 }: DashboardSidebarProps) {
   const pathname = usePathname()
   
   const basePath = '/dashboard'
@@ -157,6 +158,11 @@ export function DashboardSidebar({ professional, space, user }: DashboardSidebar
               >
                 <item.icon className="h-4 w-4" />
                 {item.name || item.title}
+                {(item.name === 'Notificações' && notificationCount > 0) && (
+                  <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {notificationCount > 9 ? '9+' : notificationCount}
+                  </span>
+                )}
               </Link>
             )
           })}

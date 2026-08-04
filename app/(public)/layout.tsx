@@ -17,7 +17,16 @@ export default async function PublicLayout({
     avatar_url: user.user_metadata?.avatar_url,
   } : null
 
-  const notificationCount = 0
+  let notificationCount = 0
+  if (user) {
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('read_at', null)
+    
+    notificationCount = count || 0
+  }
 
   return (
     <>

@@ -3,29 +3,39 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar, Clock, MapPin, ExternalLink, Plus, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Map, Calendar as CalendarIcon, User } from 'lucide-react'
 import Link from 'next/link'
+import { 
+  format, addMonths, subMonths, startOfMonth, endOfMonth, 
+  startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, 
+  parseISO, isToday
+} from 'date-fns'
+import { pt } from 'date-fns/locale'
 
-type AgendaItem = {
+type CalendarItem = {
   id: string
   title: string
-  start_date: string
-  end_date: string | null
+  start_date: Date
+  end_date: Date | null
   address: string | null
-  type: string
+  type: 'event' | 'reservation'
   status: string
-  ref_id: string | null
+  client_name?: string
+  ref_id: string
 }
 
 export default function DashboardAgendaPage() {
   const router = useRouter()
-  const [items, setItems] = useState<AgendaItem[]>([])
+  const [items, setItems] = useState<CalendarItem[]>([])
   const [loading, setLoading] = useState(true)
+  
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -33,151 +43,303 @@ export default function DashboardAgendaPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
 
-      const events = await supabase
+      // 1. Fetch Events
+      // We fetch events created by this user
+      const { data: eventsData } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, address, status, created_by')
+        .select('id, title, start_date, end_date, address, status')
         .eq('created_by', user.id)
-        .order('start_date', { ascending: true })
 
-      if (events.data) {
-        const mapped: AgendaItem[] = events.data.map(e => ({
-          id: e.id,
-          title: e.title,
-          start_date: e.start_date,
-          end_date: e.end_date,
-          address: e.address,
-          type: 'event',
-          status: e.status,
-          ref_id: e.id,
-        }))
-        setItems(mapped)
+      // 2. Fetch Reservations
+      // First, get professional and spaces owned by user
+      const { data: prof } = await supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+      const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
+      
+      let resQuery = supabase.from('reservations').select('*, user:platform_users(full_name)')
+      
+      const orConditions: string[] = []
+      if (prof) orConditions.push(`professional_id.eq.${prof.id}`)
+      if (spaces && spaces.length > 0) {
+        const spaceIds = spaces.map(s => s.id).join(',')
+        orConditions.push(`space_id.in.(${spaceIds})`)
       }
+      
+      let reservationsData: any[] = []
+      if (orConditions.length > 0) {
+        const { data: resData } = await resQuery.or(orConditions.join(','))
+        if (resData) reservationsData = resData
+      }
+
+      // Merge and map
+      const merged: CalendarItem[] = []
+      
+      if (eventsData) {
+        eventsData.forEach(e => {
+          merged.push({
+            id: `evt_${e.id}`,
+            title: e.title,
+            start_date: parseISO(e.start_date),
+            end_date: e.end_date ? parseISO(e.end_date) : null,
+            address: e.address,
+            type: 'event',
+            status: e.status,
+            ref_id: e.id
+          })
+        })
+      }
+
+      if (reservationsData) {
+        reservationsData.forEach(r => {
+          // Construct date object from date + start_time
+          const dateStr = `${r.date}T${r.start_time}`
+          const startDate = new Date(dateStr)
+          merged.push({
+            id: `res_${r.id}`,
+            title: `Reserva - ${r.user?.full_name || 'Cliente'}`,
+            start_date: startDate,
+            end_date: new Date(`${r.date}T${r.end_time}`),
+            address: null,
+            type: 'reservation',
+            status: r.status,
+            client_name: r.user?.full_name || 'Desconhecido',
+            ref_id: r.id
+          })
+        })
+      }
+
+      setItems(merged)
       setLoading(false)
     }
     load()
   }, [router])
 
-  const now = new Date()
-  const upcoming = items.filter(i => new Date(i.start_date) >= now)
-  const past = items.filter(i => new Date(i.start_date) < now)
+  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
+  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
+  const goToToday = () => setCurrentDate(new Date())
 
-  if (loading) return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+  const handleDateClick = (day: Date) => {
+    setSelectedDate(day)
+    setIsModalOpen(true)
+  }
+
+  const renderHeader = () => {
+    return (
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold text-foreground capitalize">
+          {format(currentDate, 'MMMM yyyy', { locale: pt })}
+        </h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={prevMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={goToToday}>
+            Hoje
+          </Button>
+          <Button variant="outline" size="sm" onClick={nextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderDays = () => {
+    const days = []
+    const startDate = startOfWeek(currentDate, { weekStartsOn: 1 })
+    for (let i = 0; i < 7; i++) {
+      days.push(
+        <div key={i} className="text-center font-semibold text-sm py-2 text-muted-foreground uppercase">
+          {format(addDays(startDate, i), 'EEEE', { locale: pt }).substring(0, 3)}
+        </div>
+      )
+    }
+    return <div className="grid grid-cols-7 border-b border-border mb-2">{days}</div>
+  }
+
+  const renderCells = () => {
+    const monthStart = startOfMonth(currentDate)
+    const monthEnd = endOfMonth(monthStart)
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 })
+
+    const rows = []
+    let days = []
+    let day = startDate
+    let formattedDate = ''
+
+    while (day <= endDate) {
+      for (let i = 0; i < 7; i++) {
+        formattedDate = format(day, 'd')
+        const cloneDay = day
+        
+        // Get items for this day
+        const dayItems = items.filter(item => isSameDay(item.start_date, cloneDay))
+        
+        // Max 3 items visible, then +X more
+        const visibleItems = dayItems.slice(0, 3)
+        const hasMore = dayItems.length > 3
+
+        days.push(
+          <div
+            key={day.toString()}
+            onClick={() => handleDateClick(cloneDay)}
+            className={`min-h-[100px] sm:min-h-[120px] border border-border/50 p-1 sm:p-2 flex flex-col transition-colors cursor-pointer hover:bg-muted/30 ${
+              !isSameMonth(day, monthStart)
+                ? 'bg-muted/10 text-muted-foreground'
+                : isToday(day)
+                ? 'bg-primary/5'
+                : 'bg-card'
+            }`}
+          >
+            <div className="flex justify-end mb-1">
+              <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full ${isToday(day) ? 'bg-primary text-primary-foreground' : ''}`}>
+                {formattedDate}
+              </span>
+            </div>
+            
+            <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar flex-1">
+              {visibleItems.map(item => (
+                <div 
+                  key={item.id} 
+                  className={`text-[10px] sm:text-xs truncate px-1.5 py-0.5 rounded border shadow-sm font-medium ${
+                    item.type === 'event' 
+                      ? 'bg-primary/10 text-primary border-primary/20' 
+                      : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                  }`}
+                  title={item.title}
+                >
+                  {format(item.start_date, 'HH:mm')} - {item.title}
+                </div>
+              ))}
+              {hasMore && (
+                <div className="text-[10px] text-muted-foreground font-semibold text-center mt-0.5">
+                  +{dayItems.length - 3} mais
+                </div>
+              )}
+            </div>
+          </div>
+        )
+        day = addDays(day, 1)
+      }
+      rows.push(
+        <div className="grid grid-cols-7" key={day.toString()}>
+          {days}
+        </div>
+      )
+      days = []
+    }
+    return <div>{rows}</div>
+  }
+
+  // Items for the selected day modal
+  const selectedDayItems = selectedDate ? items.filter(item => isSameDay(item.start_date, selectedDate)).sort((a,b) => a.start_date.getTime() - b.start_date.getTime()) : []
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-48 bg-muted rounded"></div>
+        <div className="h-[600px] bg-muted rounded-xl"></div>
+      </div>
+    )
+  }
 
   return (
     <div>
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Agenda</h1>
-          <p className="text-sm text-muted-foreground">Gerir a tua agenda de eventos.</p>
+          <p className="text-sm text-muted-foreground">Calendário de eventos e marcações.</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/eventos/criar">
-            <Plus className="mr-2 h-4 w-4" />
-            Criar Evento
-          </Link>
-        </Button>
+        <div className="flex gap-3">
+          <div className="flex items-center gap-4 text-xs font-medium mr-4">
+             <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-primary/20 border border-primary/30 inline-block"></span> Eventos</div>
+             <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/30 inline-block"></span> Reservas</div>
+          </div>
+          <Button asChild>
+            <Link href="/dashboard/eventos/criar">
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Evento
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="upcoming">
-        <TabsList className="mb-4">
-          <TabsTrigger value="upcoming">Próximos ({upcoming.length})</TabsTrigger>
-          <TabsTrigger value="past">Passados ({past.length})</TabsTrigger>
-        </TabsList>
+      <Card className="shadow-sm border-border overflow-hidden">
+        <CardContent className="p-4 sm:p-6">
+          {renderHeader()}
+          {renderDays()}
+          <div className="border-l border-t border-border/50 rounded-lg overflow-hidden bg-muted/20">
+            {renderCells()}
+          </div>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="upcoming" className="space-y-3">
-          {upcoming.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <Calendar className="mx-auto mb-2 h-8 w-8" />
-                <p>Nenhum evento próximo.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            upcoming.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="flex items-start gap-4 pt-6">
-                  <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 text-center">
-                    <span className="text-xs font-bold uppercase text-primary">
-                      {new Date(item.start_date).toLocaleDateString('pt-PT', { month: 'short' })}
-                    </span>
-                    <span className="text-lg font-bold text-primary">
-                      {new Date(item.start_date).getDate()}
-                    </span>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDate ? format(selectedDate, 'EEEE, d MMMM yyyy', { locale: pt }) : ''}
+            </DialogTitle>
+            <DialogDescription>
+              Atividades agendadas para este dia.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="max-h-[60vh] overflow-y-auto space-y-3 py-4">
+            {selectedDayItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground flex flex-col items-center">
+                <CalendarIcon className="h-10 w-10 mb-3 opacity-20" />
+                <p>Nenhuma atividade planeada para este dia.</p>
+              </div>
+            ) : (
+              selectedDayItems.map(item => (
+                <div key={item.id} className={`p-4 rounded-xl border ${
+                  item.type === 'event' 
+                    ? 'bg-primary/5 border-primary/20' 
+                    : 'bg-amber-500/5 border-amber-500/20'
+                }`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-sm text-foreground">{item.title}</h3>
+                    <Badge variant="outline" className={
+                      item.type === 'event' ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-700'
+                    }>
+                      {item.type === 'event' ? 'Evento' : 'Reserva'}
+                    </Badge>
                   </div>
-                  <div className="flex-1">
+                  
+                  <div className="space-y-1.5 mt-3 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{item.title}</h3>
-                      <Badge variant="outline" className={
-                        item.status === 'published' ? 'bg-green-100 text-green-700'
-                          : item.status === 'pending' ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-500'
-                      }>
-                        {item.status === 'published' ? 'Confirmado / Publicado' : item.status === 'pending' ? 'Pendente' : item.status === 'cancelled' ? 'Cancelado' : item.status}
-                      </Badge>
+                      <Clock className="h-3.5 w-3.5" />
+                      {format(item.start_date, 'HH:mm')}
+                      {item.end_date && ` - ${format(item.end_date, 'HH:mm')}`}
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {new Date(item.start_date).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {item.address && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5" />
-                          {item.address}
-                        </span>
-                      )}
-                    </div>
+                    {item.type === 'reservation' && item.client_name && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5" />
+                        Cliente: {item.client_name}
+                      </div>
+                    )}
+                    {item.type === 'event' && item.address && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {item.address}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-2">
+                  
+                  <div className="mt-4 pt-3 border-t border-border/50 flex justify-end">
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/dashboard/eventos/${item.ref_id}/editar`}>
-                        <Pencil className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button size="sm" variant="ghost" asChild>
-                      <Link href={`/eventos/${item.ref_id}`}>
-                        <ExternalLink className="h-4 w-4" />
+                      <Link href={item.type === 'event' ? `/dashboard/eventos/${item.ref_id}/editar` : `/dashboard/reservas`}>
+                        Detalhes
                       </Link>
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-
-        <TabsContent value="past" className="space-y-3">
-          {past.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                <Calendar className="mx-auto mb-2 h-8 w-8" />
-                <p>Nenhum evento passado.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            past.slice(0, 20).map((item) => (
-              <Card key={item.id} className="opacity-70">
-                <CardContent className="flex items-start gap-4 pt-6">
-                  <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-muted text-center">
-                    <span className="text-xs font-bold uppercase text-muted-foreground">
-                      {new Date(item.start_date).toLocaleDateString('pt-PT', { month: 'short' })}
-                    </span>
-                    <span className="text-lg font-bold text-muted-foreground">
-                      {new Date(item.start_date).getDate()}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(item.start_date).toLocaleDateString('pt-PT')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

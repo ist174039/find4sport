@@ -39,10 +39,21 @@ export default async function DashboardLayout({
   const professional = professionalResult.data
   const space = spaceResult.data
 
+  let notificationCount = 0
+  if (user) {
+    const { count } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .is('read_at', null)
+    
+    notificationCount = count || 0
+  }
+
   return (
     <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
       <div className="flex w-full">
-        <DashboardSidebar professional={professional} space={space} user={user} />
+        <DashboardSidebar professional={professional} space={space} user={user} notificationCount={notificationCount} />
         <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
           <div className="max-w-6xl mx-auto w-full">
             {children}
