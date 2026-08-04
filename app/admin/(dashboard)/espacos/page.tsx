@@ -21,6 +21,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClaimModal, setSelectedClaimModal] = useState<any | null>(null)
+  const [reviewSpace, setReviewSpace] = useState<any | null>(null)
   
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'draft' | 'pending' | 'with_manager' | 'no_manager'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name')
@@ -147,6 +148,15 @@ export default function Page() {
         new_data: { space_id: spaceId, status: newStatus }
       }])
     }
+  }
+
+  const handleReviewAction = async (space: any, action: 'approve' | 'reject') => {
+    if (action === 'approve') {
+      await handleToggleStatus(space.id, 'pending') // passing 'pending' means it will turn 'active'
+    } else {
+      await handleToggleStatus(space.id, 'active') // passing 'active' means it will turn 'pending'
+    }
+    setReviewSpace(null)
   }
 
   const handleCreate = async () => {
@@ -532,15 +542,27 @@ export default function Page() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end items-center gap-2">
                           {/* Main Action Button: Pass to Active / Online */}
-                          <Button
-                            variant={isOnline ? "outline" : "default"}
-                            size="sm"
-                            onClick={() => handleToggleStatus(space.id, space.status)}
-                            className="gap-1.5 text-xs font-semibold"
-                          >
-                            <Power className="h-3.5 w-3.5" />
-                            {isOnline ? 'Desativar' : 'Passar para Ativo'}
-                          </Button>
+                          {!isOnline ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setReviewSpace(space)}
+                              className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white border-0"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Analisar
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleToggleStatus(space.id, space.status)}
+                              className="gap-1.5 text-xs font-semibold"
+                            >
+                              <Power className="h-3.5 w-3.5" />
+                              Desativar
+                            </Button>
+                          )}
 
                           <Link href={`/espacos/${space.slug || space.id}`} target="_blank">
                             <Button variant="ghost" size="icon" title="Ver Página Pública">
@@ -567,6 +589,50 @@ export default function Page() {
           </table>
         </div>
       </section>
+
+      {/* Review Space Modal */}
+      <Dialog open={!!reviewSpace} onOpenChange={(o) => !o && setReviewSpace(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Analisar Espaço</DialogTitle>
+          </DialogHeader>
+          {reviewSpace && (
+            <div className="space-y-6 pt-4">
+              <div className="flex gap-4 items-start">
+                <div className="w-20 h-20 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                  {reviewSpace.image_url ? (
+                    <img src={reviewSpace.image_url} alt={reviewSpace.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Building className="h-8 w-8 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{reviewSpace.name}</h2>
+                  <p className="text-muted-foreground">{reviewSpace.address || 'Sem morada'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Gestor / Responsável</Label>
+                  <p className="font-medium">{reviewSpace.owner?.full_name || 'Sem Gestor Associado'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Data de Registo</Label>
+                  <p className="font-medium">{new Date(reviewSpace.created_at).toLocaleDateString('pt-PT')}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Descrição</Label>
+                  <p className="bg-muted/50 p-3 rounded-lg text-sm whitespace-pre-wrap mt-1">{reviewSpace.description || 'Sem descrição fornecida...'}</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" onClick={() => setReviewSpace(null)}>Cancelar</Button>
+                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleReviewAction(reviewSpace, 'approve')}>Ativar / Publicar Espaço</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

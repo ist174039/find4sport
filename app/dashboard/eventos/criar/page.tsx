@@ -82,6 +82,11 @@ export default function CriarEventoProfissionalPage() {
       // Fetch professional data for organizer_name and professional_id
       const { data: profs } = await supabase.from('professionals').select('id, full_name, professional_name').eq('user_id', user.id).single()
 
+      // Check auto-approval setting
+      const { data: configData } = await supabase.from('system_config').select('settings').single()
+      const manualProfileApproval = configData?.settings?.manual_profile_approval ?? true
+      const eventStatus = manualProfileApproval ? 'pending' : 'published'
+
       const { error: insertError } = await supabase.from('events').insert({
         title: formData.title,
         description: formData.description,
@@ -97,7 +102,7 @@ export default function CriarEventoProfissionalPage() {
         created_by: user.id,
         professional_id: profs?.id || null,
         organizer_name: profs?.professional_name || profs?.full_name || user.user_metadata?.full_name || 'Profissional',
-        status: 'pending',
+        status: eventStatus,
       })
 
       if (insertError) throw insertError

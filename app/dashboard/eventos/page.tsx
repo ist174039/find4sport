@@ -66,10 +66,22 @@ export default function DashboardEventosPage() {
   }, [router])
 
   const statusColors: Record<string, string> = {
+    draft: 'bg-muted text-muted-foreground border-border',
     pending: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
     published: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
     cancelled: 'bg-red-500/10 text-red-500 border-red-500/20',
-    draft: 'bg-muted text-muted-foreground border-border',
+    completed: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  }
+
+  const getEventStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft': return 'Rascunho'
+      case 'pending': return 'Pendente'
+      case 'published': return 'Publicado'
+      case 'cancelled': return 'Cancelado'
+      case 'completed': return 'Concluído'
+      default: return 'Desconhecido'
+    }
   }
 
   const enrollmentStatusColors: Record<string, string> = {
@@ -143,7 +155,7 @@ export default function DashboardEventosPage() {
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{event.title}</h3>
                         <Badge variant="outline" className={`rounded-lg px-2.5 py-0.5 uppercase text-[10px] font-bold tracking-wider ${statusColors[event.status] || 'bg-muted text-muted-foreground'}`}>
-                          {event.status === 'pending' ? 'Pendente' : event.status === 'published' ? 'Publicado / Aprovado' : event.status === 'cancelled' ? 'Cancelado' : 'Rascunho'}
+                          {getEventStatusLabel(event.status)}
                         </Badge>
                       </div>
                       <p className="line-clamp-2 text-sm text-muted-foreground mb-4">{event.description || 'Sem descrição'}</p>

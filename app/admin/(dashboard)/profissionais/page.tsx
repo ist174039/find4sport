@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Activity, Ban, ChevronLeft, ChevronRight, Clock, Edit, Eye, Filter, Flag, Loader2, MapPin, Star, UserMinus, UserPlus, Users } from 'lucide-react'
 import { TablePagination } from '@/components/ui/table-pagination'
+import { Badge } from '@/components/ui/badge'
 
 export default function Page() {
   const [professionals, setProfessionals] = useState<any[]>([])
@@ -22,6 +23,8 @@ export default function Page() {
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [inviteForm, setInviteForm] = useState({ name: '', email: '' })
+  
+  const [reviewProf, setReviewProf] = useState<any | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
   const ITEMS_PER_PAGE = 10
@@ -134,13 +137,23 @@ export default function Page() {
   }
  }
 
- const handleBan = async (profId: string) => {
-  if (!window.confirm('Bloquear este profissional?')) return
-  const result = await adminUpdateProfessional(profId, { status: 'suspended', is_verified: false })
-  if (result.professional) {
-   setProfessionals(prev => prev.map(p => p.id === profId ? result.professional : p))
+  const handleBan = async (profId: string) => {
+   if (!window.confirm('Bloquear este profissional?')) return
+   const result = await adminUpdateProfessional(profId, { status: 'suspended', is_verified: false })
+   if (result.professional) {
+    setProfessionals(prev => prev.map(p => p.id === profId ? result.professional : p))
+   }
   }
- }
+
+  const handleReviewAction = async (action: 'approve' | 'reject') => {
+    if (!reviewProf) return
+    if (action === 'approve') {
+      await handleApprove(reviewProf.id)
+    } else {
+      await handleBan(reviewProf.id)
+    }
+    setReviewProf(null)
+  }
 
  const exportPDF = () => {
   window.print()
@@ -313,11 +326,11 @@ export default function Page() {
            <div className="flex justify-end gap-2">
             {!prof.is_verified && (
              <button 
-              onClick={() => handleApprove(prof.id)}
-              className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-all"
-              title="Aprovar"
+              onClick={() => setReviewProf(prof)}
+              className="px-3 py-1.5 text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-all"
+              title="Analisar"
              >
-              Aprovar
+              Analisar
              </button>
             )}
             <button className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all" title="Ver Perfil Público" onClick={() => window.open(`/profissionais/${prof.public_slug || prof.id}`, '_blank')}>
@@ -363,6 +376,46 @@ export default function Page() {
       </div>
      </div>
    </div>
+
+   {/* Review Modal */}
+   <Dialog open={!!reviewProf} onOpenChange={(o) => !o && setReviewProf(null)}>
+    <DialogContent className="sm:max-w-2xl">
+     <DialogHeader>
+      <DialogTitle>Analisar Profissional</DialogTitle>
+     </DialogHeader>
+     {reviewProf && (
+      <div className="space-y-6 pt-4">
+       <div className="flex gap-4 items-start">
+        <img src={reviewProf.avatar_url || "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150"} alt="Avatar" className="w-20 h-20 rounded-lg object-cover" />
+        <div>
+         <h2 className="text-xl font-bold">{reviewProf.full_name}</h2>
+         <p className="text-muted-foreground">{reviewProf.email}</p>
+         <Badge variant="outline" className="mt-2">{reviewProf.professional_name || 'Profissional'}</Badge>
+        </div>
+       </div>
+       <div className="grid grid-cols-2 gap-4">
+        <div>
+         <Label className="text-muted-foreground">Especialidade</Label>
+         <p className="font-medium">{reviewProf.specialty || 'Não definida'}</p>
+        </div>
+        <div>
+         <Label className="text-muted-foreground">Localização</Label>
+         <p className="font-medium">{reviewProf.address || 'Não definida'}</p>
+        </div>
+        <div className="col-span-2">
+         <Label className="text-muted-foreground">Biografia / Sobre</Label>
+         <p className="bg-muted/50 p-3 rounded-lg text-sm whitespace-pre-wrap mt-1">{reviewProf.bio || 'Sem biografia...'}</p>
+        </div>
+       </div>
+       <div className="flex justify-end gap-3 pt-4 border-t">
+        <Button variant="outline" onClick={() => setReviewProf(null)}>Cancelar</Button>
+        <Button variant="destructive" onClick={() => handleReviewAction('reject')}>Rejeitar</Button>
+        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleReviewAction('approve')}>Aprovar Perfil</Button>
+       </div>
+      </div>
+     )}
+    </DialogContent>
+   </Dialog>
 
    {/* Activity Logs & Report Card */}
    <div className="mt-section-gap grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">

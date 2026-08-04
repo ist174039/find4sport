@@ -1,5 +1,5 @@
 'use client';
-import { AlertTriangle, Calendar, CheckCircle, CheckSquare, Edit, Filter, MapPin, Plus, Search, Trash2, XCircle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Calendar, CheckCircle, CheckSquare, Edit, Filter, MapPin, Plus, Search, Trash2, XCircle, Loader2, Eye } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getAdminEvents, approveEventAction, rejectEventAction, deleteEventAction, createAdminEventAction } from './actions'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -19,10 +19,11 @@ export default function Page() {
   
   const [activeFilter, setActiveFilter] = useState<'all' | 'upcoming' | 'past' | 'draft' | 'pending'>('all')
   const [stats, setStats] = useState({ totalMonth: 0, next7Days: 0, pending: 0, cancelled: 0 })
-  
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
+  
+  const [reviewEvent, setReviewEvent] = useState<any | null>(null)
 
   const [createForm, setCreateForm] = useState({
     title: '',
@@ -117,6 +118,16 @@ export default function Page() {
       setEvents(prev => prev.filter(e => e.id !== id))
       showToast('Evento removido com sucesso.')
     }
+  }
+
+  const handleReviewAction = async (action: 'approve' | 'reject') => {
+    if (!reviewEvent) return
+    if (action === 'approve') {
+      await handleApprove(reviewEvent.id)
+    } else {
+      await handleReject(reviewEvent.id)
+    }
+    setReviewEvent(null)
   }
 
   const handleCreateEvent = async () => {
@@ -479,11 +490,12 @@ export default function Page() {
                     <td className="px-6 py-4 text-right">
                       {event.status === 'pending' ? (
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleReject(event.id)}>
-                            Rejeitar
-                          </Button>
-                          <Button size="sm" onClick={() => handleApprove(event.id)}>
-                            Aprovar
+                          <Button 
+                            size="sm" 
+                            className="bg-amber-500 hover:bg-amber-600 text-white" 
+                            onClick={() => setReviewEvent(event)}
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" /> Analisar
                           </Button>
                         </div>
                       ) : (
@@ -520,6 +532,54 @@ export default function Page() {
           onPageChange={setCurrentPage} 
         />
       </section>
+
+      {/* Review Event Modal */}
+      <Dialog open={!!reviewEvent} onOpenChange={(o) => !o && setReviewEvent(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Analisar Evento</DialogTitle>
+          </DialogHeader>
+          {reviewEvent && (
+            <div className="space-y-6 pt-4">
+              <div className="flex gap-4 items-start">
+                <div className="w-20 h-20 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                  {reviewEvent.image_url ? (
+                    <img src={reviewEvent.image_url} alt={reviewEvent.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <Calendar className="h-8 w-8 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">{reviewEvent.title}</h2>
+                  <p className="text-muted-foreground text-sm">{reviewEvent.address || 'Sem morada'}</p>
+                  <p className="text-sm font-semibold mt-1 text-primary">
+                    {new Date(reviewEvent.start_date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Preço</Label>
+                  <p className="font-medium">{(reviewEvent.price_min || 0) === 0 ? 'Gratuito' : `€${reviewEvent.price_min}`}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Lotação</Label>
+                  <p className="font-medium">{reviewEvent.capacity ? `${reviewEvent.capacity} vagas` : 'Ilimitada'}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-muted-foreground">Descrição</Label>
+                  <p className="bg-muted/50 p-3 rounded-lg text-sm whitespace-pre-wrap mt-1">{reviewEvent.description || 'Sem descrição fornecida...'}</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" onClick={() => setReviewEvent(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={() => handleReviewAction('reject')}>Rejeitar Evento</Button>
+                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleReviewAction('approve')}>Aprovar Evento</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

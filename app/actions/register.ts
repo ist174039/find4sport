@@ -11,6 +11,15 @@ export async function registerProfessionalInitial(
 ) {
   const supabaseAdmin = createAdminClient()
 
+  // Get system config for auto-approval
+  const { data: configData } = await supabaseAdmin.from('system_config').select('settings').single()
+  const manualProfileApproval = configData?.settings?.manual_profile_approval ?? true
+
+  if (!manualProfileApproval) {
+    profPayload.status = 'active'
+    profPayload.is_verified = true
+  }
+
   // Update platform_users type
   const { error: profileError } = await supabaseAdmin
     .from('platform_users')
@@ -77,6 +86,15 @@ export async function registerSpaceInitial(
   name: string
 ) {
   const supabaseAdmin = createAdminClient()
+  
+  // Get system config for auto-approval
+  const { data: configData } = await supabaseAdmin.from('system_config').select('settings').single()
+  const manualProfileApproval = configData?.settings?.manual_profile_approval ?? true
+
+  if (!manualProfileApproval) {
+    spacePayload.status = 'active'
+    spacePayload.is_verified = true
+  }
   
   // Update platform_users type
   const { error: profileError } = await supabaseAdmin
