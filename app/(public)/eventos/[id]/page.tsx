@@ -44,7 +44,11 @@ export default async function EventProfilePage(props: {
   
   const professional = event.professionals || null
   const organizerAvatar = professional?.avatar_url || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop'
-  const profileLink = professional?.public_slug ? `/profissionais/${professional.public_slug}` : null
+  const profileLink = professional?.public_slug 
+    ? `/profissionais/${professional.public_slug}` 
+    : professional?.id 
+      ? `/profissionais/${professional.id}` 
+      : null
 
   return (
     <main className="flex flex-col min-h-screen bg-background">
@@ -155,20 +159,30 @@ export default async function EventProfilePage(props: {
             </section>
 
             {/* Organizer */}
-            <section className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-muted overflow-hidden shrink-0">
-                <img src={organizerAvatar} alt="Organizador" className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground uppercase font-bold">Organizado por</p>
-                <p className="font-bold text-foreground">{organizer}</p>
-                {profileLink && (
-                  <Link href={profileLink} className="text-primary text-[12px] font-bold hover:underline">
+            {profileLink ? (
+              <Link href={profileLink} className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4 hover:border-primary transition-colors group cursor-pointer block">
+                <div className="w-14 h-14 rounded-full bg-muted overflow-hidden shrink-0">
+                  <img src={organizerAvatar} alt="Organizador" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground uppercase font-bold">Organizado por</p>
+                  <p className="font-bold text-foreground group-hover:text-primary transition-colors">{organizer}</p>
+                  <span className="text-primary text-[12px] font-bold">
                     Ver Perfil
-                  </Link>
-                )}
-              </div>
-            </section>
+                  </span>
+                </div>
+              </Link>
+            ) : (
+              <section className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-muted overflow-hidden shrink-0">
+                  <img src={organizerAvatar} alt="Organizador" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground uppercase font-bold">Organizado por</p>
+                  <p className="font-bold text-foreground">{organizer}</p>
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </section>
