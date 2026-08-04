@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import Link from 'next/link'
 import { JoinEventBtn } from '@/components/join-event-btn'
 import { ReviewsSection } from '@/components/reviews-section'
 
@@ -17,11 +18,11 @@ export default async function EventProfilePage(props: {
 
   let event = null
   if (isUuid) {
-    const { data } = await supabase.from('events').select('*').eq('id', rawId).maybeSingle()
+    const { data } = await supabase.from('events').select('*, professionals(avatar_url, public_slug)').eq('id', rawId).maybeSingle()
     event = data
   }
   if (!event) {
-    const { data } = await supabase.from('events').select('*').eq('slug', rawId).maybeSingle()
+    const { data } = await supabase.from('events').select('*, professionals(avatar_url, public_slug)').eq('slug', rawId).maybeSingle()
     event = data
   }
 
@@ -40,6 +41,10 @@ export default async function EventProfilePage(props: {
   const formattedDate = format(startDate, "d 'de' MMMM, yyyy", { locale: ptBR })
   const formattedTime = format(startDate, "HH:mm")
   const eventTitle = event.title || event.slug?.replace(/-/g, ' ') || 'Evento Desportivo'
+  
+  const professional = event.professionals || null
+  const organizerAvatar = professional?.avatar_url || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop'
+  const profileLink = professional?.public_slug ? `/profissionais/${professional.public_slug}` : null
 
   return (
     <main className="flex flex-col min-h-screen bg-background">
@@ -152,12 +157,16 @@ export default async function EventProfilePage(props: {
             {/* Organizer */}
             <section className="bg-card p-6 rounded-2xl border border-border shadow-sm flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-muted overflow-hidden shrink-0">
-                <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop" alt="Organizador" className="w-full h-full object-cover" />
+                <img src={organizerAvatar} alt="Organizador" className="w-full h-full object-cover" />
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground uppercase font-bold">Organizado por</p>
                 <p className="font-bold text-foreground">{organizer}</p>
-                <button className="text-primary text-[12px] font-bold hover:underline">Ver Perfil</button>
+                {profileLink && (
+                  <Link href={profileLink} className="text-primary text-[12px] font-bold hover:underline">
+                    Ver Perfil
+                  </Link>
+                )}
               </div>
             </section>
           </div>
