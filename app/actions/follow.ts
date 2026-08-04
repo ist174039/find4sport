@@ -56,7 +56,7 @@ export async function toggleFollowAction(targetUserId: string, pathToRevalidate?
 async function enrichUserIds(supabase: any, userIds: string[]) {
   if (userIds.length === 0) return []
 
-  const [profsResult, spacesResult] = await Promise.all([
+  const [profsResult, spacesResult, usersResult] = await Promise.all([
     supabase
       .from('professionals')
       .select('id, user_id, full_name, avatar_url, public_slug, is_verified')
@@ -64,7 +64,11 @@ async function enrichUserIds(supabase: any, userIds: string[]) {
     supabase
       .from('sport_spaces')
       .select('id, owner_user_id, name, logo_url, slug, is_verified')
-      .in('owner_user_id', userIds)
+      .in('owner_user_id', userIds),
+    supabase
+      .from('platform_users')
+      .select('id, full_name, avatar_url, type')
+      .in('id', userIds)
   ])
 
   const profByUserId: Record<string, any> = {}
@@ -75,6 +79,11 @@ async function enrichUserIds(supabase: any, userIds: string[]) {
   const spaceByUserId: Record<string, any> = {}
   for (const s of spacesResult.data || []) {
     spaceByUserId[s.owner_user_id] = { ...s, _type: 'space' }
+  }
+
+  const userByUserId: Record<string, any> = {}
+  for (const u of usersResult.data || []) {
+    userByUserId[u.id] = { ...u, _type: 'user' }
   }
 
   return userIds.map(uid => {
@@ -98,6 +107,17 @@ async function enrichUserIds(supabase: any, userIds: string[]) {
         avatar: s.logo_url,
         isVerified: s.is_verified,
         href: `/espacos/${s.slug || s.id}`
+      }
+    }
+    if (userByUserId[uid]) {
+      const u = userByUserId[uid]
+      return {
+        userId: uid,
+        type: 'user' as const,
+        name: u.full_name || 'Utilizador',
+        avatar: u.avatar_url,
+        isVerified: false,
+        href: `#` // Regular users don't have public profiles yet
       }
     }
     return null

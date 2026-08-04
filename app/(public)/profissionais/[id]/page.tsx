@@ -36,6 +36,9 @@ export default async function ProfessionalProfilePage(props: {
     return notFound()
   }
 
+  // Increment views in the background
+  supabase.rpc('increment_professional_views', { prof_id: professional.id }).then()
+
   // Fetch categories for this professional
   const { data: catData } = await supabase
     .from('professional_categories')

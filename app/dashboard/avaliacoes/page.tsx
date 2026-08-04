@@ -25,10 +25,24 @@ export default function ProfessionalReviewsPage() {
         if (!user) { router.push('/auth/login'); return }
 
         const { data: prof } = await supabase.from('professionals').select('id').eq('user_id', user.id).single()
+        const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
+
+        let allReviews: any[] = []
+
         if (prof) {
           const { data } = await supabase.from('reviews').select('*, user:user_id(full_name, avatar_url)').eq('professional_id', prof.id).order('created_at', { ascending: false }).limit(50)
-          setReviews(data || [])
+          if (data) allReviews = [...allReviews, ...data]
         }
+
+        if (spaces && spaces.length > 0) {
+          const spaceIds = spaces.map(s => s.id)
+          const { data } = await supabase.from('reviews').select('*, user:user_id(full_name, avatar_url)').in('space_id', spaceIds).order('created_at', { ascending: false }).limit(50)
+          if (data) allReviews = [...allReviews, ...data]
+        }
+
+        // Sort combined reviews
+        allReviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        setReviews(allReviews)
       } finally {
         setLoading(false)
       }

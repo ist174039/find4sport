@@ -8,9 +8,30 @@ import {
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export function SpaceDashboard({ space }: { space: any }) {
   const router = useRouter()
+  const [latestReservations, setLatestReservations] = useState<any[]>([])
+  const [loadingRes, setLoadingRes] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      if (!space?.id) return
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('reservations')
+        .select('*, user:platform_users(full_name)')
+        .eq('space_id', space.id)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      setLatestReservations(data || [])
+      setLoadingRes(false)
+    }
+    load()
+  }, [space?.id])
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
@@ -111,10 +132,36 @@ export function SpaceDashboard({ space }: { space: any }) {
                 <h2 className="text-xl font-bold">Últimas Reservas</h2>
               </div>
               
-              <div className="py-8 text-center text-muted-foreground border border-dashed border-border rounded-xl p-6">
-                <CalendarCheck className="w-10 h-10 mx-auto mb-3 opacity-30 text-primary" />
-                <p className="font-semibold text-sm text-foreground">Sem reservas registadas</p>
-                <p className="text-xs mt-1">As reservas agendadas pelos atletas para este recinto surgirão nesta lista.</p>
+              <div className="space-y-3 mt-4">
+                {loadingRes ? (
+                  <div className="py-8 text-center text-muted-foreground border border-dashed border-border rounded-xl p-6">
+                    <p className="text-sm">A carregar...</p>
+                  </div>
+                ) : latestReservations.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground border border-dashed border-border rounded-xl p-6">
+                    <CalendarCheck className="w-10 h-10 mx-auto mb-3 opacity-30 text-primary" />
+                    <p className="font-semibold text-sm text-foreground">Sem reservas registadas</p>
+                    <p className="text-xs mt-1">As reservas agendadas pelos atletas para este recinto surgirão nesta lista.</p>
+                  </div>
+                ) : (
+                  latestReservations.map(res => (
+                    <div key={res.id} className="p-3 bg-muted/40 border border-border rounded-xl flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-sm">{res.user?.full_name || 'Desconhecido'}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(res.date).toLocaleDateString('pt-PT')} • {res.start_time.substring(0,5)}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                        res.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' :
+                        res.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {res.status.toUpperCase()}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
             

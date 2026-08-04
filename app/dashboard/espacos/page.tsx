@@ -15,6 +15,7 @@ type Association = {
   space_name: string
   space_address: string | null
   status: string
+  role: 'owner' | 'professional'
 }
 
 export default function DashboardEspacosPage() {
@@ -28,35 +29,58 @@ export default function DashboardEspacosPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/auth/login'); return }
 
+      const { data: ownedSpaces } = await supabase
+        .from('sport_spaces')
+        .select('id, name, address, slug')
+        .eq('owner_user_id', user.id)
+
+      let mergedAssociations: Association[] = []
+
+      if (ownedSpaces) {
+        mergedAssociations = ownedSpaces.map(s => ({
+          space_id: s.id,
+          space_name: s.name,
+          space_address: s.address,
+          status: 'active',
+          role: 'owner' as const
+        }))
+      }
+
       const { data: professional } = await supabase
         .from('professionals')
         .select('id')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .single()
 
-      if (!professional) { setLoading(false); return }
+      if (professional) {
+        const { data: rels } = await supabase
+          .from('space_professionals')
+          .select('space_id')
+          .eq('professional_id', professional.id)
 
-      const { data: rels } = await supabase
-        .from('space_professionals')
-        .select('space_id')
-        .eq('professional_id', professional.id)
+        if (rels && rels.length > 0) {
+          const spaceIds = rels.map(r => r.space_id)
+          const { data: spaces } = await supabase
+            .from('sport_spaces')
+            .select('id, name, address, slug')
+            .in('id', spaceIds)
 
-      if (rels && rels.length > 0) {
-        const spaceIds = rels.map(r => r.space_id)
-        const { data: spaces } = await supabase
-          .from('sport_spaces')
-          .select('id, name, address')
-          .in('id', spaceIds)
-
-        if (spaces) {
-          setAssociations(spaces.map(s => ({
-            space_id: s.id,
-            space_name: s.name,
-            space_address: s.address,
-            status: 'active',
-          })))
+          if (spaces) {
+            const associated = spaces
+              .filter(s => !mergedAssociations.some(m => m.space_id === s.id)) // avoid duplicates if owner is also associated
+              .map(s => ({
+                space_id: s.id,
+                space_name: s.name,
+                space_address: s.address,
+                status: 'active',
+                role: 'professional' as const
+              }))
+            mergedAssociations = [...mergedAssociations, ...associated]
+          }
         }
       }
+
+      setAssociations(mergedAssociations)
       setLoading(false)
     }
     load()
@@ -67,8 +91,8 @@ export default function DashboardEspacosPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Espaços Associados</h1>
-        <p className="text-sm text-muted-foreground">Espaços onde estás associado como profissional.</p>
+        <h1 className="text-2xl font-bold text-foreground">Meus Espaços</h1>
+        <p className="text-sm text-muted-foreground">Espaços desportivos que geres ou onde colaboras.</p>
       </div>
 
       {associations.length === 0 ? (
@@ -96,14 +120,17 @@ export default function DashboardEspacosPage() {
                       </p>
                     )}
                   </div>
-                  <Badge variant="outline" className="bg-green-100 text-green-700">
-                    Ativo
+                  <Badge variant="outline" className={assoc.role === 'owner' ? "bg-primary/10 text-primary" : "bg-green-100 text-green-700"}>
+                    {assoc.role === 'owner' ? 'Gestor' : 'Associado'}
                   </Badge>
                 </div>
-                <div className="mt-4">
-                  <Button size="sm" variant="outline" asChild>
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" variant="default" onClick={() => {
+                    // Update dashboard active space in localstorage or via route
+                    // Since it's a priority checking route, maybe just link to public space?
+                  }} asChild>
                     <Link href={`/espacos/${assoc.space_id}`}>
-                      <ExternalLink className="mr-1 h-4 w-4" /> Ver Espaço
+                      <ExternalLink className="mr-1 h-4 w-4" /> Ver Perfil
                     </Link>
                   </Button>
                 </div>

@@ -29,6 +29,9 @@ export default async function SpaceProfilePage(props: {
     return notFound()
   }
 
+  // Increment views in the background
+  supabase.rpc('increment_space_views', { space_id: space.id }).then()
+
   // Fetch Follow stats
   const { count: followersCount } = await supabase
     .from('user_follows')

@@ -55,7 +55,7 @@ export default async function SeguidoresPage() {
                         <img src={item.avatar} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-primary">
-                          {item.type === 'space' ? <Building2 className="w-5 h-5" /> : <Dumbbell className="w-5 h-5" />}
+                          {item.type === 'space' ? <Building2 className="w-5 h-5" /> : (item.type === 'professional' ? <Dumbbell className="w-5 h-5" /> : <Users className="w-5 h-5" />)}
                         </div>
                       )}
                     </div>
@@ -65,7 +65,7 @@ export default async function SeguidoresPage() {
                         {item.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                       </div>
                       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        {item.type === 'professional' ? 'Profissional' : 'Espaço'}
+                        {item.type === 'professional' ? 'Profissional' : (item.type === 'space' ? 'Espaço' : 'Utilizador')}
                       </p>
                     </div>
                   </Link>
@@ -105,7 +105,7 @@ export default async function SeguidoresPage() {
                         <img src={item.avatar} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-primary">
-                          {item.type === 'space' ? <Building2 className="w-5 h-5" /> : <Dumbbell className="w-5 h-5" />}
+                          {item.type === 'space' ? <Building2 className="w-5 h-5" /> : (item.type === 'professional' ? <Dumbbell className="w-5 h-5" /> : <Users className="w-5 h-5" />)}
                         </div>
                       )}
                     </div>
@@ -115,7 +115,7 @@ export default async function SeguidoresPage() {
                         {item.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                       </div>
                       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        {item.type === 'professional' ? 'Profissional' : 'Espaço'}
+                        {item.type === 'professional' ? 'Profissional' : (item.type === 'space' ? 'Espaço' : 'Utilizador')}
                       </p>
                     </div>
                   </Link>
