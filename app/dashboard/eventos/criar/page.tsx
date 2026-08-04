@@ -79,6 +79,9 @@ export default function CriarEventoProfissionalPage() {
         }
       }
 
+      // Fetch professional data for organizer_name and professional_id
+      const { data: profs } = await supabase.from('professionals').select('id, full_name, professional_name').eq('user_id', user.id).single()
+
       const { error: insertError } = await supabase.from('events').insert({
         title: formData.title,
         description: formData.description,
@@ -92,6 +95,8 @@ export default function CriarEventoProfissionalPage() {
         image_url: bannerUrl,
         gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
         created_by: user.id,
+        professional_id: profs?.id || null,
+        organizer_name: profs?.professional_name || profs?.full_name || user.user_metadata?.full_name || 'Profissional',
         status: 'pending',
       })
 
