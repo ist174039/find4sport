@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -12,9 +12,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Calendar, Loader2, ArrowLeft, Check, Image as ImageIcon, X } from 'lucide-react'
 
-export default function EditarEventoProfissionalPage({ params }: { params: { id: string } }) {
+export default function EditarEventoProfissionalPage(props: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const { id } = params
+  const { id } = use(props.params)
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +34,7 @@ export default function EditarEventoProfissionalPage({ params }: { params: { id:
 
   const [existingBannerUrl, setExistingBannerUrl] = useState<string | null>(null)
   const [existingGalleryUrls, setExistingGalleryUrls] = useState<string[]>([])
+  const [existingStatus, setExistingStatus] = useState<string>('pending')
 
   useEffect(() => {
     const supabase = createClient()
@@ -62,6 +63,9 @@ export default function EditarEventoProfissionalPage({ params }: { params: { id:
         if (data.gallery_urls) {
           setExistingGalleryUrls(data.gallery_urls)
           setGalleryPreviews(data.gallery_urls)
+        }
+        if (data.status) {
+          setExistingStatus(data.status)
         }
       }
       setFetching(false)
@@ -122,7 +126,7 @@ export default function EditarEventoProfissionalPage({ params }: { params: { id:
         price_max: formData.price_max ? parseFloat(formData.price_max) : null,
         image_url: bannerUrl,
         gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
-        status: 'pending',
+        status: existingStatus,
       }).eq('id', id)
 
       if (updateError) throw updateError

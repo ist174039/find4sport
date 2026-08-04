@@ -28,6 +28,7 @@ async function getEventsData(searchParams: { category?: string; q?: string; loca
       *,
       category:categories(*)
     `)
+    .eq('status', 'published')
 
   // Apply filters
   if (searchParams.q) {

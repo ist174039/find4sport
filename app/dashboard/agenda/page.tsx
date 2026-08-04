@@ -108,11 +108,11 @@ export default function DashboardAgendaPage() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-foreground">{item.title}</h3>
                       <Badge variant="outline" className={
-                        item.status === 'approved' ? 'bg-green-100 text-green-700'
+                        item.status === 'published' ? 'bg-green-100 text-green-700'
                           : item.status === 'pending' ? 'bg-amber-100 text-amber-700'
                             : 'bg-gray-100 text-gray-500'
                       }>
-                        {item.status === 'approved' ? 'Confirmado' : item.status === 'pending' ? 'Pendente' : item.status}
+                        {item.status === 'published' ? 'Confirmado / Publicado' : item.status === 'pending' ? 'Pendente' : item.status === 'cancelled' ? 'Cancelado' : item.status}
                       </Badge>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
