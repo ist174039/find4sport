@@ -1,7 +1,7 @@
 'use client';
 import { Building, Calendar, MapPin, Search, Star, User, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useCallback, useTransition } from 'react'
+import { useState, useCallback, useTransition, useEffect } from 'react'
 
 export function PesquisaFiltros({
   initialQuery = '',
@@ -18,21 +18,32 @@ export function PesquisaFiltros({
 
   // Local state for immediate input feedback
   const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    const currentQ = params.get('q') || ''
+    
+    // Trigger push if debounced value is different from URL query
+    if (debouncedQuery !== currentQ && !(debouncedQuery === '' && currentQ === '')) {
+      if (debouncedQuery.trim()) {
+        params.set('q', debouncedQuery.trim())
+      } else {
+        params.delete('q')
+      }
+      
+      startTransition(() => {
+        router.push(`/pesquisa?${params.toString()}`)
+      })
+    }
+  }, [debouncedQuery, searchParams, router])
 
   const activeType = (searchParams.get('type') || searchParams.get('tipo') || 'todos').toLowerCase()
-
-  const handleSearchSubmit = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (query.trim()) {
-      params.set('q', query.trim())
-    } else {
-      params.delete('q')
-    }
-    
-    startTransition(() => {
-      router.push(`/pesquisa?${params.toString()}`)
-    })
-  }, [query, searchParams, router])
 
   // Handle Type Filter Toggle
   const handleTypeSelect = useCallback((typeValue: string) => {
@@ -103,7 +114,7 @@ export function PesquisaFiltros({
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
-                handleSearchSubmit()
+                setDebouncedQuery(query)
               }
             }}
             className="w-full bg-background border border-border rounded-lg py-2 pl-9 pr-8 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm text-foreground"
@@ -125,14 +136,7 @@ export function PesquisaFiltros({
           )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <button
-            onClick={handleSearchSubmit}
-            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            Atualizar pesquisa
-          </button>
-
+        <div className="flex items-center justify-end">
           <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
             <button
               onClick={() => handleSortSelect('relevance')}

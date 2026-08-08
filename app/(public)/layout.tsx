@@ -1,5 +1,6 @@
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { MobileBottomBar } from '@/components/mobile-bottom-bar'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function PublicLayout({
@@ -31,10 +32,11 @@ export default async function PublicLayout({
   return (
     <>
       <Header user={userProfile} notificationCount={notificationCount} />
-      <main className="min-h-screen bg-background text-foreground overflow-hidden flex flex-col">
+      <main className="min-h-screen bg-background text-foreground overflow-hidden flex flex-col pb-16 md:pb-0">
         {children}
       </main>
       <Footer />
+      <MobileBottomBar isLoggedIn={!!user} />
     </>
   )
 }

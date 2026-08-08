@@ -1,5 +1,5 @@
 // Database enums
-export type UserRole = 'user' | 'professional' | 'admin' | 'moderator'
+export type UserRole = 'user' | 'professional' | 'admin' | 'moderator' | 'gestor_espaco'
 export type ProfessionalStatus = 'pending' | 'active' | 'suspended' | 'rejected'
 export type SpaceStatus = 'pending' | 'active' | 'suspended' | 'rejected'
 export type OwnershipStatus = 'unclaimed' | 'pending' | 'claimed' | 'rejected'
@@ -249,23 +249,11 @@ export interface Notification {
   created_at: string
 }
 
-export interface Conversation {
-  id: string
-  participant_1_id: string
-  participant_2_id: string
-  last_message_at: string
-  created_at: string
-  // Relations
-  messages?: Message[]
-  other_participant?: UserProfile
-}
-
 export interface Message {
   id: string
-  conversation_id: string
   sender_id: string
+  receiver_id: string
   content: string
-  is_read: boolean
   read_at: string | null
   created_at: string
   // Relations
@@ -278,8 +266,10 @@ export interface Community {
   slug: string
   description: string | null
   category_id: string | null
+  sport_category: string | null
   image_url: string | null
   cover_url: string | null
+  cover_image_url: string | null
   is_private: boolean
   member_count: number
   created_by: string

@@ -128,14 +128,14 @@ export default async function CommunityProfilePage(props: {
             <div className="flex-1 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shrink-0">
-                    <Users className="text-[36px]" />
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-primary border-2 border-white flex items-center justify-center text-primary-foreground shadow-lg shrink-0 overflow-hidden">
+                    <Users className="text-[48px]" />
                   </div>
                   <div>
                     <h1 className="text-3xl md:text-4xl font-bold text-white drop-shadow-md">
                       {community.name}
                     </h1>
-                    <div className="flex items-center gap-4 text-white/90 text-sm mt-2">
+                    <div className="flex flex-wrap items-center gap-4 text-white/90 text-sm mt-2">
                       <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[11px] border border-white/10">
                         {community.sport_category || 'Desporto'}
                       </span>

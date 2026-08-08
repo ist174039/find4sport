@@ -45,10 +45,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid time range' }, { status: 400 })
     }
 
-    // Fetch service to get the price
+    // Fetch service to get the price and duration
     const { data: service } = await supabase
       .from('services')
-      .select('id, name, price, professional_id')
+      .select('id, name, price, professional_id, duration_minutes')
       .eq('id', serviceId)
       .eq('professional_id', professionalId)
       .single()
@@ -57,13 +57,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Service not found or has no price' }, { status: 400 })
     }
 
+    // Compute actual end time based on service duration (default to 60 mins if undefined)
+    const durationMins = service.duration_minutes || 60
+    const totalEndMinutes = startMinutes + durationMins
+    const endH = Math.floor(totalEndMinutes / 60).toString().padStart(2, '0')
+    const endM = (totalEndMinutes % 60).toString().padStart(2, '0')
+    const computedEndTime = `${endH}:${endM}`
+
     const { data: overlappingReservation } = await supabase
       .from('reservations')
       .select('id')
       .eq('professional_id', professionalId)
       .eq('date', date)
       .in('status', ['pending', 'paid', 'confirmed'])
-      .lt('start_time', endTime)
+      .lt('start_time', computedEndTime)
       .gt('end_time', startTime)
       .limit(1)
       .maybeSingle()
@@ -81,7 +88,7 @@ export async function POST(req: Request) {
         service_id: serviceId,
         date,
         start_time: startTime,
-        end_time: endTime,
+        end_time: computedEndTime,
         amount: service.price,
         status: 'pending',
         payment_status: 'pending'

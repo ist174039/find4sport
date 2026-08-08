@@ -75,7 +75,7 @@ export default async function SpaceProfilePage(props: {
             <div className="flex-1 w-full flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-primary-foreground shadow-lg shrink-0 overflow-hidden">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-white border-2 border-white flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
                     <img src={logoUrl} alt={space.name} className="w-full h-full object-cover" />
                   </div>
                   <div>
@@ -87,7 +87,7 @@ export default async function SpaceProfilePage(props: {
                         <BadgeCheck className="text-amber-500 text-[28px] drop-shadow-md" />
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-white/90 text-sm mt-2">
+                    <div className="flex flex-wrap items-center gap-4 text-white/90 text-sm mt-2">
                       <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[11px] border border-white/10">
                         Espaço Desportivo
                       </span>

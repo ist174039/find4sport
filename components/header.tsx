@@ -20,7 +20,9 @@ import {
   Activity,
   Rss,
   LayoutDashboard,
+  ChevronDown,
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -47,8 +49,11 @@ interface HeaderProps {
 const navigation = [
   { name: 'Feed', href: '/feed', icon: Rss },
   { name: 'Profissionais', href: '/profissionais', icon: Users },
-  { name: 'Espacos', href: '/espacos', icon: MapPin },
+  { name: 'Espaços', href: '/espacos', icon: MapPin },
   { name: 'Eventos', href: '/eventos', icon: Calendar },
+]
+
+const exploreNavigation = [
   { name: 'Comunidades', href: '/comunidades', icon: Users },
   { name: 'Modalidades', href: '/modalidades', icon: Activity },
 ]
@@ -91,10 +96,39 @@ export function Header({ user, notificationCount = 0 }: HeaderProps) {
               </Link>
             )
           })}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                exploreNavigation.some(item => pathname.startsWith(item.href))
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              )}
+            >
+              Explorar
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {exploreNavigation.map((item) => {
+                const Icon = item.icon
+                return (
+                  <DropdownMenuItem key={item.name} className="cursor-pointer">
+                    <Link href={item.href} className="flex w-full items-center">
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         {/* Search & Actions */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+          
           {/* Search Button */}
           <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
             <Link href="/pesquisa">

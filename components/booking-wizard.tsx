@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Loader2, Calendar as CalendarIcon, Clock, CreditCard, CheckCircle2 } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { pt } from 'date-fns/locale'
 import { loadStripe } from '@stripe/stripe-js'
 import type { Service, ProfessionalAvailability } from '@/lib/types'
 
@@ -154,15 +156,30 @@ export function BookingWizard({ open, onOpenChange, service, professionalId }: B
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="date">Data da Reserva</Label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="date"
-                  type="date"
-                  min={new Date().toISOString().split('T')[0]}
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="pl-9"
+              <div className="border rounded-md p-3 flex justify-center bg-background shadow-sm">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate ? new Date(selectedDate) : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const offset = date.getTimezoneOffset()
+                      const localDate = new Date(date.getTime() - (offset*60*1000))
+                      setSelectedDate(localDate.toISOString().split('T')[0])
+                    } else {
+                      setSelectedDate('')
+                    }
+                  }}
+                  disabled={(date) => {
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    if (date < today) return true
+                    
+                    const dayOfWeek = date.getDay()
+                    const avail = availability.find(a => a.day_of_week === dayOfWeek)
+                    return !avail
+                  }}
+                  locale={pt}
+                  className="p-0"
                 />
               </div>
             </div>

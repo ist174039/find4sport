@@ -47,18 +47,27 @@ export const viewport: Viewport = {
   ],
 }
 
+import { ThemeProvider } from '@/components/theme-provider'
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable} bg-background`}>
-      <body className="font-sans antialiased">
-        <ModalProvider>
-          {children}
-          {process.env.NODE_ENV === 'production' && <Analytics />}
-        </ModalProvider>
+    <html lang="pt" className={`${inter.variable} ${spaceGrotesk.variable} bg-background`} suppressHydrationWarning>
+      <body className="font-sans antialiased text-foreground">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ModalProvider>
+            {children}
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+          </ModalProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
