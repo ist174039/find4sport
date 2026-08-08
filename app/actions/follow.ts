@@ -13,6 +13,16 @@ export async function toggleFollowAction(targetUserId: string, pathToRevalidate?
       throw new Error('Não podes seguir a ti próprio.')
     }
 
+    // Verify if target is a professional or space owner. Regular users cannot be followed.
+    const [profRes, spaceRes] = await Promise.all([
+      supabase.from('professionals').select('id').eq('user_id', targetUserId).maybeSingle(),
+      supabase.from('sport_spaces').select('id').eq('owner_user_id', targetUserId).maybeSingle()
+    ])
+
+    if (!profRes.data && !spaceRes.data) {
+      throw new Error('Não é possível seguir utilizadores comuns.')
+    }
+
     // Check if already follows
     const { data: existingFollow } = await supabase
       .from('user_follows')
