@@ -52,7 +52,7 @@ export default function AdminPagesList() {
       if (error.code === '23505') showAlert('Erro', 'Já existe uma página com esse slug.', 'error')
       else showAlert('Erro', 'Erro ao criar página.', 'error')
     } else {
-      router.push(`/dashboard/admin/paginas/${data.slug}`)
+      router.push(`/admin/paginas/${data.slug}`)
     }
   }
 
@@ -99,7 +99,7 @@ export default function AdminPagesList() {
                 </div>
                 
                 <div className="flex gap-2 w-full sm:w-auto">
-                  <Button variant="secondary" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push(`/dashboard/admin/paginas/${page.slug}`)}>
+                  <Button variant="secondary" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push(`/admin/paginas/${page.slug}`)}>
                     <Edit3 className="w-4 h-4 mr-2" /> Editar
                   </Button>
                   <Button variant="outline" size="sm" asChild className="flex-1 sm:flex-none">

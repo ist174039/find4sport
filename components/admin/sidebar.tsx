@@ -84,7 +84,7 @@ const navigationItems = [
   },
   {
     title: 'Páginas (CMS)',
-    href: '/dashboard/admin/paginas',
+    href: '/admin/paginas',
     icon: FileEdit,
   },
   {

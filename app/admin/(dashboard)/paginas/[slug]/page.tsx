@@ -67,7 +67,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
     } else {
       // Not found, should probably create or return
       showAlert('Aviso', 'A página não existe. Regresse à listagem.', 'error')
-      router.push('/dashboard/admin/paginas')
+      router.push('/admin/paginas')
     }
     setLoading(false)
   }
@@ -114,7 +114,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
     <div className="space-y-6 max-w-4xl mx-auto pb-24">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/admin/paginas')}>
+          <Button variant="ghost" size="icon" onClick={() => router.push('/admin/paginas')}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
