@@ -118,11 +118,19 @@ export default function DashboardEventosPage() {
           </p>
         </div>
         {isProfessionalOrSpace && (
-          <Button asChild className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
-            <Link href="/dashboard/eventos/criar">
-              <Plus className="mr-2 h-4 w-4" /> Criar Evento
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="rounded-lg">
+              <Link href="/dashboard/agenda">Gerir Agenda</Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-lg">
+              <Link href="/dashboard/reservas">Gerir Reservas</Link>
+            </Button>
+            <Button asChild className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+              <Link href="/dashboard/eventos/criar">
+                <Plus className="mr-2 h-4 w-4" /> Criar Evento
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -186,8 +194,10 @@ export default function DashboardEventosPage() {
                           Ver Detalhes <ExternalLink className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-muted text-xs">
-                        <Edit className="mr-1.5 h-3.5 w-3.5" /> Editar
+                      <Button asChild variant="outline" size="sm" className="rounded-lg border-border hover:bg-muted text-xs">
+                        <Link href={`/dashboard/eventos/${event.id}/editar`}>
+                          <Edit className="mr-1.5 h-3.5 w-3.5" /> Editar
+                        </Link>
                       </Button>
                     </div>
                   </div>

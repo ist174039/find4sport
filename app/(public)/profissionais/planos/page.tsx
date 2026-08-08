@@ -4,11 +4,27 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { Check, X } from 'lucide-react'
-const plans = [
+import { Check, Sparkles, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+
+type BillingCycle = 'monthly' | 'annual'
+
+type Plan = {
+  name: string
+  monthlyPrice: number | null
+  description: string
+  features: string[]
+  notIncluded: string[]
+  cta: string
+  href: string
+  basePopular?: boolean
+}
+
+const plans: Plan[] = [
   {
     name: 'Grátis',
-    price: '0',
+    monthlyPrice: 0,
     description: 'Perfeito para começar',
     features: [
       'Perfil profissional básico',
@@ -25,12 +41,10 @@ const plans = [
     ],
     cta: 'Começar Grátis',
     href: '/profissionais/registar',
-    popular: false,
   },
   {
     name: 'Pro',
-    price: '9,99',
-    period: '/mês',
+    monthlyPrice: 9.99,
     description: 'Para profissionais a sério',
     features: [
       'Perfil profissional completo',
@@ -48,12 +62,11 @@ const plans = [
     ],
     cta: 'Assinar Pro',
     href: '/profissionais/registar',
-    popular: true,
+    basePopular: true,
   },
   {
     name: 'Premium',
-    price: '19,99',
-    period: '/mês',
+    monthlyPrice: 19.99,
     description: 'Para profissionais de topo',
     features: [
       'Tudo do plano Pro',
@@ -71,36 +84,110 @@ const plans = [
   },
 ]
 
+const annualDiscount = 0.2
+
+function toEuro(value: number) {
+  return new Intl.NumberFormat('pt-PT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  }).format(value)
+}
+
+function getAudienceRecommendedPlan(audience: string | null): string {
+  if (!audience) return 'Pro'
+  if (audience === 'iniciante') return 'Grátis'
+  if (audience === 'escala') return 'Premium'
+  return 'Pro'
+}
+
 export default function PlanosPage() {
+  const params = useSearchParams()
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(params.get('billing') === 'annual' ? 'annual' : 'monthly')
+  const recommendedPlanName = getAudienceRecommendedPlan(params.get('audience'))
+
+  const enhancedPlans = useMemo(() => {
+    return plans.map((plan) => {
+      const monthlyPrice = plan.monthlyPrice ?? 0
+      const annualMonthlyEquivalent = monthlyPrice * (1 - annualDiscount)
+      const displayMonthly = billingCycle === 'annual' ? annualMonthlyEquivalent : monthlyPrice
+      const annualTotal = annualMonthlyEquivalent * 12
+      const monthlyTotal = monthlyPrice * 12
+      const yearlySaving = monthlyTotal - annualTotal
+
+      return {
+        ...plan,
+        displayMonthly,
+        annualTotal,
+        yearlySaving,
+        isRecommended: plan.name === recommendedPlanName,
+      }
+    })
+  }, [billingCycle, recommendedPlanName])
+
   return (
-    <>
-<div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-foreground">Planos e Preços</h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Escolha o plano ideal para o seu negócio. Sem surpresas, cancele quando quiser.
+          Escolha o plano ideal para o seu negócio. Transparente, escalável e sem fidelização.
         </p>
+
+        <div className="mx-auto mt-8 inline-flex items-center rounded-xl border border-border bg-muted/30 p-1">
+          <button
+            type="button"
+            onClick={() => setBillingCycle('monthly')}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === 'monthly' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >
+            Mensal
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingCycle('annual')}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === 'annual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+          >
+            Anual
+            <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700">-20%</span>
+          </button>
+        </div>
       </div>
 
       <div className="mt-12 grid gap-8 md:grid-cols-3">
-        {plans.map((plan) => (
+        {enhancedPlans.map((plan) => (
           <Card
             key={plan.name}
             className={`relative flex flex-col transition-shadow hover:shadow-lg ${
-              plan.popular ? 'border-primary shadow-md' : ''
+              plan.basePopular || plan.isRecommended ? 'border-primary shadow-md' : ''
             }`}
           >
-            {plan.popular && (
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white">
-                Mais Popular
-              </Badge>
-            )}
+            <div className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-2">
+              {plan.basePopular && (
+                <Badge className="bg-primary text-white">Mais Popular</Badge>
+              )}
+              {plan.isRecommended && (
+                <Badge className="bg-amber-500 text-white">
+                  <Sparkles className="mr-1 h-3.5 w-3.5" /> Recomendado
+                </Badge>
+              )}
+            </div>
             <CardHeader className="text-center">
               <CardTitle className="text-xl">{plan.name}</CardTitle>
               <CardDescription>{plan.description}</CardDescription>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-foreground">{plan.price}€</span>
-                {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                <span className="text-4xl font-bold text-foreground">
+                  {toEuro(plan.displayMonthly)}
+                </span>
+                {plan.monthlyPrice !== null && <span className="text-sm text-muted-foreground">/mês</span>}
+                {billingCycle === 'annual' && plan.monthlyPrice !== null && plan.monthlyPrice > 0 && (
+                  <p className="mt-1 text-xs text-emerald-700">
+                    Cobrado anualmente: {toEuro(plan.annualTotal)}
+                  </p>
+                )}
+                {billingCycle === 'annual' && plan.yearlySaving > 0 && (
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">
+                    Poupa {toEuro(plan.yearlySaving)} por ano
+                  </p>
+                )}
               </div>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col">
@@ -121,11 +208,13 @@ export default function PlanosPage() {
               <Button
                 asChild
                 className={`mt-6 w-full ${
-                  plan.popular ? 'bg-teal-600 hover:bg-teal-700' : ''
+                  plan.basePopular ? 'bg-teal-600 hover:bg-teal-700' : ''
                 }`}
-                variant={plan.popular ? 'default' : 'outline'}
+                variant={plan.basePopular ? 'default' : 'outline'}
               >
-                <Link href={plan.href}>{plan.cta}</Link>
+                <Link href={`${plan.href}?plan=${plan.name.toLowerCase()}&billing=${billingCycle}`}>
+                  {plan.cta}
+                </Link>
               </Button>
             </CardContent>
           </Card>
@@ -135,13 +224,12 @@ export default function PlanosPage() {
       <div className="mt-12 rounded-xl bg-muted/30 p-8 text-center">
         <h2 className="text-xl font-bold text-foreground">Precisa de algo diferente?</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Oferecemos planos personalizados para espaços desportivos e organizações.
+          Oferecemos planos personalizados para espaços desportivos e organizações com múltiplas equipas.
         </p>
         <Button variant="outline" asChild className="mt-4">
           <Link href="/contacto">Fale Connosco</Link>
         </Button>
       </div>
-      </div>
-</>
+    </div>
   )
 }

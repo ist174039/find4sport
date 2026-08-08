@@ -294,6 +294,26 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {isProfessional && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Link href="/dashboard/reservas" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Operação</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Gerir Reservas</p>
+            <p className="mt-1 text-xs text-muted-foreground">Confirmação e estado dos serviços.</p>
+          </Link>
+          <Link href="/dashboard/agenda" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Disponibilidade</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Agenda e Horas</p>
+            <p className="mt-1 text-xs text-muted-foreground">Controla horários e confirma horas de serviço.</p>
+          </Link>
+          <Link href="/dashboard/eventos" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eventos</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Gestão de Eventos</p>
+            <p className="mt-1 text-xs text-muted-foreground">Publicar, editar e acompanhar atividade.</p>
+          </Link>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Banner Section */}

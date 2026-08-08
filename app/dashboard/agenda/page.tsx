@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Map, Calendar as CalendarIcon, User } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Calendar as CalendarIcon, User, CheckCircle2, XCircle, Check, Filter } from 'lucide-react'
 import Link from 'next/link'
 import { 
   format, addMonths, subMonths, startOfMonth, endOfMonth, 
@@ -28,14 +28,25 @@ type CalendarItem = {
   ref_id: string
 }
 
+type AvailabilitySlot = {
+  day_of_week: number
+  start_time: string
+  end_time: string
+  is_active: boolean
+}
+
 export default function DashboardAgendaPage() {
   const router = useRouter()
   const [items, setItems] = useState<CalendarItem[]>([])
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([])
   const [loading, setLoading] = useState(true)
+  const [actionKey, setActionKey] = useState<string | null>(null)
   
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [itemFilter, setItemFilter] = useState<'all' | 'event' | 'reservation'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'published' | 'cancelled' | 'completed'>('all')
 
   useEffect(() => {
     async function load() {
@@ -54,6 +65,14 @@ export default function DashboardAgendaPage() {
       // First, get professional and spaces owned by user
       const { data: prof } = await supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
       const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
+
+      if (prof?.id) {
+        const { data: availData } = await supabase
+          .from('professional_availability')
+          .select('day_of_week, start_time, end_time, is_active')
+          .eq('professional_id', prof.id)
+        setAvailability((availData || []) as AvailabilitySlot[])
+      }
       
       let resQuery = supabase.from('reservations').select('*, user:platform_users(full_name)')
       
@@ -112,6 +131,38 @@ export default function DashboardAgendaPage() {
     }
     load()
   }, [router])
+
+  const applyItemStatus = (itemId: string, status: string) => {
+    setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, status } : it)))
+  }
+
+  const updateReservationStatus = async (item: CalendarItem, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
+    const supabase = createClient()
+    setActionKey(`${item.id}-${newStatus}`)
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status: newStatus })
+        .eq('id', item.ref_id)
+      if (!error) applyItemStatus(item.id, newStatus)
+    } finally {
+      setActionKey(null)
+    }
+  }
+
+  const updateEventStatus = async (item: CalendarItem, newStatus: 'published' | 'cancelled' | 'completed') => {
+    const supabase = createClient()
+    setActionKey(`${item.id}-${newStatus}`)
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({ status: newStatus })
+        .eq('id', item.ref_id)
+      if (!error) applyItemStatus(item.id, newStatus)
+    } finally {
+      setActionKey(null)
+    }
+  }
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
@@ -173,7 +224,7 @@ export default function DashboardAgendaPage() {
         const cloneDay = day
         
         // Get items for this day
-        const dayItems = items.filter(item => isSameDay(item.start_date, cloneDay))
+        const dayItems = filteredItems.filter(item => isSameDay(item.start_date, cloneDay))
         
         // Max 3 items visible, then +X more
         const visibleItems = dayItems.slice(0, 3)
@@ -231,8 +282,30 @@ export default function DashboardAgendaPage() {
     return <div>{rows}</div>
   }
 
+  const filteredItems = items
+    .filter((item) => (itemFilter === 'all' ? true : item.type === itemFilter))
+    .filter((item) => (statusFilter === 'all' ? true : item.status === statusFilter))
+
+  const reservationSummary = {
+    pending: items.filter((i) => i.type === 'reservation' && i.status === 'pending').length,
+    confirmed: items.filter((i) => i.type === 'reservation' && i.status === 'confirmed').length,
+  }
+
+  const eventSummary = {
+    draft: items.filter((i) => i.type === 'event' && (i.status === 'draft' || i.status === 'pending')).length,
+    published: items.filter((i) => i.type === 'event' && i.status === 'published').length,
+  }
+
   // Items for the selected day modal
-  const selectedDayItems = selectedDate ? items.filter(item => isSameDay(item.start_date, selectedDate)).sort((a,b) => a.start_date.getTime() - b.start_date.getTime()) : []
+  const selectedDayItems = selectedDate
+    ? filteredItems
+        .filter(item => isSameDay(item.start_date, selectedDate))
+        .sort((a,b) => a.start_date.getTime() - b.start_date.getTime())
+    : []
+
+  const selectedDayAvailability = selectedDate
+    ? availability.find((a) => a.day_of_week === selectedDate.getDay() && a.is_active)
+    : null
 
   if (loading) {
     return (
@@ -264,6 +337,32 @@ export default function DashboardAgendaPage() {
         </div>
       </div>
 
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-border"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reservas Pendentes</p><p className="text-2xl font-bold text-foreground">{reservationSummary.pending}</p></CardContent></Card>
+        <Card className="border-border"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Reservas Confirmadas</p><p className="text-2xl font-bold text-foreground">{reservationSummary.confirmed}</p></CardContent></Card>
+        <Card className="border-border"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Eventos por Publicar</p><p className="text-2xl font-bold text-foreground">{eventSummary.draft}</p></CardContent></Card>
+        <Card className="border-border"><CardContent className="p-4"><p className="text-xs text-muted-foreground">Eventos Publicados</p><p className="text-2xl font-bold text-foreground">{eventSummary.published}</p></CardContent></Card>
+      </div>
+
+      <Card className="mb-6 border-border">
+        <CardContent className="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Filter className="h-4 w-4 text-primary" /> Filtros da agenda
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={itemFilter === 'all' ? 'default' : 'outline'} onClick={() => setItemFilter('all')}>Tudo</Button>
+            <Button size="sm" variant={itemFilter === 'reservation' ? 'default' : 'outline'} onClick={() => setItemFilter('reservation')}>Reservas</Button>
+            <Button size="sm" variant={itemFilter === 'event' ? 'default' : 'outline'} onClick={() => setItemFilter('event')}>Eventos</Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+            <Button size="sm" variant={statusFilter === 'pending' ? 'default' : 'outline'} onClick={() => setStatusFilter('pending')}>Pendentes</Button>
+            <Button size="sm" variant={statusFilter === 'confirmed' ? 'default' : 'outline'} onClick={() => setStatusFilter('confirmed')}>Confirmados</Button>
+            <Button size="sm" variant={statusFilter === 'published' ? 'default' : 'outline'} onClick={() => setStatusFilter('published')}>Publicados</Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="shadow-sm border-border overflow-hidden">
         <CardContent className="p-4 sm:p-6">
           {renderHeader()}
@@ -284,6 +383,12 @@ export default function DashboardAgendaPage() {
               Atividades agendadas para este dia.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            {selectedDayAvailability
+              ? `Disponibilidade ativa: ${selectedDayAvailability.start_time.substring(0,5)} - ${selectedDayAvailability.end_time.substring(0,5)}`
+              : 'Dia sem disponibilidade definida para serviço.'}
+          </div>
           
           <div className="max-h-[60vh] overflow-y-auto space-y-3 py-4">
             {selectedDayItems.length === 0 ? (
@@ -328,11 +433,77 @@ export default function DashboardAgendaPage() {
                   </div>
                   
                   <div className="mt-4 pt-3 border-t border-border/50 flex justify-end">
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={item.type === 'event' ? `/dashboard/eventos/${item.ref_id}/editar` : `/dashboard/reservas`}>
-                        Detalhes
-                      </Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      {item.type === 'reservation' && (item.status === 'pending' || item.status === 'paid') && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          disabled={actionKey === `${item.id}-confirmed`}
+                          onClick={() => updateReservationStatus(item, 'confirmed')}
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" /> Confirmar hora
+                        </Button>
+                      )}
+                      {item.type === 'reservation' && item.status === 'confirmed' && (
+                        <Button
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90"
+                          disabled={actionKey === `${item.id}-completed`}
+                          onClick={() => updateReservationStatus(item, 'completed')}
+                        >
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Concluir serviço
+                        </Button>
+                      )}
+                      {item.type === 'reservation' && item.status !== 'cancelled' && item.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive"
+                          disabled={actionKey === `${item.id}-cancelled`}
+                          onClick={() => updateReservationStatus(item, 'cancelled')}
+                        >
+                          <XCircle className="mr-1 h-3.5 w-3.5" /> Cancelar
+                        </Button>
+                      )}
+
+                      {item.type === 'event' && (item.status === 'draft' || item.status === 'pending') && (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                          disabled={actionKey === `${item.id}-published`}
+                          onClick={() => updateEventStatus(item, 'published')}
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" /> Publicar
+                        </Button>
+                      )}
+                      {item.type === 'event' && item.status === 'published' && (
+                        <Button
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90"
+                          disabled={actionKey === `${item.id}-completed`}
+                          onClick={() => updateEventStatus(item, 'completed')}
+                        >
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Marcar concluído
+                        </Button>
+                      )}
+                      {item.type === 'event' && item.status !== 'cancelled' && item.status !== 'completed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive"
+                          disabled={actionKey === `${item.id}-cancelled`}
+                          onClick={() => updateEventStatus(item, 'cancelled')}
+                        >
+                          <XCircle className="mr-1 h-3.5 w-3.5" /> Cancelar
+                        </Button>
+                      )}
+
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={item.type === 'event' ? `/dashboard/eventos/${item.ref_id}/editar` : `/dashboard/reservas`}>
+                          Detalhes
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
