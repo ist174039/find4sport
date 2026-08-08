@@ -328,6 +328,11 @@ export default function DashboardAgendaPage() {
              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-primary/20 border border-primary/30 inline-block"></span> Eventos</div>
              <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/30 inline-block"></span> Reservas</div>
           </div>
+          <Button variant="outline" asChild>
+            <Link href="/dashboard/agenda/disponibilidade">
+              Gerir Disponibilidade
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/dashboard/eventos/criar">
               <Plus className="mr-2 h-4 w-4" />

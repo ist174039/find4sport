@@ -317,6 +317,12 @@ export default function ServicesPage() {
                 </div>
               </div>
 
+              {Number(formData.price) > 0 && (
+                <div className="bg-primary/5 text-primary border border-primary/20 p-3 rounded-md text-sm mt-2">
+                  <strong>Taxas Aplicáveis:</strong> Será retida uma taxa de serviço FIND4SPORT (3.5%) e as taxas do Stripe (aprox. 1.5% + 0.25€) por cada reserva deste serviço.
+                </div>
+              )}
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar

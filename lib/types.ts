@@ -96,9 +96,10 @@ export interface ProfessionalAvailability {
 export interface Reservation {
   id: string
   user_id: string
-  professional_id: string
-  service_id: string
+  professional_id: string | null
+  service_id: string | null
   space_id: string | null
+  space_room_id: string | null
   date: string
   start_time: string
   end_time: string
@@ -258,6 +259,43 @@ export interface Message {
   created_at: string
   // Relations
   sender?: UserProfile
+}
+
+export interface SpaceRoom {
+  id: string
+  space_id: string
+  name: string
+  capacity: number
+  price_per_hour: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SpaceRoomAvailability {
+  id: string
+  room_id: string
+  day_of_week: number
+  start_time: string
+  end_time: string
+  is_active: boolean
+  created_at: string
+}
+
+export type EventRegistrationStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled'
+
+export interface EventRegistration {
+  id: string
+  event_id: string
+  user_id: string
+  status: EventRegistrationStatus
+  stripe_session_id: string | null
+  payment_status: string
+  created_at: string
+  updated_at: string
+  // Relations
+  user?: UserProfile
+  event?: Event
 }
 
 export interface Community {

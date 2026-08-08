@@ -46,6 +46,7 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
       { name: 'Agenda & Eventos', href: `${basePath}/agenda`, icon: Calendar },
       { name: 'Reservas', href: `${basePath}/reservas`, icon: CalendarCheck },
       { name: 'O Meu Espaço', href: `${basePath}/espaco`, icon: Building2 },
+      { name: 'Salas / Campos', href: `${basePath}/espacos/salas`, icon: LayoutDashboard },
       { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
       { name: 'Clientes', href: `${basePath}/clientes`, icon: Users },
       { name: 'Seguidores', href: `${basePath}/seguidores`, icon: UserRound },

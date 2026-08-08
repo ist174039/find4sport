@@ -1,27 +1,53 @@
 'use client'
 
+import { useState } from 'react'
 import { Calendar, Navigation } from 'lucide-react'
 import { InitiateConversationButton } from '@/components/initiate-conversation-btn'
+import { BookingWizard } from '@/components/booking-wizard'
 
 export function ReserveSpaceBtn({ 
   spaceName, 
-  ownerUserId 
+  ownerUserId,
+  spaceId
 }: { 
   spaceName: string
   ownerUserId: string | null 
+  spaceId?: string
 }) {
+  const [open, setOpen] = useState(false)
+
+  if (!spaceId) {
+    return (
+      <InitiateConversationButton
+        targetUserId={ownerUserId}
+        targetName={spaceName}
+        icon={Calendar}
+        label="Reservar Espaço"
+        emptyTargetMessage="Este espaço ainda não tem um contacto ativo para mensagens."
+        selfTargetMessage="Você é o proprietário deste espaço desportivo."
+        initialMessageBuilder={(name) => `Olá! Gostaria de fazer uma reserva no espaço desportivo "${name}". Podemos combinar os horários por aqui?`}
+        errorMessage="Erro ao iniciar conversa para reserva."
+        successMessage="Mensagem de pedido de reserva enviada! A redirecionar para a caixa de mensagens..."
+      />
+    )
+  }
+
   return (
-    <InitiateConversationButton
-      targetUserId={ownerUserId}
-      targetName={spaceName}
-      icon={Calendar}
-      label="Reservar Espaço"
-      emptyTargetMessage="Este espaço ainda não tem um contacto ativo para mensagens."
-      selfTargetMessage="Você é o proprietário deste espaço desportivo."
-      initialMessageBuilder={(name) => `Olá! Gostaria de fazer uma reserva no espaço desportivo "${name}". Podemos combinar os horários por aqui?`}
-      errorMessage="Erro ao iniciar conversa para reserva."
-      successMessage="Mensagem de pedido de reserva enviada! A redirecionar para a caixa de mensagens..."
-    />
+    <>
+      <button 
+        onClick={() => setOpen(true)}
+        className="w-full md:w-auto h-10 px-4 py-2 bg-primary text-primary-foreground font-bold rounded-xl text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <Calendar className="text-[18px]" />
+        Reservar Espaço
+      </button>
+
+      <BookingWizard
+        open={open}
+        onOpenChange={setOpen}
+        spaceId={spaceId}
+      />
+    </>
   )
 }
 

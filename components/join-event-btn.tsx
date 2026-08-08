@@ -6,7 +6,11 @@ import { useRouter } from 'next/navigation'
 import { joinEventAction } from '@/app/actions/events'
 import { useModal } from '@/components/providers/modal-provider'
 
-export function JoinEventBtn({ eventId }: { eventId: string }) {
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+
+export function JoinEventBtn({ eventId, eventPrice = 0 }: { eventId: string, eventPrice?: number }) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { showAlert } = useModal()
@@ -14,9 +18,34 @@ export function JoinEventBtn({ eventId }: { eventId: string }) {
   const handleJoin = async () => {
     setLoading(true)
     try {
-      await joinEventAction(eventId)
-      showAlert('Sucesso', 'Foste adicionado ao evento com sucesso!', 'success')
-      router.push('/dashboard/eventos')
+      if (eventPrice > 0) {
+        // Stripe checkout
+        const response = await fetch('/api/checkout_sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: eventId,
+            price: eventPrice,
+          }),
+        })
+
+        if (!response.ok) {
+          const errData = await response.json()
+          throw new Error(errData.error || 'Erro ao processar pagamento')
+        }
+
+        const { sessionId } = await response.json()
+        const stripe = await stripePromise
+        if (!stripe) throw new Error('Stripe failed to load')
+
+        const { error } = await (stripe as any).redirectToCheckout({ sessionId })
+        if (error) throw error
+      } else {
+        // Free event -> Add to calendar
+        await joinEventAction(eventId)
+        showAlert('Sucesso', 'Foste adicionado ao evento com sucesso!', 'success')
+        router.push('/dashboard/eventos')
+      }
     } catch (error: any) {
       const msg = error.message
       if (msg === 'user_not_authenticated') {
@@ -39,7 +68,7 @@ export function JoinEventBtn({ eventId }: { eventId: string }) {
       className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-bold text-base shadow-md hover:shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
     >
       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Calendar className="h-5 w-5" />}
-      {loading ? 'A processar...' : 'Adicionar ao Calendário'}
+      {loading ? 'A processar...' : eventPrice > 0 ? `Inscrever (${Number(eventPrice).toFixed(2)}€)` : 'Adicionar ao Calendário'}
     </button>
   )
 }

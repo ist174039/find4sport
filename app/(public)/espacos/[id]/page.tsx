@@ -34,27 +34,38 @@ export default async function SpaceProfilePage(props: {
   // Increment views in the background
   supabase.rpc('increment_space_views', { space_id: space.id }).then()
 
+  // Determine the target ID for following (owner or creator)
+  const targetUserId = space.owner_user_id || space.created_by
+
   // Fetch Follow stats
-  const { count: followersCount } = await supabase
-    .from('user_follows')
-    .select('*', { count: 'exact', head: true })
-    .eq('following_id', space.owner_user_id)
-
-  const { count: followingCount } = await supabase
-    .from('user_follows')
-    .select('*', { count: 'exact', head: true })
-    .eq('follower_id', space.owner_user_id)
-
+  let followersCount = 0
+  let followingCount = 0
   let isFollowing = false
+
   const { data: { user } } = await supabase.auth.getUser()
-  if (user && user.id !== space.owner_user_id) {
-    const { data: followRel } = await supabase
+
+  if (targetUserId) {
+    const { count: fCount } = await supabase
       .from('user_follows')
-      .select('id')
-      .eq('follower_id', user.id)
-      .eq('following_id', space.owner_user_id)
-      .maybeSingle()
-    if (followRel) isFollowing = true
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', targetUserId)
+    followersCount = fCount || 0
+
+    const { count: fwCount } = await supabase
+      .from('user_follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', targetUserId)
+    followingCount = fwCount || 0
+
+    if (user && user.id !== targetUserId) {
+      const { data: followRel } = await supabase
+        .from('user_follows')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('following_id', targetUserId)
+        .maybeSingle()
+      if (followRel) isFollowing = true
+    }
   }
 
   // Fallback values
@@ -106,28 +117,31 @@ export default async function SpaceProfilePage(props: {
                         </span>
                       )}
                       <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
-                      <FollowStats
-                        targetUserId={space.owner_user_id}
-                        followersCount={followersCount || 0}
-                        followingCount={followingCount || 0}
-                        variant="dark"
-                      />
+                      {targetUserId && (
+                        <FollowStats
+                          targetUserId={targetUserId}
+                          followersCount={followersCount}
+                          followingCount={followingCount}
+                          variant="dark"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-3 pb-1 w-full md:w-auto mt-4 md:mt-0">
-                {user && user.id !== space.owner_user_id && space.owner_user_id && (
+                {user && targetUserId && user.id !== targetUserId && (
                   <FollowButton 
-                    targetUserId={space.owner_user_id} 
+                    targetUserId={targetUserId} 
                     initialIsFollowing={isFollowing} 
                     className="h-10 min-w-[110px] rounded-xl px-4 text-sm"
                   />
                 )}
                 <ReserveSpaceBtn 
                   spaceName={space.name} 
-                  ownerUserId={space.owner_user_id || space.created_by} 
+                  ownerUserId={targetUserId} 
+                  spaceId={space.id}
                 />
                 <ObterDirecoesBtn 
                   address={space.address}

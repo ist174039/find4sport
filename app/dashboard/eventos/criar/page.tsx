@@ -225,6 +225,12 @@ export default function CriarEventoProfissionalPage() {
               </div>
             </div>
 
+            {(Number(formData.price_min) > 0 || Number(formData.price_max) > 0) && (
+              <div className="bg-primary/5 text-primary border border-primary/20 p-3 rounded-md text-sm mt-2">
+                <strong>Taxas Aplicáveis:</strong> Será retida uma taxa de serviço FIND4SPORT (3.5%) e as taxas do Stripe (aprox. 1.5% + 0.25€) para cada bilhete ou inscrição paga.
+              </div>
+            )}
+
             <div className="space-y-4 pt-4 border-t">
               <h3 className="text-sm font-semibold">Imagens do Evento</h3>
               

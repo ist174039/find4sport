@@ -225,7 +225,7 @@ export default async function EventProfilePage(props: {
                 </div>
               </div>
 
-              <JoinEventBtn eventId={event.id} />
+              <JoinEventBtn eventId={event.id} eventPrice={event.price_min || 0} />
               
               <p className="text-center text-[11px] text-muted-foreground mt-3 flex items-center justify-center gap-1">
                 <Lock className="text-[14px]" />
