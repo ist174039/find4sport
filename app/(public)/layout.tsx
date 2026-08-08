@@ -36,7 +36,7 @@ export default async function PublicLayout({
         {children}
       </main>
       <Footer />
-      <MobileBottomBar isLoggedIn={!!user} />
+      <MobileBottomBar userProfile={userProfile} />
     </>
   )
 }

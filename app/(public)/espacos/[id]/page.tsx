@@ -6,6 +6,7 @@ import { ReviewsSection } from '@/components/reviews-section'
 import { FollowButton } from '@/components/follow-button'
 import { FollowStats } from '@/components/follow-stats'
 import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
+import { LayoutGrid, List, Info as InfoIcon, MapPin as MapPinIcon, Star as StarIcon, User } from 'lucide-react'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -64,7 +65,7 @@ export default async function SpaceProfilePage(props: {
   return (
     <main className="flex flex-col min-h-screen bg-background">
       {/* Immersive Cover Section (Full Width Top) */}
-      <section className="relative w-full h-[250px] md:h-[350px] bg-muted">
+      <section className="relative w-full h-[200px] md:h-[350px] bg-muted">
         <img src={coverUrl} alt="Capa do espaço" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
         
@@ -141,17 +142,19 @@ export default async function SpaceProfilePage(props: {
       </section>
 
       {/* Mobile Tabs Layout */}
-      <section className="px-4 py-6 sm:px-6 lg:hidden">
+      <section className="lg:hidden">
         <MobileSectionsTabs
+          className="mt-2"
           tabs={[
-            { id: 'sobre', label: 'Sobre' },
-            { id: 'infra', label: 'Infraestruturas' },
-            { id: 'galeria', label: 'Galeria' },
-            { id: 'info', label: 'Info' },
-            { id: 'avaliacoes', label: 'Avaliações' },
+            { id: 'sobre', label: 'Sobre', icon: <Building2 className="w-[22px] h-[22px]" /> },
+            { id: 'infra', label: 'Infra', icon: <List className="w-[22px] h-[22px]" /> },
+            { id: 'galeria', label: 'Galeria', icon: <LayoutGrid className="w-[22px] h-[22px]" /> },
+            { id: 'info', label: 'Info', icon: <MapPinIcon className="w-[22px] h-[22px]" /> },
+            { id: 'avaliacoes', label: 'Avaliações', icon: <StarIcon className="w-[22px] h-[22px]" /> },
           ]}
         >
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="space-y-4 px-4 py-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-foreground">O Espaço</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{description}</p>
           </section>
@@ -185,9 +188,10 @@ export default async function SpaceProfilePage(props: {
             ) : (
               <p className="text-sm text-muted-foreground">Sem imagens disponíveis.</p>
             )}
-          </section>
+            </section>
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="h-32 bg-accent relative">
                 <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600&auto=format&fit=crop" className="h-full w-full object-cover opacity-60 mix-blend-luminosity" alt="Map" />
@@ -208,7 +212,7 @@ export default async function SpaceProfilePage(props: {
             </section>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm mx-4 my-4">
             <ReviewsSection targetType="space" targetId={space.id} />
           </div>
         </MobileSectionsTabs>

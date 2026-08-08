@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { JoinEventBtn } from '@/components/join-event-btn'
 import { ReviewsSection } from '@/components/reviews-section'
 import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
+import { Info as InfoIcon, Ticket as TicketIcon, User as UserIcon, Star as StarIcon } from 'lucide-react'
 
 export default async function EventProfilePage(props: {
   params: Promise<{ id: string }>
@@ -54,7 +55,7 @@ export default async function EventProfilePage(props: {
   return (
     <main className="flex flex-col min-h-screen bg-background">
       {/* Immersive Cover Section */}
-      <section className="relative w-full h-[250px] md:h-[350px] bg-muted">
+      <section className="relative w-full h-[200px] md:h-[350px] bg-muted">
         <img src={imageUrl} alt="Capa do evento" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
         
@@ -115,16 +116,18 @@ export default async function EventProfilePage(props: {
       </section>
 
       {/* Mobile Tabs Layout */}
-      <section className="px-4 py-6 sm:px-6 lg:hidden">
+      <section className="lg:hidden">
         <MobileSectionsTabs
+          className="mt-2"
           tabs={[
-            { id: 'sobre', label: 'Sobre' },
-            { id: 'bilhete', label: 'Bilhete' },
-            { id: 'organizador', label: 'Organizador' },
-            { id: 'avaliacoes', label: 'Avaliações' },
+            { id: 'sobre', label: 'Sobre', icon: <InfoIcon className="w-[22px] h-[22px]" /> },
+            { id: 'bilhete', label: 'Bilhete', icon: <TicketIcon className="w-[22px] h-[22px]" /> },
+            { id: 'organizador', label: 'Org', icon: <UserIcon className="w-[22px] h-[22px]" /> },
+            { id: 'avaliacoes', label: 'Avaliações', icon: <StarIcon className="w-[22px] h-[22px]" /> },
           ]}
         >
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="space-y-4 px-4 py-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-foreground">Sobre o Evento</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{description}</p>
           </section>
@@ -161,9 +164,10 @@ export default async function EventProfilePage(props: {
                 </div>
               </div>
             )}
-          </section>
+            </section>
+          </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm mx-4 my-4">
             <ReviewsSection targetType="event" targetId={event.id} />
           </div>
         </MobileSectionsTabs>

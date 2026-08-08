@@ -8,6 +8,7 @@ import { CreateCommunityPostBox } from '@/components/create-community-post-box'
 import { CommunityMembersList } from '@/components/community-members-list'
 import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
 import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
+import { Info as InfoIcon, Rss, Users as UsersIcon, ShieldAlert } from 'lucide-react'
 
 export default async function CommunityProfilePage(props: {
   params: Promise<{ id: string }>
@@ -114,7 +115,7 @@ export default async function CommunityProfilePage(props: {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Immersive Cover Section */}
-      <section className="relative w-full h-[250px] md:h-[350px] bg-muted">
+      <section className="relative w-full h-[200px] md:h-[350px] bg-muted">
         <img 
           src={community.cover_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1920&auto=format&fit=crop'} 
           alt="Capa da Comunidade" 
@@ -175,23 +176,26 @@ export default async function CommunityProfilePage(props: {
       </section>
 
       {/* Mobile Tabs Layout */}
-      <section className="px-4 py-6 sm:px-6 lg:hidden">
+      <section className="lg:hidden">
         <MobileSectionsTabs
+          className="mt-2"
           tabs={[
-            { id: 'sobre', label: 'Sobre' },
-            { id: 'feed', label: 'Feed' },
-            { id: 'membros', label: 'Membros' },
-            { id: 'regras', label: 'Regras' },
+            { id: 'sobre', label: 'Sobre', icon: <InfoIcon className="w-[22px] h-[22px]" /> },
+            { id: 'feed', label: 'Feed', icon: <Rss className="w-[22px] h-[22px]" /> },
+            { id: 'membros', label: 'Membros', icon: <UsersIcon className="w-[22px] h-[22px]" /> },
+            { id: 'regras', label: 'Regras', icon: <ShieldAlert className="w-[22px] h-[22px]" /> },
           ]}
         >
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="space-y-4 px-4 py-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-foreground">Sobre a Comunidade</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
               {community.description || 'Nenhuma descrição fornecida.'}
             </p>
-          </section>
+            </section>
+          </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             {initialJoined && canPostInCommunity && (
               <CreateCommunityPostBox
                 communityId={community.id}
@@ -213,18 +217,22 @@ export default async function CommunityProfilePage(props: {
             )}
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <CommunityMembersList members={displayMembers} memberCount={memberCount} />
+          <div className="px-4 py-4">
+            <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <CommunityMembersList members={displayMembers} memberCount={memberCount} />
+            </div>
           </div>
 
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="space-y-4 px-4 py-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <h3 className="mb-4 text-base font-bold text-foreground">Regras da Comunidade</h3>
             <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
               <li>Respeito mútuo entre todos os membros.</li>
               <li>Não é permitido spam ou publicidade não solicitada.</li>
               <li>Partilhar apenas conteúdo relacionado com desporto.</li>
             </ol>
-          </section>
+            </section>
+          </div>
         </MobileSectionsTabs>
       </section>
 

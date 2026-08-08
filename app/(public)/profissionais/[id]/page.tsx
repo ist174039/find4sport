@@ -14,6 +14,7 @@ import { FollowButton } from '@/components/follow-button'
 import { FollowStats } from '@/components/follow-stats'
 import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
 import { InstagramPhotoGallery } from '@/components/instagram-photo-gallery'
+import { LayoutGrid, List, Info as InfoIcon, MapPin as MapPinIcon, Star as StarIcon } from 'lucide-react'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -117,7 +118,7 @@ export default async function ProfessionalProfilePage(props: {
   return (
     <main className="flex flex-col min-h-screen bg-background">
       {/* Immersive Cover Section (Full Width Top) */}
-      <section className="relative w-full h-[250px] md:h-[350px] bg-muted">
+      <section className="relative w-full h-[200px] md:h-[350px] bg-muted">
         <img src={coverUrl} alt="Capa do profissional" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
         
@@ -200,17 +201,18 @@ export default async function ProfessionalProfilePage(props: {
       </section>
 
       {/* Mobile Tabs Layout */}
-      <section className="px-4 py-6 sm:px-6 lg:hidden">
+      <section className="lg:hidden">
         <MobileSectionsTabs
+          className="mt-2"
           tabs={[
-            { id: 'sobre', label: 'Sobre' },
-            { id: 'servicos', label: 'Serviços' },
-            { id: 'conteudo', label: 'Conteúdo' },
-            { id: 'info', label: 'Info' },
-            { id: 'avaliacoes', label: 'Avaliações' },
+            { id: 'sobre', label: 'Sobre', icon: <User className="w-[22px] h-[22px]" /> },
+            { id: 'servicos', label: 'Serviços', icon: <List className="w-[22px] h-[22px]" /> },
+            { id: 'conteudo', label: 'Conteúdo', icon: <LayoutGrid className="w-[22px] h-[22px]" /> },
+            { id: 'info', label: 'Info', icon: <MapPinIcon className="w-[22px] h-[22px]" /> },
+            { id: 'avaliacoes', label: 'Avaliações', icon: <StarIcon className="w-[22px] h-[22px]" /> },
           ]}
         >
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
                 <User className="h-5 w-5 text-primary" />
@@ -220,7 +222,7 @@ export default async function ProfessionalProfilePage(props: {
             </section>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             <ProfessionalServices services={services || []} professionalId={professional.id} />
 
             {categoriesList.length > 0 && (
@@ -260,7 +262,7 @@ export default async function ProfessionalProfilePage(props: {
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             {communities.length > 0 && (
               <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
@@ -295,7 +297,7 @@ export default async function ProfessionalProfilePage(props: {
             />
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 py-4">
             <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
                 <Building2 className="h-5 w-5 text-primary" />
@@ -350,7 +352,7 @@ export default async function ProfessionalProfilePage(props: {
             </section>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm mx-4 my-4">
             <ReviewsSection targetType="professional" targetId={professional.id} />
           </div>
         </MobileSectionsTabs>
