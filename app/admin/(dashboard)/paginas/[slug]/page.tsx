@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save, Loader2, Code } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Code, LayoutDashboard } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
+import { BlockBuilder, type CMSBlock } from '@/components/cms/block-builder'
 
 export default function AdminPageEditor() {
   const params = useParams()
@@ -20,16 +21,14 @@ export default function AdminPageEditor() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [page, setPage] = useState<any>(null)
-
-  // Form states
+  
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isPublished, setIsPublished] = useState(false)
-  
-  // Content states
   const [markdownBody, setMarkdownBody] = useState('')
+  const [blocks, setBlocks] = useState<CMSBlock[]>([])
   const [rawJson, setRawJson] = useState('{}')
-  const [isAdvancedMode, setIsAdvancedMode] = useState(false)
+  const [editorMode, setEditorMode] = useState<'visual' | 'markdown' | 'raw'>('visual')
 
   const isPlanosPage = slug === 'profissionais-planos' || slug === 'planos'
 
@@ -71,30 +70,34 @@ export default function AdminPageEditor() {
 
     if (data) {
       setPage(data)
-      setTitle(data.title || fixedPage.title)
+      setTitle(data.title || '')
       setDescription(data.description || '')
       setIsPublished(data.is_published || false)
       
       const content = data.content || {}
-      setRawJson(JSON.stringify(content, null, 2))
-      setMarkdownBody(content.body || '')
       
-      if (isPlanosPage && !content.plans) {
-        setRawJson(JSON.stringify({
-          header: "Planos e Preços",
-          subheader: "Escolha o plano ideal para o seu negócio.",
-          plans: []
-        }, null, 2))
+      if (Array.isArray(content.blocks)) {
+        setBlocks(content.blocks)
+        setEditorMode('visual')
+      } else if (content.body) {
+        setMarkdownBody(content.body)
+        setEditorMode('markdown')
+      } else {
+        setRawJson(JSON.stringify(content, null, 2))
+        setEditorMode(isPlanosPage ? 'raw' : 'visual')
       }
     } else {
-      // Row doesn't exist yet, that's fine, we'll create it on save
+      // Row doesn't exist yet
       setTitle(fixedPage.title)
       if (isPlanosPage) {
+        setEditorMode('raw')
         setRawJson(JSON.stringify({
-          header: "Planos e Preços",
-          subheader: "Escolha o plano ideal para o seu negócio.",
-          plans: []
+          plans: [
+            { id: 'free', name: 'Gratuito', price: 0 }
+          ]
         }, null, 2))
+      } else {
+        setEditorMode('visual')
       }
     }
     setLoading(false)
@@ -106,11 +109,13 @@ export default function AdminPageEditor() {
     
     let contentToSave = {}
     
-    if (isAdvancedMode || isPlanosPage) {
+    if (editorMode === 'visual') {
+      contentToSave = { blocks }
+    } else if (editorMode === 'raw') {
       try {
         contentToSave = JSON.parse(rawJson)
-      } catch(e) {
-        showAlert('Erro JSON', 'O formato JSON é inválido. Verifique os erros de sintaxe.', 'error')
+      } catch (e) {
+        showAlert('Erro de Formato', 'O JSON inserido é inválido. Corrija-o antes de guardar.', 'error')
         setSaving(false)
         return
       }
@@ -183,38 +188,52 @@ export default function AdminPageEditor() {
         </div>
 
         {/* Content Editor */}
-        <div className="bg-card border rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between border-b pb-2 mb-4">
-            <h2 className="font-bold text-lg">Conteúdo da Página</h2>
-            {!isPlanosPage && (
-              <Button variant="outline" size="sm" onClick={() => setIsAdvancedMode(!isAdvancedMode)}>
-                <Code className="w-4 h-4 mr-2" /> {isAdvancedMode ? 'Modo Texto' : 'Modo Avançado (JSON)'}
-              </Button>
-            )}
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold">Conteúdo da Página</h2>
+            <div className="flex bg-muted rounded-xl p-1">
+              <button 
+                onClick={() => setEditorMode('visual')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${editorMode === 'visual' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" /> Blocos (Visual)
+              </button>
+              <button 
+                onClick={() => setEditorMode('markdown')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${editorMode === 'markdown' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Markdown
+              </button>
+              <button 
+                onClick={() => setEditorMode('raw')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${editorMode === 'raw' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <Code className="w-3.5 h-3.5" /> JSON Raw
+              </button>
+            </div>
           </div>
 
-          {isPlanosPage || isAdvancedMode ? (
-            <div className="space-y-2">
-              <Label>Estrutura JSON</Label>
-              <p className="text-xs text-muted-foreground mb-2">Edite diretamente a estrutura JSON. Útil para páginas com layouts complexos.</p>
-              <Textarea 
-                value={rawJson} 
-                onChange={e => setRawJson(e.target.value)} 
-                className="font-mono text-xs min-h-[400px] bg-muted/30"
-                spellCheck={false}
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>Corpo do Texto (Markdown ou HTML)</Label>
+          <div className="mt-4">
+            {editorMode === 'visual' ? (
+              <BlockBuilder blocks={blocks} onChange={setBlocks} />
+            ) : editorMode === 'raw' ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">O formato JSON é usado para injetar dados estruturados (ex: tabelas de preços avançadas).</p>
+                <Textarea 
+                  value={rawJson} 
+                  onChange={e => setRawJson(e.target.value)} 
+                  className="min-h-[400px] font-mono text-xs bg-muted/30"
+                />
+              </div>
+            ) : (
               <Textarea 
                 value={markdownBody} 
                 onChange={e => setMarkdownBody(e.target.value)} 
                 className="min-h-[400px] leading-relaxed"
                 placeholder="Escreva aqui o conteúdo da página..."
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

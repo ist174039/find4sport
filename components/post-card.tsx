@@ -400,11 +400,18 @@ export default function PostCard({
                 {commentsList.map(c => {
                   const u = c.platform_users
                   const name = u?.full_name || 'Utilizador'
+                  const avatar = u?.avatar_url
+                  const userLink = resolveUserLink(u)
                   
                   return (
-                    <div key={c.id} className="text-sm leading-tight mb-1">
-                      <Link href={resolveUserLink(u)} className="font-semibold hover:underline mr-1.5">{name}</Link>
-                      <span>{c.content}</span>
+                    <div key={c.id} className="flex gap-2.5 mb-3 group/comment">
+                      <Link href={userLink} className="shrink-0 mt-0.5 hover:opacity-80 transition-opacity">
+                        <UserAvatar name={name} src={avatar} className="size-7" />
+                      </Link>
+                      <div className="flex-1 bg-muted/30 rounded-2xl px-3.5 py-2 text-sm leading-snug">
+                        <Link href={userLink} className="font-bold text-foreground hover:underline block mb-0.5">{name}</Link>
+                        <span className="text-muted-foreground whitespace-pre-wrap break-words text-[13px]">{c.content}</span>
+                      </div>
                     </div>
                   )
                 })}

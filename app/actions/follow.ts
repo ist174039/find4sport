@@ -127,7 +127,7 @@ async function enrichUserIds(supabase: any, userIds: string[]) {
         name: u.full_name || 'Utilizador',
         avatar: u.avatar_url,
         isVerified: false,
-        href: `#` // Regular users don't have public profiles yet
+        href: `/utilizadores/${uid}`
       }
     }
     return null
