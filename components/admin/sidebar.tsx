@@ -22,6 +22,8 @@ import {
   BarChart,
   Database,
   Tags,
+  CreditCard,
+  FileEdit,
 } from 'lucide-react'
 
 const navigationItems = [
@@ -74,6 +76,16 @@ const navigationItems = [
     title: 'Relatorios',
     href: '/admin/relatorios',
     icon: BarChart,
+  },
+  {
+    title: 'Faturação',
+    href: '/admin/faturacao',
+    icon: CreditCard,
+  },
+  {
+    title: 'Páginas (CMS)',
+    href: '/dashboard/admin/paginas',
+    icon: FileEdit,
   },
   {
     title: 'Audit Log',
