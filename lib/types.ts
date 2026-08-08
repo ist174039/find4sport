@@ -268,6 +268,8 @@ export interface SpaceRoom {
   capacity: number
   price_per_hour: number
   is_active: boolean
+  gallery_urls: string[]
+  description: string | null
   created_at: string
   updated_at: string
 }
