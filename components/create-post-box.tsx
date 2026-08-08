@@ -9,11 +9,13 @@ import { useModal } from '@/components/providers/modal-provider'
 export function CreatePostBox({
   currentUserType,
   currentUserName,
-  currentUserAvatar
+  currentUserAvatar,
+  canPublish = false,
 }: {
   currentUserType: string
   currentUserName: string
   currentUserAvatar: string
+  canPublish?: boolean
 }) {
   const { showAlert } = useModal()
   const [content, setContent] = useState('')
@@ -21,13 +23,19 @@ export function CreatePostBox({
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
 
-  if (currentUserType !== 'professional' && currentUserType !== 'espaco') {
+  if (!canPublish) {
     return null
   }
 
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    const isSupportedMedia = file.type.startsWith('image/') || file.type.startsWith('video/')
+    if (!isSupportedMedia) {
+      showAlert('Erro', 'Apenas imagens e vídeos são permitidos.', 'error')
+      return
+    }
 
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
       showAlert('Erro', 'O ficheiro não pode exceder 10MB.', 'error')
@@ -46,6 +54,10 @@ export function CreatePostBox({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim() && !mediaFile) return
+    if (content.trim().length > 5000) {
+      showAlert('Erro', 'A publicação excede o limite de 5000 caracteres.', 'error')
+      return
+    }
 
     setLoading(true)
     try {
@@ -105,7 +117,11 @@ export function CreatePostBox({
             placeholder="Partilha uma novidade com a tua audiência..."
             className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none"
             rows={2}
+            maxLength={5000}
           />
+          <div className="text-[11px] text-muted-foreground text-right">
+            {content.length}/5000
+          </div>
           
           {mediaPreview && (
             <div className="relative inline-block mt-2">
@@ -127,7 +143,7 @@ export function CreatePostBox({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <PenLine className="w-3.5 h-3.5" /> Oficial
+                <PenLine className="w-3.5 h-3.5" /> {currentUserType === 'espaco' ? 'Publicação do espaço' : 'Publicação oficial'}
               </div>
               
               <label className="cursor-pointer text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-medium">

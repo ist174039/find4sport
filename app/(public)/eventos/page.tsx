@@ -3,17 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { SearchBar } from '@/components/search-bar'
 import { EventGrid } from '@/components/event-card'
 import { Skeleton } from '@/components/ui/skeleton'
+import Link from 'next/link'
 import type { Category, Event } from '@/lib/types'
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; q?: string; location?: string }>
+  searchParams: Promise<{ category?: string; q?: string; location?: string; sort?: string }>
 }
 
-async function getEventsData(searchParams: { category?: string; q?: string; location?: string }) {
+async function getEventsData(searchParams: { category?: string; q?: string; location?: string; sort?: string }) {
   const supabase = await createClient()
-
-  // Get user
-  const { data: { user } } = await supabase.auth.getUser()
 
   // Fetch categories
   const { data: categories } = await supabase
@@ -46,19 +44,23 @@ async function getEventsData(searchParams: { category?: string; q?: string; loca
     }
   }
 
-  const { data: events } = await query
-    .order('start_date', { ascending: true })
-    .limit(24)
+  const { data: events } = await query.limit(24)
+
+  const transformedEvents = [...(events || [])]
+  const sortBy = searchParams.sort || 'upcoming'
+  transformedEvents.sort((a, b) => {
+    if (sortBy === 'newest') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    }
+    if (sortBy === 'popular') {
+      return (b.views_count || 0) - (a.views_count || 0)
+    }
+    return new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+  })
 
   return {
-    user: user ? {
-      id: user.id,
-      email: user.email || '',
-      full_name: user.user_metadata?.full_name,
-      avatar_url: user.user_metadata?.avatar_url,
-    } : null,
     categories: (categories || []) as Category[],
-    events: (events || []) as (Event & { category: Category })[],
+    events: transformedEvents as (Event & { category: Category })[],
     filters: searchParams,
   }
 }
@@ -79,9 +81,30 @@ function EventsSkeleton() {
 
 export default async function EventosPage({ searchParams }: PageProps) {
   const resolvedParams = await searchParams
-  const { user, categories, events, filters } = await getEventsData(resolvedParams)
+  const { categories, events, filters } = await getEventsData(resolvedParams)
 
   const selectedCategory = categories.find(c => c.slug === filters.category)
+  const currentSort = filters.sort || 'upcoming'
+
+  const buildFilterHref = (nextCategory?: string) => {
+    const params = new URLSearchParams()
+    if (filters.q) params.set('q', filters.q)
+    if (filters.location) params.set('location', filters.location)
+    if (currentSort !== 'upcoming') params.set('sort', currentSort)
+    if (nextCategory) params.set('category', nextCategory)
+    const queryString = params.toString()
+    return queryString ? `/eventos?${queryString}` : '/eventos'
+  }
+
+  const buildSortHref = (nextSort: string) => {
+    const params = new URLSearchParams()
+    if (filters.q) params.set('q', filters.q)
+    if (filters.location) params.set('location', filters.location)
+    if (filters.category) params.set('category', filters.category)
+    if (nextSort !== 'upcoming') params.set('sort', nextSort)
+    const queryString = params.toString()
+    return queryString ? `/eventos?${queryString}` : '/eventos'
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -94,7 +117,7 @@ export default async function EventosPage({ searchParams }: PageProps) {
                 : 'Eventos Desportivos'}
             </h1>
             <p className="mt-2 text-muted-foreground">
-              {events.length} eventos proximos
+              {events.length} eventos encontrados
             </p>
 
             {/* Search */}
@@ -108,6 +131,13 @@ export default async function EventosPage({ searchParams }: PageProps) {
                 currentFilters={filters as Record<string, string>}
               />
             </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-medium text-muted-foreground">Ordenar:</span>
+              <Link href={buildSortHref('upcoming')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'upcoming' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Proximos</Link>
+              <Link href={buildSortHref('newest')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais recentes</Link>
+              <Link href={buildSortHref('popular')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'popular' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais vistos</Link>
+            </div>
           </div>
         </section>
 
@@ -115,8 +145,8 @@ export default async function EventosPage({ searchParams }: PageProps) {
         <section className="border-b border-border py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex gap-2 overflow-x-auto pb-2">
-              <a
-                href="/eventos"
+              <Link
+                href={buildFilterHref()}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   !filters.category
                     ? 'bg-primary text-primary-foreground'
@@ -124,11 +154,11 @@ export default async function EventosPage({ searchParams }: PageProps) {
                 }`}
               >
                 Todos
-              </a>
+              </Link>
               {categories.slice(0, 10).map((cat) => (
-                <a
+                <Link
                   key={cat.id}
-                  href={`/eventos?category=${cat.slug}`}
+                  href={buildFilterHref(cat.slug)}
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                     filters.category === cat.slug
                       ? 'bg-primary text-primary-foreground'
@@ -136,7 +166,7 @@ export default async function EventosPage({ searchParams }: PageProps) {
                   }`}
                 >
                   {cat.emoji} {cat.name}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -153,12 +183,12 @@ export default async function EventosPage({ searchParams }: PageProps) {
                   <p className="text-lg text-muted-foreground">
                     Nenhum evento encontrado com os filtros selecionados.
                   </p>
-                  <a
+                  <Link
                     href="/eventos"
                     className="mt-4 inline-block text-primary hover:underline"
                   >
                     Limpar filtros
-                  </a>
+                  </Link>
                 </div>
               )}
             </Suspense>

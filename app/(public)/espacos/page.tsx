@@ -3,17 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { SearchBar } from '@/components/search-bar'
 import { SpaceGrid } from '@/components/space-card'
 import { Skeleton } from '@/components/ui/skeleton'
+import Link from 'next/link'
 import type { Category, SportSpace } from '@/lib/types'
 
 interface PageProps {
-  searchParams: Promise<{ category?: string; q?: string; location?: string }>
+  searchParams: Promise<{ category?: string; q?: string; location?: string; sort?: string }>
 }
 
-async function getSpacesData(searchParams: { category?: string; q?: string; location?: string }) {
+async function getSpacesData(searchParams: { category?: string; q?: string; location?: string; sort?: string }) {
   const supabase = await createClient()
-
-  // Get user
-  const { data: { user } } = await supabase.auth.getUser()
 
   // Fetch categories
   const { data: categories } = await supabase
@@ -57,13 +55,21 @@ async function getSpacesData(searchParams: { category?: string; q?: string; loca
     categories: space.categories?.map((c: { category: Category }) => c.category).filter(Boolean) || []
   }))
 
+  const sortBy = searchParams.sort || 'relevance'
+  transformedSpaces.sort((a, b) => {
+    if (sortBy === 'rating') {
+      return (b.rating_avg || 0) - (a.rating_avg || 0)
+    }
+    if (sortBy === 'reviews') {
+      return (b.review_count || 0) - (a.review_count || 0)
+    }
+    if (sortBy === 'newest') {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    }
+    return 0
+  })
+
   return {
-    user: user ? {
-      id: user.id,
-      email: user.email || '',
-      full_name: user.user_metadata?.full_name,
-      avatar_url: user.user_metadata?.avatar_url,
-    } : null,
     categories: (categories || []) as Category[],
     spaces: transformedSpaces as (SportSpace & { categories: Category[] })[],
     filters: searchParams,
@@ -86,9 +92,30 @@ function SpacesSkeleton() {
 
 export default async function EspacosPage({ searchParams }: PageProps) {
   const resolvedParams = await searchParams
-  const { user, categories, spaces, filters } = await getSpacesData(resolvedParams)
+  const { categories, spaces, filters } = await getSpacesData(resolvedParams)
 
   const selectedCategory = categories.find(c => c.slug === filters.category)
+  const currentSort = filters.sort || 'relevance'
+
+  const buildFilterHref = (nextCategory?: string) => {
+    const params = new URLSearchParams()
+    if (filters.q) params.set('q', filters.q)
+    if (filters.location) params.set('location', filters.location)
+    if (currentSort !== 'relevance') params.set('sort', currentSort)
+    if (nextCategory) params.set('category', nextCategory)
+    const queryString = params.toString()
+    return queryString ? `/espacos?${queryString}` : '/espacos'
+  }
+
+  const buildSortHref = (nextSort: string) => {
+    const params = new URLSearchParams()
+    if (filters.q) params.set('q', filters.q)
+    if (filters.location) params.set('location', filters.location)
+    if (filters.category) params.set('category', filters.category)
+    if (nextSort !== 'relevance') params.set('sort', nextSort)
+    const queryString = params.toString()
+    return queryString ? `/espacos?${queryString}` : '/espacos'
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -115,6 +142,14 @@ export default async function EspacosPage({ searchParams }: PageProps) {
                 currentFilters={filters as Record<string, string>}
               />
             </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-medium text-muted-foreground">Ordenar:</span>
+              <Link href={buildSortHref('relevance')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'relevance' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Relevancia</Link>
+              <Link href={buildSortHref('rating')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'rating' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Melhor avaliados</Link>
+              <Link href={buildSortHref('reviews')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'reviews' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais avaliados</Link>
+              <Link href={buildSortHref('newest')} className={`rounded-full border px-3 py-1.5 ${currentSort === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais recentes</Link>
+            </div>
           </div>
         </section>
 
@@ -122,8 +157,8 @@ export default async function EspacosPage({ searchParams }: PageProps) {
         <section className="border-b border-border py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex gap-2 overflow-x-auto pb-2">
-              <a
-                href="/espacos"
+              <Link
+                href={buildFilterHref()}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   !filters.category
                     ? 'bg-primary text-primary-foreground'
@@ -131,11 +166,11 @@ export default async function EspacosPage({ searchParams }: PageProps) {
                 }`}
               >
                 Todos
-              </a>
+              </Link>
               {categories.slice(0, 10).map((cat) => (
-                <a
+                <Link
                   key={cat.id}
-                  href={`/espacos?category=${cat.slug}`}
+                  href={buildFilterHref(cat.slug)}
                   className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                     filters.category === cat.slug
                       ? 'bg-primary text-primary-foreground'
@@ -143,7 +178,7 @@ export default async function EspacosPage({ searchParams }: PageProps) {
                   }`}
                 >
                   {cat.emoji} {cat.name}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -160,12 +195,12 @@ export default async function EspacosPage({ searchParams }: PageProps) {
                   <p className="text-lg text-muted-foreground">
                     Nenhum espaco encontrado com os filtros selecionados.
                   </p>
-                  <a
+                  <Link
                     href="/espacos"
                     className="mt-4 inline-block text-primary hover:underline"
                   >
                     Limpar filtros
-                  </a>
+                  </Link>
                 </div>
               )}
             </Suspense>

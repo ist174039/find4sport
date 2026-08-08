@@ -5,10 +5,12 @@ import { useState, useCallback, useTransition } from 'react'
 
 export function PesquisaFiltros({
   initialQuery = '',
-  totalResults = 0
+  totalResults = 0,
+  initialSort = 'relevance',
 }: {
   initialQuery?: string
   totalResults?: number
+  initialSort?: string
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -19,12 +21,10 @@ export function PesquisaFiltros({
 
   const activeType = (searchParams.get('type') || searchParams.get('tipo') || 'todos').toLowerCase()
 
-  // Handle Search Input Change
-  const handleSearch = useCallback((newQuery: string) => {
-    setQuery(newQuery)
+  const handleSearchSubmit = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString())
-    if (newQuery) {
-      params.set('q', newQuery)
+    if (query.trim()) {
+      params.set('q', query.trim())
     } else {
       params.delete('q')
     }
@@ -32,7 +32,7 @@ export function PesquisaFiltros({
     startTransition(() => {
       router.push(`/pesquisa?${params.toString()}`)
     })
-  }, [searchParams, router])
+  }, [query, searchParams, router])
 
   // Handle Type Filter Toggle
   const handleTypeSelect = useCallback((typeValue: string) => {
@@ -65,6 +65,19 @@ export function PesquisaFiltros({
     })
   }, [searchParams, router])
 
+  const handleSortSelect = useCallback((sortValue: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (sortValue === 'relevance') {
+      params.delete('sort')
+    } else {
+      params.set('sort', sortValue)
+    }
+
+    startTransition(() => {
+      router.push(`/pesquisa?${params.toString()}`)
+    })
+  }, [searchParams, router])
+
   return (
     <div className="p-4 border-b border-border bg-card z-10 shrink-0">
       <div className="flex flex-col gap-3 mb-4">
@@ -86,17 +99,60 @@ export function PesquisaFiltros({
             type="text" 
             placeholder="Pesquisar por nome, cidade (ex: Almada, Maratona de Lisboa)..." 
             value={query}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleSearchSubmit()
+              }
+            }}
             className="w-full bg-background border border-border rounded-lg py-2 pl-9 pr-8 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-sm text-foreground"
           />
           {query && (
             <button 
-              onClick={() => handleSearch('')}
+              onClick={() => {
+                setQuery('')
+                const params = new URLSearchParams(searchParams.toString())
+                params.delete('q')
+                startTransition(() => {
+                  router.push(`/pesquisa?${params.toString()}`)
+                })
+              }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
           )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleSearchSubmit}
+            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Atualizar pesquisa
+          </button>
+
+          <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+            <button
+              onClick={() => handleSortSelect('relevance')}
+              className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium ${initialSort === 'relevance' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}
+            >
+              Relevancia
+            </button>
+            <button
+              onClick={() => handleSortSelect('rating')}
+              className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium ${initialSort === 'rating' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}
+            >
+              Melhor avaliados
+            </button>
+            <button
+              onClick={() => handleSortSelect('newest')}
+              className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium ${initialSort === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}
+            >
+              Mais recentes
+            </button>
+          </div>
         </div>
       </div>
 

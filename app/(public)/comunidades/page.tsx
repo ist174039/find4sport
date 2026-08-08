@@ -1,4 +1,4 @@
-import { Globe, Lock, Plus, Users } from 'lucide-react'
+import { Globe, Lock, Plus, Search, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ComunidadesFilterModal } from '@/components/comunidades-filter-modal'
@@ -11,6 +11,8 @@ export default async function CommunitiesPage({
   const supabase = await createClient()
   const params = await searchParams
   const categoryParam = typeof params.category === 'string' ? params.category : null
+  const queryParam = typeof params.q === 'string' ? params.q.trim() : ''
+  const sortParam = typeof params.sort === 'string' ? params.sort : 'newest'
 
   let query = supabase
     .from('communities')
@@ -18,15 +20,37 @@ export default async function CommunitiesPage({
       *,
       community_members (count)
     `)
-    .order('created_at', { ascending: false })
 
   if (categoryParam) {
     query = query.ilike('sport_category', `%${categoryParam}%`)
   }
 
+  if (queryParam) {
+    query = query.or(`name.ilike.%${queryParam}%,description.ilike.%${queryParam}%,sport_category.ilike.%${queryParam}%`)
+  }
+
   const { data: communities, error } = await query
 
-  const safeCommunities = communities || []
+  const safeCommunities = [...(communities || [])]
+  safeCommunities.sort((a: any, b: any) => {
+    if (sortParam === 'members') {
+      return (b.community_members?.[0]?.count || 0) - (a.community_members?.[0]?.count || 0)
+    }
+    if (sortParam === 'name') {
+      return (a.name || '').localeCompare(b.name || '')
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  const buildHref = (updates: Record<string, string | null>) => {
+    const hrefParams = new URLSearchParams(params as Record<string, string>)
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value) hrefParams.delete(key)
+      else hrefParams.set(key, value)
+    })
+    const queryString = hrefParams.toString()
+    return queryString ? `/comunidades?${queryString}` : '/comunidades'
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -41,6 +65,9 @@ export default async function CommunitiesPage({
               <p className="mt-2 text-muted-foreground text-lg max-w-2xl">
                 Junta-te a grupos locais e encontra pessoas com a mesma paixão pelo desporto.
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {safeCommunities.length} comunidades encontradas
+              </p>
             </div>
             
             <div className="flex items-center gap-3">
@@ -51,6 +78,35 @@ export default async function CommunitiesPage({
               </Link>
             </div>
           </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <form action="/comunidades" method="get" className="relative w-full sm:max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                name="q"
+                defaultValue={queryParam}
+                placeholder="Pesquisar por nome, descricao ou modalidade..."
+                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
+              />
+              {categoryParam && <input type="hidden" name="category" value={categoryParam} />}
+              {sortParam && <input type="hidden" name="sort" value={sortParam} />}
+            </form>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-medium text-muted-foreground">Ordenar:</span>
+              <Link href={buildHref({ sort: 'newest' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Recentes</Link>
+              <Link href={buildHref({ sort: 'members' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'members' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais membros</Link>
+              <Link href={buildHref({ sort: 'name' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'name' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>A-Z</Link>
+            </div>
+          </div>
+
+          {(queryParam || categoryParam) && (
+            <div className="mt-3">
+              <Link href="/comunidades" className="inline-flex rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50">
+                Limpar filtros
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -62,7 +118,7 @@ export default async function CommunitiesPage({
               const memberCount = community.community_members?.[0]?.count || 0
 
               return (
-                <Link key={community.id} href={`/comunidades/${community.id}`} className="group flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-md hover:border-primary/50 transition-all">
+                <Link key={community.id} href={`/comunidades/${community.slug || community.id}`} className="group flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-md hover:border-primary/50 transition-all">
                   <div className="h-40 bg-muted relative">
                     <img 
                       src={community.cover_url || 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800&auto=format&fit=crop'} 

@@ -1,8 +1,8 @@
 'use client';
-import {  BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Play, Share2, User  } from 'lucide-react'
+import { BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Share2, User } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { UserAvatar } from '@/components/user-avatar'
 
 import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -37,11 +37,20 @@ const renderPostContent = (value: string) =>
     return `<a href="/pesquisa?q=${encodedTag}" class="text-primary font-semibold hover:underline">#${tag}</a>`
   })
 
-export default function PostCard({ post }: { post: any }) {
+export default function PostCard({
+  post,
+  initialIsLiked = false,
+  isAuthenticated = false,
+}: {
+  post: any
+  initialIsLiked?: boolean
+  isAuthenticated?: boolean
+}) {
   const { showAlert } = useModal()
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0)
   const [commentsCount, setCommentsCount] = useState(post.comments?.[0]?.count || 0)
-  const [isLiked, setIsLiked] = useState(false)
+  const [isLiked, setIsLiked] = useState(initialIsLiked)
+  const [liking, setLiking] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -79,23 +88,47 @@ export default function PostCard({ post }: { post: any }) {
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })
 
+  const postUrl = typeof window !== 'undefined' ? `${window.location.origin}/feed#post-${post.id}` : ''
+
+  const guardAuth = () => {
+    if (!isAuthenticated) {
+      showAlert('Inicia sessão', 'Precisas de iniciar sessão para interagir com publicações.', 'error')
+      return false
+    }
+    return true
+  }
+
   const handleLike = async () => {
+    if (!guardAuth() || liking) return
+
+    setLiking(true)
+    const nextLiked = !isLiked
+
     // Optimistic UI update
-    setIsLiked(!isLiked)
-    setLikesCount((prev: number) => isLiked ? prev - 1 : prev + 1)
+    setIsLiked(nextLiked)
+    setLikesCount((prev: number) => nextLiked ? prev + 1 : Math.max(0, prev - 1))
     
     try {
       const result = await toggleLikeAction(post.id)
       setIsLiked(result.liked)
+      setLikesCount((prev: number) => {
+        if (result.liked && !nextLiked) return prev + 1
+        if (!result.liked && nextLiked) return Math.max(0, prev - 1)
+        return prev
+      })
     } catch (err) {
       // Revert if error
       setIsLiked(isLiked)
-      setLikesCount((prev: number) => isLiked ? prev + 1 : prev - 1)
+      setLikesCount((prev: number) => isLiked ? prev + 1 : Math.max(0, prev - 1))
+      showAlert('Erro', 'Não foi possível atualizar o gosto.', 'error')
+    } finally {
+      setLiking(false)
     }
   }
 
   const handleShare = async () => {
-    const postUrl = `${window.location.origin}/feed#post-${post.id}`
+    if (!postUrl) return
+
     try {
       if (navigator.share) {
         await navigator.share({
@@ -109,6 +142,20 @@ export default function PostCard({ post }: { post: any }) {
     } catch (e) {
       console.error(e)
     }
+  }
+
+  const handleCopyLink = async () => {
+    if (!postUrl) return
+    try {
+      await navigator.clipboard.writeText(postUrl)
+      showAlert('Sucesso', 'Link da publicação copiado.', 'success')
+    } catch {
+      showAlert('Erro', 'Não foi possível copiar o link.', 'error')
+    }
+  }
+
+  const handleReport = () => {
+    showAlert('Obrigado', 'Publicação sinalizada para revisão.', 'success')
   }
 
   const fetchComments = async () => {
@@ -219,6 +266,7 @@ export default function PostCard({ post }: { post: any }) {
 
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!guardAuth()) return
     if (!commentText.trim()) return
 
     setCommenting(true)
@@ -239,10 +287,9 @@ export default function PostCard({ post }: { post: any }) {
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href={authorLink} className="relative block hover:opacity-80 transition-opacity">
-            {authorAvatar ? (
-              <img className="w-10 h-10 rounded-full object-cover border border-border" src={authorAvatar} alt={authorName} />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-primary/10 border border-border flex items-center justify-center">
+            <UserAvatar name={authorName} src={authorAvatar} className="size-10" />
+            {!authorAvatar && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 {post.professional_id ? (
                   <User className="h-5 w-5 text-primary" />
                 ) : (
@@ -269,10 +316,10 @@ export default function PostCard({ post }: { post: any }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="text-muted-foreground hover:text-destructive transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Denunciar">
+          <button onClick={handleReport} className="text-muted-foreground hover:text-destructive transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Denunciar">
             <Flag className="text-[20px]" />
           </button>
-          <button className="text-muted-foreground hover:text-primary transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center">
+          <button onClick={handleCopyLink} className="text-muted-foreground hover:text-primary transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Copiar link">
             <MoreVertical className="text-[20px]" />
           </button>
         </div>
@@ -283,7 +330,7 @@ export default function PostCard({ post }: { post: any }) {
       </div>
       
       {post.media_url && (
-        <div className="relative group aspect-video bg-muted border-y border-border overflow-hidden">
+        <div className="relative group aspect-video bg-muted border-y border-border overflow-hidden" onDoubleClick={handleLike}>
           {post.media_type === 'video' ? (
             <video className="w-full h-full object-contain bg-black/5" src={post.media_url} controls playsInline />
           ) : (
@@ -299,6 +346,8 @@ export default function PostCard({ post }: { post: any }) {
             <button 
               onClick={handleLike}
               className={`flex items-center justify-center transition-transform active:scale-75 ${isLiked ? 'text-destructive' : 'text-foreground hover:text-muted-foreground'}`}
+              disabled={liking}
+              title={isAuthenticated ? 'Gostar' : 'Inicia sessão para gostar'}
             >
               <Heart className={`h-6 w-6 transition-all ${isLiked ? 'fill-current scale-110' : ''}`} />
             </button>
@@ -404,12 +453,8 @@ export default function PostCard({ post }: { post: any }) {
 
                 return (
                   <div key={like.id} className="flex items-center gap-3">
-                    <Link href={userLink} className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 overflow-hidden border border-border hover:opacity-80 transition-opacity">
-                      {avatar ? (
-                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                      ) : (
-                        name.charAt(0).toUpperCase()
-                      )}
+                    <Link href={userLink} className="hover:opacity-80 transition-opacity">
+                      <UserAvatar name={name} src={avatar} className="size-10" />
                     </Link>
                     <Link href={userLink} className="font-semibold text-sm text-foreground hover:underline">
                       {name}

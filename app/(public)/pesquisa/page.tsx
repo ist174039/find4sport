@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, Calendar, MapPin, RotateCw, Search, Star, User } from 'lucide-react'
+import { ArrowRight, MapPin, Search, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { PesquisaFiltros } from '@/components/pesquisa-filtros'
@@ -17,6 +17,8 @@ export interface UnifiedResultItem {
   is_verified: boolean
   image_url?: string | null
   link: string
+  created_at?: string | null
+  start_date?: string | null
   latitude?: number | null
   longitude?: number | null
 }
@@ -31,6 +33,7 @@ export default async function PesquisaPage(props: {
   const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : categoryParam
   const typeParam = (typeof searchParams.type === 'string' ? searchParams.type : typeof searchParams.tipo === 'string' ? searchParams.tipo : 'todos').toLowerCase()
   const ratingParam = typeof searchParams.rating === 'string' ? parseFloat(searchParams.rating) : null
+  const sortParam = typeof searchParams.sort === 'string' ? searchParams.sort : 'relevance'
 
   let results: UnifiedResultItem[] = []
 
@@ -60,6 +63,7 @@ export default async function PesquisaPage(props: {
         is_verified: !!space.is_verified,
         image_url: space.image_url || 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=300',
         link: `/espacos/${space.slug || space.id}`,
+        created_at: space.created_at,
         latitude: space.latitude,
         longitude: space.longitude,
       }))
@@ -93,6 +97,7 @@ export default async function PesquisaPage(props: {
         is_verified: !!prof.is_verified,
         image_url: prof.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=256',
         link: `/profissionais/${prof.public_slug || prof.id}`,
+        created_at: prof.created_at,
         latitude: prof.latitude,
         longitude: prof.longitude,
       }))
@@ -102,7 +107,7 @@ export default async function PesquisaPage(props: {
 
   // 3. Fetch Events if type is 'eventos' or 'todos'
   if (typeParam === 'eventos' || typeParam === 'todos' || typeParam === 'all') {
-    let eventQuery = supabase.from('events').select('*')
+    let eventQuery = supabase.from('events').select('*').eq('status', 'published')
 
     if (query) {
       eventQuery = eventQuery.or(`title.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`)
@@ -122,6 +127,8 @@ export default async function PesquisaPage(props: {
         is_verified: true,
         image_url: evt.image_url || 'https://images.unsplash.com/photo-1517649763962-0c623266010b?q=80&w=600',
         link: `/eventos/${evt.id}`,
+        created_at: evt.created_at,
+        start_date: evt.start_date,
         latitude: evt.latitude || 38.7223,
         longitude: evt.longitude || -9.1393,
       }))
@@ -129,12 +136,24 @@ export default async function PesquisaPage(props: {
     }
   }
 
+  results.sort((a, b) => {
+    if (sortParam === 'rating') {
+      return (b.rating_avg || 0) - (a.rating_avg || 0)
+    }
+    if (sortParam === 'newest') {
+      const aDate = new Date(a.created_at || a.start_date || 0).getTime()
+      const bDate = new Date(b.created_at || b.start_date || 0).getTime()
+      return bDate - aDate
+    }
+    return 0
+  })
+
   return (
     <PesquisaLayout 
       resultsPane={
         <>
           {/* Filters Header */}
-          <PesquisaFiltros initialQuery={query} totalResults={results.length} />
+          <PesquisaFiltros initialQuery={query} totalResults={results.length} initialSort={sortParam} />
           
           {/* Scrollable Results List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
@@ -152,6 +171,16 @@ export default async function PesquisaPage(props: {
               )}
             </div>
           ) : (
+            <>
+            {(query || categoryParam || typeParam !== 'todos' || ratingParam) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {query && <Badge variant="outline" className="text-[11px]">Pesquisa: {query}</Badge>}
+                {typeParam !== 'todos' && <Badge variant="outline" className="text-[11px]">Tipo: {typeParam}</Badge>}
+                {ratingParam && <Badge variant="outline" className="text-[11px]">Rating minimo: {ratingParam}</Badge>}
+                <Link href="/pesquisa" className="text-xs font-medium text-primary hover:underline">Limpar tudo</Link>
+              </div>
+            )}
+
             results.map((item) => (
               <Link 
                 href={item.link} 
@@ -205,13 +234,14 @@ export default async function PesquisaPage(props: {
                     <span className="font-medium text-primary text-xs flex items-center gap-1 group-hover:gap-2 transition-all">
                       Ver {item.itemType === 'space' ? 'Espaço' : item.itemType === 'event' ? 'Evento' : 'Perfil'} <ArrowRight className="h-3.5 w-3.5" />
                     </span>
-                    <button className="bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all px-3 py-1 rounded-lg font-medium text-xs shrink-0">
-                      {item.itemType === 'space' ? 'Reservar Campo' : item.itemType === 'event' ? 'Ver Inscrições' : 'Contactar'}
-                    </button>
+                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg font-medium text-xs shrink-0">
+                      {item.itemType === 'space' ? 'Reservar' : item.itemType === 'event' ? 'Inscrever' : 'Contactar'}
+                    </span>
                   </div>
                 </div>
               </Link>
             ))
+            </>
           )}
           </div>
         </>

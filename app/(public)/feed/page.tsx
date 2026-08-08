@@ -1,10 +1,11 @@
-import { ChevronRight, FilePlus, ShieldCheck, Users } from 'lucide-react'
+import { FilePlus, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
 import { CreatePostBox } from '@/components/create-post-box'
 import { FeedFilterModal } from '@/components/feed-filter-modal'
 import { FollowButton } from '@/components/follow-button'
 import Link from 'next/link'
+import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
 
 export default async function Page({
   searchParams,
@@ -24,6 +25,7 @@ export default async function Page({
   let currentUserType = 'user'
   let currentUserName = ''
   let currentUserAvatar = ''
+  let canPublish = false
 
   if (user) {
     const { data: profile } = await supabase
@@ -33,35 +35,42 @@ export default async function Page({
       .single()
 
     if (profile) {
+      const normalizedRole = normalizePlatformRole(profile.type)
       currentUserType = profile.type || 'user'
       currentUserName = profile.full_name || ''
       currentUserAvatar = profile.avatar_url || ''
 
       // Se não for admin, verificar se gere algum espaço para lhe dar permissões no feed
-      if (currentUserType !== 'admin') {
-        const { data: space } = await supabase
+      const [{ data: space }, { data: prof }] = await Promise.all([
+        supabase
           .from('sport_spaces')
           .select('id, name, logo_url')
           .eq('owner_user_id', user.id)
           .limit(1)
-          .maybeSingle()
+          .maybeSingle(),
+        supabase
+          .from('professionals')
+          .select('id, full_name, avatar_url')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ])
         
-        if (space) {
-          currentUserType = 'espaco'
-          currentUserName = space.name || ''
-          currentUserAvatar = space.logo_url || ''
-        } else if (currentUserType === 'professional') {
-          // Check professional profile
-          const { data: prof } = await supabase
-            .from('professionals')
-            .select('full_name, avatar_url')
-            .eq('user_id', user.id)
-            .maybeSingle()
-            
-          if (prof) {
-            currentUserName = prof.full_name || ''
-            currentUserAvatar = prof.avatar_url || ''
-          }
+      if (space) {
+        currentUserType = 'espaco'
+        currentUserName = space.name || currentUserName
+        currentUserAvatar = space.logo_url || currentUserAvatar
+      } else if (prof) {
+        currentUserType = 'professional'
+        currentUserName = prof.full_name || currentUserName
+        currentUserAvatar = prof.avatar_url || currentUserAvatar
+      }
+
+      if (normalizedRole === 'admin') {
+        canPublish = true
+      } else {
+        canPublish = canCreatePostForRole(normalizedRole) && Boolean(space || prof)
+        if (!canPublish && currentUserType === 'professional') {
+          currentUserType = 'user'
         }
       }
     }
@@ -141,6 +150,17 @@ export default async function Page({
   }
 
   const { data: posts } = await postsQuery
+
+  let likedPostIds = new Set<string>()
+  if (user && posts && posts.length > 0) {
+    const { data: likes } = await supabase
+      .from('post_likes')
+      .select('post_id')
+      .eq('user_id', user.id)
+      .in('post_id', posts.map((p: any) => p.id))
+
+    likedPostIds = new Set((likes || []).map((like: any) => like.post_id))
+  }
 
   // 2. Calculate Real Trending Tags for "Em Destaque"
   const { data: allPublicPosts } = await supabase
@@ -371,12 +391,18 @@ export default async function Page({
             currentUserType={currentUserType}
             currentUserName={currentUserName}
             currentUserAvatar={currentUserAvatar}
+            canPublish={canPublish}
           />
 
           {/* Posts Feed */}
           {posts && posts.length > 0 ? (
             posts.map((post: any) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard
+                key={post.id}
+                post={post}
+                isAuthenticated={Boolean(user)}
+                initialIsLiked={likedPostIds.has(post.id)}
+              />
             ))
           ) : tabParam === 'following' ? (
             <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
