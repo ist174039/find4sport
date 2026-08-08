@@ -6,6 +6,7 @@ import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import { JoinEventBtn } from '@/components/join-event-btn'
 import { ReviewsSection } from '@/components/reviews-section'
+import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
 
 export default async function EventProfilePage(props: {
   params: Promise<{ id: string }>
@@ -98,8 +99,63 @@ export default async function EventProfilePage(props: {
         </div>
       </section>
 
+      {/* Mobile Tabs Layout */}
+      <section className="px-4 py-6 sm:px-6 lg:hidden">
+        <MobileSectionsTabs
+          tabs={[
+            { id: 'sobre', label: 'Sobre' },
+            { id: 'bilhete', label: 'Bilhete' },
+            { id: 'organizador', label: 'Organizador' },
+            { id: 'avaliacoes', label: 'Avaliações' },
+          ]}
+        >
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Sobre o Evento</h2>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{description}</p>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <p className="mb-1 text-xs font-bold uppercase text-muted-foreground">Preço Bilhete</p>
+            <p className="mb-4 text-3xl font-black text-foreground">{event.price_min ? `€${event.price_min}` : 'Grátis'}</p>
+
+            <div className="mb-5 space-y-3 text-sm">
+              <p className="text-foreground"><span className="font-semibold">Data:</span> {formattedDate}</p>
+              <p className="text-foreground"><span className="font-semibold">Hora:</span> {formattedTime}</p>
+              <p className="text-foreground"><span className="font-semibold">Local:</span> {event.address || 'Localização a anunciar'}</p>
+            </div>
+
+            <JoinEventBtn eventId={event.id} />
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            {profileLink ? (
+              <Link href={profileLink} className="flex items-center gap-3">
+                <img src={organizerAvatar} alt="Organizador" className="h-12 w-12 rounded-full object-cover" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground">Organizado por</p>
+                  <p className="text-sm font-bold text-foreground">{organizer}</p>
+                  <span className="text-xs font-bold text-primary">Ver Perfil</span>
+                </div>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-3">
+                <img src={organizerAvatar} alt="Organizador" className="h-12 w-12 rounded-full object-cover" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground">Organizado por</p>
+                  <p className="text-sm font-bold text-foreground">{organizer}</p>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <ReviewsSection targetType="event" targetId={event.id} />
+          </div>
+        </MobileSectionsTabs>
+      </section>
+
       {/* Main Content Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column (Main Info) */}
@@ -188,7 +244,7 @@ export default async function EventProfilePage(props: {
       </section>
 
       {/* Reviews Section */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8">
         <div className="max-w-7xl mx-auto">
           <ReviewsSection targetType="event" targetId={event.id} />
         </div>

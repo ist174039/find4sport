@@ -1,4 +1,4 @@
-import { FilePlus, ShieldCheck, Users } from 'lucide-react'
+import { Compass, FilePlus, Flame, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import PostCard from '@/components/post-card'
 import { CreatePostBox } from '@/components/create-post-box'
@@ -237,12 +237,43 @@ export default async function Page({
     .limit(4)
 
   return (
-    <div className="bg-background min-h-screen">
-      <div className="py-8 md:py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="min-h-screen bg-[radial-gradient(1200px_500px_at_50%_-220px,rgba(16,185,129,0.16),transparent)]">
+      <div className="mx-auto max-w-7xl px-4 pt-8 pb-10 sm:px-6 lg:px-8 md:pt-10">
+        <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm backdrop-blur-sm md:p-8">
+          <div className="pointer-events-none absolute -top-20 right-[-120px] h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-[-130px] left-[-80px] h-72 w-72 rounded-full bg-info/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Comunidade ativa em tempo real
+              </div>
+              <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">Feed FIND4SPORT</h1>
+              <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+                Descobre novidades de profissionais e espaços, acompanha tendências e liga-te à comunidade desportiva.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Publicações</p>
+                <p className="text-base font-black text-foreground">{posts?.length || 0}</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Destaques</p>
+                <p className="text-base font-black text-foreground">{trendingTags.length}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 pb-12">
         
         {/* Left Sidebar / Info Section */}
         <aside className="hidden lg:block lg:col-span-3 space-y-6">
-          <div className="bg-primary/10 text-primary-foreground p-6 rounded-2xl shadow-sm border border-primary/20">
+          <div className="rounded-2xl border border-primary/25 bg-linear-to-br from-primary/20 via-primary/10 to-card p-6 shadow-sm">
             <div className="flex items-start gap-3 mb-4 text-primary">
               <ShieldCheck className="text-[28px]" />
               <h3 className="text-lg font-bold leading-tight">Publicações Seguras</h3>
@@ -250,10 +281,14 @@ export default async function Page({
             <p className="text-sm text-foreground opacity-90 mb-4">
               Apenas profissionais e espaços verificados podem publicar conteúdo oficial no feed principal.
             </p>
+            <div className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-background/75 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <Compass className="h-3 w-3" />
+              Curadoria ativa
+            </div>
           </div>
 
           {/* Suggestion Card */}
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-6 shadow-sm backdrop-blur-sm">
             <h4 className="font-bold text-base mb-4 text-foreground">Sugestões para seguir</h4>
             <div className="space-y-4">
               
@@ -304,8 +339,11 @@ export default async function Page({
           </div>
 
           {/* Real Dynamic Trending Topics */}
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-            <h4 className="font-bold text-base mb-4 text-foreground">Em Destaque</h4>
+          <div className="rounded-2xl border border-border/70 bg-card/90 p-6 shadow-sm backdrop-blur-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h4 className="font-bold text-base text-foreground">Em Destaque</h4>
+              <Flame className="h-4 w-4 text-orange-500" />
+            </div>
             <div className="space-y-4">
               {trendingTags.map(({ tag, count }) => {
                 const tagSearch = tag.replace('#', '')
@@ -334,29 +372,27 @@ export default async function Page({
         <div className="lg:col-span-9 space-y-6">
 
           {/* Feed Tabs */}
-          <div className="flex items-center gap-6 border-b border-border pb-px px-2">
+          <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-card/90 p-2 shadow-sm backdrop-blur-sm">
             <Link 
               href="/feed?tab=foryou" 
-              className={`pb-3 text-sm font-bold transition-colors relative ${tabParam !== 'following' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${tabParam !== 'following' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
             >
               Para Ti
-              {tabParam !== 'following' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>}
             </Link>
             {user && (
               <Link 
                 href="/feed?tab=following" 
-                className={`pb-3 text-sm font-bold transition-colors relative ${tabParam === 'following' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${tabParam === 'following' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
               >
                 A Seguir
-                {tabParam === 'following' && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-t-full"></span>}
               </Link>
             )}
           </div>
 
           {/* Stories/Momentos Section */}
-          <section className="relative">
+          <section className="relative rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm md:p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-foreground">Destaques</h2>
+              <h2 className="text-xl font-black tracking-tight text-foreground">Destaques</h2>
               <FeedFilterModal />
             </div>
             
@@ -378,9 +414,9 @@ export default async function Page({
 
           {/* Active Filter Banner */}
           {keyword && (
-            <div className="flex items-center justify-between p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary text-sm font-semibold">
+            <div className="flex items-center justify-between rounded-2xl border border-primary/30 bg-linear-to-r from-primary/15 via-primary/8 to-transparent p-4 text-primary text-sm font-semibold">
               <span>Publicações filtradas por: <strong>#{keyword}</strong></span>
-              <Link href="/feed" className="hover:underline text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-lg font-bold">
+              <Link href="/feed" className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90">
                 Limpar Filtro
               </Link>
             </div>
@@ -405,7 +441,7 @@ export default async function Page({
               />
             ))
           ) : tabParam === 'following' ? (
-            <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
+            <div className="rounded-2xl border border-border/70 bg-card/90 p-12 text-center shadow-sm backdrop-blur-sm">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-bold text-lg text-foreground mb-2">O teu feed está vazio</h3>
               <p className="text-muted-foreground text-sm mb-6">Começa a seguir profissionais e espaços para veres as suas publicações aqui.</p>
@@ -414,7 +450,7 @@ export default async function Page({
               </Link>
             </div>
           ) : (
-            <div className="text-center p-12 bg-card rounded-2xl border border-border shadow-sm">
+            <div className="rounded-2xl border border-border/70 bg-card/90 p-12 text-center shadow-sm backdrop-blur-sm">
               <FilePlus className="text-[48px] text-muted-foreground mb-4" />
               <h3 className="font-bold text-lg text-foreground mb-2">Ainda não há publicações</h3>
               <p className="text-muted-foreground text-sm">Segue mais profissionais e espaços para veres as suas novidades aqui.</p>

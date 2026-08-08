@@ -283,8 +283,8 @@ export default function PostCard({
   }
 
   return (
-    <article id={`post-${post.id}`} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow mb-6">
-      <div className="p-4 flex items-center justify-between">
+    <article id={`post-${post.id}`} className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm transition-all hover:shadow-md">
+      <div className="flex items-center justify-between border-b border-border/70 p-4">
         <div className="flex items-center gap-3">
           <Link href={authorLink} className="relative block hover:opacity-80 transition-opacity">
             <UserAvatar name={authorName} src={authorAvatar} className="size-10" />
@@ -306,7 +306,7 @@ export default function PostCard({
               <Link href={authorLink}>
                 <h3 className="text-sm font-semibold text-foreground hover:underline">{authorName}</h3>
               </Link>
-              <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${post.professional_id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${post.professional_id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
                 {authorType}
               </span>
             </div>
@@ -325,47 +325,49 @@ export default function PostCard({
         </div>
       </div>
       
-      <div className="px-4 pb-3">
+      <div className="px-4 pt-3 pb-3">
         <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderPostContent(post.content || '') }}></p>
       </div>
       
       {post.media_url && (
-        <div className="relative group aspect-video bg-muted border-y border-border overflow-hidden" onDoubleClick={handleLike}>
+        <div className="relative group aspect-video overflow-hidden border-y border-border bg-muted" onDoubleClick={handleLike}>
           {post.media_type === 'video' ? (
             <video className="w-full h-full object-contain bg-black/5" src={post.media_url} controls playsInline />
           ) : (
-            <img className="w-full h-full object-cover" src={post.media_url} alt="Post media" />
+            <img className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.015]" src={post.media_url} alt="Post media" />
           )}
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 via-black/10 to-transparent" />
         </div>
       )}
       
       <div className="px-4 py-3">
         {/* Interaction Buttons */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/35 px-2 py-1">
             <button 
               onClick={handleLike}
-              className={`flex items-center justify-center transition-transform active:scale-75 ${isLiked ? 'text-destructive' : 'text-foreground hover:text-muted-foreground'}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-75 ${isLiked ? 'bg-destructive/10 text-destructive' : 'text-foreground hover:bg-background hover:text-muted-foreground'}`}
               disabled={liking}
               title={isAuthenticated ? 'Gostar' : 'Inicia sessão para gostar'}
             >
-              <Heart className={`h-6 w-6 transition-all ${isLiked ? 'fill-current scale-110' : ''}`} />
+              <Heart className={`h-5 w-5 transition-all ${isLiked ? 'fill-current scale-110' : ''}`} />
             </button>
             <button 
               onClick={handleComment}
-              className="flex items-center justify-center text-foreground hover:text-muted-foreground transition-transform active:scale-90"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-transform hover:bg-background hover:text-muted-foreground active:scale-90"
             >
-              <MessageSquare className="h-6 w-6" />
+              <MessageSquare className="h-5 w-5" />
             </button>
             <button 
               onClick={handleShare}
-              className="flex items-center justify-center text-foreground hover:text-muted-foreground transition-transform active:scale-90"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-transform hover:bg-background hover:text-muted-foreground active:scale-90"
             >
-              <Share2 className="h-6 w-6" />
+              <Share2 className="h-5 w-5" />
             </button>
           </div>
           {post.sport_space_id && (
-             <Link href={authorLink} className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-xs font-bold hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 border border-primary/20">
+             <Link href={authorLink} className="rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-primary-foreground active:scale-95">
                Reservar
              </Link>
           )}
@@ -374,7 +376,7 @@ export default function PostCard({
         {/* Likes Social Text */}
         {likesCount > 0 && (
           <div className="mb-2">
-            <button onClick={handleOpenLikesModal} className="text-sm font-semibold hover:underline cursor-pointer">
+            <button onClick={handleOpenLikesModal} className="cursor-pointer text-sm font-semibold hover:underline">
               {likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}
             </button>
           </div>
@@ -412,13 +414,13 @@ export default function PostCard({
         )}
 
         {/* Always visible comment input */}
-        <form onSubmit={submitComment} className="flex gap-2 items-center mt-2">
+        <form onSubmit={submitComment} className="mt-2 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
           <input 
             type="text"
             value={commentText}
             onChange={e => setCommentText(e.target.value)}
             placeholder="Adiciona um comentário..."
-            className="flex-1 bg-transparent border-none text-sm focus:outline-none focus:ring-0 px-0 placeholder:text-muted-foreground"
+            className="flex-1 border-none bg-transparent px-0 text-sm focus:outline-none focus:ring-0 placeholder:text-muted-foreground"
           />
           {commentText.trim() && (
             <button 

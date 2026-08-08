@@ -5,6 +5,7 @@ import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
 import { FollowButton } from '@/components/follow-button'
 import { FollowStats } from '@/components/follow-stats'
+import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
 
 export default async function SpaceProfilePage(props: {
   params: Promise<{ id: string }>
@@ -125,8 +126,82 @@ export default async function SpaceProfilePage(props: {
         </div>
       </section>
 
+      {/* Mobile Tabs Layout */}
+      <section className="px-4 py-6 sm:px-6 lg:hidden">
+        <MobileSectionsTabs
+          tabs={[
+            { id: 'sobre', label: 'Sobre' },
+            { id: 'infra', label: 'Infraestruturas' },
+            { id: 'galeria', label: 'Galeria' },
+            { id: 'info', label: 'Info' },
+            { id: 'avaliacoes', label: 'Avaliações' },
+          ]}
+        >
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">O Espaço</h2>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{description}</p>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Building2 className="h-5 w-5 text-primary" />
+              Infraestruturas
+            </h2>
+            <div className="grid grid-cols-2 gap-3 text-sm text-foreground">
+              <div className="rounded-xl border border-border bg-muted/25 p-3">Estacionamento</div>
+              <div className="rounded-xl border border-border bg-muted/25 p-3">Balneários</div>
+              <div className="rounded-xl border border-border bg-muted/25 p-3">Wi-Fi Grátis</div>
+              <div className="rounded-xl border border-border bg-muted/25 p-3">Cafetaria</div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+              <Images className="h-5 w-5 text-primary" />
+              Galeria
+            </h2>
+            {space.gallery_urls && space.gallery_urls.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {space.gallery_urls.slice(0, 4).map((img: string, i: number) => (
+                  <div key={i} className={`overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
+                    <img src={img} alt={`Instalações ${i}`} className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sem imagens disponíveis.</p>
+            )}
+          </section>
+
+          <div className="space-y-4">
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="h-32 bg-accent relative">
+                <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600&auto=format&fit=crop" className="h-full w-full object-cover opacity-60 mix-blend-luminosity" alt="Map" />
+              </div>
+              <div className="p-5">
+                <h3 className="mb-2 text-base font-semibold text-foreground">Localização</h3>
+                <p className="mb-4 text-sm text-muted-foreground">{space.address}</p>
+                <ObterDirecoesBtn address={space.address} name={space.name} latitude={space.latitude} longitude={space.longitude} />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-3 text-base font-semibold text-foreground">Contactos</h3>
+              <ul className="space-y-2">
+                {space.phone && <li className="text-sm text-foreground">{space.phone}</li>}
+                {space.email && <li className="text-sm text-foreground">{space.email}</li>}
+              </ul>
+            </section>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <ReviewsSection targetType="space" targetId={space.id} />
+          </div>
+        </MobileSectionsTabs>
+      </section>
+
       {/* Main Content Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Left Column (Main Info) */}
@@ -236,7 +311,7 @@ export default async function SpaceProfilePage(props: {
       </section>
 
       {/* Reviews Section */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8">
         <div className="max-w-7xl mx-auto">
           <ReviewsSection targetType="space" targetId={space.id} />
         </div>

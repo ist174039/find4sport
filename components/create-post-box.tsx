@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createPostAction } from '@/app/actions/feed'
-import {  Loader2, PenLine, Send, Image as ImageIcon, Video, X  } from 'lucide-react'
+import { Loader2, PenLine, Send, Image as ImageIcon, X } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 
 export function CreatePostBox({
@@ -103,28 +103,36 @@ export function CreatePostBox({
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 mb-6 shadow-sm">
+    <div className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-4 shadow-sm backdrop-blur-sm md:p-5">
+      <div className="mb-3 flex items-center justify-between border-b border-border/70 pb-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
+          <PenLine className="h-3.5 w-3.5" />
+          {currentUserType === 'espaco' ? 'Publicação do espaço' : 'Publicação oficial'}
+        </div>
+        <span className="text-[11px] font-medium text-muted-foreground">Qualidade visual recomendada: 1200x1200</span>
+      </div>
+
       <div className="flex gap-4">
         <img 
           src={currentUserAvatar || 'https://i.pravatar.cc/150'} 
           alt={currentUserName} 
-          className="w-10 h-10 rounded-full object-cover shrink-0 border border-border" 
+          className="h-11 w-11 shrink-0 rounded-full border border-border object-cover" 
         />
         <form onSubmit={handleSubmit} className="flex-1 space-y-3">
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
             placeholder="Partilha uma novidade com a tua audiência..."
-            className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all resize-none"
-            rows={2}
+            className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm leading-relaxed transition-all focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            rows={3}
             maxLength={5000}
           />
-          <div className="text-[11px] text-muted-foreground text-right">
+          <div className="text-right text-[11px] text-muted-foreground">
             {content.length}/5000
           </div>
           
           {mediaPreview && (
-            <div className="relative inline-block mt-2">
+            <div className="relative mt-2 inline-block rounded-xl border border-border bg-muted/30 p-1">
               {mediaFile?.type.startsWith('video/') ? (
                 <video src={mediaPreview} className="max-h-48 rounded-lg object-contain bg-black/5" controls />
               ) : (
@@ -142,11 +150,7 @@ export function CreatePostBox({
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <PenLine className="w-3.5 h-3.5" /> {currentUserType === 'espaco' ? 'Publicação do espaço' : 'Publicação oficial'}
-              </div>
-              
-              <label className="cursor-pointer text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 text-xs font-medium">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary">
                 <ImageIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Foto/Vídeo</span>
                 <input 
@@ -162,7 +166,7 @@ export function CreatePostBox({
             <button
               type="submit"
               disabled={loading || (!content.trim() && !mediaFile)}
-              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg font-bold text-sm shadow-sm hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center gap-2"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-bold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Publicar

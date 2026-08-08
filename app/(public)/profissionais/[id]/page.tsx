@@ -12,6 +12,7 @@ import { ReviewsSection } from '@/components/reviews-section'
 import { ProfessionalServices } from '@/components/professional-services'
 import { FollowButton } from '@/components/follow-button'
 import { FollowStats } from '@/components/follow-stats'
+import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -189,8 +190,174 @@ export default async function ProfessionalProfilePage(props: {
         </div>
       </section>
 
+      {/* Mobile Tabs Layout */}
+      <section className="px-4 py-6 sm:px-6 lg:hidden">
+        <MobileSectionsTabs
+          tabs={[
+            { id: 'sobre', label: 'Sobre' },
+            { id: 'servicos', label: 'Serviços' },
+            { id: 'conteudo', label: 'Conteúdo' },
+            { id: 'info', label: 'Info' },
+            { id: 'avaliacoes', label: 'Avaliações' },
+          ]}
+        >
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <User className="h-5 w-5 text-primary" />
+                Sobre Mim
+              </h2>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{bio}</p>
+            </section>
+          </div>
+
+          <div className="space-y-4">
+            <ProfessionalServices services={services || []} professionalId={professional.id} />
+
+            {categoriesList.length > 0 && (
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Dumbbell className="h-5 w-5 text-primary" />
+                  Especialidades
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {categoriesList.map((catName: string, i: number) => (
+                    <span key={i} className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+                      {catName}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {qualifications && qualifications.length > 0 && (
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Award className="h-5 w-5 text-amber-500" />
+                  Qualificações
+                </h2>
+                <div className="space-y-3">
+                  {qualifications.map((q: any) => (
+                    <div key={q.id} className="rounded-xl border border-border bg-muted/20 p-3">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-foreground">{q.title}</p>
+                        <Badge className="border-0 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600">Verificado</Badge>
+                      </div>
+                      {q.issuer && <p className="mt-0.5 text-xs text-muted-foreground">{q.issuer}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {communities.length > 0 && (
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Users className="h-5 w-5 text-primary" />
+                  Comunidades
+                </h2>
+                <div className="space-y-2">
+                  {communities.map((comm: any) => (
+                    <Link key={comm.id} href={`/comunidades/${comm.id}`} className="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-primary/10">
+                        {comm.cover_image_url ? (
+                          <img src={comm.cover_image_url} alt={comm.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-sm font-bold text-primary">{comm.name?.charAt(0).toUpperCase() || 'C'}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-foreground">{comm.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{comm.sport_category || 'Comunidade Desportiva'}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {professional.gallery_urls && professional.gallery_urls.length > 0 && (
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
+                  <Images className="h-5 w-5 text-primary" />
+                  Galeria
+                </h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {professional.gallery_urls.slice(0, 4).map((img: string, i: number) => (
+                    <div key={i} className={`overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
+                      <img src={img} alt={`Galeria ${i}`} className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+                <Building2 className="h-5 w-5 text-primary" />
+                Espaço Desportivo
+              </h3>
+
+              {associatedSpace ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border bg-background">
+                      <img src={associatedSpace.logo_url || associatedSpace.cover_url || 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=200&auto=format&fit=crop'} alt={associatedSpace.name} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-foreground">{associatedSpace.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{associatedSpace.address || 'Espaço de Treino'}</p>
+                    </div>
+                  </div>
+
+                  <Link href={`/espacos/${associatedSpace.slug || associatedSpace.id}`} className="block rounded-xl bg-primary/10 py-2 text-center text-xs font-bold text-primary">
+                    Ver Espaço Desportivo
+                  </Link>
+                </div>
+              ) : (
+                <p className="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  Profissional independente. Realiza treinos ao domicílio, em parques/exterior ou instalações parceiras.
+                </p>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="h-32 bg-accent relative">
+                <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600&auto=format&fit=crop" className="h-full w-full object-cover opacity-60 mix-blend-luminosity" alt="Map" />
+              </div>
+              <div className="p-5">
+                <h3 className="mb-2 text-base font-semibold text-foreground">Localização</h3>
+                <p className="mb-4 text-sm text-muted-foreground">{professional.address || 'Localização sob consulta'}</p>
+                <ObterDirecoesBtn address={professional.address} name={professional.full_name} latitude={professional.latitude} longitude={professional.longitude} />
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-4 text-base font-semibold text-foreground">Contactos</h3>
+              <ul className="space-y-3">
+                {professional.phone && <li className="text-sm text-foreground">{professional.phone}</li>}
+                {professional.email && <li className="text-sm text-foreground">{professional.email}</li>}
+                {professional.website && (
+                  <li className="truncate text-sm text-primary">
+                    <a href={professional.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{professional.website}</a>
+                  </li>
+                )}
+              </ul>
+            </section>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <ReviewsSection targetType="professional" targetId={professional.id} />
+          </div>
+        </MobileSectionsTabs>
+      </section>
+
       {/* Main Content Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
         
           {/* Left Column (Main Info) */}
@@ -408,7 +575,7 @@ export default async function ProfessionalProfilePage(props: {
       </section>
 
       {/* Reviews Section */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8">
         <div className="max-w-7xl mx-auto">
           <ReviewsSection targetType="professional" targetId={professional.id} />
         </div>

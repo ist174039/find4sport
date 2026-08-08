@@ -7,6 +7,7 @@ import { JoinCommunityBtn } from '@/components/join-community-btn'
 import { CreateCommunityPostBox } from '@/components/create-community-post-box'
 import { CommunityMembersList } from '@/components/community-members-list'
 import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
+import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
 
 export default async function CommunityProfilePage(props: {
   params: Promise<{ id: string }>
@@ -139,8 +140,62 @@ export default async function CommunityProfilePage(props: {
         </div>
       </section>
 
+      {/* Mobile Tabs Layout */}
+      <section className="px-4 py-6 sm:px-6 lg:hidden">
+        <MobileSectionsTabs
+          tabs={[
+            { id: 'sobre', label: 'Sobre' },
+            { id: 'feed', label: 'Feed' },
+            { id: 'membros', label: 'Membros' },
+            { id: 'regras', label: 'Regras' },
+          ]}
+        >
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Sobre a Comunidade</h2>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {community.description || 'Nenhuma descrição fornecida.'}
+            </p>
+          </section>
+
+          <div className="space-y-4">
+            {initialJoined && canPostInCommunity && (
+              <CreateCommunityPostBox
+                communityId={community.id}
+                currentUserName={currentUserName}
+                currentUserAvatar={currentUserAvatar}
+              />
+            )}
+
+            {posts && posts.length > 0 ? (
+              posts.map((post: any) => (
+                <PostCard key={post.id} post={post} isAuthenticated={Boolean(user)} />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-10 text-center text-muted-foreground">
+                <MessageSquare className="mb-3 h-6 w-6 opacity-50" />
+                <p className="text-base font-medium text-foreground">Sem publicações ainda</p>
+                <p className="mt-1 text-sm">Sê o primeiro a partilhar algo com a comunidade!</p>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <CommunityMembersList members={displayMembers} memberCount={memberCount} />
+          </div>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <h3 className="mb-4 text-base font-bold text-foreground">Regras da Comunidade</h3>
+            <ol className="list-inside list-decimal space-y-2 text-sm text-muted-foreground">
+              <li>Respeito mútuo entre todos os membros.</li>
+              <li>Não é permitido spam ou publicidade não solicitada.</li>
+              <li>Partilhar apenas conteúdo relacionado com desporto.</li>
+            </ol>
+          </section>
+        </MobileSectionsTabs>
+      </section>
+
       {/* Main Content Grid */}
-      <section className="px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background">
+      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column (Feed/Main) */}

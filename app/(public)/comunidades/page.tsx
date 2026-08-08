@@ -1,7 +1,6 @@
 import { Globe, Lock, Plus, Search, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ComunidadesFilterModal } from '@/components/comunidades-filter-modal'
 
 export default async function CommunitiesPage({
   searchParams,
@@ -42,6 +41,17 @@ export default async function CommunitiesPage({
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
+  const categoryGroups = safeCommunities.reduce((acc: Record<string, number>, community: any) => {
+    const label = (community.sport_category || 'Desporto').trim()
+    acc[label] = (acc[label] || 0) + 1
+    return acc
+  }, {})
+
+  const topCategories = Object.entries(categoryGroups)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name]) => name)
+
   const buildHref = (updates: Record<string, string | null>) => {
     const hrefParams = new URLSearchParams(params as Record<string, string>)
     Object.entries(updates).forEach(([key, value]) => {
@@ -57,56 +67,82 @@ export default async function CommunitiesPage({
       {/* Hero Section */}
       <section className="border-b border-border bg-muted/30 py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             <div>
               <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl">
                 Comunidades
               </h1>
-              <p className="mt-2 text-muted-foreground text-lg max-w-2xl">
+              <p className="mt-2 text-muted-foreground max-w-2xl">
                 Junta-te a grupos locais e encontra pessoas com a mesma paixão pelo desporto.
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {safeCommunities.length} comunidades encontradas
               </p>
             </div>
             
-            <div className="flex items-center gap-3">
-              <ComunidadesFilterModal />
-              <Link href="/comunidades/criar" className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
-                <Plus className="text-[18px]" />
+            <div className="flex items-center gap-3 self-start">
+              <Link href="/comunidades/criar" className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-medium text-sm inline-flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-sm">
+                <Plus className="h-4 w-4" />
                 Criar
               </Link>
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <form action="/comunidades" method="get" className="relative w-full sm:max-w-md">
+          <div className="mt-6">
+            <form action="/comunidades" method="get" className="relative w-full max-w-3xl">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 name="q"
                 defaultValue={queryParam}
                 placeholder="Pesquisar por nome, descricao ou modalidade..."
-                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
+                className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm outline-none focus:border-primary"
               />
               {categoryParam && <input type="hidden" name="category" value={categoryParam} />}
               {sortParam && <input type="hidden" name="sort" value={sortParam} />}
             </form>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="font-medium text-muted-foreground">Ordenar:</span>
-              <Link href={buildHref({ sort: 'newest' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Recentes</Link>
-              <Link href={buildHref({ sort: 'members' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'members' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais membros</Link>
-              <Link href={buildHref({ sort: 'name' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'name' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>A-Z</Link>
-            </div>
+      <section className="border-b border-border py-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <Link
+              href={buildHref({ category: null })}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                !categoryParam
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              Todas
+            </Link>
+            {topCategories.map((categoryName) => (
+              <Link
+                key={categoryName}
+                href={buildHref({ category: categoryName })}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  categoryParam?.toLowerCase() === categoryName.toLowerCase()
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {categoryName}
+              </Link>
+            ))}
           </div>
 
-          {(queryParam || categoryParam) && (
-            <div className="mt-3">
-              <Link href="/comunidades" className="inline-flex rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium text-muted-foreground">Ordenar:</span>
+            <Link href={buildHref({ sort: 'newest' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'newest' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Recentes</Link>
+            <Link href={buildHref({ sort: 'members' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'members' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>Mais membros</Link>
+            <Link href={buildHref({ sort: 'name' })} className={`rounded-full border px-3 py-1.5 ${sortParam === 'name' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:border-primary/50'}`}>A-Z</Link>
+            {(queryParam || categoryParam) && (
+              <Link href="/comunidades" className="ml-1 inline-flex rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50">
                 Limpar filtros
               </Link>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
 
