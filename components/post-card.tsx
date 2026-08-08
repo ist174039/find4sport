@@ -15,9 +15,9 @@ import { Loader2 } from 'lucide-react'
 // Helper function to resolve user link
 const resolveUserLink = (u: any) => {
   if (!u) return '#'
-  if (u.type === 'professional') {
+  if (u.type === 'professional' || u.type === 'profissional') {
     return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
-  } else if (u.type === 'espaco') {
+  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
     return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
   }
   return `/utilizadores/${u.id}`

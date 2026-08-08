@@ -2,18 +2,78 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Heart, MapPin, Calendar as CalendarIcon, ArrowRight, Activity, Users } from 'lucide-react'
+import { Heart, MapPin, Calendar as CalendarIcon, ArrowRight, Activity, Users, Trash2, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { useModal } from '@/components/providers/modal-provider'
+
+type FavoriteItem = {
+  id: string
+  professional_id: string | null
+  space_id: string | null
+  event_id: string | null
+  professional: any | null
+  space: any | null
+  event: any | null
+}
+
+type CommunityItem = {
+  memberId: string
+  community: any
+}
 
 export default function FavoritosPage() {
-  const [favorites, setFavorites] = useState<{ professionals: any[], spaces: any[], events: any[], communities: any[] }>({
+  const { showAlert } = useModal()
+  const [favorites, setFavorites] = useState<{ professionals: FavoriteItem[], spaces: FavoriteItem[], events: FavoriteItem[], communities: CommunityItem[] }>({
     professionals: [],
     spaces: [],
     events: [],
     communities: []
   })
   const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const removeFavorite = async (favoriteId: string) => {
+    setBusyId(favoriteId)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('favorites').delete().eq('id', favoriteId)
+      if (error) throw error
+
+      setFavorites(prev => ({
+        professionals: prev.professionals.filter(item => item.id !== favoriteId),
+        spaces: prev.spaces.filter(item => item.id !== favoriteId),
+        events: prev.events.filter(item => item.id !== favoriteId),
+        communities: prev.communities,
+      }))
+      showAlert('Sucesso', 'Favorito removido.', 'success')
+    } catch (err: any) {
+      console.error(err)
+      showAlert('Erro', err.message || 'Não foi possível remover favorito.', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const leaveCommunity = async (memberId: string) => {
+    setBusyId(memberId)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('community_members').delete().eq('id', memberId)
+      if (error) throw error
+
+      setFavorites(prev => ({
+        ...prev,
+        communities: prev.communities.filter(item => item.memberId !== memberId),
+      }))
+      showAlert('Sucesso', 'Saiu da comunidade.', 'success')
+    } catch (err: any) {
+      console.error(err)
+      showAlert('Erro', err.message || 'Não foi possível sair da comunidade.', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   useEffect(() => {
     async function loadFavorites() {
@@ -24,28 +84,34 @@ export default function FavoritosPage() {
       const { data } = await supabase
         .from('favorites')
         .select(`
-          *,
-          professional:professionals(*),
-          space:sport_spaces(*),
-          event:events(*)
+          id,
+          professional_id,
+          space_id,
+          event_id,
+          professional:professionals(id, full_name, professional_name, avatar_url, address, public_slug),
+          space:sport_spaces(id, name, address, gallery_urls, slug),
+          event:events(id, title, image_url, start_date, slug)
         `)
         .eq('user_id', user.id)
 
       if (data) {
-        const professionals = data.filter(f => f.professional_id).map(f => f.professional)
-        const spaces = data.filter(f => f.space_id).map(f => f.space)
-        const events = data.filter(f => f.event_id).map(f => f.event)
+        const favoriteRows = data as FavoriteItem[]
+        const professionals = favoriteRows.filter(f => f.professional_id && f.professional)
+        const spaces = favoriteRows.filter(f => f.space_id && f.space)
+        const events = favoriteRows.filter(f => f.event_id && f.event)
         
         // Fetch communities from community_members
         const { data: commData } = await supabase
           .from('community_members')
           .select(`
-            *,
-            community:communities(*)
+            id,
+            community:communities(id, name, sport_category, icon_url)
           `)
           .eq('user_id', user.id)
 
-        const communities = commData ? commData.map(c => c.community) : []
+        const communities = (commData || [])
+          .filter((c: any) => c.community)
+          .map((c: any) => ({ memberId: c.id, community: c.community }))
 
         setFavorites({ professionals, spaces, events, communities })
       }
@@ -81,8 +147,18 @@ export default function FavoritosPage() {
                 <Users className="h-5 w-5 text-primary" /> Profissionais
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {favorites.professionals.map((pro, idx) => (
-                  <div key={idx} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
+                {favorites.professionals.map((fav) => {
+                  const pro = fav.professional
+                  return (
+                  <div key={fav.id} className="relative flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
+                    <button
+                      onClick={() => removeFavorite(fav.id)}
+                      disabled={busyId === fav.id}
+                      className="absolute top-3 right-3 p-2 rounded-lg bg-background/90 border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+                      title="Remover favorito"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                     <div className="relative aspect-square rounded-full w-24 h-24 mx-auto mt-4 overflow-hidden bg-muted border border-border group-hover:border-primary/50 transition-colors">
                       {pro?.avatar_url ? (
                         <img src={pro.avatar_url} alt={pro.full_name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
@@ -102,14 +178,14 @@ export default function FavoritosPage() {
                       
                       <div className="mt-6 pt-4 border-t border-border w-full">
                         <Button asChild variant="ghost" className="w-full text-primary hover:text-primary/95 transition-all text-sm font-medium gap-1">
-                          <Link href={`/profissionais/${pro?.id}`}>
+                          <Link href={`/profissionais/${pro?.public_slug || pro?.id}`}>
                             Ver Perfil <ArrowRight className="h-4 w-4" />
                           </Link>
                         </Button>
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}
@@ -121,8 +197,18 @@ export default function FavoritosPage() {
                 <Activity className="h-5 w-5 text-teal-500" /> Recintos Desportivos
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {favorites.spaces.map((space, idx) => (
-                  <div key={idx} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group">
+                {favorites.spaces.map((fav) => {
+                  const space = fav.space
+                  return (
+                  <div key={fav.id} className="relative flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group">
+                    <button
+                      onClick={() => removeFavorite(fav.id)}
+                      disabled={busyId === fav.id}
+                      className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-background/90 border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+                      title="Remover favorito"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                     <div className="relative aspect-[4/3] bg-muted">
                       <img 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
@@ -137,14 +223,59 @@ export default function FavoritosPage() {
                       </p>
                       <div className="mt-auto pt-4 flex justify-between items-center border-t border-border mt-4">
                         <Button asChild variant="ghost" className="w-full text-primary hover:text-primary/95 transition-all text-sm font-medium gap-1">
-                          <Link href={`/comunidades/${space?.id}`}>
+                          <Link href={`/espacos/${space?.slug || space?.id}`}>
                             Reservar <CalendarIcon className="h-4 w-4" />
                           </Link>
                         </Button>
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
+              </div>
+            </div>
+          )}
+
+          {/* Eventos Section */}
+          {favorites.events.length > 0 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <CalendarIcon className="h-5 w-5 text-amber-500" /> Eventos Guardados
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {favorites.events.map((fav) => {
+                  const event = fav.event
+                  return (
+                  <div key={fav.id} className="relative flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group">
+                    <button
+                      onClick={() => removeFavorite(fav.id)}
+                      disabled={busyId === fav.id}
+                      className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-background/90 border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+                      title="Remover favorito"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <div className="relative aspect-[4/3] bg-muted">
+                      <img
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        alt={event?.title}
+                        src={event?.image_url || 'https://images.unsplash.com/photo-1517649763962-0c623266013b?q=80&w=1000&auto=format&fit=crop'}
+                      />
+                    </div>
+                    <div className="p-5 flex-1 flex flex-col">
+                      <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors line-clamp-1">{event?.title}</h3>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
+                        <CalendarIcon className="h-3.5 w-3.5" /> {event?.start_date ? new Date(event.start_date).toLocaleDateString('pt-PT') : 'Data por definir'}
+                      </p>
+                      <div className="mt-auto pt-4 border-t border-border mt-4">
+                        <Button asChild variant="ghost" className="w-full text-primary hover:text-primary/95 transition-all text-sm font-medium gap-1">
+                          <Link href={`/eventos/${event?.slug || event?.id}`}>
+                            Ver Evento <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )})}
               </div>
             </div>
           )}
@@ -156,8 +287,18 @@ export default function FavoritosPage() {
                 <Users className="h-5 w-5 text-indigo-500" /> As Minhas Comunidades
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {favorites.communities.map((comm, idx) => (
-                  <div key={idx} className="flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
+                {favorites.communities.map((item) => {
+                  const comm = item.community
+                  return (
+                  <div key={item.memberId} className="relative flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all group p-4">
+                    <button
+                      onClick={() => leaveCommunity(item.memberId)}
+                      disabled={busyId === item.memberId}
+                      className="absolute top-3 right-3 p-2 rounded-lg bg-background/90 border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+                      title="Sair da comunidade"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
                     <div className="relative aspect-square rounded-full w-24 h-24 mx-auto mt-4 overflow-hidden bg-muted border border-border group-hover:border-primary/50 transition-colors">
                       {comm?.icon_url ? (
                         <img src={comm.icon_url} alt={comm.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
@@ -184,7 +325,7 @@ export default function FavoritosPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}

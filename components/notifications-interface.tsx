@@ -54,20 +54,20 @@ export function NotificationsInterface({
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'event': return <Calendar className="h-4.5 w-4.5 text-primary" />
-      case 'message': return <MessageSquare className="h-4.5 w-4.5 text-teal-500" />
-      case 'review': return <Star className="h-4.5 w-4.5 text-amber-500 fill-amber-500" />
-      case 'billing': return <CreditCard className="h-4.5 w-4.5 text-green-500" />
-      default: return <Info className="h-4.5 w-4.5 text-muted-foreground" />
+      case 'event': return <Calendar className="h-4 w-4 text-primary" />
+      case 'message': return <MessageSquare className="h-4 w-4 text-info" />
+      case 'review': return <Star className="h-4 w-4 text-warning fill-warning" />
+      case 'billing': return <CreditCard className="h-4 w-4 text-success" />
+      default: return <Info className="h-4 w-4 text-muted-foreground" />
     }
   }
 
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'event': return <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] rounded-md font-bold">Evento</Badge>
-      case 'message': return <Badge className="bg-teal-500/10 text-teal-500 border-teal-500/20 text-[10px] rounded-md font-bold">Mensagem</Badge>
-      case 'review': return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px] rounded-md font-bold">Avaliação</Badge>
-      case 'billing': return <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px] rounded-md font-bold">Sistema</Badge>
+      case 'message': return <Badge className="bg-info/10 text-info border-info/20 text-[10px] rounded-md font-bold">Mensagem</Badge>
+      case 'review': return <Badge className="bg-warning/10 text-warning border-warning/20 text-[10px] rounded-md font-bold">Avaliação</Badge>
+      case 'billing': return <Badge className="bg-success/10 text-success border-success/20 text-[10px] rounded-md font-bold">Sistema</Badge>
       default: return <Badge variant="outline" className="text-[10px] rounded-md">Geral</Badge>
     }
   }

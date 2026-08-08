@@ -3,12 +3,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import {  CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video, MessageSquarePlus  } from 'lucide-react'
+import { Check, CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video, MessageSquarePlus } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
 import { sendMessage, markAsRead } from '@/app/actions/messages'
 import { createClient } from '@/lib/supabase/client'
 import { NewConversationModal } from './new-conversation-modal'
+import { normalizePlatformRole } from '@/lib/auth/roles'
+import { getUserAvatarUrl, getUserDisplayName, getUserRoleLabel } from '@/lib/user-display'
+import { UserAvatar } from '@/components/user-avatar'
 
 export type Message = {
   id: string
@@ -32,22 +35,22 @@ export type Contact = {
 export function ChatInterface({
   initialContacts,
   initialMessages,
-  currentUserId,
-  currentUserRole = 'user'
+  currentUserId
 }: {
   initialContacts: Contact[]
   initialMessages: Message[]
   currentUserId: string
-  currentUserRole?: string
 }) {
   const { showAlert } = useModal()
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [activeContactId, setActiveContactId] = useState<string | null>(initialContacts[0]?.id || null)
   const [newMessage, setNewMessage] = useState('')
+  const [contactSearch, setContactSearch] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   const activeContact = contacts.find((c) => c.id === activeContactId)
   const activeMessages = messages
@@ -58,9 +61,30 @@ export function ChatInterface({
     )
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-  // Scroll to bottom
+  const filteredContacts = contacts
+    .filter((contact) => {
+      const query = contactSearch.trim().toLowerCase()
+      if (!query) return true
+      return (
+        contact.name.toLowerCase().includes(query) ||
+        contact.role.toLowerCase().includes(query) ||
+        contact.lastMsg.toLowerCase().includes(query)
+      )
+    })
+    .sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
+
+  // Scroll to bottom when user is already near the end of the conversation
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (!container) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+      return
+    }
+
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    if (distanceToBottom < 120) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [activeMessages])
 
   // Mark messages as read
@@ -91,6 +115,65 @@ export function ChatInterface({
   // Real-time subscription
   useEffect(() => {
     const supabase = createClient()
+
+    const upsertContactFromMessage = async (senderId: string, newMsg: Message) => {
+      const [{ data: profile }, { data: professional }, { data: space }] = await Promise.all([
+        supabase
+          .from('platform_users')
+          .select('id, full_name, avatar_url, type')
+          .eq('id', senderId)
+          .maybeSingle(),
+        supabase
+          .from('professionals')
+          .select('user_id, professional_name, full_name, avatar_url')
+          .eq('user_id', senderId)
+          .maybeSingle(),
+        supabase
+          .from('sport_spaces')
+          .select('owner_user_id, name, logo_url')
+          .eq('owner_user_id', senderId)
+          .maybeSingle(),
+      ])
+
+      const roleValue = profile?.type || (space ? 'venue_manager' : professional ? 'professional' : 'athlete')
+      const contact: Contact = {
+        id: senderId,
+        name: getUserDisplayName({
+          type: roleValue,
+          full_name: profile?.full_name,
+          professional_name: professional?.professional_name,
+          professional_full_name: professional?.full_name,
+          space_name: space?.name,
+        }),
+        avatar: getUserAvatarUrl({
+          type: roleValue,
+          avatar_url: profile?.avatar_url,
+          professional_avatar_url: professional?.avatar_url,
+          space_logo_url: space?.logo_url,
+        }),
+        role: getUserRoleLabel(roleValue),
+        unread: activeContactId === senderId ? 0 : 1,
+        lastMsg: newMsg.content,
+        lastMsgDate: newMsg.created_at,
+      }
+
+      setContacts((prev) => {
+        const existing = prev.find((c) => c.id === senderId)
+        if (!existing) {
+          return [contact, ...prev]
+        }
+        return prev.map((c) =>
+          c.id === senderId
+            ? {
+                ...c,
+                ...contact,
+                unread: activeContactId === senderId ? c.unread : c.unread + 1,
+              }
+            : c
+        )
+      })
+    }
+
     const channel = supabase
       .channel('messages_changes')
       .on(
@@ -104,27 +187,8 @@ export function ChatInterface({
         (payload) => {
           const newMsg = payload.new as Message
           setMessages((prev) => [...prev, newMsg])
-          
-          // Update contacts list if message is from an existing contact
-          setContacts((prev) => {
-            const exists = prev.find(c => c.id === newMsg.sender_id)
-            if (exists) {
-              return prev.map(c => 
-                c.id === newMsg.sender_id 
-                  ? { 
-                      ...c, 
-                      lastMsg: newMsg.content, 
-                      lastMsgDate: newMsg.created_at,
-                      unread: activeContactId === newMsg.sender_id ? c.unread : c.unread + 1 
-                    } 
-                  : c
-              )
-            }
-            // If it's a new contact, ideally we'd fetch their profile and add to the list
-            // For now, we'll just reload the page to fetch the new contact
-            window.location.reload()
-            return prev
-          })
+
+          void upsertContactFromMessage(newMsg.sender_id, newMsg)
         }
       )
       .subscribe()
@@ -224,19 +288,20 @@ export function ChatInterface({
             <input
               type="text"
               placeholder="Pesquisar conversas..."
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
               className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-          {contacts.length === 0 ? (
+          {filteredContacts.length === 0 ? (
             <div className="text-center p-4 text-muted-foreground text-sm">
               Nenhuma conversa encontrada.
             </div>
           ) : (
-            contacts
-              .sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
+            filteredContacts
               .map((contact) => (
                 <button
                   key={contact.id}
@@ -248,11 +313,7 @@ export function ChatInterface({
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <img
-                      src={contact.avatar || 'https://i.pravatar.cc/150'}
-                      alt={contact.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
+                    <UserAvatar name={contact.name || 'Utilizador'} src={contact.avatar} size="lg" roleLabel={contact.role} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-baseline mb-0.5">
@@ -297,11 +358,7 @@ export function ChatInterface({
             {/* Chat Header */}
             <div className="p-4 border-b border-border bg-card flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
-                <img
-                  src={activeContact.avatar || 'https://i.pravatar.cc/150'}
-                  alt={activeContact.name}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
+                <UserAvatar name={activeContact.name || 'Utilizador'} src={activeContact.avatar} size="lg" roleLabel={activeContact.role} />
                 <div>
                   <h2 className="font-bold text-foreground text-sm">{activeContact.name || 'Utilizador'}</h2>
                   <p className="text-xs text-primary font-medium">{activeContact.role}</p>
@@ -309,6 +366,7 @@ export function ChatInterface({
               </div>
               <div className="flex items-center gap-1">
                 <Button
+                  onClick={() => showAlert('Info', 'Chamada de voz disponível em breve.', 'info')}
                   variant="ghost"
                   size="icon"
                   className="hidden sm:inline-flex rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
@@ -316,6 +374,7 @@ export function ChatInterface({
                   <Phone className="h-4 w-4" />
                 </Button>
                 <Button
+                  onClick={() => showAlert('Info', 'Videochamada disponível em breve.', 'info')}
                   variant="ghost"
                   size="icon"
                   className="hidden sm:inline-flex rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
@@ -324,6 +383,7 @@ export function ChatInterface({
                 </Button>
                 <div className="w-px h-5 bg-border mx-1 hidden sm:block"></div>
                 <Button
+                  onClick={() => showAlert('Info', 'Mais ações disponíveis em breve.', 'info')}
                   variant="ghost"
                   size="icon"
                   className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
@@ -334,7 +394,7 @@ export function ChatInterface({
             </div>
 
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 z-10 flex flex-col bg-muted/5">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 z-10 flex flex-col bg-muted/5 messages-container">
               {Object.entries(groupedMessages).map(([day, msgs]) => (
                 <div key={day} className="space-y-4">
                   <div className="text-center">
@@ -352,10 +412,12 @@ export function ChatInterface({
                         }`}
                       >
                         {!isMine && (
-                          <img
-                            src={activeContact.avatar || 'https://i.pravatar.cc/150'}
-                            alt=""
-                            className="w-7 h-7 rounded-full object-cover shrink-0 mt-auto"
+                          <UserAvatar
+                            name={activeContact.name || 'Utilizador'}
+                            src={activeContact.avatar}
+                            size="sm"
+                            className="mt-auto"
+                            roleLabel={activeContact.role}
                           />
                         )}
                         <div>
@@ -376,8 +438,10 @@ export function ChatInterface({
                             <span className="text-[9px] text-muted-foreground">
                               {formatMessageTime(msg.created_at)}
                             </span>
-                            {isMine && msg.read_at && (
-                              <CheckCheck className="h-3 w-3 text-primary" />
+                            {isMine && (
+                              msg.read_at
+                                ? <CheckCheck className="h-3 w-3 text-primary" />
+                                : <Check className="h-3 w-3 text-muted-foreground" />
                             )}
                           </div>
                         </div>
@@ -397,6 +461,7 @@ export function ChatInterface({
               >
                 <Button
                   type="button"
+                  onClick={() => showAlert('Info', 'Envio de ficheiros disponível em breve.', 'info')}
                   variant="ghost"
                   size="icon"
                   className="rounded-lg text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
@@ -439,15 +504,15 @@ export function ChatInterface({
       <NewConversationModal 
         open={isNewChatModalOpen} 
         onClose={() => setIsNewChatModalOpen(false)}
-        currentUserRole={currentUserRole}
+        currentUserId={currentUserId}
         onSelectContact={(contact) => {
           setIsNewChatModalOpen(false)
-          // Add contact to list if not exists, and set as active
           setContacts(prev => {
-            if (!prev.find(c => c.id === contact.id)) {
+            const existing = prev.find(c => c.id === contact.id)
+            if (!existing) {
               return [contact, ...prev]
             }
-            return prev
+            return prev.map(c => c.id === contact.id ? { ...c, ...contact } : c)
           })
           setActiveContactId(contact.id)
         }}

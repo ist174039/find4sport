@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ChatInterface, Contact, Message } from '@/components/chat-interface'
+import { getUserAvatarUrl, getUserDisplayName, getUserRoleLabel } from '@/lib/user-display'
 
 export default async function MensagensPage() {
   const supabase = await createClient()
@@ -10,15 +11,6 @@ export default async function MensagensPage() {
   if (!user) {
     redirect('/auth/login')
   }
-
-  // Obter perfil do utilizador atual para determinar o seu tipo (role)
-  const { data: profile } = await supabase
-    .from('platform_users')
-    .select('type')
-    .eq('id', user.id)
-    .single()
-    
-  const currentUserRole = profile?.type || 'user'
 
   // Obter todas as mensagens enviadas ou recebidas por este utilizador
   const { data: messagesData, error: messagesError } = await supabase
@@ -40,13 +32,31 @@ export default async function MensagensPage() {
   const contacts: Contact[] = []
   
   if (contactIds.size > 0) {
-    const { data: profiles } = await supabase
-      .from('platform_users')
-      .select('id, full_name, avatar_url, type')
-      .in('id', Array.from(contactIds))
+    const ids = Array.from(contactIds)
+    const [{ data: profiles }, { data: professionals }, { data: spaces }] = await Promise.all([
+      supabase
+        .from('platform_users')
+        .select('id, full_name, avatar_url, type')
+        .in('id', ids),
+      supabase
+        .from('professionals')
+        .select('user_id, full_name, professional_name, avatar_url')
+        .in('user_id', ids),
+      supabase
+        .from('sport_spaces')
+        .select('owner_user_id, name, logo_url')
+        .in('owner_user_id', ids),
+    ])
+
+    const profByUserId = new Map((professionals || []).map((p: any) => [p.user_id, p]))
+    const spaceByUserId = new Map((spaces || []).map((s: any) => [s.owner_user_id, s]))
 
     if (profiles) {
       profiles.forEach(profile => {
+        const prof = profByUserId.get(profile.id)
+        const space = spaceByUserId.get(profile.id)
+        const roleType = space ? 'venue_manager' : prof ? 'professional' : profile.type
+
         // Encontrar a última mensagem trocada com este utilizador
         const lastMsg = messages.find(
           m => m.sender_id === profile.id || m.receiver_id === profile.id
@@ -60,9 +70,20 @@ export default async function MensagensPage() {
         if (lastMsg) {
           contacts.push({
             id: profile.id,
-            name: profile.full_name || 'Utilizador Desconhecido',
-            avatar: profile.avatar_url || '',
-            role: profile.type === 'professional' ? 'Profissional' : (profile.type === 'sport_space' ? 'Espaço' : 'Utilizador'),
+            name: getUserDisplayName({
+              type: roleType,
+              full_name: profile.full_name,
+              professional_name: prof?.professional_name,
+              professional_full_name: prof?.full_name,
+              space_name: space?.name,
+            }),
+            avatar: getUserAvatarUrl({
+              type: roleType,
+              avatar_url: profile.avatar_url,
+              professional_avatar_url: prof?.avatar_url,
+              space_logo_url: space?.logo_url,
+            }),
+            role: getUserRoleLabel(roleType),
             unread: unreadCount,
             lastMsg: lastMsg.content,
             lastMsgDate: lastMsg.created_at,
@@ -77,7 +98,6 @@ export default async function MensagensPage() {
       initialContacts={contacts} 
       initialMessages={messages} 
       currentUserId={user.id}
-      currentUserRole={currentUserRole}
     />
   )
 }

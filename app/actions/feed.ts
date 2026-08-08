@@ -85,23 +85,26 @@ export async function toggleLikeAction(postId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Autenticação necessária')
 
-  // check if liked
-  const { data: existing } = await supabase
+  const { error: insertError } = await supabase
     .from('post_likes')
-    .select('id')
-    .eq('post_id', postId)
-    .eq('user_id', user.id)
-    .maybeSingle()
+    .insert({ post_id: postId, user_id: user.id })
 
-  if (existing) {
-    // unlike
-    await supabase.from('post_likes').delete().eq('id', existing.id)
-    return { liked: false }
-  } else {
-    // like
-    await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id })
+  if (!insertError) {
     return { liked: true }
   }
+
+  if ((insertError as any)?.code === '23505') {
+    const { error: deleteError } = await supabase
+      .from('post_likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', user.id)
+
+    if (deleteError) throw new Error('Erro ao remover gosto')
+    return { liked: false }
+  }
+
+  throw new Error('Erro ao atualizar gosto')
 }
 
 export async function addCommentAction(postId: string, content: string) {
@@ -112,6 +115,14 @@ export async function addCommentAction(postId: string, content: string) {
   const trimmedContent = content.trim()
   if (!trimmedContent) throw new Error('Comentário vazio')
   if (trimmedContent.length > 2000) throw new Error('Comentário demasiado longo')
+
+  const { data: postExists } = await supabase
+    .from('posts')
+    .select('id')
+    .eq('id', postId)
+    .maybeSingle()
+
+  if (!postExists) throw new Error('Publicação não encontrada')
 
   const { error } = await supabase.from('post_comments').insert({
     post_id: postId,
