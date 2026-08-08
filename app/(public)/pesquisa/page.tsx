@@ -181,7 +181,7 @@ export default async function PesquisaPage(props: {
               </div>
             )}
 
-            results.map((item) => (
+            {results.map((item) => (
               <Link 
                 href={item.link} 
                 key={item.id} 
@@ -240,7 +240,7 @@ export default async function PesquisaPage(props: {
                   </div>
                 </div>
               </Link>
-            ))
+            ))}
             </>
           )}
           </div>
