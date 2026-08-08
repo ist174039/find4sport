@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,7 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Save, Loader2, Code } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 
-export default function AdminPageEditor({ params }: { params: { slug: string } }) {
+export default function AdminPageEditor() {
+  const params = useParams()
+  const slug = params?.slug as string
   const router = useRouter()
   const { showAlert } = useModal()
   
@@ -29,7 +31,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
   const [rawJson, setRawJson] = useState('{}')
   const [isAdvancedMode, setIsAdvancedMode] = useState(false)
 
-  const isPlanosPage = params.slug === 'profissionais-planos' || params.slug === 'planos'
+  const isPlanosPage = slug === 'profissionais-planos' || slug === 'planos'
 
   const FIXED_PAGES = [
     { slug: 'planos', title: 'Planos e Preços' },
@@ -46,14 +48,14 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
   ]
 
   useEffect(() => {
-    loadPage()
-  }, [params.slug])
+    if (slug) loadPage()
+  }, [slug])
 
   async function loadPage() {
     setLoading(true)
     
     // Check if slug is valid
-    const fixedPage = FIXED_PAGES.find(p => p.slug === params.slug)
+    const fixedPage = FIXED_PAGES.find(p => p.slug === slug)
     if (!fixedPage) {
       showAlert('Aviso', 'Esta página não faz parte das páginas editáveis.', 'error')
       router.push('/admin/paginas')
@@ -64,7 +66,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
     const { data, error } = await supabase
       .from('cms_pages')
       .select('*')
-      .eq('slug', params.slug)
+      .eq('slug', slug)
       .single()
 
     if (data) {
@@ -117,7 +119,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
     }
 
     const { error } = await supabase.from('cms_pages').upsert({
-      slug: params.slug,
+      slug: slug,
       title,
       description,
       is_published: isPublished,
@@ -126,7 +128,8 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
     }, { onConflict: 'slug' })
 
     if (error) {
-      showAlert('Erro', 'Erro ao guardar a página.', 'error')
+      console.error('Supabase Save Error:', error)
+      showAlert('Erro', `Erro ao guardar a página: ${error.message || 'Erro desconhecido'}`, 'error')
     } else {
       showAlert('Sucesso', 'Página guardada com sucesso!', 'success')
     }
@@ -145,8 +148,8 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Editar: {page?.title || params.slug}</h1>
-            <p className="text-muted-foreground text-sm">/{params.slug}</p>
+            <h1 className="text-2xl font-bold">Editar: {page?.title || slug}</h1>
+            <p className="text-muted-foreground text-sm">/{slug}</p>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving} className="gap-2">
