@@ -274,6 +274,25 @@ CREATE POLICY "Professionals can manage their associations" ON public.space_prof
         EXISTS (SELECT 1 FROM public.professionals WHERE id = space_professionals.professional_id AND user_id = auth.uid())
     );
 
+-- Content Management System (CMS) for dynamic pages
+CREATE TABLE IF NOT EXISTS public.cms_pages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_published BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.cms_pages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read published pages" ON public.cms_pages FOR SELECT USING (is_published = true);
+CREATE POLICY "Admins can manage all pages" ON public.cms_pages 
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.admins WHERE auth_user_id = auth.uid())
+    );
+
 DROP POLICY IF EXISTS "Admins can view all transactions" ON public.transactions;
 CREATE POLICY "Admins can view all transactions"
   ON public.transactions FOR SELECT

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CheckCircle2, Clock, Globe, Loader2, Mail, MapPin, Share2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,17 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const [cmsData, setCmsData] = useState<any>(null)
+  
+  useEffect(() => {
+    async function loadCms() {
+      const supabase = createClient()
+      const { data } = await supabase.from('cms_pages').select('*').eq('slug', 'contacto').single()
+      if (data) setCmsData(data)
+    }
+    loadCms()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -35,14 +46,6 @@ export default function ContactPage() {
 
       if (dbError) throw dbError
 
-      // Simulate sending email
-      console.log('--- EMAIL SEND SIMULATION ---')
-      console.log(`To: admin@find4sport.pt`)
-      console.log(`From: ${email} (${fullName})`)
-      console.log(`Subject: Contacto - ${subject}`)
-      console.log(`Body: ${message}`)
-      console.log('-----------------------------')
-
       setIsSuccess(true)
       e.currentTarget.reset()
     } catch (err) {
@@ -58,9 +61,11 @@ export default function ContactPage() {
       <main className="flex-1 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Contactos — FIND4SPORT</h1>
-            <p className="text-lg text-muted-foreground max-w-2xl">
-              Estamos aqui para ajudar a impulsionar a sua performance desportiva. Entre em contacto connosco para dúvidas, parcerias ou suporte.
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              {cmsData?.title || 'Contactos — FIND4SPORT'}
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl whitespace-pre-wrap">
+              {cmsData?.content?.body || 'Estamos aqui para ajudar a impulsionar a sua performance desportiva. Entre em contacto connosco para dúvidas, parcerias ou suporte.'}
             </p>
           </div>
           
