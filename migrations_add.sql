@@ -191,3 +191,73 @@ CREATE POLICY "Authenticated users can insert spaces"
   ON public.sport_spaces FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
 
+-- ========================================
+-- BILLING AND SUBSCRIPTIONS
+-- ========================================
+
+DO $$ BEGIN
+  CREATE TYPE subscription_tier AS ENUM ('free', 'pro', 'premium');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE subscription_status AS ENUM ('active', 'canceled', 'past_due', 'trialing', 'incomplete', 'incomplete_expired', 'unpaid', 'paused');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.user_subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
+  tier subscription_tier NOT NULL DEFAULT 'free',
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  status subscription_status,
+  current_period_start TIMESTAMP WITH TIME ZONE,
+  current_period_end TIMESTAMP WITH TIME ZONE,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  UNIQUE(user_id)
+);
+
+ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own subscriptions" ON public.user_subscriptions;
+CREATE POLICY "Users can view their own subscriptions"
+  ON public.user_subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can view all subscriptions" ON public.user_subscriptions;
+CREATE POLICY "Admins can view all subscriptions"
+  ON public.user_subscriptions FOR SELECT
+  USING (auth.uid() IN (SELECT auth_user_id FROM public.admins));
+
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('subscription_payment', 'reservation_earning', 'platform_fee', 'payout')),
+  amount NUMERIC NOT NULL,
+  currency TEXT DEFAULT 'eur',
+  status TEXT DEFAULT 'succeeded',
+  description TEXT,
+  stripe_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own transactions" ON public.transactions;
+CREATE POLICY "Users can view their own transactions"
+  ON public.transactions FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can view all transactions" ON public.transactions;
+CREATE POLICY "Admins can view all transactions"
+  ON public.transactions FOR SELECT
+  USING (auth.uid() IN (SELECT auth_user_id FROM public.admins));
+
+-- Add Stripe Account ID for Connect
+ALTER TABLE public.professionals ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;
+ALTER TABLE public.sport_spaces ADD COLUMN IF NOT EXISTS stripe_account_id TEXT;

@@ -33,6 +33,15 @@ export default async function DashboardPage() {
     return <SpaceDashboard space={space} />
   }
 
+  // Fetch subscription tier to pass to dashboards for feature locking
+  const { data: sub } = await supabase
+    .from('user_subscriptions')
+    .select('tier')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  
+  const subscriptionTier = sub?.tier || 'free'
+
   // Priority 2: Check if user has a professional profile
   let { data: professional } = await supabase
     .from('professionals')
@@ -41,7 +50,7 @@ export default async function DashboardPage() {
     .maybeSingle()
 
   if (professional) {
-    return <ProfessionalDashboard professional={professional} />
+    return <ProfessionalDashboard professional={professional} subscriptionTier={subscriptionTier} />
   }
 
 

@@ -35,6 +35,15 @@ export default async function SalasPage() {
     .eq('space_id', space.id)
     .order('created_at', { ascending: false })
 
+  // Get subscription tier
+  const { data: sub } = await supabase
+    .from('user_subscriptions')
+    .select('tier')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const subscriptionTier = sub?.tier || 'free'
+
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
@@ -57,6 +66,7 @@ export default async function SalasPage() {
       <SpaceRoomsClient 
         initialRooms={rooms || []} 
         spaceId={space.id} 
+        subscriptionTier={subscriptionTier}
       />
     </div>
   )

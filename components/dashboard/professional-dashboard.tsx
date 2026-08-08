@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
 
-export function ProfessionalDashboard({ professional }: { professional: any }) {
+export function ProfessionalDashboard({ professional, subscriptionTier = 'free' }: { professional: any, subscriptionTier?: string }) {
   const router = useRouter()
   const { showAlert } = useModal()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -20,6 +20,8 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
   const [gallery, setGallery] = useState<string[]>(professional?.gallery_urls || [])
   const [newUrl, setNewUrl] = useState('')
   const [savingGallery, setSavingGallery] = useState(false)
+
+  const maxPhotos = subscriptionTier === 'free' ? 5 : 12
 
   const saveGalleryToDb = async (updatedGallery: string[]) => {
     setSavingGallery(true)
@@ -43,6 +45,12 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
+    
+    if (gallery.length + files.length > maxPhotos) {
+      showAlert('Limite Atingido', `O seu plano ${subscriptionTier === 'free' ? 'Grátis ' : ''}permite um máximo de ${maxPhotos} fotos. Faça upgrade para adicionar fotos ilimitadas.`, 'error')
+      if (e.target) e.target.value = ''
+      return
+    }
 
     let loadedCount = 0
     const newItems: string[] = []
@@ -56,7 +64,7 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
         }
         loadedCount++
         if (loadedCount === files.length) {
-          const updated = [...gallery, ...newItems].slice(0, 12)
+          const updated = [...gallery, ...newItems].slice(0, maxPhotos)
           setGallery(updated)
           await saveGalleryToDb(updated)
         }
@@ -69,7 +77,11 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
 
   const handleAddUrl = async () => {
     if (!newUrl.trim()) return
-    const updated = [...gallery, newUrl.trim()].slice(0, 12)
+    if (gallery.length >= maxPhotos) {
+      showAlert('Limite Atingido', `O seu plano ${subscriptionTier === 'free' ? 'Grátis ' : ''}permite um máximo de ${maxPhotos} fotos. Faça upgrade para adicionar fotos ilimitadas.`, 'error')
+      return
+    }
+    const updated = [...gallery, newUrl.trim()].slice(0, maxPhotos)
     setGallery(updated)
     setNewUrl('')
     await saveGalleryToDb(updated)
@@ -197,14 +209,14 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
                   Galeria de Fotos do Profissional
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Adicione fotos dos seus treinos, instalações e certificações ({gallery.length}/12 fotos)
+                  Adicione fotos dos seus treinos, instalações e certificações ({gallery.length}/{maxPhotos} fotos)
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={savingGallery || gallery.length >= 12}
+                disabled={savingGallery || gallery.length >= maxPhotos}
                 className="bg-primary text-primary-foreground px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
               >
                 {savingGallery ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -224,7 +236,7 @@ export function ProfessionalDashboard({ professional }: { professional: any }) {
               <button
                 type="button"
                 onClick={handleAddUrl}
-                disabled={!newUrl.trim() || gallery.length >= 12 || savingGallery}
+                disabled={!newUrl.trim() || gallery.length >= maxPhotos || savingGallery}
                 className="bg-secondary text-secondary-foreground px-4 py-2 rounded-xl font-bold text-xs hover:bg-secondary/80 transition-all shrink-0 cursor-pointer disabled:opacity-50"
               >
                 Adicionar URL

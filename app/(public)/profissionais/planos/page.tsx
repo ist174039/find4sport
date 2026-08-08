@@ -80,7 +80,7 @@ const plans: Plan[] = [
     notIncluded: [],
     cta: 'Assinar Premium',
     href: '/profissionais/registar',
-    popular: false,
+    basePopular: false,
   },
 ]
 
@@ -205,17 +205,38 @@ export default function PlanosPage() {
                   </li>
                 ))}
               </ul>
-              <Button
-                asChild
-                className={`mt-6 w-full ${
-                  plan.basePopular ? 'bg-teal-600 hover:bg-teal-700' : ''
-                }`}
-                variant={plan.basePopular ? 'default' : 'outline'}
-              >
-                <Link href={`${plan.href}?plan=${plan.name.toLowerCase()}&billing=${billingCycle}`}>
-                  {plan.cta}
-                </Link>
-              </Button>
+              {params.get('action') === 'upgrade' && plan.monthlyPrice !== 0 ? (
+                <Button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/stripe/checkout', {
+                        method: 'POST',
+                        body: JSON.stringify({ tier: plan.name.toLowerCase(), priceId: 'mock_price_id' }),
+                        headers: { 'Content-Type': 'application/json' }
+                      })
+                      const data = await res.json()
+                      if (data.url) window.location.href = data.url
+                    } catch (e) {
+                      console.error(e)
+                      alert('Erro ao processar upgrade.')
+                    }
+                  }}
+                  className={`mt-6 w-full ${plan.basePopular ? 'bg-teal-600 hover:bg-teal-700' : ''}`}
+                  variant={plan.basePopular ? 'default' : 'outline'}
+                >
+                  Fazer Upgrade
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  className={`mt-6 w-full ${plan.basePopular ? 'bg-teal-600 hover:bg-teal-700' : ''}`}
+                  variant={plan.basePopular ? 'default' : 'outline'}
+                >
+                  <Link href={`${plan.href}?plan=${plan.name.toLowerCase()}&billing=${billingCycle}`}>
+                    {plan.cta}
+                  </Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

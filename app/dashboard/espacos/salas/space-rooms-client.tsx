@@ -11,7 +11,7 @@ import { SpaceRoom } from '@/lib/types'
 import { Plus, Trash2, CalendarDays, Camera, X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
-export function SpaceRoomsClient({ initialRooms, spaceId }: { initialRooms: SpaceRoom[], spaceId: string }) {
+export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'free' }: { initialRooms: SpaceRoom[], spaceId: string, subscriptionTier?: string }) {
   const [rooms, setRooms] = useState<SpaceRoom[]>(initialRooms)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
@@ -78,6 +78,12 @@ export function SpaceRoomsClient({ initialRooms, spaceId }: { initialRooms: Spac
 
     const room = rooms.find(r => r.id === roomId)
     if (!room) return
+    
+    const isFree = subscriptionTier === 'free'
+    if (isFree && (room.gallery_urls?.length || 0) >= 5) {
+      alert('O plano Grátis tem um limite de 5 fotos por sala. Faça upgrade para Pro para adicionar fotos ilimitadas.')
+      return
+    }
 
     const updatedUrls = [...(room.gallery_urls || []), photoUrl.trim()]
 
@@ -113,9 +119,19 @@ export function SpaceRoomsClient({ initialRooms, spaceId }: { initialRooms: Spac
     const files = Array.from(e.target.files || [])
     if (!files.length) return
 
-    setSavingPhotos(true)
     const room = rooms.find(r => r.id === roomId)
     if (!room) return
+    
+    const currentCount = room.gallery_urls?.length || 0
+    const isFree = subscriptionTier === 'free'
+    
+    if (isFree && currentCount + files.length > 5) {
+      alert(`O plano Grátis tem um limite de 5 fotos por sala. Já tem ${currentCount} fotos. Escolha menos fotos ou faça upgrade.`)
+      if (e.target) e.target.value = ''
+      return
+    }
+
+    setSavingPhotos(true)
 
     const newUrls: string[] = []
 
