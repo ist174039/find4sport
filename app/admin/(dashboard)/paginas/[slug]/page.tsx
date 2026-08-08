@@ -31,12 +31,35 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
 
   const isPlanosPage = params.slug === 'profissionais-planos' || params.slug === 'planos'
 
+  const FIXED_PAGES = [
+    { slug: 'planos', title: 'Planos e Preços' },
+    { slug: 'como-funciona', title: 'Como Funciona' },
+    { slug: 'recursos', title: 'Recursos e Ajuda' },
+    { slug: 'sobre', title: 'Sobre Nós' },
+    { slug: 'blog', title: 'Blog Oficial' },
+    { slug: 'contacto', title: 'Contacto' },
+    { slug: 'carreiras', title: 'Carreiras' },
+    { slug: 'termos', title: 'Termos e Condições' },
+    { slug: 'privacidade', title: 'Política de Privacidade' },
+    { slug: 'cookies', title: 'Política de Cookies' },
+    { slug: 'rgpd', title: 'RGPD' }
+  ]
+
   useEffect(() => {
     loadPage()
   }, [params.slug])
 
   async function loadPage() {
     setLoading(true)
+    
+    // Check if slug is valid
+    const fixedPage = FIXED_PAGES.find(p => p.slug === params.slug)
+    if (!fixedPage) {
+      showAlert('Aviso', 'Esta página não faz parte das páginas editáveis.', 'error')
+      router.push('/admin/paginas')
+      return
+    }
+
     const supabase = createClient()
     const { data, error } = await supabase
       .from('cms_pages')
@@ -44,11 +67,9 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
       .eq('slug', params.slug)
       .single()
 
-    if (error && error.code !== 'PGRST116') {
-      showAlert('Erro', 'Não foi possível carregar a página.', 'error')
-    } else if (data) {
+    if (data) {
       setPage(data)
-      setTitle(data.title || '')
+      setTitle(data.title || fixedPage.title)
       setDescription(data.description || '')
       setIsPublished(data.is_published || false)
       
@@ -56,8 +77,7 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
       setRawJson(JSON.stringify(content, null, 2))
       setMarkdownBody(content.body || '')
       
-      if (params.slug === 'planos' && !content.plans) {
-        // Init default JSON structure for planos
+      if (isPlanosPage && !content.plans) {
         setRawJson(JSON.stringify({
           header: "Planos e Preços",
           subheader: "Escolha o plano ideal para o seu negócio.",
@@ -65,9 +85,15 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
         }, null, 2))
       }
     } else {
-      // Not found, should probably create or return
-      showAlert('Aviso', 'A página não existe. Regresse à listagem.', 'error')
-      router.push('/admin/paginas')
+      // Row doesn't exist yet, that's fine, we'll create it on save
+      setTitle(fixedPage.title)
+      if (isPlanosPage) {
+        setRawJson(JSON.stringify({
+          header: "Planos e Preços",
+          subheader: "Escolha o plano ideal para o seu negócio.",
+          plans: []
+        }, null, 2))
+      }
     }
     setLoading(false)
   }
@@ -90,13 +116,14 @@ export default function AdminPageEditor({ params }: { params: { slug: string } }
       contentToSave = { body: markdownBody }
     }
 
-    const { error } = await supabase.from('cms_pages').update({
+    const { error } = await supabase.from('cms_pages').upsert({
+      slug: params.slug,
       title,
       description,
       is_published: isPublished,
       content: contentToSave,
       updated_at: new Date().toISOString()
-    }).eq('slug', params.slug)
+    }, { onConflict: 'slug' })
 
     if (error) {
       showAlert('Erro', 'Erro ao guardar a página.', 'error')
