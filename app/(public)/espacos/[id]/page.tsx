@@ -114,6 +114,7 @@ export default async function SpaceProfilePage(props: {
                   <FollowButton 
                     targetUserId={space.owner_user_id} 
                     initialIsFollowing={isFollowing} 
+                    className="h-10 min-w-[110px] rounded-xl px-4 text-sm"
                   />
                 )}
                 <ReserveSpaceBtn 

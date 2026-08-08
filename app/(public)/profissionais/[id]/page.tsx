@@ -178,6 +178,7 @@ export default async function ProfessionalProfilePage(props: {
                   <FollowButton 
                     targetUserId={professional.user_id} 
                     initialIsFollowing={isFollowing} 
+                    className="h-10 min-w-[110px] rounded-xl px-4 text-sm"
                   />
                 )}
                 <ContactarProfissionalBtn 

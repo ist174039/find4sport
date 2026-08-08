@@ -14,19 +14,43 @@ export default async function CommunityProfilePage(props: {
 }) {
   const supabase = await createClient()
   const params = await props.params
+  const rawId = params.id
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
 
   // Get current user to check membership
   const { data: { user } } = await supabase.auth.getUser()
 
   // Fetch community details
-  const { data: community, error } = await supabase
-    .from('communities')
-    .select(`
-      *,
-      community_members(count)
-    `)
-    .eq('id', params.id)
-    .single()
+  let community = null
+  let error: any = null
+
+  if (isUuid) {
+    const { data, error: uuidError } = await supabase
+      .from('communities')
+      .select(`
+        *,
+        community_members(count)
+      `)
+      .eq('id', rawId)
+      .maybeSingle()
+
+    community = data
+    error = uuidError
+  }
+
+  if (!community) {
+    const { data, error: slugError } = await supabase
+      .from('communities')
+      .select(`
+        *,
+        community_members(count)
+      `)
+      .eq('slug', rawId)
+      .maybeSingle()
+
+    community = data
+    error = slugError
+  }
 
   if (error || !community) {
     return notFound()
