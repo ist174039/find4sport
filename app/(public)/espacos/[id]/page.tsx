@@ -1,4 +1,4 @@
-import { BadgeCheck, Building2, Calendar, Car, Coffee, Images, Mail, MapPin, Navigation, Phone, ShowerHead, Wifi } from 'lucide-react'
+import { BadgeCheck, Building2, Calendar, Car, Coffee, Images, Mail, MapPin, Navigation, Phone, ShowerHead, Star, Wifi } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
@@ -97,6 +97,13 @@ export default async function SpaceProfilePage(props: {
                           {space.address}
                         </span>
                       )}
+                      {space.rating_avg !== null && space.rating_avg > 0 && (
+                        <span className="flex items-center gap-1 font-bold text-amber-400 drop-shadow">
+                          <Star className="h-4 w-4 fill-amber-400" />
+                          {Number(space.rating_avg).toFixed(1)}
+                          <span className="font-normal text-white/70">({space.review_count || 0})</span>
+                        </span>
+                      )}
                       <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
                       <FollowStats
                         targetUserId={space.owner_user_id}
@@ -120,6 +127,12 @@ export default async function SpaceProfilePage(props: {
                 <ReserveSpaceBtn 
                   spaceName={space.name} 
                   ownerUserId={space.owner_user_id || space.created_by} 
+                />
+                <ObterDirecoesBtn 
+                  address={space.address}
+                  name={space.name}
+                  latitude={space.latitude}
+                  longitude={space.longitude}
                 />
               </div>
             </div>

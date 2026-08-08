@@ -78,12 +78,21 @@ export default async function EventProfilePage(props: {
                       <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[11px] border border-white/10">
                         Evento Desportivo
                       </span>
+                      <span className="bg-white/20 backdrop-blur-md text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[11px] border border-white/10">
+                        {format(startDate, 'dd MMM', { locale: ptBR })} · {formattedTime}
+                      </span>
                       {event.address && (
                         <span className="flex items-center gap-1 font-medium drop-shadow">
                           <MapPin className="text-[18px]" />
                           {event.address}
                         </span>
                       )}
+                      {event.capacity ? (
+                        <span className="flex items-center gap-1 font-medium drop-shadow">
+                          <Ticket className="h-4 w-4" />
+                          {event.capacity} vagas
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -93,6 +102,12 @@ export default async function EventProfilePage(props: {
                 <div className="w-full sm:w-auto min-w-[200px]">
                   <JoinEventBtn eventId={event.id} />
                 </div>
+                <Link
+                  href="#event-details"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/35 bg-white/15 px-4 text-sm font-bold text-white backdrop-blur-md transition-colors hover:bg-white/25"
+                >
+                  Ver detalhes
+                </Link>
               </div>
             </div>
           </div>
@@ -155,7 +170,7 @@ export default async function EventProfilePage(props: {
       </section>
 
       {/* Main Content Grid */}
-      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
+      <section id="event-details" className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column (Main Info) */}

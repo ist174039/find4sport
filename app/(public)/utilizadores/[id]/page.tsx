@@ -8,6 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils'
+import { InstagramPhotoGallery } from '@/components/instagram-photo-gallery'
 
 export default async function UserProfilePage({
   params,
@@ -59,6 +60,57 @@ export default async function UserProfilePage({
   const events = (participantData || [])
     .map(p => p.event)
     .filter(Boolean)
+
+  const photoGalleryItems = [
+    profile.banner_url
+      ? {
+          url: profile.banner_url,
+          alt: `${profile.full_name || 'Utilizador'} - banner`,
+          label: 'Banner',
+        }
+      : null,
+    profile.avatar_url
+      ? {
+          url: profile.avatar_url,
+          alt: `${profile.full_name || 'Utilizador'} - perfil`,
+          label: 'Perfil',
+        }
+      : null,
+    ...communities
+      .filter((comm: any) => Boolean(comm.cover_url))
+      .map((comm: any) => ({
+        url: comm.cover_url,
+        alt: `${comm.name} - comunidade`,
+        label: comm.sport_category || 'Comunidade',
+        href: `/comunidades/${comm.slug || comm.id}`,
+      })),
+    ...events.flatMap((evt: any) => {
+      const items = [] as Array<{ url: string; alt: string; label: string; href: string }>
+
+      if (evt.image_url) {
+        items.push({
+          url: evt.image_url,
+          alt: `${evt.title} - evento`,
+          label: 'Evento',
+          href: `/eventos/${evt.slug || evt.id}`,
+        })
+      }
+
+      if (Array.isArray(evt.gallery_urls)) {
+        for (const galleryUrl of evt.gallery_urls.slice(0, 2)) {
+          if (!galleryUrl) continue
+          items.push({
+            url: galleryUrl,
+            alt: `${evt.title} - galeria`,
+            label: 'Evento',
+            href: `/eventos/${evt.slug || evt.id}`,
+          })
+        }
+      }
+
+      return items
+    }),
+  ].filter(Boolean) as Array<{ url: string; alt: string; label?: string; href?: string }>
 
   const initials = (profile.full_name || 'U')
     .split(' ')
@@ -154,6 +206,12 @@ export default async function UserProfilePage({
       {/* Content Section: Communities & Events */}
       <section className="px-4 sm:px-6 lg:px-8 mt-8">
         <div className="max-w-6xl mx-auto space-y-10">
+          <InstagramPhotoGallery
+            title="Galeria do Perfil"
+            subtitle="Visual moderno em formato feed, otimizado para mobile"
+            items={photoGalleryItems}
+            maxItems={12}
+          />
           
           {/* Section 1: Communities Joined */}
           <div className="space-y-6">

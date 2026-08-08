@@ -1,5 +1,5 @@
 import { 
-  BadgeCheck, Building2, Calendar, Car, Coffee, Dumbbell, Globe, Images, 
+  BadgeCheck, Building2, Calendar, Car, Coffee, Dumbbell, Globe, 
   Mail, MapPin, Navigation, Phone, ShowerHead, Star, User, Users, Wifi, ExternalLink, Award, ShieldCheck
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -13,6 +13,7 @@ import { ProfessionalServices } from '@/components/professional-services'
 import { FollowButton } from '@/components/follow-button'
 import { FollowStats } from '@/components/follow-stats'
 import { MobileSectionsTabs } from '@/components/mobile-sections-tabs'
+import { InstagramPhotoGallery } from '@/components/instagram-photo-gallery'
 
 export default async function ProfessionalProfilePage(props: {
   params: Promise<{ id: string }>
@@ -105,6 +106,13 @@ export default async function ProfessionalProfilePage(props: {
   const coverUrl = professional.cover_url || 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=1920&auto=format&fit=crop'
   const avatarUrl = professional.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'
   const bio = professional.bio || 'Este profissional ainda não adicionou uma biografia detalhada. Entre em contacto direto para saber mais sobre os seus serviços e planos de treino.'
+  const galleryItems = (professional.gallery_urls || [])
+    .filter((url: string) => typeof url === 'string' && url.trim().length > 0)
+    .map((url: string, index: number) => ({
+      url,
+      alt: `${professional.full_name} - foto ${index + 1}`,
+      label: index === 0 ? 'Destaque' : 'Treino',
+    }))
 
   return (
     <main className="flex flex-col min-h-screen bg-background">
@@ -279,21 +287,12 @@ export default async function ProfessionalProfilePage(props: {
               </section>
             )}
 
-            {professional.gallery_urls && professional.gallery_urls.length > 0 && (
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-foreground">
-                  <Images className="h-5 w-5 text-primary" />
-                  Galeria
-                </h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {professional.gallery_urls.slice(0, 4).map((img: string, i: number) => (
-                    <div key={i} className={`overflow-hidden rounded-xl ${i === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
-                      <img src={img} alt={`Galeria ${i}`} className="h-full w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <InstagramPhotoGallery
+              title="Galeria"
+              subtitle="Feed visual com os melhores momentos do profissional"
+              items={galleryItems}
+              maxItems={9}
+            />
           </div>
 
           <div className="space-y-4">
@@ -460,21 +459,12 @@ export default async function ProfessionalProfilePage(props: {
             )}
 
             {/* Gallery */}
-            {professional.gallery_urls && professional.gallery_urls.length > 0 && (
-              <section className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
-                <h2 className="font-semibold text-xl md:text-2xl mb-6 text-foreground flex items-center gap-2">
-                  <Images className="text-primary h-5 w-5" />
-                  Galeria de Fotos
-                </h2>
-                <div className="grid grid-cols-2 gap-4">
-                  {professional.gallery_urls.slice(0, 4).map((img: string, i: number) => (
-                    <div key={i} className={`rounded-2xl overflow-hidden shadow-sm ${i === 0 ? 'col-span-2 aspect-[21/9]' : 'aspect-square'}`}>
-                      <img src={img} alt={`Instalações / Treinos ${i}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700 cursor-pointer" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <InstagramPhotoGallery
+              title="Galeria de Fotos"
+              subtitle="Layout estilo Instagram com foco em detalhe visual"
+              items={galleryItems}
+              maxItems={12}
+            />
           </div>
 
           {/* Right Column (Sidebar Info) */}

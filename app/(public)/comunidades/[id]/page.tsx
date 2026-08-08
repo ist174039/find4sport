@@ -144,6 +144,10 @@ export default async function CommunityProfilePage(props: {
                         {memberCount} membros
                       </span>
                       <span className="flex items-center gap-1 font-medium drop-shadow">
+                        <MessageSquare className="h-4 w-4" />
+                        {posts?.length || 0} publicações
+                      </span>
+                      <span className="flex items-center gap-1 font-medium drop-shadow">
                         {community.is_private ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                         {community.is_private ? 'Privada' : 'Pública'}
                       </span>
@@ -158,6 +162,12 @@ export default async function CommunityProfilePage(props: {
                   isPrivate={community.is_private} 
                   initialJoined={initialJoined}
                 />
+                <Link
+                  href="#community-feed"
+                  className="inline-flex items-center justify-center rounded-xl border border-white/35 bg-white/15 px-4 text-sm font-bold text-white backdrop-blur-md transition-colors hover:bg-white/25"
+                >
+                  Ver feed
+                </Link>
               </div>
             </div>
           </div>
@@ -219,7 +229,7 @@ export default async function CommunityProfilePage(props: {
       </section>
 
       {/* Main Content Grid */}
-      <section className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
+      <section id="community-feed" className="hidden bg-background px-4 py-8 sm:px-6 lg:block lg:px-8 md:py-12">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column (Feed/Main) */}

@@ -88,6 +88,28 @@ export default async function Page({
       followingIds = follows.map(f => f.following_id)
     }
   }
+
+  // Resolve followed professionals/spaces once so we can reuse in feed, highlights and suggestions
+  let followedProfRows: Array<{ id: string; user_id: string; full_name: string; avatar_url: string | null; public_slug: string | null; is_verified?: boolean | null }> = []
+  let followedSpaceRows: Array<{ id: string; owner_user_id: string | null; name: string; logo_url: string | null; slug: string | null }> = []
+
+  if (followingIds.length > 0) {
+    const [{ data: profs }, { data: spaces }] = await Promise.all([
+      supabase
+        .from('professionals')
+        .select('id, user_id, full_name, avatar_url, public_slug, is_verified')
+        .in('user_id', followingIds)
+        .limit(20),
+      supabase
+        .from('sport_spaces')
+        .select('id, owner_user_id, name, logo_url, slug')
+        .in('owner_user_id', followingIds)
+        .limit(20),
+    ])
+
+    followedProfRows = profs || []
+    followedSpaceRows = spaces || []
+  }
   
   // 1. Fetch Posts with Filters
   let postsQuery = supabase
@@ -103,13 +125,8 @@ export default async function Page({
     .order('created_at', { ascending: false })
 
   if (tabParam === 'following' && user && followingIds.length > 0) {
-    // Get professional IDs for followed users
-    const { data: followedProfs } = await supabase.from('professionals').select('id').in('user_id', followingIds)
-    // Get space IDs for followed users
-    const { data: followedSpaces } = await supabase.from('sport_spaces').select('id').in('owner_user_id', followingIds)
-    
-    const profIds = followedProfs?.map(p => p.id) || []
-    const spaceIds = followedSpaces?.map(s => s.id) || []
+    const profIds = followedProfRows.map(p => p.id)
+    const spaceIds = followedSpaceRows.map(s => s.id)
     
     const orQueries = []
     if (profIds.length > 0) orQueries.push(`professional_id.in.(${profIds.join(',')})`)
@@ -219,22 +236,67 @@ export default async function Page({
     .sort((a, b) => b.count - a.count)
     .slice(0, 4)
 
-  // 3. Fetch suggestions (2 professionals, 1 space)
-  const { data: suggestedProfs } = await supabase
+  // 3. Fetch suggestion candidates
+  const { data: suggestedProfsRaw } = await supabase
     .from('professionals')
-    .select('id, user_id, full_name, avatar_url, public_slug')
-    .limit(2)
+    .select('id, user_id, full_name, avatar_url, public_slug, is_verified, rating_avg, review_count')
+    .limit(24)
     
-  const { data: suggestedSpaces } = await supabase
+  const { data: suggestedSpacesRaw } = await supabase
     .from('sport_spaces')
-    .select('id, owner_user_id, name, logo_url, slug')
-    .limit(1)
+    .select('id, owner_user_id, name, logo_url, slug, rating_avg, review_count')
+    .limit(20)
 
-  // 4. Fetch Highlights / Stories (Top professionals)
-  const { data: highlightProfs } = await supabase
+  // 4. Fetch highlight candidates
+  const { data: highlightCandidates } = await supabase
     .from('professionals')
-    .select('id, full_name, avatar_url, is_verified, public_slug')
-    .limit(4)
+    .select('id, user_id, full_name, avatar_url, is_verified, public_slug, review_count, rating_avg')
+    .limit(24)
+
+  const isFollowingTab = tabParam === 'following'
+  const followedUserIds = new Set(followingIds)
+  const selfUserId = user?.id || null
+
+  const highlightProfs = (highlightCandidates || [])
+    .filter((p: any) => {
+      if (!isFollowingTab) return true
+      return followedUserIds.has(p.user_id)
+    })
+    .sort((a: any, b: any) => {
+      const scoreA = (a.review_count || 0) * 2 + (a.rating_avg || 0)
+      const scoreB = (b.review_count || 0) * 2 + (b.rating_avg || 0)
+      return scoreB - scoreA
+    })
+    .slice(0, 8)
+
+  const suggestedProfs = (isFollowingTab ? followedProfRows : (suggestedProfsRaw || []))
+    .filter((prof: any) => {
+      if (selfUserId && prof.user_id === selfUserId) return false
+      if (!isFollowingTab && followedUserIds.has(prof.user_id)) return false
+      return true
+    })
+    .sort((a: any, b: any) => {
+      const scoreA = (a.review_count || 0) * 2 + (a.rating_avg || 0)
+      const scoreB = (b.review_count || 0) * 2 + (b.rating_avg || 0)
+      return scoreB - scoreA
+    })
+    .slice(0, 3)
+
+  const suggestedSpaces = (isFollowingTab ? followedSpaceRows : (suggestedSpacesRaw || []))
+    .filter((space: any) => {
+      if (selfUserId && space.owner_user_id === selfUserId) return false
+      if (!isFollowingTab && space.owner_user_id && followedUserIds.has(space.owner_user_id)) return false
+      return true
+    })
+    .sort((a: any, b: any) => {
+      const scoreA = (a.review_count || 0) * 2 + (a.rating_avg || 0)
+      const scoreB = (b.review_count || 0) * 2 + (b.rating_avg || 0)
+      return scoreB - scoreA
+    })
+    .slice(0, 2)
+
+  const suggestionsTitle = isFollowingTab ? 'Contas que segues' : 'Sugestões para ti'
+  const highlightsTitle = isFollowingTab ? 'Destaques de quem segues' : 'Destaques para ti'
 
   return (
     <div className="min-h-screen bg-[radial-gradient(1200px_500px_at_50%_-220px,rgba(16,185,129,0.16),transparent)]">
@@ -289,11 +351,11 @@ export default async function Page({
 
           {/* Suggestion Card */}
           <div className="rounded-2xl border border-border/70 bg-card/90 p-6 shadow-sm backdrop-blur-sm">
-            <h4 className="font-bold text-base mb-4 text-foreground">Sugestões para seguir</h4>
+            <h4 className="font-bold text-base mb-4 text-foreground">{suggestionsTitle}</h4>
             <div className="space-y-4">
               
               {/* Professionals */}
-              {suggestedProfs?.map(prof => (
+              {suggestedProfs.map((prof: any) => (
                 <div key={prof.id} className="flex items-center justify-between group">
                   <Link href={`/profissionais/${prof.public_slug || prof.id}`} className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-muted overflow-hidden border border-border">
@@ -315,7 +377,7 @@ export default async function Page({
               ))}
 
               {/* Spaces */}
-              {suggestedSpaces?.map(space => (
+              {suggestedSpaces.map((space: any) => (
                 <div key={space.id} className="flex items-center justify-between group">
                   <Link href={`/espacos/${space.slug || space.id}`} className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-muted overflow-hidden border border-border">
@@ -341,7 +403,7 @@ export default async function Page({
           {/* Real Dynamic Trending Topics */}
           <div className="rounded-2xl border border-border/70 bg-card/90 p-6 shadow-sm backdrop-blur-sm">
             <div className="mb-4 flex items-center justify-between">
-              <h4 className="font-bold text-base text-foreground">Em Destaque</h4>
+              <h4 className="font-bold text-base text-foreground">{highlightsTitle}</h4>
               <Flame className="h-4 w-4 text-orange-500" />
             </div>
             <div className="space-y-4">
@@ -392,12 +454,12 @@ export default async function Page({
           {/* Stories/Momentos Section */}
           <section className="relative rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm backdrop-blur-sm md:p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-black tracking-tight text-foreground">Destaques</h2>
+              <h2 className="text-xl font-black tracking-tight text-foreground">{highlightsTitle}</h2>
               <FeedFilterModal />
             </div>
             
             <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
-              {highlightProfs?.map(prof => (
+              {highlightProfs.map((prof: any) => (
                 <Link key={prof.id} href={`/profissionais/${prof.public_slug || prof.id}`} className="flex-shrink-0 flex flex-col items-center gap-2 group cursor-pointer">
                   <div className={`w-16 h-16 rounded-full p-[2px] border-2 ${prof.is_verified ? 'border-primary' : 'border-border'} group-hover:scale-105 transition-transform`}>
                     <div className="w-full h-full rounded-full border-2 border-background overflow-hidden bg-muted">
@@ -409,6 +471,13 @@ export default async function Page({
                   </span>
                 </Link>
               ))}
+              {highlightProfs.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+                  {isFollowingTab
+                    ? 'Ainda não existem destaques das contas que segues.'
+                    : 'Ainda não existem destaques para mostrar.'}
+                </div>
+              )}
             </div>
           </section>
 
