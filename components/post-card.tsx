@@ -23,6 +23,20 @@ const resolveUserLink = (u: any) => {
   return `/utilizadores/${u.id}`
 }
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const renderPostContent = (value: string) =>
+  escapeHtml(value).replace(/#([\wÀ-ÿ]+)/g, (_, tag: string) => {
+    const encodedTag = encodeURIComponent(tag)
+    return `<a href="/pesquisa?q=${encodedTag}" class="text-primary font-semibold hover:underline">#${tag}</a>`
+  })
+
 export default function PostCard({ post }: { post: any }) {
   const { showAlert } = useModal()
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0)
@@ -265,7 +279,7 @@ export default function PostCard({ post }: { post: any }) {
       </div>
       
       <div className="px-4 pb-3">
-        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.content.replace(/#(\w+)/g, '<Link href="/pesquisa?q=$1" class="text-primary font-semibold hover:underline">#$1</Link>') }}></p>
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderPostContent(post.content || '') }}></p>
       </div>
       
       {post.media_url && (

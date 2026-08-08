@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { adminCreateUser } from '@/app/actions/auth'
 import { registerProfessionalInitial } from '@/app/actions/register'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -226,16 +225,8 @@ export default function ProfessionalRegisterPage() {
           })
 
           if (signUpError) {
-            // If rate limited, bypass via server action (Admin API)
             if (signUpError.message.toLowerCase().includes('rate limit')) {
-              const adminRes = await adminCreateUser(formData.email, formData.password, formData.full_name, 'profissional')
-              if (adminRes.error) throw new Error(adminRes.error)
-              const { data: signInData2, error: signInError2 } = await supabase.auth.signInWithPassword({
-                email: formData.email,
-                password: formData.password,
-              })
-              if (signInError2) throw signInError2
-              user = signInData2.user
+              throw new Error('Muitas tentativas de registo. Tenta novamente dentro de alguns minutos.')
             } else {
               throw signUpError
             }

@@ -6,6 +6,7 @@ import PostCard from '@/components/post-card'
 import { JoinCommunityBtn } from '@/components/join-community-btn'
 import { CreateCommunityPostBox } from '@/components/create-community-post-box'
 import { CommunityMembersList } from '@/components/community-members-list'
+import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
 
 export default async function CommunityProfilePage(props: {
   params: Promise<{ id: string }>
@@ -56,6 +57,7 @@ export default async function CommunityProfilePage(props: {
 
   // Fetch current user membership separately to avoid relation errors
   let initialJoined = false
+  let canPostInCommunity = false
   let currentUserName = ''
   let currentUserAvatar = ''
 
@@ -80,6 +82,7 @@ export default async function CommunityProfilePage(props: {
     if (profile) {
       currentUserName = profile.full_name || ''
       currentUserAvatar = profile.avatar_url || user?.user_metadata?.avatar_url || ''
+      canPostInCommunity = canCreatePostForRole(normalizePlatformRole(profile.type || user.user_metadata?.type))
     }
   }
 
@@ -154,7 +157,7 @@ export default async function CommunityProfilePage(props: {
               <h3 className="text-xl font-bold text-foreground">Publicações Recentes</h3>
             </div>
             
-            {initialJoined && (
+            {initialJoined && canPostInCommunity && (
               <CreateCommunityPostBox 
                 communityId={community.id}
                 currentUserName={currentUserName}

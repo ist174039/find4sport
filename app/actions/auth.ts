@@ -2,6 +2,30 @@
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { resolveSessionAccess } from '@/lib/auth/access'
+
+async function requireAdminAccess() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Utilizador não autenticado')
+  }
+
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.canAccessAdmin) {
+    throw new Error('Sem permissões de administrador')
+  }
+}
+
+function normalizeAllowedUserType(type: string): 'athlete' | 'professional' | 'venue_manager' {
+  if (type === 'professional' || type === 'profissional') return 'professional'
+  if (type === 'venue_manager' || type === 'espaco') return 'venue_manager'
+  return 'athlete'
+}
 
 export async function adminCreateProfessional(input: {
   full_name: string
@@ -9,6 +33,7 @@ export async function adminCreateProfessional(input: {
   professional_name?: string | null
   public_slug?: string | null
 }) {
+  await requireAdminAccess()
   const supabaseAdmin = createAdminClient()
   const userId = crypto.randomUUID()
 
@@ -50,6 +75,7 @@ export async function adminUpdateProfessional(id: string, input: {
   status?: 'active' | 'pending' | 'suspended' | 'rejected'
   is_verified?: boolean
 }) {
+  await requireAdminAccess()
   const supabaseAdmin = createAdminClient()
 
   const { data, error } = await supabaseAdmin
@@ -67,9 +93,13 @@ export async function adminUpdateProfessional(id: string, input: {
 }
 
 export async function adminCreateUser(email: string, password: string, fullName: string, type: string) {
+  await requireAdminAccess()
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: 'Missing Supabase admin credentials' }
   }
+
+  const safeType = normalizeAllowedUserType(type)
 
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -81,7 +111,7 @@ export async function adminCreateUser(email: string, password: string, fullName:
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: fullName, type }
+    user_metadata: { full_name: fullName, type: safeType }
   })
 
   if (error) {

@@ -1,8 +1,30 @@
 'use server'
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
+import { resolveSessionAccess } from '@/lib/auth/access'
+
+async function requireAdminAccess() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Utilizador não autenticado')
+  }
+
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.canAccessAdmin) {
+    throw new Error('Sem permissões de administrador')
+  }
+
+  return { userEmail: user.email || 'admin@find4sport.pt' }
+}
 
 export async function adminIngestData(queueItems: any[]) {
+  const { userEmail } = await requireAdminAccess()
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: 'Credenciais de administração (SUPABASE_SERVICE_ROLE_KEY) não configuradas no servidor.' }
   }
@@ -97,7 +119,7 @@ export async function adminIngestData(queueItems: any[]) {
     await supabaseAdmin.from('audit_logs').insert([{
       action: 'ADMIN_BULK_INGEST',
       table_name: 'sport_spaces/professionals',
-      user_email: 'admin@find4sport.pt',
+      user_email: userEmail,
       new_data: { count: countInserted }
     }])
 

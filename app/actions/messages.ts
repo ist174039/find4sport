@@ -11,12 +11,23 @@ export async function sendMessage(receiverId: string, content: string) {
     throw new Error('Não autenticado')
   }
 
+  const trimmedContent = content.trim()
+  if (!receiverId || receiverId === user.id) {
+    throw new Error('Destinatário inválido')
+  }
+  if (!trimmedContent) {
+    throw new Error('A mensagem não pode estar vazia')
+  }
+  if (trimmedContent.length > 2000) {
+    throw new Error('A mensagem excede o limite de 2000 caracteres')
+  }
+
   const { error } = await supabase
     .from('messages')
     .insert({
       sender_id: user.id,
       receiver_id: receiverId,
-      content,
+      content: trimmedContent,
     })
 
   if (error) {
@@ -30,6 +41,9 @@ export async function sendMessage(receiverId: string, content: string) {
 export async function markAsRead(messageIds: string[]) {
   if (!messageIds.length) return
 
+  const uniqueMessageIds = [...new Set(messageIds)].filter(Boolean)
+  if (!uniqueMessageIds.length) return
+
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
@@ -40,7 +54,7 @@ export async function markAsRead(messageIds: string[]) {
   const { error } = await supabase
     .from('messages')
     .update({ read_at: new Date().toISOString() })
-    .in('id', messageIds)
+    .in('id', uniqueMessageIds)
     .eq('receiver_id', user.id)
     .is('read_at', null)
 

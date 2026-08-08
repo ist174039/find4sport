@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { markAllNotificationsAsRead, markNotificationAsRead } from '@/app/actions/notifications'
-import { createClient } from '@/lib/supabase/client'
+import { deleteNotificationAction, markAllNotificationsAsRead, markNotificationAsRead } from '@/app/actions/notifications'
 
 export type Notification = {
   id: string
@@ -47,8 +46,7 @@ export function NotificationsInterface({
   const deleteNotification = async (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id))
     try {
-      const supabase = createClient()
-      await supabase.from('notifications').delete().eq('id', id)
+      await deleteNotificationAction(id)
     } catch (error) {
       console.error(error)
     }

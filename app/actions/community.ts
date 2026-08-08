@@ -19,6 +19,16 @@ export async function joinCommunityAction(communityId: string) {
     throw new Error('Acesso negado. Sessão não encontrada.')
   }
 
+  const { data: community } = await supabase
+    .from('communities')
+    .select('id')
+    .eq('id', communityId)
+    .maybeSingle()
+
+  if (!community) {
+    throw new Error('Comunidade não encontrada.')
+  }
+
   // 2. Perform insert using admin client
   const { error } = await supabaseAdmin
     .from('community_members')

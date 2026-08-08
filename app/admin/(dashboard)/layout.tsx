@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AdminSidebar } from '@/components/admin/sidebar'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { resolveAdminSidebarUser, resolveSessionAccess } from '@/lib/auth/access'
 
 export default async function AdminLayout({
  children,
@@ -21,17 +21,12 @@ export default async function AdminLayout({
   redirect('/admin/login?error=unauthorized')
  }
 
- const { data: adminUser } = await supabase
-    .from('admin_users')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single()
+ const adminUser = await resolveAdminSidebarUser(supabase, user)
 
  return (
   <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
    <div className="flex w-full">
-    <AdminSidebar adminUser={adminUser} />
+   <AdminSidebar adminUser={adminUser || { role: 'general' }} />
     <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
      <div className="max-w-6xl mx-auto w-full">
       {children}

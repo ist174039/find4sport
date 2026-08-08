@@ -1,25 +1,41 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@/lib/supabase/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
-  apiVersion: '2026-07-29.dahlia' as any,
-})
-
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(req: Request) {
   try {
+    if (!stripeSecretKey || !webhookSecret) {
+      return NextResponse.json({ error: 'Webhook configuration missing' }, { status: 500 })
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2026-07-29.dahlia' as any,
+    })
+
     const body = await req.text()
-    const signature = req.headers.get('stripe-signature') as string
+    const signature = req.headers.get('stripe-signature')
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 })
+    }
 
-    let event: Stripe.Event
+    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
 
-    if (webhookSecret) {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
-    } else {
-      // If no webhook secret is configured (e.g. local dev without it), we just parse the body
-      event = JSON.parse(body) as Stripe.Event
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+    const adminSupabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { data: processedEvent } = await adminSupabase
+      .from('stripe_webhook_events')
+      .select('id')
+      .eq('event_id', event.id)
+      .maybeSingle()
+
+    if (processedEvent) {
+      return NextResponse.json({ received: true })
     }
 
     if (event.type === 'checkout.session.completed') {
@@ -27,15 +43,33 @@ export async function POST(req: Request) {
       const reservationId = session.metadata?.reservation_id
 
       if (reservationId) {
-        const supabase = await createClient()
-        // Here we bypass RLS for webhook via service role if needed, 
-        // but since it's a server component with createClient, it uses anon/user.
-        // Actually, webhooks need a service role client to bypass RLS.
-        const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-        const adminSupabase = createSupabaseClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const { data: reservation } = await adminSupabase
+          .from('reservations')
+          .select('id, amount, payment_status')
+          .eq('id', reservationId)
+          .maybeSingle()
+
+        if (!reservation) {
+          return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+        }
+
+        if (reservation.payment_status === 'paid') {
+          await adminSupabase.from('stripe_webhook_events').upsert(
+            {
+              event_id: event.id,
+              event_type: event.type,
+              reservation_id: reservationId,
+              payload: event as any,
+            },
+            { onConflict: 'event_id', ignoreDuplicates: true }
+          )
+          return NextResponse.json({ received: true })
+        }
+
+        const paidAmount = (session.amount_total || 0) / 100
+        if (Number(reservation.amount) !== Number(paidAmount)) {
+          return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
+        }
 
         await adminSupabase
           .from('reservations')
@@ -44,7 +78,26 @@ export async function POST(req: Request) {
             payment_status: 'paid'
           })
           .eq('id', reservationId)
+
+        await adminSupabase.from('stripe_webhook_events').upsert(
+          {
+            event_id: event.id,
+            event_type: event.type,
+            reservation_id: reservationId,
+            payload: event as any,
+          },
+          { onConflict: 'event_id', ignoreDuplicates: true }
+        )
       }
+    } else {
+      await adminSupabase.from('stripe_webhook_events').upsert(
+        {
+          event_id: event.id,
+          event_type: event.type,
+          payload: event as any,
+        },
+        { onConflict: 'event_id', ignoreDuplicates: true }
+      )
     }
 
     return NextResponse.json({ received: true })

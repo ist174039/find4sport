@@ -46,3 +46,31 @@ export async function markAllNotificationsAsRead() {
 
   revalidatePath('/dashboard/notificacoes')
 }
+
+export async function deleteNotificationAction(notificationId: string) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('Não autenticado')
+  }
+
+  if (!notificationId) {
+    throw new Error('Notificação inválida')
+  }
+
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Erro ao apagar notificação:', error)
+    throw new Error('Erro ao apagar notificação')
+  }
+
+  revalidatePath('/dashboard/notificacoes')
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { submitReviewAction } from '@/app/actions/reviews'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,11 +44,14 @@ export function ReviewsSection({ targetType, targetId }: ReviewsSectionProps) {
     const { data: { user } } = await supabase.auth.getUser()
     setUserId(user?.id || null)
 
-    const typeColumn = targetType === 'space' 
-      ? 'space_id' 
-      : targetType === 'professional' 
-        ? 'professional_id' 
-        : 'event_id'
+    if (targetType === 'event') {
+      setReviews([])
+      setHasReviewed(false)
+      setLoading(false)
+      return
+    }
+
+    const typeColumn = targetType === 'space' ? 'space_id' : 'professional_id'
 
     const { data, error } = await supabase
       .from('reviews')
@@ -80,25 +84,15 @@ export function ReviewsSection({ targetType, targetId }: ReviewsSectionProps) {
     e.preventDefault()
     if (!userId || rating === 0) return
 
+    if (targetType === 'event') {
+      alert('Avaliações de eventos ainda não estão disponíveis.')
+      return
+    }
+
     setIsSubmitting(true)
-    const supabase = createClient()
-    
-    const typeColumn = targetType === 'space' 
-      ? 'space_id' 
-      : targetType === 'professional' 
-        ? 'professional_id' 
-        : 'event_id'
 
     try {
-      const { error } = await supabase.from('reviews').insert({
-        user_id: userId,
-        [typeColumn]: targetId,
-        rating,
-        comment,
-        status: 'approved' // Auto-approve as per user request
-      })
-
-      if (error) throw error
+      await submitReviewAction(targetType, targetId, rating, comment)
       
       setIsModalOpen(false)
       setComment('')
@@ -152,12 +146,16 @@ export function ReviewsSection({ targetType, targetId }: ReviewsSectionProps) {
                 window.location.href = `/auth/login?redirect=${window.location.pathname}`
                 return
               }
+              if (targetType === 'event') {
+                alert('Avaliações de eventos ainda não estão disponíveis.')
+                return
+              }
               setIsModalOpen(true)
             }}
-            disabled={hasReviewed && userId !== null}
+            disabled={targetType === 'event' || (hasReviewed && userId !== null)}
           >
             <MessageSquare className="w-4 h-4 mr-2" />
-            {hasReviewed ? 'Já avaliou' : 'Deixar Avaliação'}
+            {targetType === 'event' ? 'Avaliações em breve' : hasReviewed ? 'Já avaliou' : 'Deixar Avaliação'}
           </Button>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 
 const supabaseAdmin = createSupabaseAdmin(
@@ -13,6 +14,22 @@ export async function createCommunityPostAction(communityId: string, content: st
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Utilizador não autenticado')
+
+  const { data: profile } = await supabase
+    .from('platform_users')
+    .select('type')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const role = normalizePlatformRole(profile?.type ?? user.user_metadata?.type)
+  if (!canCreatePostForRole(role)) {
+    throw new Error('Atletas não podem publicar em comunidades.')
+  }
+
+  const trimmedContent = content.trim()
+  if (!communityId) throw new Error('Comunidade inválida.')
+  if (!trimmedContent) throw new Error('A publicação não pode estar vazia.')
+  if (trimmedContent.length > 5000) throw new Error('A publicação excede o limite de 5000 caracteres.')
 
   // Check if member (or owner)
   const { data: member } = await supabase
@@ -39,7 +56,7 @@ export async function createCommunityPostAction(communityId: string, content: st
     user_id: user.id,
     professional_id: professionalId,
     community_id: communityId,
-    content,
+    content: trimmedContent,
     media_url: null,
     media_type: null
   })

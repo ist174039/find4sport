@@ -16,12 +16,16 @@ export async function joinEventAction(eventId: string) {
   // Check if event exists
   const { data: event } = await supabase
     .from('events')
-    .select('id')
+    .select('id, status, max_participants')
     .eq('id', eventId)
     .single()
     
   if (!event) {
     throw new Error('event_not_found')
+  }
+
+  if (event.status !== 'published') {
+    throw new Error('event_not_available')
   }
 
   // Check if already enrolled
@@ -36,9 +40,17 @@ export async function joinEventAction(eventId: string) {
     throw new Error('already_enrolled')
   }
 
-  // IMPORTANT: Since event_participants might have strict RLS, we should use the service role key 
-  // if standard RLS doesn't allow users to insert themselves. But let's use the service role key 
-  // to be 100% sure we don't hit RLS errors, just like community_members.
+  if (event.max_participants && Number(event.max_participants) > 0) {
+    const { count: participantsCount } = await supabase
+      .from('event_participants')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+
+    if ((participantsCount || 0) >= Number(event.max_participants)) {
+      throw new Error('event_full')
+    }
+  }
+
   const adminSupabase = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

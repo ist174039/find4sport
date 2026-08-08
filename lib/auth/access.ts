@@ -1,7 +1,6 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-
-export type PlatformRole = 'athlete' | 'professional' | 'venue_manager' | 'admin'
+import { normalizePlatformRole, type PlatformRole } from '@/lib/auth/roles'
 
 export type SessionAccess = {
   role: PlatformRole
@@ -14,20 +13,47 @@ export type SessionAccess = {
 
 type Supabase = SupabaseClient<Database>
 
-function normalizeRole(value: unknown): PlatformRole {
-  if (value === 'professional' || value === 'profissional') return 'professional'
-  if (value === 'venue_manager' || value === 'espaco') return 'venue_manager'
-  if (value === 'admin') return 'admin'
-  return 'athlete'
-}
+async function resolveAdminRecord(supabase: Supabase, user: User) {
+  const unsafeSupabase = supabase as any
 
-export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
-  const { data: adminUser } = await supabase
+  const { data: modernAdmin } = await unsafeSupabase
+    .from('admins')
+    .select('id, auth_user_id, admin_type')
+    .eq('auth_user_id', user.id)
+    .maybeSingle()
+
+  if (modernAdmin) {
+    return {
+      id: modernAdmin.id as string,
+      role: 'admin' as PlatformRole,
+      adminLabel: (modernAdmin.admin_type as string) || 'general',
+    }
+  }
+
+  const { data: legacyAdmin } = await supabase
     .from('admin_users')
     .select('id, user_id, is_active, role')
     .eq('user_id', user.id)
     .eq('is_active', true)
     .maybeSingle()
+
+  if (!legacyAdmin) return null
+
+  return {
+    id: legacyAdmin.id,
+    role: 'admin' as PlatformRole,
+    adminLabel: legacyAdmin.role || 'general',
+  }
+}
+
+export async function resolveAdminSidebarUser(supabase: Supabase, user: User): Promise<{ role: string } | null> {
+  const adminRecord = await resolveAdminRecord(supabase, user)
+  if (!adminRecord) return null
+  return { role: adminRecord.adminLabel }
+}
+
+export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
+  const adminUser = await resolveAdminRecord(supabase, user)
 
   if (adminUser) {
     return {
@@ -46,7 +72,7 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
     .eq('id', user.id)
     .maybeSingle()
 
-  const role = normalizeRole(platformUser?.type ?? user.user_metadata?.type)
+  const role = normalizePlatformRole(platformUser?.type ?? user.user_metadata?.type)
 
   const { count: professionalCount } = await supabase
     .from('professionals')
