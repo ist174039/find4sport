@@ -10,12 +10,15 @@ import { createClient } from '@/lib/supabase/client'
 import { SpaceRoom } from '@/lib/types'
 import { Plus, Trash2, CalendarDays, Camera, X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { RoomAvailabilityModal } from '@/components/dashboard/room-availability-modal'
 
 export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'free' }: { initialRooms: SpaceRoom[], spaceId: string, subscriptionTier?: string }) {
   const [rooms, setRooms] = useState<SpaceRoom[]>(initialRooms)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false)
+  const [availabilityRoom, setAvailabilityRoom] = useState<SpaceRoom | null>(null)
 
   // New room state
   const [name, setName] = useState('')
@@ -28,6 +31,11 @@ export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'fr
   const [photoUrl, setPhotoUrl] = useState('')
   const [savingPhotos, setSavingPhotos] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const openAvailability = (room: SpaceRoom) => {
+    setAvailabilityRoom(room)
+    setIsAvailabilityModalOpen(true)
+  }
 
   const handleAddRoom = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -239,7 +247,7 @@ export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'fr
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => openAvailability(room)}>
                       <CalendarDays className="h-4 w-4 mr-2" />
                       Disponibilidade
                     </Button>
@@ -329,6 +337,12 @@ export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'fr
           ))
         )}
       </div>
+      <RoomAvailabilityModal 
+        open={isAvailabilityModalOpen} 
+        onOpenChange={setIsAvailabilityModalOpen} 
+        roomId={availabilityRoom?.id || null} 
+        roomName={availabilityRoom?.name || ''} 
+      />
     </div>
   )
 }

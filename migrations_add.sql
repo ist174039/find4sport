@@ -235,23 +235,44 @@ CREATE POLICY "Admins can view all subscriptions"
   USING (auth.uid() IN (SELECT auth_user_id FROM public.admins));
 
 CREATE TABLE IF NOT EXISTS public.transactions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('subscription_payment', 'reservation_earning', 'platform_fee', 'payout')),
-  amount NUMERIC NOT NULL,
-  currency TEXT DEFAULT 'eur',
-  status TEXT DEFAULT 'succeeded',
-  description TEXT,
-  stripe_id TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id),
+    amount DECIMAL(10,2) NOT NULL,
+    currency TEXT DEFAULT 'eur',
+    type TEXT NOT NULL CHECK (type IN ('subscription_payment', 'reservation_payout', 'refund')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed')),
+    stripe_charge_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own transactions" ON public.transactions FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Admins can read all transactions" ON public.transactions FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.admins WHERE auth_user_id = auth.uid())
+);
 
-DROP POLICY IF EXISTS "Users can view their own transactions" ON public.transactions;
-CREATE POLICY "Users can view their own transactions"
-  ON public.transactions FOR SELECT
-  USING (auth.uid() = user_id);
+-- Bidirectional association between Spaces and Professionals
+CREATE TABLE IF NOT EXISTS public.space_professionals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    space_id UUID REFERENCES public.sport_spaces(id) ON DELETE CASCADE,
+    professional_id UUID REFERENCES public.professionals(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'rejected')),
+    initiated_by TEXT NOT NULL CHECK (initiated_by IN ('space', 'professional')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(space_id, professional_id)
+);
+
+ALTER TABLE public.space_professionals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read active space professionals" ON public.space_professionals FOR SELECT USING (status = 'active');
+CREATE POLICY "Space owners can manage their associations" ON public.space_professionals
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.sport_spaces WHERE id = space_professionals.space_id AND owner_user_id = auth.uid())
+    );
+CREATE POLICY "Professionals can manage their associations" ON public.space_professionals
+    FOR ALL USING (
+        EXISTS (SELECT 1 FROM public.professionals WHERE id = space_professionals.professional_id AND user_id = auth.uid())
+    );
 
 DROP POLICY IF EXISTS "Admins can view all transactions" ON public.transactions;
 CREATE POLICY "Admins can view all transactions"

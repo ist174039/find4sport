@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { SpaceProfessionalLink } from '@/components/dashboard/space-professional-link'
 
 export function SpaceDashboard({ space }: { space: any }) {
   const router = useRouter()
@@ -122,6 +123,8 @@ export function SpaceDashboard({ space }: { space: any }) {
               </button>
             </div>
           </div>
+
+          <SpaceProfessionalLink mode="space" targetId={space.id} />
 
         </div>
 

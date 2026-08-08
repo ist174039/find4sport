@@ -11,6 +11,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
+import { SpaceProfessionalLink } from '@/components/dashboard/space-professional-link'
 
 export function ProfessionalDashboard({ professional, subscriptionTier = 'free' }: { professional: any, subscriptionTier?: string }) {
   const router = useRouter()
@@ -305,6 +306,9 @@ export function ProfessionalDashboard({ professional, subscriptionTier = 'free' 
               </button>
             </div>
           </div>
+          
+          {/* Space Associations */}
+          <SpaceProfessionalLink mode="professional" targetId={professional.id} />
         </div>
 
         {/* Messages Pane */}

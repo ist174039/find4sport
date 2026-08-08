@@ -65,6 +65,7 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
       { name: 'Seguidores', href: `${basePath}/seguidores`, icon: UserRound },
       { name: 'Serviços', href: `${basePath}/servicos`, icon: Activity },
       { name: 'Galeria', href: `${basePath}/galeria`, icon: Camera },
+      { name: 'Faturação', href: `${basePath}/faturacao`, icon: DollarSign },
       { name: 'Mensagens', href: `${basePath}/mensagens`, icon: MessageSquare },
       { name: 'Avaliações', href: `${basePath}/avaliacoes`, icon: Star },
       { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },

@@ -219,7 +219,7 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
         )}
 
         {step === 1 && spaceId && (
-          <div className="space-y-4 py-4 max-h-[300px] overflow-y-auto">
+          <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto pr-1">
             {rooms.length === 0 ? (
               <p className="text-center text-muted-foreground">Este espaço não tem salas disponíveis.</p>
             ) : (
@@ -227,14 +227,27 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
                 <div 
                   key={room.id}
                   onClick={() => { setSelectedRoom(room); setStep(2); }}
-                  className="p-4 border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-all flex justify-between items-center"
+                  className="p-3 border rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 transition-all flex flex-col gap-3 group"
                 >
-                  <div>
-                    <h4 className="font-bold">{room.name}</h4>
-                    <p className="text-xs text-muted-foreground">Capacidade: {room.capacity}</p>
-                  </div>
-                  <div className="font-semibold text-primary">
-                    {room.price_per_hour > 0 ? `${room.price_per_hour}€/h` : 'Grátis'}
+                  <div className="flex gap-4 items-center">
+                    {/* Thumbnail */}
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0 flex items-center justify-center">
+                      {room.gallery_urls && room.gallery_urls.length > 0 ? (
+                        <img src={room.gallery_urls[0]} alt={room.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground font-semibold">Sem Foto</span>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm">{room.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Capacidade: {room.capacity}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-1">{room.description || 'Nenhuma descrição'}</p>
+                    </div>
+                    {/* Price */}
+                    <div className="font-semibold text-primary text-sm whitespace-nowrap">
+                      {room.price_per_hour > 0 ? `${room.price_per_hour}€/h` : 'Grátis'}
+                    </div>
                   </div>
                 </div>
               ))
@@ -255,6 +268,8 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
                       const offset = date.getTimezoneOffset()
                       const localDate = new Date(date.getTime() - (offset*60*1000))
                       setSelectedDate(localDate.toISOString().split('T')[0])
+                      setSelectedTime('')
+                      setErrorMsg('')
                     } else {
                       setSelectedDate('')
                     }
@@ -274,6 +289,21 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
               </div>
             </div>
             
+            {selectedDate && (
+              <div className="bg-muted p-3 rounded-lg border text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold">
+                  <CalendarIcon className="w-4 h-4 text-primary" />
+                  Horários Disponíveis (Este Dia):
+                </div>
+                {availability.filter(a => a.day_of_week === new Date(selectedDate).getDay()).map((a, i) => (
+                  <div key={i} className="text-muted-foreground flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    Das {a.start_time.substring(0,5)} às {a.end_time.substring(0,5)}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="time">Hora</Label>
               <div className="relative">
@@ -282,10 +312,17 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
                   id="time"
                   type="time"
                   value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedTime(e.target.value)
+                    setErrorMsg('')
+                  }}
                   className="pl-9"
+                  disabled={!selectedDate}
                 />
               </div>
+              {!selectedDate && (
+                <p className="text-xs text-muted-foreground">Selecione uma data primeiro para escolher a hora.</p>
+              )}
             </div>
 
             <Button className="w-full mt-4" onClick={handleNext}>
