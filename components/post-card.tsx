@@ -196,8 +196,8 @@ export default function PostCard({
           .from('platform_users')
           .select(`
             id, full_name, avatar_url, type,
-            professionals (public_slug),
-            sport_spaces (slug)
+            professionals (public_slug, full_name, avatar_url),
+            sport_spaces (slug, name, logo_url)
           `)
           .in('id', userIds)
 
@@ -242,8 +242,8 @@ export default function PostCard({
           .from('platform_users')
           .select(`
             id, full_name, avatar_url, type,
-            professionals (public_slug),
-            sport_spaces (slug)
+            professionals (public_slug, full_name, avatar_url),
+            sport_spaces (slug, name, logo_url)
           `)
           .in('id', userIds)
 
