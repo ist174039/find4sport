@@ -13,16 +13,14 @@ export default async function SeguidoresPage() {
   // Determine the "targetUserId" — for space managers, use their platform_user id
   const targetUserId = user.id
 
-  const [followingRes, followersRes, profRes, spaceRes] = await Promise.all([
-    getFollowingList(targetUserId),
-    getFollowersList(targetUserId),
-    supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle(),
-    supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id).maybeSingle()
+  const [followingRes, followersRes] = await Promise.all([
+    getFollowingList(user.id),
+    getFollowersList(user.id)
   ])
 
   const following = followingRes.list || []
   const followers = followersRes.list || []
-  const canBeFollowed = !!(profRes.data || spaceRes.data)
+  const canBeFollowed = true // All users can be followed now
 
   return (
     <div className="space-y-8">
