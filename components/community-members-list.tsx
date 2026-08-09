@@ -4,6 +4,35 @@ import { useState } from 'react'
 import { Users, X } from 'lucide-react'
 import Link from 'next/link'
 
+// Helper function to resolve user link
+const resolveUserLink = (u: any) => {
+  if (!u) return '#'
+  if (u.type === 'professional' || u.type === 'profissional') {
+    return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
+  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
+    return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
+  }
+  return `/utilizadores/${u.id}`
+}
+
+// Helper function to resolve user name and avatar
+const resolveUserInfo = (u: any) => {
+  let name = u?.full_name || 'Utilizador'
+  let avatar = u?.avatar_url
+  
+  if (!u) return { name, avatar }
+  
+  if (u.type === 'professional' || u.type === 'profissional') {
+    name = u.professionals?.[0]?.full_name || name
+    avatar = u.professionals?.[0]?.avatar_url || avatar
+  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
+    name = u.sport_spaces?.[0]?.name || name
+    avatar = u.sport_spaces?.[0]?.logo_url || avatar
+  }
+  
+  return { name, avatar }
+}
+
 export function CommunityMembersList({ 
   members, 
   memberCount 
@@ -36,16 +65,19 @@ export function CommunityMembersList({
           {displayMembers.map((m: any, i: number) => {
             const user = m.platform_users
             const userId = user?.id || m.user_id
+            const { name, avatar } = resolveUserInfo(user)
+            const userLink = user ? resolveUserLink(user) : '#'
+            
             return (
               <Link 
                 key={m.id || i} 
-                href={userId ? `/utilizadores/${userId}` : '#'}
-                title={user?.full_name || 'Membro'} 
+                href={userLink}
+                title={name} 
                 className="w-12 h-12 rounded-full border-2 border-background bg-muted overflow-hidden relative shadow-sm hover:scale-110 hover:z-20 transition-all cursor-pointer"
               >
                 <img 
-                  src={user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'U')}&background=random`} 
-                  alt={user?.full_name || 'Membro'} 
+                  src={avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`} 
+                  alt={name} 
                   className="w-full h-full object-cover" 
                 />
               </Link>
@@ -83,20 +115,23 @@ export function CommunityMembersList({
               {members.map((m: any) => {
                 const user = m.platform_users
                 const userId = user?.id || m.user_id
+                const { name, avatar } = resolveUserInfo(user)
+                const userLink = user ? resolveUserLink(user) : '#'
+                
                 return (
                   <Link 
                     key={m.id} 
-                    href={userId ? `/utilizadores/${userId}` : '#'}
+                    href={userLink}
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted transition-colors border border-transparent hover:border-border cursor-pointer group"
                   >
                     <img 
-                      src={user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.full_name || 'U')}&background=random`} 
-                      alt={user?.full_name || 'Membro'} 
+                      src={avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`} 
+                      alt={name} 
                       className="w-12 h-12 rounded-full object-cover border border-border group-hover:border-primary/50 transition-colors"
                     />
                     <div className="flex-1">
-                      <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{user?.full_name || 'Utilizador'}</p>
+                      <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{name}</p>
                       <p className="text-xs text-muted-foreground capitalize">
                         {m.role === 'admin' ? 'Administrador' : 'Membro'}
                       </p>

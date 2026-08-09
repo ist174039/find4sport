@@ -74,7 +74,14 @@ export default async function CommunityProfilePage(props: {
   // Fetch active members to show in sidebar
   const { data: members } = await supabase
     .from('community_members')
-    .select('id, role, platform_users(id, full_name, avatar_url)')
+    .select(`
+      id, role, user_id, 
+      platform_users(
+        id, full_name, avatar_url, type,
+        professionals(public_slug, full_name, avatar_url),
+        sport_spaces(slug, name, logo_url)
+      )
+    `)
     .eq('community_id', community.id)
     .order('joined_at', { ascending: false })
 

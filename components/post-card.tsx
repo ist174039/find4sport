@@ -23,6 +23,24 @@ const resolveUserLink = (u: any) => {
   return `/utilizadores/${u.id}`
 }
 
+// Helper function to resolve user name and avatar
+const resolveUserInfo = (u: any) => {
+  let name = u?.full_name || 'Utilizador'
+  let avatar = u?.avatar_url
+  
+  if (!u) return { name, avatar }
+  
+  if (u.type === 'professional' || u.type === 'profissional') {
+    name = u.professionals?.[0]?.full_name || name
+    avatar = u.professionals?.[0]?.avatar_url || avatar
+  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
+    name = u.sport_spaces?.[0]?.name || name
+    avatar = u.sport_spaces?.[0]?.logo_url || avatar
+  }
+  
+  return { name, avatar }
+}
+
 const escapeHtml = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -399,8 +417,7 @@ export default function PostCard({
               <div className="space-y-1 mt-2">
                 {commentsList.map(c => {
                   const u = c.platform_users
-                  const name = u?.full_name || 'Utilizador'
-                  const avatar = u?.avatar_url
+                  const { name, avatar } = resolveUserInfo(u)
                   const userLink = resolveUserLink(u)
                   
                   return (
@@ -456,8 +473,7 @@ export default function PostCard({
               likesList.map((like) => {
                 const u = like.platform_users
                 if (!u) return null
-                const name = u.full_name || 'Utilizador'
-                const avatar = u.avatar_url
+                const { name, avatar } = resolveUserInfo(u)
                 const userLink = resolveUserLink(u)
 
                 return (

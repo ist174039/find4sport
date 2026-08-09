@@ -175,7 +175,7 @@ export default async function UserProfilePage({
                   )}
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Membro desde {formatDate(profile.created_at, "MMMM 'de' yyyy")}
+                    Membro desde {profile.created_at ? formatDate(profile.created_at, "MMMM 'de' yyyy") : 'Desconhecido'}
                   </span>
                   {profile.language && (
                     <span className="flex items-center gap-1.5 uppercase">
@@ -307,10 +307,10 @@ export default async function UserProfilePage({
                       </h3>
 
                       <div className="space-y-2 text-xs text-muted-foreground mb-4">
-                        <p className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5 text-primary" />
-                          {formatDate(evt.start_date, "dd 'de' MMMM 'às' HH:mm")}
-                        </p>
+                          {evt.start_date ? formatDate(evt.start_date, "dd 'de' MMMM 'às' HH:mm") : 'Data a definir'}
+                        </div>
                         {evt.address && (
                           <p className="flex items-center gap-2 line-clamp-1">
                             <MapPin className="h-3.5 w-3.5 text-teal-500" />
