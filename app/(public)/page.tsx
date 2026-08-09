@@ -10,13 +10,25 @@ export default async function Page() {
     supabase.from('sport_spaces').select('id', { count: 'exact', head: true }),
     supabase.from('professionals').select('id', { count: 'exact', head: true }),
     supabase.from('events').select('id', { count: 'exact', head: true }),
-    supabase.from('sport_spaces').select('*').order('review_count', { ascending: false }).limit(8),
-    supabase.from('professionals').select('*').order('rating_avg', { ascending: false }).limit(8),
+    supabase.from('sport_spaces').select('*, space_rooms(price_per_hour)').order('review_count', { ascending: false }).limit(8),
+    supabase.from('professionals').select('*, services(price)').order('rating_avg', { ascending: false }).limit(8),
     supabase.from('carousel_slides').select('*').eq('is_active', true).order('display_order', { ascending: true })
   ])
   
-  const spaces = popularSpaces.data || []
-  const profs = topProfessionals.data || []
+  const spaces = (popularSpaces.data || []).map((space: any) => {
+    const rooms = space.space_rooms || []
+    const validPrices = rooms.map((r: any) => Number(r.price_per_hour)).filter((p: number) => !isNaN(p) && p > 0)
+    const avgPrice = validPrices.length > 0 ? validPrices.reduce((a: number, b: number) => a + b, 0) / validPrices.length : 0
+    return { ...space, computed_price_avg: avgPrice }
+  })
+
+  const profs = (topProfessionals.data || []).map((prof: any) => {
+    const services = prof.services || []
+    const validPrices = services.map((s: any) => Number(s.price)).filter((p: number) => !isNaN(p) && p > 0)
+    const avgPrice = validPrices.length > 0 ? validPrices.reduce((a: number, b: number) => a + b, 0) / validPrices.length : 0
+    return { ...prof, computed_price_avg: avgPrice }
+  })
+  
   const slides = carouselRes.data || []
 
   return (
@@ -144,7 +156,7 @@ export default async function Page() {
                     <span className="line-clamp-1">{prof.distance || 'Lisboa'}</span>
                   </div>
                   <div className="mt-auto pt-2 font-medium text-sm text-foreground">
-                    {prof.price_avg ? `€${prof.price_avg}/h` : 'Preço sob consulta'}
+                    {prof.computed_price_avg ? `€${Math.round(prof.computed_price_avg)}/h` : 'Preço sob consulta'}
                   </div>
                 </div>
               </Link>
@@ -193,7 +205,7 @@ export default async function Page() {
                     <span className="line-clamp-1">{space.distance || 'Lisboa'}</span>
                   </div>
                   <div className="mt-auto pt-2 font-medium text-sm text-foreground">
-                    {space.price_avg ? `€${space.price_avg}/h` : 'Preço sob consulta'}
+                    {space.computed_price_avg ? `€${Math.round(space.computed_price_avg)}/h` : 'Preço sob consulta'}
                   </div>
                 </div>
               </Link>
