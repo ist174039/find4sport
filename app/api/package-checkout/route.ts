@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { marketplaceLineItems, marketplacePaymentIntentData, resolveMarketplacePaymentQuote } from '@/lib/billing/marketplace-payment'
 
 function baseUrl(request: Request) {
   const origin = request.headers.get('origin')
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
 
     const admin = createAdminClient()
     const db = admin as any
-    const { data: pack, error } = await db.from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium)').eq('id', String(packageId)).maybeSingle()
+    const { data: pack, error } = await db.from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium,stripe_account_id)').eq('id', String(packageId)).maybeSingle()
     if (error || !pack || !pack.is_active || pack.service?.is_active === false || pack.professional?.status !== 'active') return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 404 })
     if (pack.professional?.user_id === user.id) return NextResponse.json({ error: 'Não podes comprar o teu próprio pacote.' }, { status: 400 })
 
@@ -33,8 +34,9 @@ export async function POST(request: Request) {
     const premium = Boolean(pack.professional?.is_premium) || (subscription?.tier === 'premium' && ['active','trialing'].includes(String(subscription?.status)))
     if (!premium) return NextResponse.json({ error: 'Este pacote já não está disponível para novas compras.' }, { status: 409 })
 
-    const amount = Number(pack.price || 0)
-    if (!(amount > 0)) return NextResponse.json({ error: 'O preço do pacote é inválido.' }, { status: 400 })
+    const baseAmountCents = Math.round(Number(pack.price || 0) * 100)
+    if (!(baseAmountCents > 0)) return NextResponse.json({ error: 'O preço do pacote é inválido.' }, { status: 400 })
+    const quote = await resolveMarketplacePaymentQuote(pack.professional.user_id, baseAmountCents, pack.professional.stripe_account_id)
 
     const recentCutoff = new Date(Date.now() - 45 * 60 * 1000).toISOString()
     const { data: recentPending } = await db.from('service_package_purchases').select('id,stripe_session_id,created_at').eq('user_id', user.id).eq('package_id', pack.id).eq('status', 'pending').gte('created_at', recentCutoff).order('created_at', { ascending: false }).limit(3)
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
       service_id: pack.service_id,
       sessions_total: Number(pack.sessions_count),
       sessions_remaining: 0,
-      price_paid: amount,
+      price_paid: quote.totalAmountCents / 100,
       currency: 'eur',
       status: 'pending',
       expires_at: null,
@@ -65,13 +67,15 @@ export async function POST(request: Request) {
 
     try {
       const site = baseUrl(request)
+      const metadata = { service_package_purchase_id: purchase.id, package_id: pack.id, transaction_type: 'service_package', buyer_user_id: user.id }
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        line_items: [{ price_data: { currency: 'eur', product_data: { name: pack.name, description: `${pack.sessions_count} sessões · ${pack.service?.name || 'Serviço'}` }, unit_amount: Math.round(amount * 100) }, quantity: 1 }],
+        line_items: marketplaceLineItems(quote, pack.name, `${pack.sessions_count} sessões · ${pack.service?.name || 'Serviço'}`),
+        payment_intent_data: marketplacePaymentIntentData(quote, metadata),
         success_url: new URL('/dashboard/compras?package=success&session_id={CHECKOUT_SESSION_ID}', site).toString(),
         cancel_url: new URL(`/profissionais/${pack.professional_id}?package=cancelled`, site).toString(),
         client_reference_id: purchase.id,
-        metadata: { service_package_purchase_id: purchase.id, package_id: pack.id, transaction_type: 'service_package' },
+        metadata,
       }, { idempotencyKey: `service-package:${purchase.id}` })
       if (!session.url) throw new Error('Stripe não devolveu URL de checkout.')
       const { error: linkError } = await db.from('service_package_purchases').update({ stripe_session_id: session.id }).eq('id', purchase.id)
