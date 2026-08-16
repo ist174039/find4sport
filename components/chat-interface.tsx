@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Check, CheckCheck, MessageSquare, MoreVertical, Phone, Plus, Search, Send, Video, MessageSquarePlus } from 'lucide-react'
+import { ArrowLeft, Check, CheckCheck, MessageSquare, MessageSquarePlus, Search, Send } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
 import { sendMessage, markAsRead } from '@/app/actions/messages'
 import { createClient } from '@/lib/supabase/client'
 import { NewConversationModal } from './new-conversation-modal'
-import { normalizePlatformRole } from '@/lib/auth/roles'
 import { getUserAvatarUrl, getUserDisplayName, getUserRoleLabel } from '@/lib/user-display'
 import { UserAvatar } from '@/components/user-avatar'
 
@@ -35,7 +34,7 @@ export type Contact = {
 export function ChatInterface({
   initialContacts,
   initialMessages,
-  currentUserId
+  currentUserId,
 }: {
   initialContacts: Contact[]
   initialMessages: Message[]
@@ -45,6 +44,7 @@ export function ChatInterface({
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [activeContactId, setActiveContactId] = useState<string | null>(initialContacts[0]?.id || null)
+  const [mobileChatOpen, setMobileChatOpen] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [contactSearch, setContactSearch] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -52,12 +52,12 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  const activeContact = contacts.find((c) => c.id === activeContactId)
+  const activeContact = contacts.find((contact) => contact.id === activeContactId)
   const activeMessages = messages
     .filter(
-      (m) =>
-        (m.sender_id === currentUserId && m.receiver_id === activeContactId) ||
-        (m.receiver_id === currentUserId && m.sender_id === activeContactId)
+      (message) =>
+        (message.sender_id === currentUserId && message.receiver_id === activeContactId) ||
+        (message.receiver_id === currentUserId && message.sender_id === activeContactId),
     )
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
@@ -73,46 +73,44 @@ export function ChatInterface({
     })
     .sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
 
-  // Scroll to bottom when user is already near the end of the conversation
+  const unreadTotal = contacts.reduce((total, contact) => total + contact.unread, 0)
+
   useEffect(() => {
     const container = messagesContainerRef.current
-    if (!container) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
-      return
-    }
+    if (!container) return
 
     const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
-    if (distanceToBottom < 120) {
+    if (distanceToBottom < 160) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [activeMessages])
 
-  // Mark messages as read
   useEffect(() => {
-    if (activeContactId) {
-      const unreadMessages = activeMessages.filter(
-        (m) => m.receiver_id === currentUserId && !m.read_at
+    if (!activeContactId) return
+
+    const unreadMessages = activeMessages.filter(
+      (message) => message.receiver_id === currentUserId && !message.read_at,
+    )
+
+    if (unreadMessages.length === 0) return
+
+    void markAsRead(unreadMessages.map((message) => message.id)).then(() => {
+      const now = new Date().toISOString()
+      setMessages((previous) =>
+        previous.map((message) =>
+          unreadMessages.some((unread) => unread.id === message.id)
+            ? { ...message, read_at: now }
+            : message,
+        ),
       )
-      if (unreadMessages.length > 0) {
-        markAsRead(unreadMessages.map((m) => m.id)).then(() => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              unreadMessages.find((u) => u.id === m.id)
-                ? { ...m, read_at: new Date().toISOString() }
-                : m
-            )
-          )
-          setContacts((prev) =>
-            prev.map((c) =>
-              c.id === activeContactId ? { ...c, unread: 0 } : c
-            )
-          )
-        })
-      }
-    }
+      setContacts((previous) =>
+        previous.map((contact) =>
+          contact.id === activeContactId ? { ...contact, unread: 0 } : contact,
+        ),
+      )
+    })
   }, [activeContactId, activeMessages, currentUserId])
 
-  // Real-time subscription
   useEffect(() => {
     const supabase = createClient()
 
@@ -157,19 +155,18 @@ export function ChatInterface({
         lastMsgDate: newMsg.created_at,
       }
 
-      setContacts((prev) => {
-        const existing = prev.find((c) => c.id === senderId)
-        if (!existing) {
-          return [contact, ...prev]
-        }
-        return prev.map((c) =>
-          c.id === senderId
+      setContacts((previous) => {
+        const existing = previous.find((item) => item.id === senderId)
+        if (!existing) return [contact, ...previous]
+
+        return previous.map((item) =>
+          item.id === senderId
             ? {
-                ...c,
+                ...item,
                 ...contact,
-                unread: activeContactId === senderId ? c.unread : c.unread + 1,
+                unread: activeContactId === senderId ? item.unread : item.unread + 1,
               }
-            : c
+            : item,
         )
       })
     }
@@ -186,58 +183,58 @@ export function ChatInterface({
         },
         (payload) => {
           const newMsg = payload.new as Message
-          setMessages((prev) => [...prev, newMsg])
-
+          setMessages((previous) => [...previous, newMsg])
           void upsertContactFromMessage(newMsg.sender_id, newMsg)
-        }
+        },
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      void supabase.removeChannel(channel)
     }
   }, [currentUserId, activeContactId])
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim() || !activeContactId || isSending) return
+  const selectContact = (contactId: string) => {
+    setActiveContactId(contactId)
+    setMobileChatOpen(true)
+  }
+
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const content = newMessage.trim()
+    if (!content || !activeContactId || isSending) return
 
     setIsSending(true)
     try {
-      await sendMessage(activeContactId, newMessage)
-      
-      // Optimistically add message
-      const optMsg: Message = {
-        id: Math.random().toString(),
-        content: newMessage,
+      await sendMessage(activeContactId, content)
+
+      const optimisticMessage: Message = {
+        id: `optimistic-${Date.now()}`,
+        content,
         created_at: new Date().toISOString(),
         sender_id: currentUserId,
         receiver_id: activeContactId,
-        read_at: null
+        read_at: null,
       }
-      setMessages((prev) => [...prev, optMsg])
-      
-      // Update contact list
-      setContacts((prev) => 
-        prev.map(c => 
-          c.id === activeContactId 
-            ? { ...c, lastMsg: newMessage, lastMsgDate: optMsg.created_at } 
-            : c
-        )
+
+      setMessages((previous) => [...previous, optimisticMessage])
+      setContacts((previous) =>
+        previous.map((contact) =>
+          contact.id === activeContactId
+            ? { ...contact, lastMsg: content, lastMsgDate: optimisticMessage.created_at }
+            : contact,
+        ),
       )
-      
       setNewMessage('')
     } catch (error) {
       console.error(error)
-      showAlert('Erro', 'Erro ao enviar mensagem', 'error')
+      showAlert('Erro', 'Não foi possível enviar a mensagem.', 'error')
     } finally {
       setIsSending(false)
     }
   }
 
-  const formatMessageTime = (dateStr: string) => {
-    return format(new Date(dateStr), 'HH:mm')
-  }
+  const formatMessageTime = (dateStr: string) => format(new Date(dateStr), 'HH:mm')
 
   const formatDayHeader = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -246,15 +243,15 @@ export function ChatInterface({
     return format(date, "dd 'de' MMMM", { locale: ptBR })
   }
 
-  // Group messages by day
-  const groupedMessages: { [key: string]: Message[] } = {}
-  activeMessages.forEach(msg => {
-    const day = formatDayHeader(msg.created_at)
+  const groupedMessages: Record<string, Message[]> = {}
+  activeMessages.forEach((message) => {
+    const day = formatDayHeader(message.created_at)
     if (!groupedMessages[day]) groupedMessages[day] = []
-    groupedMessages[day].push(msg)
+    groupedMessages[day].push(message)
   })
 
   const formatContactTime = (dateStr: string) => {
+    if (!dateStr) return ''
     const date = new Date(dateStr)
     if (isToday(date)) return format(date, 'HH:mm')
     if (isYesterday(date)) return 'Ontem'
@@ -262,186 +259,171 @@ export function ChatInterface({
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] min-h-[500px] max-w-6xl mx-auto flex gap-6 animate-in fade-in duration-500">
-      {/* Left Sidebar - Contacts List */}
-      <div className="w-full md:w-80 lg:w-96 flex flex-col rounded-xl border border-border bg-card overflow-hidden shrink-0 hidden md:flex">
-        <div className="p-4 border-b border-border bg-muted/20">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              Conversas{' '}
-              {contacts.reduce((acc, c) => acc + c.unread, 0) > 0 && (
-                <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                  {contacts.reduce((acc, c) => acc + c.unread, 0)}
+    <div className="mx-auto flex h-[calc(100dvh-7rem)] min-h-[420px] w-full max-w-6xl gap-0 overflow-hidden rounded-xl border border-border bg-card animate-in fade-in duration-300 md:h-[calc(100vh-8rem)] md:gap-6 md:overflow-visible md:border-0 md:bg-transparent">
+      <aside
+        className={`${mobileChatOpen ? 'hidden md:flex' : 'flex'} w-full flex-col overflow-hidden bg-card md:w-80 md:shrink-0 md:rounded-xl md:border md:border-border lg:w-96`}
+      >
+        <div className="border-b border-border bg-muted/20 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="flex min-w-0 items-center gap-2 text-lg font-bold">
+              <span className="truncate">Conversas</span>
+              {unreadTotal > 0 && (
+                <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
+                  {unreadTotal}
                 </span>
               )}
             </h2>
-            <button 
+            <Button
+              type="button"
               onClick={() => setIsNewChatModalOpen(true)}
-              className="p-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
-              title="Nova Conversa"
+              size="icon"
+              className="h-11 w-11 shrink-0 rounded-xl"
+              aria-label="Nova conversa"
             >
-              <MessageSquarePlus className="w-4 h-4" />
-            </button>
+              <MessageSquarePlus className="h-5 w-5" />
+            </Button>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
+          <label className="relative block">
+            <span className="sr-only">Pesquisar conversas</span>
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              type="text"
+              type="search"
+              inputMode="search"
               placeholder="Pesquisar conversas..."
               value={contactSearch}
-              onChange={(e) => setContactSearch(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all"
+              onChange={(event) => setContactSearch(event.target.value)}
+              className="h-11 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
-          </div>
+          </label>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        <div className="flex-1 space-y-1 overflow-y-auto overscroll-contain p-2">
           {filteredContacts.length === 0 ? (
-            <div className="text-center p-4 text-muted-foreground text-sm">
-              Nenhuma conversa encontrada.
+            <div className="flex h-full min-h-48 flex-col items-center justify-center px-6 text-center text-muted-foreground">
+              <MessageSquare className="mb-3 h-8 w-8 opacity-30" />
+              <p className="text-sm font-medium">Nenhuma conversa encontrada.</p>
             </div>
           ) : (
-            filteredContacts
-              .map((contact) => (
-                <button
-                  key={contact.id}
-                  onClick={() => setActiveContactId(contact.id)}
-                  className={`w-full text-left p-3 flex items-center gap-3 rounded-lg transition-all ${
-                    activeContactId === contact.id
-                      ? 'bg-primary/10 border border-primary/20'
-                      : 'hover:bg-muted/50 border border-transparent'
-                  }`}
-                >
-                  <div className="relative shrink-0">
-                    <UserAvatar name={contact.name || 'Utilizador'} src={contact.avatar} size="lg" roleLabel={contact.role} />
+            filteredContacts.map((contact) => (
+              <button
+                key={contact.id}
+                type="button"
+                onClick={() => selectContact(contact.id)}
+                className={`flex min-h-16 w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors active:scale-[0.99] ${
+                  activeContactId === contact.id
+                    ? 'border-primary/20 bg-primary/10'
+                    : 'border-transparent hover:bg-muted/60'
+                }`}
+              >
+                <UserAvatar
+                  name={contact.name || 'Utilizador'}
+                  src={contact.avatar}
+                  size="lg"
+                  roleLabel={contact.role}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="mb-0.5 flex items-baseline justify-between gap-2">
+                    <h3 className="truncate text-sm font-semibold text-foreground">{contact.name || 'Utilizador'}</h3>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">{formatContactTime(contact.lastMsgDate)}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <h3
-                        className={`font-semibold text-xs truncate ${
-                          activeContactId === contact.id ? 'text-primary' : 'text-foreground'
-                        }`}
-                      >
-                        {contact.name || 'Utilizador'}
-                      </h3>
-                      <span className="text-[9px] text-muted-foreground shrink-0 ml-2">
-                        {formatContactTime(contact.lastMsgDate)}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`truncate text-xs ${contact.unread > 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                      {contact.lastMsg || contact.role}
+                    </p>
+                    {contact.unread > 0 && (
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                        {contact.unread}
                       </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p
-                        className={`text-xs truncate max-w-[150px] ${
-                          contact.unread > 0
-                            ? 'text-foreground font-semibold'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {contact.lastMsg}
-                      </p>
-                      {contact.unread > 0 && (
-                        <span className="w-4.5 h-4.5 bg-primary text-primary-foreground rounded-full text-[9px] flex items-center justify-center font-bold shrink-0">
-                          {contact.unread}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
-                </button>
-              ))
+                </div>
+              </button>
+            ))
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* Right Area - Active Chat */}
-      <div className="flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden relative">
+      <section
+        className={`${mobileChatOpen ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col overflow-hidden bg-card md:rounded-xl md:border md:border-border`}
+      >
         {activeContact ? (
           <>
-            {/* Chat Header */}
-            <div className="p-4 border-b border-border bg-card flex items-center justify-between z-10">
-              <div className="flex items-center gap-3">
-                <UserAvatar name={activeContact.name || 'Utilizador'} src={activeContact.avatar} size="lg" roleLabel={activeContact.role} />
-                <div>
-                  <h2 className="font-bold text-foreground text-sm">{activeContact.name || 'Utilizador'}</h2>
-                  <p className="text-xs text-primary font-medium">{activeContact.role}</p>
-                </div>
+            <header className="flex min-h-16 items-center gap-2 border-b border-border bg-card px-2 py-2 sm:px-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileChatOpen(false)}
+                className="h-11 w-11 shrink-0 rounded-xl md:hidden"
+                aria-label="Voltar às conversas"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <UserAvatar
+                name={activeContact.name || 'Utilizador'}
+                src={activeContact.avatar}
+                size="lg"
+                roleLabel={activeContact.role}
+              />
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-sm font-bold text-foreground">{activeContact.name || 'Utilizador'}</h2>
+                <p className="truncate text-xs font-medium text-primary">{activeContact.role}</p>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  onClick={() => showAlert('Info', 'Chamada de voz disponível em breve.', 'info')}
-                  variant="ghost"
-                  size="icon"
-                  className="hidden sm:inline-flex rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
-                >
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={() => showAlert('Info', 'Videochamada disponível em breve.', 'info')}
-                  variant="ghost"
-                  size="icon"
-                  className="hidden sm:inline-flex rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
-                <div className="w-px h-5 bg-border mx-1 hidden sm:block"></div>
-                <Button
-                  onClick={() => showAlert('Info', 'Mais ações disponíveis em breve.', 'info')}
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+            </header>
 
-            {/* Chat Messages */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4 z-10 flex flex-col bg-muted/5 messages-container">
-              {Object.entries(groupedMessages).map(([day, msgs]) => (
-                <div key={day} className="space-y-4">
-                  <div className="text-center">
-                    <span className="text-[9px] font-bold tracking-wider uppercase bg-muted/60 text-muted-foreground px-2.5 py-1 rounded-md">
+            <div
+              ref={messagesContainerRef}
+              className="messages-container flex flex-1 flex-col gap-4 overflow-y-auto overscroll-contain bg-muted/5 px-3 py-4 sm:px-4"
+            >
+              {activeMessages.length === 0 && (
+                <div className="m-auto max-w-xs px-6 text-center text-muted-foreground">
+                  <MessageSquare className="mx-auto mb-3 h-9 w-9 opacity-30" />
+                  <p className="text-sm font-medium text-foreground">Comece a conversa</p>
+                  <p className="mt-1 text-xs">Envie uma mensagem para {activeContact.name || 'este contacto'}.</p>
+                </div>
+              )}
+
+              {Object.entries(groupedMessages).map(([day, dayMessages]) => (
+                <div key={day} className="space-y-3">
+                  <div className="sticky top-0 z-[1] text-center">
+                    <span className="rounded-full bg-background/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground shadow-sm backdrop-blur">
                       {day}
                     </span>
                   </div>
-                  {msgs.map((msg) => {
-                    const isMine = msg.sender_id === currentUserId
+
+                  {dayMessages.map((message) => {
+                    const isMine = message.sender_id === currentUserId
                     return (
                       <div
-                        key={msg.id}
-                        className={`flex gap-3 max-w-[80%] ${
-                          isMine ? 'self-end flex-row-reverse' : ''
-                        }`}
+                        key={message.id}
+                        className={`flex max-w-[88%] gap-2 sm:max-w-[78%] ${isMine ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
                       >
                         {!isMine && (
                           <UserAvatar
                             name={activeContact.name || 'Utilizador'}
                             src={activeContact.avatar}
                             size="sm"
-                            className="mt-auto"
+                            className="mt-auto hidden sm:flex"
                             roleLabel={activeContact.role}
                           />
                         )}
-                        <div>
+                        <div className="min-w-0">
                           <div
-                            className={`p-3.5 rounded-xl text-xs ${
+                            className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                               isMine
-                                ? 'bg-primary text-primary-foreground rounded-br-sm shadow-sm'
-                                : 'bg-muted/40 text-foreground rounded-bl-sm border border-border'
+                                ? 'rounded-br-md bg-primary text-primary-foreground'
+                                : 'rounded-bl-md border border-border bg-card text-foreground'
                             }`}
                           >
-                            {msg.content}
+                            {message.content}
                           </div>
-                          <div
-                            className={`flex items-center gap-1 mt-1 ${
-                              isMine ? 'justify-end mr-1' : 'ml-1'
-                            }`}
-                          >
-                            <span className="text-[9px] text-muted-foreground">
-                              {formatMessageTime(msg.created_at)}
-                            </span>
+                          <div className={`mt-1 flex items-center gap-1 ${isMine ? 'justify-end pr-1' : 'pl-1'}`}>
+                            <span className="text-[10px] text-muted-foreground">{formatMessageTime(message.created_at)}</span>
                             {isMine && (
-                              msg.read_at
-                                ? <CheckCheck className="h-3 w-3 text-primary" />
-                                : <Check className="h-3 w-3 text-muted-foreground" />
+                              message.read_at
+                                ? <CheckCheck className="h-3.5 w-3.5 text-primary" />
+                                : <Check className="h-3.5 w-3.5 text-muted-foreground" />
                             )}
                           </div>
                         </div>
@@ -453,68 +435,61 @@ export function ChatInterface({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input */}
-            <div className="p-4 bg-card border-t border-border z-10">
-              <form
-                onSubmit={handleSend}
-                className="flex items-center gap-2 bg-muted/20 border border-border rounded-xl p-1.5 pr-2 focus-within:bg-muted/30 focus-within:border-primary/50 transition-all"
-              >
-                <Button
-                  type="button"
-                  onClick={() => showAlert('Info', 'Envio de ficheiros disponível em breve.', 'info')}
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-lg text-muted-foreground hover:text-foreground shrink-0 h-9 w-9"
-                >
-                  <Plus className="h-4.5 w-4.5" />
-                </Button>
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Escreve uma mensagem..."
-                  className="flex-1 bg-transparent border-none focus:outline-none text-xs placeholder:text-muted-foreground/75 min-w-0"
-                  disabled={isSending}
-                />
+            <div className="border-t border-border bg-card p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3">
+              <form onSubmit={handleSend} className="flex items-end gap-2">
+                <label className="min-w-0 flex-1">
+                  <span className="sr-only">Mensagem</span>
+                  <textarea
+                    value={newMessage}
+                    onChange={(event) => setNewMessage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                        event.preventDefault()
+                        event.currentTarget.form?.requestSubmit()
+                      }
+                    }}
+                    placeholder="Escreve uma mensagem..."
+                    rows={1}
+                    maxLength={4000}
+                    disabled={isSending}
+                    className="max-h-32 min-h-11 w-full resize-none rounded-2xl border border-border bg-muted/20 px-4 py-3 text-[16px] leading-5 outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/20"
+                  />
+                </label>
                 <Button
                   type="submit"
                   disabled={isSending || !newMessage.trim()}
                   size="icon"
-                  className="rounded-lg bg-primary hover:bg-primary/90 h-9 w-9 shrink-0 shadow-sm disabled:opacity-50"
+                  className="h-11 w-11 shrink-0 rounded-xl"
+                  aria-label="Enviar mensagem"
                 >
-                  <Send className="h-3.5 w-3.5 ml-0.5" />
+                  <Send className="h-4 w-4" />
                 </Button>
               </form>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-            <MessageSquare className="text-5xl mb-4 opacity-50 h-5 w-5" />
-            <p className="text-sm">Selecione uma conversa para começar</p>
-            <button 
-              onClick={() => setIsNewChatModalOpen(true)}
-              className="mt-4 px-6 py-2 bg-primary text-primary-foreground font-medium rounded-lg text-sm hover:bg-primary/90 transition-all flex items-center gap-2"
-            >
-              <MessageSquarePlus className="w-4 h-4" /> Nova Conversa
-            </button>
+          <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-muted-foreground">
+            <MessageSquare className="mb-4 h-10 w-10 opacity-30" />
+            <p className="text-sm font-medium text-foreground">Selecione uma conversa</p>
+            <Button onClick={() => setIsNewChatModalOpen(true)} className="mt-4 min-h-11 rounded-xl">
+              <MessageSquarePlus className="mr-2 h-4 w-4" /> Nova conversa
+            </Button>
           </div>
         )}
-      </div>
+      </section>
 
-      <NewConversationModal 
-        open={isNewChatModalOpen} 
+      <NewConversationModal
+        open={isNewChatModalOpen}
         onClose={() => setIsNewChatModalOpen(false)}
         currentUserId={currentUserId}
         onSelectContact={(contact) => {
           setIsNewChatModalOpen(false)
-          setContacts(prev => {
-            const existing = prev.find(c => c.id === contact.id)
-            if (!existing) {
-              return [contact, ...prev]
-            }
-            return prev.map(c => c.id === contact.id ? { ...c, ...contact } : c)
+          setContacts((previous) => {
+            const existing = previous.find((item) => item.id === contact.id)
+            if (!existing) return [contact, ...previous]
+            return previous.map((item) => (item.id === contact.id ? { ...item, ...contact } : item))
           })
-          setActiveContactId(contact.id)
+          selectContact(contact.id)
         }}
       />
     </div>
