@@ -1,76 +1,47 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { SearchBar } from '@/components/search-bar'
 import { SpaceGrid } from '@/components/space-card'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
 import { DiscoveryTaxonomyFilter } from '@/components/discovery-taxonomy-filter'
 import type { Category, SportSpace } from '@/lib/types'
+import { cookies } from 'next/headers'
+import { distanceFrom, parseGeoCookie } from '@/lib/geo'
 
-interface PageProps { searchParams: Promise<{ category?: string; q?: string; location?: string; sort?: string }> }
+interface PageProps { searchParams: Promise<{ category?: string; q?: string; location?: string; sort?: string; radius?: string; rating?: string; priceMin?: string; priceMax?: string }> }
+function branchIds(categories: Category[], selectedId: string){const ids=new Set<string>([selectedId]);let changed=true;while(changed){changed=false;for(const c of categories)if(c.parent_id&&ids.has(c.parent_id)&&!ids.has(c.id)){ids.add(c.id);changed=true}}return[...ids]}
 
-async function getSpacesData(searchParams: { category?: string; q?: string; location?: string; sort?: string }) {
-  const supabase = await createClient()
-  const { data: categoryRows, error: categoryError } = await supabase.from('categories').select('*').order('name')
-  if (categoryError) throw new Error('Não foi possível carregar as modalidades.')
-  const categories = (categoryRows || []) as Category[]
-  const selectedCategory = searchParams.category ? categories.find(item => item.slug === searchParams.category) : undefined
+async function getSpacesData(filters: Awaited<PageProps['searchParams']>) {
+  const admin=createAdminClient(); const cookieStore=await cookies(); const userLocation=parseGeoCookie(cookieStore.get('f4s_geo')?.value)
+  const {data:categoryRows,error:categoryError}=await admin.from('categories').select('*').order('name'); if(categoryError)throw new Error('Não foi possível carregar as modalidades.')
+  const categories=(categoryRows||[]) as Category[]; const selectedCategory=filters.category?categories.find(item=>item.slug===filters.category||item.id===filters.category):undefined
+  let spaceIdsForCategory:string[]|null=null
+  if(selectedCategory){const ids=branchIds(categories,selectedCategory.id);const {data,error}=await admin.from('space_categories').select('space_id').in('category_id',ids);if(error)throw new Error('Não foi possível filtrar espaços por modalidade.');spaceIdsForCategory=[...new Set((data||[]).map(row=>row.space_id))]}
 
-  let spaceIdsForCategory: string[] | null = null
-  if (selectedCategory) {
-    const { data, error } = await supabase.from('space_categories').select('space_id').eq('category_id', selectedCategory.id)
-    if (error) throw new Error('Não foi possível filtrar espaços por modalidade.')
-    spaceIdsForCategory = (data || []).map(row => row.space_id)
-  }
+  let query=admin.from('sport_spaces').select('*').or('status.eq.active,is_verified.eq.true')
+  if(filters.q)query=query.or(`name.ilike.%${filters.q}%,description.ilike.%${filters.q}%,address.ilike.%${filters.q}%`)
+  if(filters.location)query=query.ilike('address',`%${filters.location}%`)
+  if(filters.rating&&Number.isFinite(Number(filters.rating)))query=query.gte('rating_avg',Number(filters.rating))
+  if(selectedCategory)query=spaceIdsForCategory?.length?query.in('id',spaceIdsForCategory):query.eq('id','00000000-0000-0000-0000-000000000000')
+  const {data:spaceRows,error:spacesError}=await query.limit(150);if(spacesError)throw new Error(`Não foi possível carregar espaços: ${spacesError.message}`)
+  const spaces=spaceRows||[]
 
-  let query = supabase.from('sport_spaces').select('*')
-  if (searchParams.q) query = query.or(`name.ilike.%${searchParams.q}%,description.ilike.%${searchParams.q}%`)
-  if (searchParams.location) query = query.ilike('address', `%${searchParams.location}%`)
-  if (selectedCategory) query = spaceIdsForCategory?.length ? query.in('id', spaceIdsForCategory) : query.eq('id', '00000000-0000-0000-0000-000000000000')
-  const { data: spaceRows, error: spacesError } = await query.limit(24)
-  if (spacesError) throw new Error(`Não foi possível carregar espaços: ${spacesError.message}`)
-  const spaces = spaceRows || []
+  const [linksResult,roomsResult]=spaces.length?await Promise.all([
+    admin.from('space_categories').select('space_id,category_id').in('space_id',spaces.map(item=>item.id)),
+    admin.from('space_rooms').select('space_id,price_per_hour,is_active').in('space_id',spaces.map(item=>item.id)).eq('is_active',true),
+  ]):[{data:[]},{data:[]}] as any
+  const categoriesById=new Map(categories.map(category=>[category.id,category]));const categoryMap=new Map<string,Category[]>()
+  for(const link of linksResult.data||[]){const c=categoriesById.get(link.category_id);if(c)categoryMap.set(link.space_id,[...(categoryMap.get(link.space_id)||[]),c])}
+  const pricesBySpace=new Map<string,number[]>()
+  for(const room of roomsResult.data||[]){const price=Number(room.price_per_hour);if(Number.isFinite(price)&&price>0)pricesBySpace.set(room.space_id,[...(pricesBySpace.get(room.space_id)||[]),price])}
 
-  const categoriesById = new Map(categories.map(category => [category.id, category]))
-  const categoryMap = new Map<string, Category[]>()
-  if (spaces.length) {
-    const { data: links } = await supabase.from('space_categories').select('space_id,category_id').in('space_id', spaces.map(item => item.id))
-    for (const link of links || []) {
-      const category = categoriesById.get(link.category_id)
-      if (!category) continue
-      const current = categoryMap.get(link.space_id) || []
-      current.push(category)
-      categoryMap.set(link.space_id, current)
-    }
-  }
-
-  const transformed = spaces.map(space => ({ ...space, categories: categoryMap.get(space.id) || [] }))
-  const sortBy = searchParams.sort || 'relevance'
-  transformed.sort((a, b) => sortBy === 'rating' ? (b.rating_avg || 0) - (a.rating_avg || 0) : sortBy === 'reviews' ? (b.review_count || 0) - (a.review_count || 0) : sortBy === 'newest' ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime() : 0)
-  return { categories, spaces: transformed as (SportSpace & { categories: Category[] })[], filters: searchParams }
+  let transformed=spaces.map(space=>{const prices=pricesBySpace.get(space.id)||[];const averagePrice=prices.length?prices.reduce((a,b)=>a+b,0)/prices.length:null;return{...space,categories:categoryMap.get(space.id)||[],distanceKm:distanceFrom(userLocation,space.latitude,space.longitude),averagePrice}})
+  const radius=Number(filters.radius);if(userLocation&&Number.isFinite(radius)&&radius>0)transformed=transformed.filter(item=>item.distanceKm!=null&&item.distanceKm<=radius)
+  const min=Number(filters.priceMin),max=Number(filters.priceMax);if(Number.isFinite(min)&&min>0)transformed=transformed.filter(item=>item.averagePrice!=null&&item.averagePrice>=min);if(Number.isFinite(max)&&max>0)transformed=transformed.filter(item=>item.averagePrice!=null&&item.averagePrice<=max)
+  const sortBy=filters.sort||'relevance';transformed.sort((a,b)=>{if(sortBy==='rating')return Number(b.rating_avg||0)-Number(a.rating_avg||0);if(sortBy==='reviews')return Number(b.review_count||0)-Number(a.review_count||0);if(sortBy==='newest'||sortBy==='recent')return new Date(b.created_at).getTime()-new Date(a.created_at).getTime();if(sortBy==='price_asc')return(a.averagePrice??Infinity)-(b.averagePrice??Infinity);if(sortBy==='price_desc')return(b.averagePrice??-1)-(a.averagePrice??-1);if(userLocation)return(a.distanceKm??Infinity)-(b.distanceKm??Infinity);return Number(b.rating_avg||0)-Number(a.rating_avg||0)})
+  return{categories,spaces:transformed as (SportSpace&{categories:Category[];distanceKm?:number|null;averagePrice?:number|null})[],filters}
 }
 
-function href(base: string, filters: Record<string, string | undefined>, updates: Record<string, string | undefined | null>, defaultSort = 'relevance') {
-  const params = new URLSearchParams(); Object.entries({ ...filters, ...updates }).forEach(([key, value]) => { if (!value || (key === 'sort' && value === defaultSort)) return; params.set(key, value) }); const qs = params.toString(); return qs ? `${base}?${qs}` : base
-}
+function href(base:string,filters:Record<string,string|undefined>,updates:Record<string,string|undefined|null>,defaultSort='relevance'){const params=new URLSearchParams();Object.entries({...filters,...updates}).forEach(([key,value])=>{if(!value||(key==='sort'&&value===defaultSort))return;params.set(key,value)});return params.size?`${base}?${params}`:base}
 
-export default async function EspacosPage({ searchParams }: PageProps) {
-  const resolved = await searchParams
-  const { categories, spaces, filters } = await getSpacesData(resolved)
-  const selectedCategory = categories.find(c => c.slug === filters.category)
-  const currentSort = filters.sort || 'relevance'
-  const filterRecord = filters as Record<string, string | undefined>
-  return <DiscoveryPage
-    title={selectedCategory ? `Espaços de ${selectedCategory.name}` : 'Espaços Desportivos'}
-    description="Encontra espaços por modalidade, localização e reputação."
-    countLabel={`${spaces.length} ${spaces.length === 1 ? 'espaço encontrado' : 'espaços encontrados'}`}
-    search={<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]"><SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="espacos" showType={false} basePath="/espacos" showFilters filterType="espacos" currentFilters={filters as Record<string, string>} placeholder="Pesquisar espaços…" /><DiscoveryTaxonomyFilter basePath="/espacos" categories={categories} currentCategory={filters.category} query={filters.q} location={filters.location} sort={filters.sort} /></div>}
-    sorts={[
-      { label: 'Relevância', href: href('/espacos', filterRecord, { sort: 'relevance' }), active: currentSort === 'relevance' },
-      { label: 'Melhor avaliados', href: href('/espacos', filterRecord, { sort: 'rating' }), active: currentSort === 'rating' },
-      { label: 'Mais avaliados', href: href('/espacos', filterRecord, { sort: 'reviews' }), active: currentSort === 'reviews' },
-      { label: 'Mais recentes', href: href('/espacos', filterRecord, { sort: 'newest' }), active: currentSort === 'newest' },
-    ]}
-    clearHref={filters.q || filters.location || filters.category || currentSort !== 'relevance' ? '/espacos' : undefined}
-  >{spaces.length ? <SpaceGrid spaces={spaces} columns={3} /> : <DiscoveryEmptyState title="Nenhum espaço encontrado" description="Experimenta outra modalidade ou localização." clearHref="/espacos" />}</DiscoveryPage>
-}
-
-export const metadata = { title: 'Espaços Desportivos', description: 'Encontre ginásios, campos, piscinas e outros espaços desportivos em Portugal.' }
+export default async function EspacosPage({searchParams}:PageProps){const resolved=await searchParams;const{categories,spaces,filters}=await getSpacesData(resolved);const selectedCategory=categories.find(c=>c.slug===filters.category||c.id===filters.category);const currentSort=filters.sort||'relevance';const filterRecord=filters as Record<string,string|undefined>;return <DiscoveryPage title={selectedCategory?`Espaços de ${selectedCategory.name}`:'Espaços Desportivos'} description="Encontra espaços por modalidade, proximidade, localização e reputação." countLabel={`${spaces.length} ${spaces.length===1?'espaço encontrado':'espaços encontrados'}`} search={<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]"><SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="espacos" showType={false} basePath="/espacos" showFilters filterType="espacos" currentFilters={filters as Record<string,string>} placeholder="Pesquisar espaços…"/><DiscoveryTaxonomyFilter basePath="/espacos" categories={categories} currentCategory={filters.category} query={filters.q} location={filters.location} sort={filters.sort}/></div>} sorts={[{label:'Mais próximos',href:href('/espacos',filterRecord,{sort:'relevance'}),active:currentSort==='relevance'},{label:'Melhor avaliados',href:href('/espacos',filterRecord,{sort:'rating'}),active:currentSort==='rating'},{label:'Mais recentes',href:href('/espacos',filterRecord,{sort:'newest'}),active:currentSort==='newest'}]} clearHref={filters.q||filters.location||filters.category||filters.radius||currentSort!=='relevance'?'/espacos':undefined}>{spaces.length?<SpaceGrid spaces={spaces} columns={3}/>:<DiscoveryEmptyState title="Nenhum espaço encontrado" description="Experimenta outra modalidade, localização ou raio." clearHref="/espacos"/>}</DiscoveryPage>}
+export const metadata={title:'Espaços Desportivos',description:'Encontre ginásios, campos, piscinas e outros espaços desportivos em Portugal.'}
