@@ -1,0 +1,12 @@
+revoke all on function public.notify_message_insert() from public,anon,authenticated;
+revoke all on function public.notify_reservation_change() from public,anon,authenticated;
+revoke all on function public.notify_reservation_change_request() from public,anon,authenticated;
+revoke all on function public.notify_event_participant_change() from public,anon,authenticated;
+revoke all on function public.notify_community_join_request() from public,anon,authenticated;
+revoke all on function public.notify_review_insert() from public,anon,authenticated;
+revoke all on function public.notify_transaction_insert() from public,anon,authenticated;
+revoke all on function public.sync_reservation_thread_status() from public,anon,authenticated;
+revoke all on function public.sync_event_thread_status() from public,anon,authenticated;
+revoke all on function public.enforce_provider_identity() from public,anon,authenticated;
+revoke all on function public.ensure_event_default_ticket() from public,anon,authenticated;
+revoke all on function public.assign_default_event_ticket() from public,anon,authenticated;
