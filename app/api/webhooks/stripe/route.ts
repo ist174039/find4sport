@@ -42,6 +42,23 @@ export async function POST(req: Request) {
       const session=event.data.object as Stripe.Checkout.Session
       if(session.mode==='subscription'&&session.subscription){const subscriptionId=typeof session.subscription==='string'?session.subscription:session.subscription.id; await syncSubscription(await stripe.subscriptions.retrieve(subscriptionId)); await recordEvent(); return NextResponse.json({received:true})}
 
+      const packagePurchaseId=session.metadata?.service_package_purchase_id
+      if(packagePurchaseId){
+        const db=adminSupabase as any
+        const {data:purchase,error:purchaseError}=await db.from('service_package_purchases').select('id,user_id,sessions_total,price_paid,status').eq('id',packagePurchaseId).maybeSingle()
+        if(purchaseError||!purchase)return NextResponse.json({error:'Package purchase not found'},{status:404})
+        const paidAmount=Number(session.amount_total||0)/100
+        if(Number(purchase.price_paid)!==paidAmount)return NextResponse.json({error:'Package amount mismatch'},{status:400})
+        if(purchase.status==='pending'){
+          const paymentIntentId=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id
+          const {error}=await db.from('service_package_purchases').update({status:'active',sessions_remaining:Number(purchase.sessions_total),purchased_at:new Date().toISOString(),stripe_session_id:session.id,stripe_payment_intent_id:paymentIntentId||null,updated_at:new Date().toISOString()}).eq('id',packagePurchaseId).eq('status','pending')
+          if(error)throw error
+          await adminSupabase.from('transactions').insert({user_id:purchase.user_id,amount:paidAmount,currency:session.currency||'eur',type:'service_package_payment',status:'completed',stripe_charge_id:paymentIntentId||session.id}).then(()=>undefined)
+        }
+        await recordEvent({service_package_purchase_id:packagePurchaseId})
+        return NextResponse.json({received:true})
+      }
+
       const eventParticipantId=session.metadata?.event_participant_id
       if(eventParticipantId){
         const {data:participant}=await adminSupabase.from('event_participants').select('id,event_id,payment_status,status').eq('id',eventParticipantId).maybeSingle()
