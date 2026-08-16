@@ -1,283 +1,152 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { formatDistanceToNow } from 'date-fns'
+import { pt } from 'date-fns/locale'
+import { Loader2, MessageSquare, Star, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { submitReviewAction } from '@/app/actions/reviews'
+import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Star, MessageSquare, User, Loader2 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { pt } from 'date-fns/locale'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export type TargetType = 'space' | 'professional' | 'event'
 
-interface ReviewsSectionProps {
-  targetType: TargetType
-  targetId: string
-}
-
-export function ReviewsSection({ targetType, targetId }: ReviewsSectionProps) {
+export function ReviewsSection({ targetType, targetId }: { targetType: TargetType; targetId: string }) {
+  const { showAlert } = useModal()
   const [reviews, setReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [hasReviewed, setHasReviewed] = useState(false)
-
-  // Form State
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const fetchReviews = async () => {
+    if (targetType === 'event') return
     setLoading(true)
-    const supabase = createClient()
-    
-    // Check if user is logged in
-    const { data: { user } } = await supabase.auth.getUser()
-    setUserId(user?.id || null)
-
-    if (targetType === 'event') {
-      setReviews([])
-      setHasReviewed(false)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserId(user?.id || null)
+      const typeColumn = targetType === 'space' ? 'space_id' : 'professional_id'
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*, platform_users(full_name, avatar_url)')
+        .eq(typeColumn, targetId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      const nextReviews = data || []
+      setReviews(nextReviews)
+      setHasReviewed(Boolean(user && nextReviews.some((review: any) => review.user_id === user.id)))
+    } catch (error) {
+      console.error('Error loading reviews:', error)
+      showAlert('Erro', 'Não foi possível carregar as avaliações.', 'error')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const typeColumn = targetType === 'space' ? 'space_id' : 'professional_id'
-
-    const { data, error } = await supabase
-      .from('reviews')
-      .select(`
-        *,
-        platform_users ( full_name, avatar_url )
-      `)
-      .eq(typeColumn, targetId)
-      .order('created_at', { ascending: false })
-
-    if (data && !error) {
-      setReviews(data)
-      if (user) {
-        setHasReviewed(data.some(r => r.user_id === user.id))
-      }
-    }
-    setLoading(false)
   }
 
   useEffect(() => {
-    fetchReviews()
+    if (targetType !== 'event') void fetchReviews()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetType, targetId])
 
-  const averageRating = reviews.length > 0 
-    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) 
+  if (targetType === 'event') return null
+
+  const averageRating = reviews.length
+    ? (reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
     : '0.0'
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!userId || rating === 0) return
-
-    if (targetType === 'event') {
-      alert('Avaliações de eventos ainda não estão disponíveis.')
-      return
-    }
-
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!userId || rating === 0 || isSubmitting) return
     setIsSubmitting(true)
-
     try {
       await submitReviewAction(targetType, targetId, rating, comment)
-      
       setIsModalOpen(false)
       setComment('')
       setRating(0)
-      fetchReviews()
-      alert("Avaliação submetida com sucesso!")
-    } catch (err: any) {
-      console.error(err)
-      alert("Erro ao submeter avaliação.")
+      await fetchReviews()
+      showAlert('Avaliação publicada', 'Obrigado por partilhares a tua experiência.', 'success')
+    } catch (error: any) {
+      console.error(error)
+      showAlert('Erro', error?.message || 'Não foi possível submeter a avaliação.', 'error')
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-      <div className="p-6 md:p-8 border-b border-border">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border p-6 md:p-8">
+        <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-6">
             <div className="flex flex-col items-center">
-              <span className="text-4xl md:text-5xl font-black text-foreground">
-                {averageRating}
-              </span>
-              <div className="flex gap-1 mt-1 text-amber-500">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className="w-4 h-4"
-                    fill={star <= Math.round(Number(averageRating)) ? "currentColor" : "none"}
-                    strokeWidth={star <= Math.round(Number(averageRating)) ? 0 : 2}
-                  />
-                ))}
+              <span className="text-4xl font-black text-foreground md:text-5xl">{averageRating}</span>
+              <div className="mt-1 flex gap-1 text-amber-500">
+                {[1, 2, 3, 4, 5].map((star) => <Star key={star} className="h-4 w-4" fill={star <= Math.round(Number(averageRating)) ? 'currentColor' : 'none'} />)}
               </div>
-              <p className="text-xs font-semibold text-muted-foreground mt-1">
-                {reviews.length} {reviews.length === 1 ? 'avaliação' : 'avaliações'}
-              </p>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">{reviews.length} {reviews.length === 1 ? 'avaliação' : 'avaliações'}</p>
             </div>
-            <div className="h-12 w-px bg-border hidden sm:block"></div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">O que dizem sobre nós</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Leia as opiniões da comunidade ou partilhe a sua experiência.
-              </p>
-            </div>
+            <div className="hidden h-12 w-px bg-border sm:block" />
+            <div><h2 className="text-xl font-bold text-foreground">Avaliações</h2><p className="mt-0.5 text-sm text-muted-foreground">Opiniões reais da comunidade.</p></div>
           </div>
-          
-          <Button 
-            className="w-full sm:w-auto font-bold rounded-xl h-11"
+
+          <Button
+            className="h-11 w-full rounded-xl font-bold sm:w-auto"
             onClick={() => {
               if (!userId) {
                 window.location.href = `/auth/login?redirect=${window.location.pathname}`
                 return
               }
-              if (targetType === 'event') {
-                alert('Avaliações de eventos ainda não estão disponíveis.')
-                return
-              }
               setIsModalOpen(true)
             }}
-            disabled={targetType === 'event' || (hasReviewed && userId !== null)}
+            disabled={hasReviewed && userId !== null}
           >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            {targetType === 'event' ? 'Avaliações em breve' : hasReviewed ? 'Já avaliou' : 'Deixar Avaliação'}
+            <MessageSquare className="mr-2 h-4 w-4" />
+            {hasReviewed ? 'Já avaliou' : 'Deixar avaliação'}
           </Button>
         </div>
       </div>
 
       <div className="p-6 md:p-8">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : reviews.length > 0 ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : reviews.length ? (
           <div className="space-y-6">
-            {reviews.map((review) => (
+            {reviews.map((review: any) => (
               <div key={review.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                      {review.platform_users?.avatar_url ? (
-                        <img src={review.platform_users.avatar_url} alt={review.platform_users.full_name} className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-5 h-5 text-muted-foreground" />
-                      )}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
+                      {review.platform_users?.avatar_url ? <img src={review.platform_users.avatar_url} alt={review.platform_users.full_name || 'Utilizador'} className="h-full w-full object-cover" /> : <User className="h-5 w-5 text-muted-foreground" />}
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-foreground">
-                        {review.platform_users?.full_name || 'Utilizador Anónimo'}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(review.created_at), { addSuffix: true, locale: pt })}
-                      </p>
-                    </div>
+                    <div><h4 className="text-sm font-bold text-foreground">{review.platform_users?.full_name || 'Utilizador'}</h4><p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(review.created_at), { addSuffix: true, locale: pt })}</p></div>
                   </div>
-                  <div className="flex items-center text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="w-3.5 h-3.5"
-                        fill={i < review.rating ? "currentColor" : "none"}
-                        strokeWidth={i < review.rating ? 0 : 2}
-                      />
-                    ))}
-                  </div>
+                  <div className="flex text-amber-500">{[0, 1, 2, 3, 4].map((i) => <Star key={i} className="h-3.5 w-3.5" fill={i < review.rating ? 'currentColor' : 'none'} />)}</div>
                 </div>
-                {review.comment && (
-                  <p className="text-sm text-foreground/80 mt-3 pl-14">
-                    "{review.comment}"
-                  </p>
-                )}
-                {review.response && (
-                  <div className="mt-3 ml-14 bg-muted/50 p-3 rounded-lg border border-border">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-bold text-foreground">Resposta do Gestor</span>
-                      {review.response_at && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(review.response_at), { addSuffix: true, locale: pt })}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-foreground/80">{review.response}</p>
-                  </div>
-                )}
+                {review.comment && <p className="mt-3 pl-14 text-sm text-foreground/80">“{review.comment}”</p>}
+                {review.response && <div className="ml-14 mt-3 rounded-lg border border-border bg-muted/50 p-3"><p className="mb-1 text-xs font-bold">Resposta do gestor</p><p className="text-sm text-foreground/80">{review.response}</p></div>}
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-            <h3 className="text-base font-semibold text-foreground">Ainda não há avaliações</h3>
-            <p className="text-sm">Seja o primeiro a partilhar a sua experiência!</p>
-          </div>
+          <div className="py-12 text-center text-muted-foreground"><MessageSquare className="mx-auto mb-3 h-12 w-12 opacity-30" /><h3 className="font-semibold text-foreground">Ainda não há avaliações</h3><p className="text-sm">Sê o primeiro a partilhar a tua experiência.</p></div>
         )}
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-              Escreva a sua avaliação
-            </DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Star className="h-5 w-5 fill-amber-500 text-amber-500" />Escrever avaliação</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <Label className="text-sm font-semibold">Como classifica a sua experiência?</Label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    className="focus:outline-none transition-transform hover:scale-110"
-                  >
-                    <Star
-                      className="w-10 h-10 text-amber-500 transition-colors"
-                      fill={(hoverRating || rating) >= star ? "currentColor" : "none"}
-                      strokeWidth={(hoverRating || rating) >= star ? 0 : 1.5}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Comentário (Opcional)</Label>
-              <Textarea 
-                placeholder="Partilhe os detalhes da sua experiência (instalações, ambiente, atendimento...)"
-                rows={4}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting || rating === 0} className="font-bold">
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Submeter Avaliação
-              </Button>
-            </div>
+            <div className="flex flex-col items-center gap-2"><Label>Como classificas a experiência?</Label><div className="flex gap-2">{[1, 2, 3, 4, 5].map((star) => <button key={star} type="button" onClick={() => setRating(star)} onMouseEnter={() => setHoverRating(star)} onMouseLeave={() => setHoverRating(0)} className="transition-transform hover:scale-110"><Star className="h-10 w-10 text-amber-500" fill={(hoverRating || rating) >= star ? 'currentColor' : 'none'} /></button>)}</div></div>
+            <div className="space-y-2"><Label>Comentário opcional</Label><Textarea rows={4} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Partilha detalhes relevantes da tua experiência." /></div>
+            <div className="flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancelar</Button><Button type="submit" disabled={isSubmitting || rating === 0}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Publicar</Button></div>
           </form>
         </DialogContent>
       </Dialog>
