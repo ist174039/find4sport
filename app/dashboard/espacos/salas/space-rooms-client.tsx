@@ -1,347 +1,328 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
+import { CalendarDays, Camera, Image as ImageIcon, Loader2, Plus, Trash2, Upload, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { createSpaceRoomAction, deleteSpaceRoomAction, updateSpaceRoomGalleryAction } from '@/app/actions/space-rooms'
+import { useModal } from '@/components/providers/modal-provider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { createClient } from '@/lib/supabase/client'
-import { SpaceRoom } from '@/lib/types'
-import { Plus, Trash2, CalendarDays, Camera, X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { RoomAvailabilityModal } from '@/components/dashboard/room-availability-modal'
+import type { SpaceRoom } from '@/lib/types'
 
-export function SpaceRoomsClient({ initialRooms, spaceId, subscriptionTier = 'free' }: { initialRooms: SpaceRoom[], spaceId: string, subscriptionTier?: string }) {
+export function SpaceRoomsClient({
+  initialRooms,
+  spaceId,
+  userId,
+  subscriptionTier = 'free',
+}: {
+  initialRooms: SpaceRoom[]
+  spaceId: string
+  userId: string
+  subscriptionTier?: string
+}) {
+  const { showAlert } = useModal()
   const [rooms, setRooms] = useState<SpaceRoom[]>(initialRooms)
-  const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const [creating, setCreating] = useState(false)
+  const [busyRoomId, setBusyRoomId] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false)
   const [availabilityRoom, setAvailabilityRoom] = useState<SpaceRoom | null>(null)
-
-  // New room state
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [capacity, setCapacity] = useState(1)
   const [price, setPrice] = useState(0)
-
-  // Photo management state
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null)
   const [photoUrl, setPhotoUrl] = useState('')
-  const [savingPhotos, setSavingPhotos] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const maxPhotos = subscriptionTier === 'free' ? 5 : null
 
   const openAvailability = (room: SpaceRoom) => {
     setAvailabilityRoom(room)
     setIsAvailabilityModalOpen(true)
   }
 
-  const handleAddRoom = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    const newRoom = {
-      space_id: spaceId,
-      name,
-      description: description || null,
-      capacity: Number(capacity),
-      price_per_hour: Number(price),
-      is_active: true,
-      gallery_urls: []
-    }
-
-    const { data, error } = await supabase
-      .from('space_rooms')
-      .insert(newRoom)
-      .select()
-      .single()
-
-    if (!error && data) {
-      setRooms([data, ...rooms])
-      setIsDialogOpen(false)
+  const handleAddRoom = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setCreating(true)
+    try {
+      const room = await createSpaceRoomAction({
+        spaceId,
+        name,
+        description,
+        capacity: Number(capacity),
+        pricePerHour: Number(price),
+      })
+      setRooms((previous) => [room, ...previous])
       setName('')
       setDescription('')
       setCapacity(1)
       setPrice(0)
-    } else {
-      console.error(error)
-      alert('Erro ao criar sala. Verifique os dados e tente novamente.')
-    }
-    setLoading(false)
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar esta sala/campo?')) return
-    const { error } = await supabase.from('space_rooms').delete().eq('id', id)
-    if (!error) {
-      setRooms(rooms.filter(r => r.id !== id))
+      setIsDialogOpen(false)
+      showAlert('Sala criada', 'A sala/campo já está disponível para configuração.', 'success')
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar a sala/campo.', 'error')
+    } finally {
+      setCreating(false)
     }
   }
 
-  // Photo management
-  const handleAddPhotoUrl = async (roomId: string) => {
-    if (!photoUrl.trim()) return
-    setSavingPhotos(true)
+  const handleDelete = async (room: SpaceRoom) => {
+    setBusyRoomId(room.id)
+    try {
+      await deleteSpaceRoomAction(room.id)
+      setRooms((previous) => previous.filter((item) => item.id !== room.id))
+      showAlert('Sala removida', `${room.name} foi removida.`, 'success')
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível remover a sala/campo.', 'error')
+    } finally {
+      setBusyRoomId(null)
+    }
+  }
 
-    const room = rooms.find(r => r.id === roomId)
-    if (!room) return
-    
-    const isFree = subscriptionTier === 'free'
-    if (isFree && (room.gallery_urls?.length || 0) >= 5) {
-      alert('O plano Grátis tem um limite de 5 fotos por sala. Faça upgrade para Pro para adicionar fotos ilimitadas.')
+  const persistGallery = async (room: SpaceRoom, nextUrls: string[]) => {
+    await updateSpaceRoomGalleryAction(room.id, nextUrls)
+    setRooms((previous) => previous.map((item) => item.id === room.id ? { ...item, gallery_urls: nextUrls } : item))
+  }
+
+  const handleAddPhotoUrl = async (room: SpaceRoom) => {
+    const nextUrl = photoUrl.trim()
+    if (!nextUrl) return
+    if (!/^https:\/\//i.test(nextUrl)) {
+      showAlert('URL inválido', 'Utilize um endereço HTTPS válido.', 'error')
+      return
+    }
+    const current = room.gallery_urls || []
+    if (maxPhotos !== null && current.length >= maxPhotos) {
+      showAlert('Limite do plano', `O plano atual permite até ${maxPhotos} fotos por sala/campo.`, 'error')
       return
     }
 
-    const updatedUrls = [...(room.gallery_urls || []), photoUrl.trim()]
-
-    const { error } = await supabase
-      .from('space_rooms')
-      .update({ gallery_urls: updatedUrls })
-      .eq('id', roomId)
-
-    if (!error) {
-      setRooms(rooms.map(r => r.id === roomId ? { ...r, gallery_urls: updatedUrls } : r))
+    setBusyRoomId(room.id)
+    try {
+      await persistGallery(room, [...current, nextUrl])
       setPhotoUrl('')
-    }
-    setSavingPhotos(false)
-  }
-
-  const handleRemovePhoto = async (roomId: string, urlToRemove: string) => {
-    const room = rooms.find(r => r.id === roomId)
-    if (!room) return
-
-    const updatedUrls = (room.gallery_urls || []).filter(u => u !== urlToRemove)
-
-    const { error } = await supabase
-      .from('space_rooms')
-      .update({ gallery_urls: updatedUrls })
-      .eq('id', roomId)
-
-    if (!error) {
-      setRooms(rooms.map(r => r.id === roomId ? { ...r, gallery_urls: updatedUrls } : r))
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível adicionar a fotografia.', 'error')
+    } finally {
+      setBusyRoomId(null)
     }
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, roomId: string) => {
-    const files = Array.from(e.target.files || [])
+  const handleRemovePhoto = async (room: SpaceRoom, urlToRemove: string) => {
+    setBusyRoomId(room.id)
+    const nextUrls = (room.gallery_urls || []).filter((url) => url !== urlToRemove)
+    try {
+      await persistGallery(room, nextUrls)
+
+      const marker = '/storage/v1/object/public/avatars/'
+      const path = urlToRemove.split(marker)[1]
+      if (path?.startsWith(`${userId}/rooms/`)) {
+        const supabase = createClient()
+        await supabase.storage.from('avatars').remove([path])
+      }
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível remover a fotografia.', 'error')
+    } finally {
+      setBusyRoomId(null)
+    }
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, room: SpaceRoom) => {
+    const files = Array.from(event.target.files || [])
     if (!files.length) return
 
-    const room = rooms.find(r => r.id === roomId)
-    if (!room) return
-    
-    const currentCount = room.gallery_urls?.length || 0
-    const isFree = subscriptionTier === 'free'
-    
-    if (isFree && currentCount + files.length > 5) {
-      alert(`O plano Grátis tem um limite de 5 fotos por sala. Já tem ${currentCount} fotos. Escolha menos fotos ou faça upgrade.`)
-      if (e.target) e.target.value = ''
+    const current = room.gallery_urls || []
+    if (maxPhotos !== null && current.length + files.length > maxPhotos) {
+      showAlert('Limite do plano', `Pode ter no máximo ${maxPhotos} fotos por sala/campo neste plano.`, 'error')
+      event.target.value = ''
       return
     }
 
-    setSavingPhotos(true)
+    setBusyRoomId(room.id)
+    const supabase = createClient()
+    const uploadedUrls: string[] = []
 
-    const newUrls: string[] = []
+    try {
+      for (const file of files) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          throw new Error('Apenas JPEG, PNG e WebP são permitidos.')
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error('Cada imagem pode ter no máximo 5 MB.')
+        }
 
-    for (const file of files) {
-      const result = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (event) => resolve(event.target?.result as string)
-        reader.readAsDataURL(file)
-      })
-      newUrls.push(result)
+        const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${userId}/rooms/${room.id}/${crypto.randomUUID()}.${extension}`
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+        uploadedUrls.push(data.publicUrl)
+      }
+
+      await persistGallery(room, [...current, ...uploadedUrls])
+      showAlert('Fotos carregadas', `${uploadedUrls.length} fotografia(s) adicionada(s).`, 'success')
+    } catch (error) {
+      for (const url of uploadedUrls) {
+        const marker = '/storage/v1/object/public/avatars/'
+        const path = url.split(marker)[1]
+        if (path) await supabase.storage.from('avatars').remove([path])
+      }
+      showAlert('Erro no upload', error instanceof Error ? error.message : 'Não foi possível carregar as fotografias.', 'error')
+    } finally {
+      setBusyRoomId(null)
+      event.target.value = ''
     }
-
-    const updatedUrls = [...(room.gallery_urls || []), ...newUrls]
-
-    const { error } = await supabase
-      .from('space_rooms')
-      .update({ gallery_urls: updatedUrls })
-      .eq('id', roomId)
-
-    if (!error) {
-      setRooms(rooms.map(r => r.id === roomId ? { ...r, gallery_urls: updatedUrls } : r))
-    }
-
-    if (e.target) e.target.value = ''
-    setSavingPhotos(false)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <input
         type="file"
         ref={fileInputRef}
-        onChange={(e) => editingRoomId && handleFileUpload(e, editingRoomId)}
-        accept="image/*"
+        onChange={(event) => {
+          const room = rooms.find((item) => item.id === editingRoomId)
+          if (room) void handleFileUpload(event, room)
+        }}
+        accept="image/jpeg,image/png,image/webp"
         multiple
         className="hidden"
       />
 
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">As suas Salas / Campos</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-lg font-semibold sm:text-xl">As suas Salas / Campos</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Adicionar Sala</Button>
+            <Button className="min-h-11 w-full rounded-xl sm:w-auto"><Plus className="mr-2 h-4 w-4" />Adicionar Sala</Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nova Sala / Sub-espaço</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddRoom} className="space-y-4 pt-4">
+          <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl sm:max-w-lg">
+            <DialogHeader><DialogTitle>Nova Sala / Sub-espaço</DialogTitle></DialogHeader>
+            <form onSubmit={handleAddRoom} className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label>Nome da Sala (ex: Campo 1, Sala de Dança)</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} required />
+                <Label htmlFor="room-name">Nome da Sala</Label>
+                <Input id="room-name" value={name} onChange={(event) => setName(event.target.value)} required className="h-11 text-base" placeholder="Ex: Campo 1, Sala de Dança" />
               </div>
               <div className="space-y-2">
-                <Label>Descrição (opcional)</Label>
-                <Textarea 
-                  value={description} 
-                  onChange={e => setDescription(e.target.value)} 
-                  placeholder="Ex: Campo de padel coberto com piso sintético..."
-                  rows={3}
-                />
+                <Label htmlFor="room-description">Descrição</Label>
+                <Textarea id="room-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Ex: Campo de padel coberto..." rows={3} className="text-base" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Lotação / Capacidade</Label>
-                  <Input type="number" min="1" value={capacity} onChange={e => setCapacity(parseInt(e.target.value))} required />
+                  <Label htmlFor="room-capacity">Capacidade</Label>
+                  <Input id="room-capacity" inputMode="numeric" type="number" min="1" value={capacity} onChange={(event) => setCapacity(Number(event.target.value))} required className="h-11 text-base" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Preço por hora (€)</Label>
-                  <Input type="number" step="0.50" min="0" value={price} onChange={e => setPrice(parseFloat(e.target.value))} required />
+                  <Label htmlFor="room-price">Preço por hora (€)</Label>
+                  <Input id="room-price" inputMode="decimal" type="number" step="0.50" min="0" value={price} onChange={(event) => setPrice(Number(event.target.value))} required className="h-11 text-base" />
                 </div>
               </div>
-              {Number(price) > 0 && (
-                <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                  * Serão deduzidas a taxa da FIND4SPORT (3.5%) e as do processador de pagamento (Stripe) a este valor final.
-                </p>
-              )}
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'A criar...' : 'Criar Sala'}
+              <Button type="submit" className="min-h-11 w-full rounded-xl" disabled={creating}>
+                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{creating ? 'A criar...' : 'Criar Sala'}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        {rooms.length === 0 ? (
-          <div className="bg-card border-2 border-dashed border-border rounded-2xl p-12 text-center">
-            <CalendarDays className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-lg font-bold text-foreground">Sem salas ou campos</h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Adicione as salas, campos ou sub-espaços do seu recinto para permitir reservas individuais.
-            </p>
-          </div>
-        ) : (
-          rooms.map(room => (
-            <Card key={room.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{room.name}</CardTitle>
-                    <CardDescription>
-                      Capacidade: {room.capacity} pessoas
-                      {room.description && <span className="block mt-1">{room.description}</span>}
-                    </CardDescription>
+      {rooms.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-border bg-card px-5 py-10 text-center sm:p-12">
+          <CalendarDays className="mx-auto mb-3 h-10 w-10 text-muted-foreground sm:h-12 sm:w-12" />
+          <h3 className="text-base font-bold text-foreground sm:text-lg">Sem salas ou campos</h3>
+          <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">Adicione os sub-espaços do recinto para permitir reservas individuais.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:gap-6">
+          {rooms.map((room) => {
+            const busy = busyRoomId === room.id
+            const gallery = room.gallery_urls || []
+            return (
+              <Card key={room.id} className="overflow-hidden">
+                <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-lg">{room.name}</CardTitle>
+                      <CardDescription className="mt-1 text-xs leading-relaxed sm:text-sm">Capacidade: {room.capacity} pessoas{room.description && <span className="mt-1 block">{room.description}</span>}</CardDescription>
+                    </div>
+                    <div className="grid grid-cols-[1fr_44px] gap-2 sm:flex">
+                      <Button variant="outline" onClick={() => openAvailability(room)} className="min-h-11 rounded-xl"><CalendarDays className="mr-2 h-4 w-4" />Disponibilidade</Button>
+                      <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl text-destructive" onClick={() => void handleDelete(room)} disabled={busy} aria-label={`Eliminar ${room.name}`}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openAvailability(room)}>
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      Disponibilidade
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(room.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center pb-3 border-b border-border">
-                  <div className="text-xl font-bold">
-                    {room.price_per_hour > 0 ? `${room.price_per_hour}€ / hr` : 'Gratuito'}
-                  </div>
-                </div>
+                </CardHeader>
 
-                {/* Photo Gallery Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold flex items-center gap-2">
-                      <Camera className="w-4 h-4 text-primary" />
-                      Fotos da Sala ({(room.gallery_urls || []).length})
-                    </h4>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-xs"
-                        onClick={() => {
-                          setEditingRoomId(room.id)
-                          fileInputRef.current?.click()
-                        }}
-                        disabled={savingPhotos}
+                <CardContent className="space-y-5 p-4 pt-1 sm:p-6 sm:pt-1">
+                  <div className="border-b border-border pb-3 text-lg font-bold sm:text-xl">{room.price_per_hour > 0 ? `${room.price_per_hour}€ / hora` : 'Gratuito'}</div>
+
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <h4 className="flex items-center gap-2 text-sm font-semibold"><Camera className="h-4 w-4 text-primary" />Fotos ({gallery.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})</h4>
+                      <Button
+                        variant="outline"
+                        onClick={() => { setEditingRoomId(room.id); fileInputRef.current?.click() }}
+                        disabled={busy || (maxPhotos !== null && gallery.length >= maxPhotos)}
+                        className="min-h-11 w-full rounded-xl sm:w-auto"
                       >
-                        {savingPhotos && editingRoomId === room.id ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                        ) : (
-                          <Upload className="w-3.5 h-3.5 mr-1.5" />
-                        )}
-                        Carregar
+                        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Carregar fotos
+                      </Button>
+                    </div>
+
+                    {gallery.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                        {gallery.map((url, index) => (
+                          <div key={`${url}-${index}`} className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted">
+                            <img src={url} alt={`${room.name} foto ${index + 1}`} className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => void handleRemovePhoto(room, url)}
+                              disabled={busy}
+                              className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-destructive shadow-sm backdrop-blur active:scale-95"
+                              aria-label="Remover fotografia"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <Input
+                        type="url"
+                        inputMode="url"
+                        placeholder="Ou cole um URL HTTPS da foto"
+                        value={editingRoomId === room.id ? photoUrl : ''}
+                        onFocus={() => setEditingRoomId(room.id)}
+                        onChange={(event) => { setEditingRoomId(room.id); setPhotoUrl(event.target.value) }}
+                        className="h-11 text-base sm:text-sm"
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={() => void handleAddPhotoUrl(room)}
+                        disabled={!photoUrl.trim() || editingRoomId !== room.id || busy}
+                        className="min-h-11 rounded-xl"
+                      >
+                        <ImageIcon className="mr-2 h-4 w-4" />Adicionar URL
                       </Button>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
 
-                  {/* Photo Grid */}
-                  {(room.gallery_urls || []).length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                      {room.gallery_urls.map((url, idx) => (
-                        <div key={idx} className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-                          <img src={url} alt={`${room.name} foto ${idx + 1}`} className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => handleRemovePhoto(room.id, url)}
-                            className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add Photo by URL */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ou cole o URL da foto (https://...)"
-                      value={editingRoomId === room.id ? photoUrl : ''}
-                      onFocus={() => setEditingRoomId(room.id)}
-                      onChange={e => {
-                        setEditingRoomId(room.id)
-                        setPhotoUrl(e.target.value)
-                      }}
-                      className="text-sm"
-                    />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleAddPhotoUrl(room.id)}
-                      disabled={!photoUrl.trim() || editingRoomId !== room.id || savingPhotos}
-                    >
-                      <ImageIcon className="w-3.5 h-3.5 mr-1.5" />
-                      Adicionar
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-      <RoomAvailabilityModal 
-        open={isAvailabilityModalOpen} 
-        onOpenChange={setIsAvailabilityModalOpen} 
-        roomId={availabilityRoom?.id || null} 
-        roomName={availabilityRoom?.name || ''} 
+      <RoomAvailabilityModal
+        open={isAvailabilityModalOpen}
+        onOpenChange={setIsAvailabilityModalOpen}
+        roomId={availabilityRoom?.id || null}
+        roomName={availabilityRoom?.name || ''}
       />
     </div>
   )
