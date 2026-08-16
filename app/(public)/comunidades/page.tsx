@@ -1,96 +1,20 @@
 import Link from 'next/link'
-import { Globe, Lock, Plus, Search, Users } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { Globe, Lock, MapPin, Navigation, Plus, Search, Users } from 'lucide-react'
+import { cookies } from 'next/headers'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
 import { Button } from '@/components/ui/button'
+import { distanceFrom, parseGeoCookie } from '@/lib/geo'
 
-export default async function CommunitiesPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-  const supabase = await createClient()
-  const params = await searchParams
-  const categoryParam = typeof params.category === 'string' ? params.category : undefined
-  const queryParam = typeof params.q === 'string' ? params.q.trim() : ''
-  const sortParam = typeof params.sort === 'string' ? params.sort : 'newest'
-
-  let query = supabase.from('communities').select('*, community_members(count)')
-  if (categoryParam) query = query.ilike('sport_category', `%${categoryParam}%`)
-  if (queryParam) query = query.or(`name.ilike.%${queryParam}%,description.ilike.%${queryParam}%,sport_category.ilike.%${queryParam}%`)
-  const { data: communities } = await query
-
-  const safeCommunities = [...(communities || [])]
-  safeCommunities.sort((a: any, b: any) => {
-    if (sortParam === 'members') return (b.community_members?.[0]?.count || 0) - (a.community_members?.[0]?.count || 0)
-    if (sortParam === 'name') return (a.name || '').localeCompare(b.name || '')
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
-
-  const categoryGroups = safeCommunities.reduce((acc: Record<string, number>, community: any) => {
-    const label = (community.sport_category || 'Desporto').trim()
-    acc[label] = (acc[label] || 0) + 1
-    return acc
-  }, {})
-  const topCategories = Object.entries(categoryGroups).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name]) => name)
-
-  const buildHref = (updates: Record<string, string | null | undefined>) => {
-    const hrefParams = new URLSearchParams()
-    if (queryParam) hrefParams.set('q', queryParam)
-    if (categoryParam) hrefParams.set('category', categoryParam)
-    if (sortParam !== 'newest') hrefParams.set('sort', sortParam)
-    Object.entries(updates).forEach(([key, value]) => value ? hrefParams.set(key, value) : hrefParams.delete(key))
-    const queryString = hrefParams.toString()
-    return queryString ? `/comunidades?${queryString}` : '/comunidades'
-  }
-
-  const search = (
-    <form action="/comunidades" method="get" className="relative w-full max-w-3xl">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-      <input name="q" defaultValue={queryParam} placeholder="Pesquisar comunidades..." className="min-h-12 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
-      {categoryParam && <input type="hidden" name="category" value={categoryParam} />}
-      {sortParam !== 'newest' && <input type="hidden" name="sort" value={sortParam} />}
-    </form>
-  )
-
-  return (
-    <DiscoveryPage
-      title="Comunidades"
-      description="Junta-te a grupos desportivos, partilha experiências e encontra pessoas com interesses em comum."
-      countLabel={`${safeCommunities.length} ${safeCommunities.length === 1 ? 'comunidade encontrada' : 'comunidades encontradas'}`}
-      search={search}
-      action={<Button asChild className="min-h-11 w-full sm:w-auto"><Link href="/comunidades/criar"><Plus className="mr-2 h-4 w-4" />Criar comunidade</Link></Button>}
-      categories={[
-        { label: 'Todas', href: buildHref({ category: null }), active: !categoryParam },
-        ...topCategories.map((name) => ({ label: name, href: buildHref({ category: name }), active: categoryParam?.toLowerCase() === name.toLowerCase() })),
-      ]}
-      sorts={[
-        { label: 'Recentes', href: buildHref({ sort: 'newest' }), active: sortParam === 'newest' },
-        { label: 'Mais membros', href: buildHref({ sort: 'members' }), active: sortParam === 'members' },
-        { label: 'A–Z', href: buildHref({ sort: 'name' }), active: sortParam === 'name' },
-      ]}
-      clearHref={queryParam || categoryParam || sortParam !== 'newest' ? '/comunidades' : undefined}
-    >
-      {safeCommunities.length ? (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {safeCommunities.map((community: any) => {
-            const memberCount = community.community_members?.[0]?.count || 0
-            return (
-              <Link key={community.id} href={`/comunidades/${community.slug || community.id}`} className="group flex min-h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:border-primary/40 hover:shadow-md">
-                <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                  {community.cover_url ? <img src={community.cover_url} alt={community.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-4xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                  <span className="absolute bottom-3 left-3 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">{community.sport_category || 'Desporto'}</span>
-                </div>
-                <div className="flex flex-1 flex-col p-4 sm:p-5">
-                  <h2 className="line-clamp-1 text-lg font-bold text-foreground group-hover:text-primary">{community.name}</h2>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{community.description || 'Comunidade desportiva na Find4Sport.'}</p>
-                  <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1.5"><Users className="h-4 w-4" />{memberCount} {memberCount === 1 ? 'membro' : 'membros'}</span>
-                    <span className="flex items-center gap-1.5">{community.is_private ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}{community.is_private ? 'Privada' : 'Pública'}</span>
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      ) : <DiscoveryEmptyState title="Nenhuma comunidade encontrada" description="Experimenta remover filtros ou cria uma nova comunidade." clearHref="/comunidades" />}
-    </DiscoveryPage>
-  )
+export default async function CommunitiesPage({searchParams}:{searchParams:Promise<{[key:string]:string|string[]|undefined}>}){
+ const admin=createAdminClient();const cookieStore=await cookies();const userLocation=parseGeoCookie(cookieStore.get('f4s_geo')?.value);const params=await searchParams;const categoryParam=typeof params.category==='string'?params.category:undefined;const queryParam=typeof params.q==='string'?params.q.trim():'';const sortParam=typeof params.sort==='string'?params.sort:'newest'
+ let query=admin.from('communities').select('*, community_members(count)');if(categoryParam)query=query.ilike('sport_category',`%${categoryParam}%`);if(queryParam)query=query.or(`name.ilike.%${queryParam}%,description.ilike.%${queryParam}%,sport_category.ilike.%${queryParam}%`);const{data:communities}=await query
+ const rows=[...(communities||[])];const creatorIds=[...new Set(rows.map((c:any)=>c.created_by).filter(Boolean))];const[prosResult,spacesResult]=creatorIds.length?await Promise.all([admin.from('professionals').select('user_id,address,latitude,longitude').in('user_id',creatorIds),admin.from('sport_spaces').select('owner_user_id,address,latitude,longitude').in('owner_user_id',creatorIds)]):[{data:[]},{data:[]}] as any;const refs=new Map<string,{address:string|null;latitude:number|null;longitude:number|null}>();for(const p of prosResult.data||[])if(!refs.has(p.user_id))refs.set(p.user_id,{address:p.address,latitude:p.latitude,longitude:p.longitude});for(const s of spacesResult.data||[])if(s.owner_user_id&&!refs.has(s.owner_user_id))refs.set(s.owner_user_id,{address:s.address,latitude:s.latitude,longitude:s.longitude})
+ const safeCommunities=rows.map((community:any)=>{const ref=community.created_by?refs.get(community.created_by):undefined;return{...community,referenceAddress:ref?.address||null,distanceKm:distanceFrom(userLocation,ref?.latitude,ref?.longitude)}});safeCommunities.sort((a:any,b:any)=>{if(sortParam==='members')return(b.community_members?.[0]?.count||0)-(a.community_members?.[0]?.count||0);if(sortParam==='name')return(a.name||'').localeCompare(b.name||'');if(sortParam==='distance'&&userLocation)return(a.distanceKm??Infinity)-(b.distanceKm??Infinity);return new Date(b.created_at).getTime()-new Date(a.created_at).getTime()})
+ const categoryGroups=safeCommunities.reduce((acc:Record<string,number>,community:any)=>{const label=(community.sport_category||'Desporto').trim();acc[label]=(acc[label]||0)+1;return acc},{});const topCategories=Object.entries(categoryGroups).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([name])=>name)
+ const buildHref=(updates:Record<string,string|null|undefined>)=>{const p=new URLSearchParams();if(queryParam)p.set('q',queryParam);if(categoryParam)p.set('category',categoryParam);if(sortParam!=='newest')p.set('sort',sortParam);Object.entries(updates).forEach(([key,value])=>value?p.set(key,value):p.delete(key));return p.size?`/comunidades?${p}`:'/comunidades'}
+ const search=<form action="/comunidades" method="get" className="relative w-full max-w-3xl"><Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"/><input name="q" defaultValue={queryParam} placeholder="Pesquisar comunidades..." className="min-h-12 w-full rounded-xl border border-border bg-background pl-10 pr-4 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"/>{categoryParam&&<input type="hidden" name="category" value={categoryParam}/>}</form>
+ return <DiscoveryPage title="Comunidades" description="Junta-te a grupos desportivos e encontra comunidades próximas de ti." countLabel={`${safeCommunities.length} ${safeCommunities.length===1?'comunidade encontrada':'comunidades encontradas'}`} search={search} action={<Button asChild className="min-h-11 w-full sm:w-auto"><Link href="/comunidades/criar"><Plus className="mr-2 h-4 w-4"/>Criar comunidade</Link></Button>} categories={[{label:'Todas',href:buildHref({category:null}),active:!categoryParam},...topCategories.map(name=>({label:name,href:buildHref({category:name}),active:categoryParam?.toLowerCase()===name.toLowerCase()}))]} sorts={[{label:'Recentes',href:buildHref({sort:'newest'}),active:sortParam==='newest'},...(userLocation?[{label:'Mais próximas',href:buildHref({sort:'distance'}),active:sortParam==='distance'}]:[]),{label:'Mais membros',href:buildHref({sort:'members'}),active:sortParam==='members'},{label:'A–Z',href:buildHref({sort:'name'}),active:sortParam==='name'}]} clearHref={queryParam||categoryParam||sortParam!=='newest'?'/comunidades':undefined}>
+ {safeCommunities.length?<div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{safeCommunities.map((community:any)=>{const memberCount=community.community_members?.[0]?.count||0;const distance=community.distanceKm==null?null:community.distanceKm<1?`${Math.round(community.distanceKm*1000)} m`:`${community.distanceKm.toFixed(1)} km`;return <Link key={community.id} href={`/comunidades/${community.slug||community.id}`} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card transition hover:border-primary/40 hover:shadow-md"><div className="relative aspect-[16/9] overflow-hidden bg-muted">{community.cover_url?<img src={community.cover_url} alt={community.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"/>:<div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase()||'C'}</div>}<span className="absolute left-2 top-2 max-w-[70%] truncate rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">{community.sport_category||'Desporto'}</span>{distance&&<span className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-1 text-[10px] font-semibold shadow"><Navigation className="mr-1 inline h-3 w-3 text-primary"/>{distance}</span>}</div><div className="flex flex-1 flex-col p-3"><h2 className="line-clamp-1 text-sm font-bold group-hover:text-primary sm:text-base">{community.name}</h2><p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{community.description||'Comunidade desportiva na Find4Sport.'}</p>{community.referenceAddress&&<p className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground"><MapPin className="h-3 w-3 shrink-0"/><span className="truncate">{community.referenceAddress}</span></p>}<div className="mt-auto flex items-center justify-between gap-2 pt-3 text-[10px] text-muted-foreground"><span className="flex items-center gap-1"><Users className="h-3.5 w-3.5"/>{memberCount}</span><span className="flex items-center gap-1">{community.is_private?<Lock className="h-3.5 w-3.5"/>:<Globe className="h-3.5 w-3.5"/>}{community.is_private?'Privada':'Pública'}</span></div></div></Link>})}</div>:<DiscoveryEmptyState title="Nenhuma comunidade encontrada" description="Experimenta remover filtros ou cria uma nova comunidade." clearHref="/comunidades"/>}
+ </DiscoveryPage>
 }
