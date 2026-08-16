@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ChatInterface, Contact, Message } from '@/components/chat-interface'
@@ -19,12 +17,8 @@ export default async function MensagensPage() {
 
   if (messagesError) throw new Error(`Não foi possível carregar as mensagens: ${messagesError.message}`)
   const messages = (messagesData as Message[]) || []
-
   const contactIds = new Set<string>()
-  messages.forEach(msg => {
-    if (msg.sender_id !== user.id) contactIds.add(msg.sender_id)
-    if (msg.receiver_id !== user.id) contactIds.add(msg.receiver_id)
-  })
+  messages.forEach(msg => { if (msg.sender_id !== user.id) contactIds.add(msg.sender_id); if (msg.receiver_id !== user.id) contactIds.add(msg.receiver_id) })
 
   const contacts: Contact[] = []
   if (contactIds.size > 0) {
@@ -34,54 +28,26 @@ export default async function MensagensPage() {
       supabase.from('professionals').select('user_id, full_name, professional_name, avatar_url').in('user_id', ids),
       supabase.from('sport_spaces').select('owner_user_id, name, logo_url').in('owner_user_id', ids),
     ])
-
     const profByUserId = new Map((professionals || []).map((p: any) => [p.user_id, p]))
     const spaceByUserId = new Map((spaces || []).map((s: any) => [s.owner_user_id, s]))
-
     for (const profile of profiles || []) {
       if (!isPlatformRole(profile.type)) continue
       const prof = profile.type === 'professional' ? profByUserId.get(profile.id) as any : null
       const space = profile.type === 'venue_manager' ? spaceByUserId.get(profile.id) as any : null
       const lastMsg = messages.find(m => m.sender_id === profile.id || m.receiver_id === profile.id)
       if (!lastMsg) continue
-
-      const unreadCount = messages.filter(m => m.sender_id === profile.id && m.receiver_id === user.id && !m.read_at).length
       contacts.push({
         id: profile.id,
-        name: getUserDisplayName({
-          type: profile.type,
-          full_name: profile.full_name,
-          professional_name: prof?.professional_name,
-          professional_full_name: prof?.full_name,
-          space_name: space?.name,
-        }),
-        avatar: getUserAvatarUrl({
-          type: profile.type,
-          avatar_url: profile.avatar_url,
-          professional_avatar_url: prof?.avatar_url,
-          space_logo_url: space?.logo_url,
-        }),
+        name: getUserDisplayName({ type: profile.type, full_name: profile.full_name, professional_name: prof?.professional_name, professional_full_name: prof?.full_name, space_name: space?.name }),
+        avatar: getUserAvatarUrl({ type: profile.type, avatar_url: profile.avatar_url, professional_avatar_url: prof?.avatar_url, space_logo_url: space?.logo_url }),
         role: getUserRoleLabel(profile.type),
-        unread: unreadCount,
+        unread: messages.filter(m => m.sender_id === profile.id && m.receiver_id === user.id && !m.read_at).length,
         lastMsg: lastMsg.content,
         lastMsgDate: lastMsg.created_at,
       })
     }
   }
+  contacts.sort((a,b)=>new Date(b.lastMsgDate).getTime()-new Date(a.lastMsgDate).getTime())
 
-  contacts.sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-background lg:rounded-2xl lg:border lg:border-border/70">
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden">
-        <Link href="/dashboard" aria-label="Voltar ao painel" className="flex h-11 w-11 items-center justify-center rounded-xl text-foreground hover:bg-muted">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div><p className="text-sm font-bold">Mensagens</p><p className="text-[11px] text-muted-foreground">Conversas da FIND4SPORT</p></div>
-      </div>
-      <div className="min-h-0 flex-1 [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!border-0 md:[&>div]:!rounded-xl">
-        <ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id} />
-      </div>
-    </div>
-  )
+  return <div className="h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] min-h-0 overflow-hidden bg-background md:h-[calc(100vh-8rem)] md:rounded-2xl md:border md:border-border/70"><ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id} /></div>
 }
