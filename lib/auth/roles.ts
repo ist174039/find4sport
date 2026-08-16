@@ -31,6 +31,18 @@ export function parsePersistedPlatformRole(value: unknown): PlatformRole | null 
   }
 }
 
+/**
+ * @deprecated Use isPlatformRole for new inputs or parsePersistedPlatformRole
+ * only when reading rows that may predate the normalization migration.
+ */
+export function normalizePlatformRole(value: unknown): PlatformRole {
+  const role = parsePersistedPlatformRole(value)
+  if (!role) {
+    throw new Error(`Invalid platform role: ${String(value)}`)
+  }
+  return role
+}
+
 export function canCreatePostForRole(role: PlatformRole): boolean {
   return role === 'professional' || role === 'venue_manager'
 }
