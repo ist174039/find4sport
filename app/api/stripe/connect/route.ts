@@ -35,30 +35,85 @@ function getBaseUrl(req: Request) {
   throw new Error('Não foi possível determinar uma URL pública HTTP/HTTPS para o Stripe Connect.')
 }
 
+async function getConnectContext() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 }) }
+
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
+  if (!profile || !['professional', 'venue_manager'].includes(profile.type)) {
+    return { error: NextResponse.json({ error: 'Stripe Connect está disponível apenas para profissionais e gestores de espaço.' }, { status: 403 }) }
+  }
+
+  let accountId: string | null = null
+  if (profile.type === 'professional') {
+    const { data: professional } = await admin.from('professionals').select('id, stripe_account_id').eq('user_id', user.id).maybeSingle()
+    accountId = professional?.stripe_account_id || null
+  } else {
+    const { data: space } = await admin.from('sport_spaces').select('stripe_account_id').eq('owner_user_id', user.id).not('stripe_account_id', 'is', null).limit(1).maybeSingle()
+    accountId = space?.stripe_account_id || null
+  }
+
+  return { user, admin, profile, accountId }
+}
+
+export async function GET() {
+  try {
+    const key = process.env.STRIPE_SECRET_KEY
+    if (!key) return NextResponse.json({ error: 'Stripe Connect não está configurado no servidor.' }, { status: 503 })
+
+    const context = await getConnectContext()
+    if ('error' in context) return context.error
+    if (!context.accountId) {
+      return NextResponse.json({
+        connected: false,
+        accountId: null,
+        detailsSubmitted: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        requirementsDue: [],
+      })
+    }
+
+    const stripe = new Stripe(key)
+    const account = await stripe.accounts.retrieve(context.accountId)
+    if ('deleted' in account && account.deleted) {
+      return NextResponse.json({
+        connected: false,
+        accountId: context.accountId,
+        detailsSubmitted: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        requirementsDue: [],
+      })
+    }
+
+    return NextResponse.json({
+      connected: true,
+      accountId: account.id,
+      detailsSubmitted: account.details_submitted,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      requirementsDue: account.requirements?.currently_due || [],
+    })
+  } catch (error: any) {
+    console.error('Stripe connect status error:', error)
+    return NextResponse.json({ error: error?.message || 'Não foi possível obter o estado do Stripe Connect.' }, { status: 500 })
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const key = process.env.STRIPE_SECRET_KEY
     if (!key) return NextResponse.json({ error: 'Stripe Connect não está configurado no servidor.' }, { status: 503 })
 
     const stripe = new Stripe(key)
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 })
+    const context = await getConnectContext()
+    if ('error' in context) return context.error
 
-    const admin = createAdminClient()
-    const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
-    if (!profile || !['professional', 'venue_manager'].includes(profile.type)) {
-      return NextResponse.json({ error: 'Stripe Connect está disponível apenas para profissionais e gestores de espaço.' }, { status: 403 })
-    }
-
-    let accountId: string | null = null
-    if (profile.type === 'professional') {
-      const { data: professional } = await admin.from('professionals').select('id, stripe_account_id').eq('user_id', user.id).maybeSingle()
-      accountId = professional?.stripe_account_id || null
-    } else {
-      const { data: space } = await admin.from('sport_spaces').select('stripe_account_id').eq('owner_user_id', user.id).not('stripe_account_id', 'is', null).limit(1).maybeSingle()
-      accountId = space?.stripe_account_id || null
-    }
+    const { user, admin, profile } = context
+    let accountId = context.accountId
 
     if (!accountId) {
       try {
