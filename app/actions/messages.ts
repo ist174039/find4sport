@@ -49,13 +49,22 @@ async function resolveMessagingContext(userA: string, userB: string): Promise<Me
         if (participant) return { allowed:true,label:'Evento pago ativo',athleteId,providerUserId:providerId,contextType:'event_participant',contextId:participant.id }
       }
     }
-    return { allowed:false }
+    return { allowed:false, athleteId, providerUserId: providerId }
   }
 
   const typeA = typeById.get(userA), typeB = typeById.get(userB)
   if (typeA === 'athlete' && (typeB === 'professional' || typeB === 'venue_manager')) return resolvePair(userA, userB)
   if (typeB === 'athlete' && (typeA === 'professional' || typeA === 'venue_manager')) return resolvePair(userB, userA)
   return { allowed:false }
+}
+
+async function archivePairThreads(athleteId?: string, providerUserId?: string, exceptThreadId?: string | null) {
+  if (!athleteId || !providerUserId) return
+  const admin = createAdminClient() as any
+  let query = admin.from('message_threads').update({ status:'archived', archived_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('athlete_id',athleteId).eq('provider_user_id',providerUserId).eq('status','active')
+  if (exceptThreadId) query = query.neq('id', exceptThreadId)
+  const { error } = await query
+  if (error && !missingThreadSchema(error)) console.error('Unable to archive previous booking threads:', error)
 }
 
 async function ensureThread(context: MessagingContext) {
@@ -66,18 +75,22 @@ async function ensureThread(context: MessagingContext) {
   if (readError) { if (missingThreadSchema(readError)) return null; throw readError }
   if (existing) {
     if (existing.status !== 'active') await admin.from('message_threads').update({ status:'active', archived_at:null, updated_at:new Date().toISOString() }).eq('id', existing.id)
+    await archivePairThreads(context.athleteId, context.providerUserId, existing.id)
     return existing.id as string
   }
   const payload:any = { athlete_id:context.athleteId, provider_user_id:context.providerUserId, context_type:context.contextType, status:'active', [matchColumn]:context.contextId }
   const { data, error } = await admin.from('message_threads').insert(payload).select('id').single()
   if (error) { if (missingThreadSchema(error)) return null; throw error }
-  return data?.id as string | null
+  const threadId = data?.id as string | null
+  await archivePairThreads(context.athleteId, context.providerUserId, threadId)
+  return threadId
 }
 
 export async function canMessageUser(otherUserId: string) {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser()
   if (!user || !otherUserId || otherUserId === user.id) return { allowed:false }
   const context = await resolveMessagingContext(user.id, otherUserId)
+  if (!context.allowed) await archivePairThreads(context.athleteId, context.providerUserId)
   return { allowed:context.allowed, label:context.label, contextType:context.contextType, contextId:context.contextId }
 }
 
@@ -85,7 +98,7 @@ export async function sendMessage(receiverId: string, content: string) {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Não autenticado')
   const trimmedContent = content.trim(); if (!receiverId || receiverId === user.id) throw new Error('Destinatário inválido'); if (!trimmedContent) throw new Error('A mensagem não pode estar vazia'); if (trimmedContent.length > 4000) throw new Error('A mensagem excede o limite de 4000 caracteres')
   const admin = createAdminClient(); const { data: receiver } = await admin.from('platform_users').select('id').eq('id', receiverId).maybeSingle(); if (!receiver) throw new Error('O destinatário já não está disponível.')
-  const context = await resolveMessagingContext(user.id, receiverId); if (!context.allowed) throw new Error('Esta conversa está arquivada. Só podes enviar mensagens enquanto existir uma reserva confirmada/paga ou um evento pago ativo entre as duas partes.')
+  const context = await resolveMessagingContext(user.id, receiverId); if (!context.allowed) { await archivePairThreads(context.athleteId, context.providerUserId); throw new Error('Esta conversa está arquivada. Só podes enviar mensagens enquanto existir uma reserva confirmada/paga ou um evento pago ativo entre as duas partes.') }
   const threadId = await ensureThread(context)
   const payload:any = { sender_id:user.id, receiver_id:receiverId, content:trimmedContent }; if (threadId) payload.thread_id = threadId
   let result = await (admin as any).from('messages').insert(payload).select('id,created_at').single()
