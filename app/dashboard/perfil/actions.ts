@@ -23,14 +23,9 @@ export async function updateProfileAction(formData: FormData) {
   const language = String(formData.get('language') || 'pt').trim() || 'pt'
   const phone = String(formData.get('phone') || '').trim()
   const nif = String(formData.get('nif') || '').trim()
-
   if (fullName.length < 2 || fullName.length > 120) throw new Error('Indique um nome válido.')
 
-  const { error: platformError } = await admin.from('platform_users').update({
-    full_name: fullName,
-    location: location || null,
-    language,
-  }).eq('id', user.id)
+  const { error: platformError } = await admin.from('platform_users').update({ full_name: fullName, location: location || null, language }).eq('id', user.id)
   if (platformError) throw platformError
 
   if (access.role === 'professional') {
@@ -40,37 +35,22 @@ export async function updateProfileAction(formData: FormData) {
     const address = String(formData.get('address') || '').trim()
     const website = String(formData.get('website') || '').trim()
     const serviceRadius = Number(formData.get('service_radius_km') || 10)
-    const categoryIds = formData.getAll('category_ids').map(String).filter(Boolean)
+    const categoryIds = [...new Set(formData.getAll('category_ids').map(String).filter(Boolean))].slice(0, 5)
 
-    const { data: professional, error: professionalError } = await admin.from('professionals').update({
-      full_name: fullName,
-      professional_name: professionalName || fullName,
-      bio: bio || null,
-      phone: phone || null,
-      whatsapp: whatsapp || null,
-      address: address || null,
-      website: website || null,
-      service_radius_km: Number.isFinite(serviceRadius) ? Math.min(Math.max(serviceRadius, 1), 200) : 10,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', user.id).select('id').single()
+    const { data: professional, error: professionalError } = await admin.from('professionals').update({ full_name: fullName, professional_name: professionalName || fullName, bio: bio || null, phone: phone || null, whatsapp: whatsapp || null, address: address || null, website: website || null, service_radius_km: Number.isFinite(serviceRadius) ? Math.min(Math.max(serviceRadius, 1), 200) : 10, updated_at: new Date().toISOString() }).eq('user_id', user.id).select('id').single()
     if (professionalError) throw professionalError
 
+    const { data: validCategories } = categoryIds.length ? await admin.from('categories').select('id').in('id', categoryIds) : { data: [] }
+    const validIds = (validCategories || []).map(row => row.id)
     await admin.from('professional_categories').delete().eq('professional_id', professional.id)
-    if (categoryIds.length) {
-      const { error: categoryError } = await admin.from('professional_categories').insert(categoryIds.map((categoryId, index) => ({
-        professional_id: professional.id,
-        category_id: categoryId,
-        is_primary: index === 0,
-      })))
+    if (validIds.length) {
+      const { error: categoryError } = await admin.from('professional_categories').insert(validIds.map((categoryId, index) => ({ professional_id: professional.id, category_id: categoryId, is_primary: index === 0 })))
       if (categoryError) throw categoryError
     }
   }
 
-  const { error: authError } = await supabase.auth.updateUser({
-    data: { full_name: fullName, phone: phone || null, nif: nif || null },
-  })
+  const { error: authError } = await supabase.auth.updateUser({ data: { full_name: fullName, phone: phone || null, nif: nif || null } })
   if (authError) throw authError
-
   revalidatePath('/dashboard/perfil')
   revalidatePath('/dashboard')
 }
@@ -88,32 +68,26 @@ async function uploadProfileImage(kind: 'avatar' | 'banner', formData: FormData)
   const { error: uploadError } = await admin.storage.from('avatars').upload(path, bytes, { contentType: file.type, upsert: false })
   if (uploadError) throw uploadError
 
-  const { data: publicData } = admin.storage.from('avatars').getPublicUrl(path)
-  const publicUrl = publicData.publicUrl
-
+  const publicUrl = admin.storage.from('avatars').getPublicUrl(path).data.publicUrl
   const platformPatch = kind === 'avatar' ? { avatar_url: publicUrl } : { banner_url: publicUrl }
   const { error: platformError } = await admin.from('platform_users').update(platformPatch).eq('id', user.id)
-  if (platformError) {
-    await admin.storage.from('avatars').remove([path])
-    throw platformError
-  }
+  if (platformError) { await admin.storage.from('avatars').remove([path]); throw platformError }
 
   if (access.role === 'professional') {
     const professionalPatch = kind === 'avatar' ? { avatar_url: publicUrl } : { cover_url: publicUrl }
     const { error } = await admin.from('professionals').update(professionalPatch).eq('user_id', user.id)
     if (error) throw error
   }
-
   if (kind === 'avatar') await supabase.auth.updateUser({ data: { avatar_url: publicUrl } })
   revalidatePath('/dashboard/perfil')
   revalidatePath('/dashboard')
   return publicUrl
 }
 
-export async function uploadAvatarAction(formData: FormData) {
-  return uploadProfileImage('avatar', formData)
+export async function uploadAvatarAction(formData: FormData): Promise<void> {
+  await uploadProfileImage('avatar', formData)
 }
 
-export async function uploadBannerAction(formData: FormData) {
-  return uploadProfileImage('banner', formData)
+export async function uploadBannerAction(formData: FormData): Promise<void> {
+  await uploadProfileImage('banner', formData)
 }
