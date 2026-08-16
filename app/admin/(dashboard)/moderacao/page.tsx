@@ -14,23 +14,29 @@ const reasonLabel: Record<string, string> = {
 
 export default async function Page() {
   const admin = createAdminClient()
-  const { data: reports = [] } = await admin
+  const reportsResult = await admin
     .from('content_reports')
     .select('id, reporter_user_id, target_type, target_id, reason, details, status, created_at')
     .in('status', ['pending', 'reviewing'])
     .order('created_at', { ascending: false })
 
+  const reports: any[] = reportsResult.data || []
   const reporterIds = [...new Set(reports.map((report: any) => report.reporter_user_id))]
   const postIds = reports.filter((r: any) => r.target_type === 'post').map((r: any) => r.target_id)
   const commentIds = reports.filter((r: any) => r.target_type === 'comment').map((r: any) => r.target_id)
   const communityIds = reports.filter((r: any) => r.target_type === 'community').map((r: any) => r.target_id)
 
-  const [{ data: reporters = [] }, { data: posts = [] }, { data: comments = [] }, { data: communities = [] }] = await Promise.all([
+  const [reportersResult, postsResult, commentsResult, communitiesResult] = await Promise.all([
     reporterIds.length ? admin.from('platform_users').select('id, full_name').in('id', reporterIds) : Promise.resolve({ data: [] as any[] }),
     postIds.length ? admin.from('posts').select('id, content').in('id', postIds) : Promise.resolve({ data: [] as any[] }),
     commentIds.length ? admin.from('post_comments').select('id, content').in('id', commentIds) : Promise.resolve({ data: [] as any[] }),
     communityIds.length ? admin.from('communities').select('id, name, description').in('id', communityIds) : Promise.resolve({ data: [] as any[] }),
   ])
+
+  const reporters: any[] = reportersResult.data || []
+  const posts: any[] = postsResult.data || []
+  const comments: any[] = commentsResult.data || []
+  const communities: any[] = communitiesResult.data || []
 
   const reporterMap = new Map(reporters.map((item: any) => [item.id, item.full_name]))
   const postMap = new Map(posts.map((item: any) => [item.id, item.content]))
@@ -51,6 +57,12 @@ export default async function Page() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Centro de Moderação</h1>
         <p className="text-sm text-muted-foreground">Denúncias reais submetidas pelos utilizadores. Nenhum rating negativo é tratado automaticamente como abuso.</p>
       </section>
+
+      {reportsResult.error && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-800">
+          A tabela de denúncias ainda não está disponível neste ambiente. A migração de moderação precisa de ser aplicada antes de receber denúncias.
+        </div>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="flex items-center justify-between border-b border-border p-5">
