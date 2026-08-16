@@ -35,7 +35,7 @@ export default async function EventosPage({ searchParams }: PageProps) {
     title={selectedCategory ? `Eventos de ${selectedCategory.name}` : 'Eventos Desportivos'}
     description="Descobre eventos pela família desportiva, modalidade, localização e data."
     countLabel={`${events.length} ${events.length === 1 ? 'evento encontrado' : 'eventos encontrados'}`}
-    search={<SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="eventos" showFilters filterType="eventos" currentFilters={filters as Record<string, string>} />}
+    search={<SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="eventos" showType={false} basePath="/eventos" showFilters filterType="eventos" currentFilters={filters as Record<string, string>} placeholder="Pesquisar eventos…" />}
     categories={[
       { label: 'Todas as modalidades', href: href('/eventos', filterRecord, { category: null }), active: !filters.category },
       ...categories.map(cat => { const family = getSportFamily(cat.name); return { label: `${cat.emoji || family.emoji} ${cat.name}`.trim(), group: `${family.emoji} ${family.name}`, href: href('/eventos', filterRecord, { category: cat.slug }), active: filters.category === cat.slug } }),
