@@ -1,4 +1,4 @@
-import { parsePersistedPlatformRole } from '@/lib/auth/roles'
+import { parsePlatformRole } from '@/lib/auth/roles'
 
 type UserDisplayInput = {
   type?: string | null
@@ -12,14 +12,14 @@ type UserDisplayInput = {
 }
 
 export function getUserRoleLabel(type: string | null | undefined): string {
-  const role = parsePersistedPlatformRole(type)
+  const role = parsePlatformRole(type)
   if (role === 'professional') return 'Profissional'
   if (role === 'venue_manager') return 'Gestor de espaço'
   return 'Atleta'
 }
 
 export function getUserDisplayName(input: UserDisplayInput): string {
-  const role = parsePersistedPlatformRole(input.type)
+  const role = parsePlatformRole(input.type)
 
   if (role === 'professional') {
     return input.professional_name || input.professional_full_name || input.full_name || 'Profissional'
@@ -33,7 +33,7 @@ export function getUserDisplayName(input: UserDisplayInput): string {
 }
 
 export function getUserAvatarUrl(input: UserDisplayInput): string {
-  const role = parsePersistedPlatformRole(input.type)
+  const role = parsePlatformRole(input.type)
 
   if (role === 'professional') {
     return input.professional_avatar_url || input.avatar_url || ''
