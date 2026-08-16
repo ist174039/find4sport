@@ -24,9 +24,13 @@ export async function POST(request: Request) {
     if (!packageId) return NextResponse.json({ error: 'Pacote inválido.' }, { status: 400 })
 
     const admin = createAdminClient()
-    const { data: pack, error } = await (admin as any).from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status)').eq('id', String(packageId)).maybeSingle()
+    const { data: pack, error } = await (admin as any).from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium)').eq('id', String(packageId)).maybeSingle()
     if (error || !pack || !pack.is_active || pack.service?.is_active === false || pack.professional?.status !== 'active') return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 404 })
     if (pack.professional?.user_id === user.id) return NextResponse.json({ error: 'Não podes comprar o teu próprio pacote.' }, { status: 400 })
+
+    const { data: subscription } = await admin.from('user_subscriptions').select('tier,status').eq('user_id', pack.professional.user_id).maybeSingle()
+    const premium = Boolean(pack.professional?.is_premium) || (subscription?.tier === 'premium' && ['active','trialing'].includes(String(subscription?.status)))
+    if (!premium) return NextResponse.json({ error: 'Este pacote já não está disponível para novas compras.' }, { status: 409 })
 
     const amount = Number(pack.price || 0)
     if (!(amount > 0)) return NextResponse.json({ error: 'O preço do pacote é inválido.' }, { status: 400 })
