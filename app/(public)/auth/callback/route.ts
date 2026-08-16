@@ -7,6 +7,12 @@ function safeInternalPath(value: string | null, fallback: string) {
   return value
 }
 
+function setupUrl(origin: string, path: string, next: string) {
+  const url = new URL(path, origin)
+  url.searchParams.set('next', next)
+  return url
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl
   const code = searchParams.get('code')
@@ -19,57 +25,37 @@ export async function GET(request: NextRequest) {
     if (!error && sessionData?.user) {
       const user = sessionData.user
       const explicitRequestedRole = parsePlatformRole(searchParams.get('type'))
-
-      const { data: existingProfile } = await supabase
-        .from('platform_users')
-        .select('type')
-        .eq('id', user.id)
-        .maybeSingle()
-
+      const { data: existingProfile } = await supabase.from('platform_users').select('type').eq('id', user.id).maybeSingle()
       const existingRole = parsePlatformRole(existingProfile?.type)
 
-      // New Auth users are provisioned as athlete by the database trigger (least privilege).
-      // During an explicit OAuth registration, preserve the selected elevated profile flow
-      // instead of treating that provisional athlete row as a completed registration.
+      // The provisioning trigger creates the least-privileged athlete row. An explicit
+      // professional/space registration may continue to its dedicated setup, but query
+      // parameters never overwrite an already-completed elevated account.
       if (existingRole === 'athlete' && explicitRequestedRole === 'professional') {
-        return NextResponse.redirect(new URL('/auth/registar/profissional', origin))
+        return NextResponse.redirect(setupUrl(origin, '/auth/registar/profissional', next))
       }
-
       if (existingRole === 'athlete' && explicitRequestedRole === 'venue_manager') {
-        return NextResponse.redirect(new URL('/auth/registar/espaco', origin))
+        return NextResponse.redirect(setupUrl(origin, '/auth/registar/espaco', next))
       }
 
-      // Existing identities are authoritative. A query string must never downgrade or
-      // switch a completed professional/venue-manager account to another role.
       if (existingRole) {
         const resolveUrl = new URL('/auth/resolve', origin)
         resolveUrl.searchParams.set('next', next)
         return NextResponse.redirect(resolveUrl)
       }
 
-      // Defensive fallback for identities created before/without the provisioning trigger.
-      if (explicitRequestedRole === 'professional') {
-        return NextResponse.redirect(new URL('/auth/registar/profissional', origin))
-      }
-
-      if (explicitRequestedRole === 'venue_manager') {
-        return NextResponse.redirect(new URL('/auth/registar/espaco', origin))
-      }
+      if (explicitRequestedRole === 'professional') return NextResponse.redirect(setupUrl(origin, '/auth/registar/profissional', next))
+      if (explicitRequestedRole === 'venue_manager') return NextResponse.redirect(setupUrl(origin, '/auth/registar/espaco', next))
 
       if (explicitRequestedRole === 'athlete') {
-        const { error: profileError } = await supabase
-          .from('platform_users')
-          .upsert({
-            id: user.id,
-            type: 'athlete',
-            email: user.email ?? null,
-            full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-          })
+        const { error: profileError } = await supabase.from('platform_users').upsert({
+          id: user.id,
+          type: 'athlete',
+          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilizador',
+        })
 
         if (profileError) {
-          return NextResponse.redirect(
-            `${origin}/auth/error?error=${encodeURIComponent(profileError.message || 'Não foi possível criar o perfil.')}`,
-          )
+          return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(profileError.message || 'Não foi possível criar o perfil.')}`)
         }
 
         const resolveUrl = new URL('/auth/resolve', origin)
@@ -77,15 +63,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(resolveUrl)
       }
 
-      // Ordinary social login without a platform profile must choose an account type.
-      return NextResponse.redirect(new URL('/auth/registar', origin))
+      const registrationUrl = new URL('/auth/registar', origin)
+      registrationUrl.searchParams.set('next', next)
+      return NextResponse.redirect(registrationUrl)
     }
 
-    if (error) {
-      return NextResponse.redirect(
-        `${origin}/auth/error?error=${encodeURIComponent(error.message || 'Código de confirmação inválido ou já utilizado.')}`,
-      )
-    }
+    if (error) return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(error.message || 'Código de confirmação inválido ou já utilizado.')}`)
   }
 
   const errorDesc = searchParams.get('error_description') || 'Código inválido ou expirado. Pode já ter sido utilizado.'
