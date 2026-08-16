@@ -45,15 +45,22 @@ export async function POST(req: Request) {
       const packagePurchaseId=session.metadata?.service_package_purchase_id
       if(packagePurchaseId){
         const db=adminSupabase as any
-        const {data:purchase,error:purchaseError}=await db.from('service_package_purchases').select('id,user_id,sessions_total,price_paid,status').eq('id',packagePurchaseId).maybeSingle()
+        const {data:purchase,error:purchaseError}=await db.from('service_package_purchases').select('id,user_id,package_id,sessions_total,price_paid,status').eq('id',packagePurchaseId).maybeSingle()
         if(purchaseError||!purchase)return NextResponse.json({error:'Package purchase not found'},{status:404})
         const paidAmount=Number(session.amount_total||0)/100
         if(Number(purchase.price_paid)!==paidAmount)return NextResponse.json({error:'Package amount mismatch'},{status:400})
         if(purchase.status==='pending'){
+          const {data:packageDefinition,error:packageError}=await db.from('service_packages').select('validity_days').eq('id',purchase.package_id).maybeSingle()
+          if(packageError||!packageDefinition)throw new Error('Package definition not found while activating purchase')
+          const purchasedAt=new Date()
+          const validityDays=packageDefinition.validity_days==null?null:Number(packageDefinition.validity_days)
+          const expiresAt=validityDays&&validityDays>0?new Date(purchasedAt.getTime()+validityDays*86400000).toISOString():null
           const paymentIntentId=typeof session.payment_intent==='string'?session.payment_intent:session.payment_intent?.id
-          const {error}=await db.from('service_package_purchases').update({status:'active',sessions_remaining:Number(purchase.sessions_total),purchased_at:new Date().toISOString(),stripe_session_id:session.id,stripe_payment_intent_id:paymentIntentId||null,updated_at:new Date().toISOString()}).eq('id',packagePurchaseId).eq('status','pending')
+          const {error}=await db.from('service_package_purchases').update({status:'active',sessions_remaining:Number(purchase.sessions_total),purchased_at:purchasedAt.toISOString(),expires_at:expiresAt,stripe_session_id:session.id,stripe_payment_intent_id:paymentIntentId||null,updated_at:purchasedAt.toISOString()}).eq('id',packagePurchaseId).eq('status','pending')
           if(error)throw error
-          await adminSupabase.from('transactions').insert({user_id:purchase.user_id,amount:paidAmount,currency:session.currency||'eur',type:'service_package_payment',status:'completed',stripe_charge_id:paymentIntentId||session.id}).then(()=>undefined)
+          const chargeRef=paymentIntentId||session.id
+          const {data:existingTx}=await adminSupabase.from('transactions').select('id').eq('stripe_charge_id',chargeRef).maybeSingle()
+          if(!existingTx)await adminSupabase.from('transactions').insert({user_id:purchase.user_id,amount:paidAmount,currency:session.currency||'eur',type:'service_package_payment',status:'completed',stripe_charge_id:chargeRef})
         }
         await recordEvent({service_package_purchase_id:packagePurchaseId})
         return NextResponse.json({received:true})
