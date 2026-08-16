@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ChatInterface, Contact, Message } from '@/components/chat-interface'
@@ -67,5 +69,16 @@ export default async function MensagensPage() {
     }
   }
 
-  return <ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id} />
+  contacts.sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
+
+  return (
+    <div className="relative h-full overflow-hidden bg-background lg:rounded-2xl lg:border lg:border-border/70">
+      <Link href="/dashboard" aria-label="Voltar ao painel" className="absolute left-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background/95 text-foreground shadow-sm backdrop-blur md:hidden">
+        <ArrowLeft className="h-5 w-5" />
+      </Link>
+      <div className="h-full [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!border-0 md:[&>div]:!rounded-xl">
+        <ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id} />
+      </div>
+    </div>
+  )
 }
