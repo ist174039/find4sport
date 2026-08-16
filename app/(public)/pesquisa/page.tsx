@@ -57,13 +57,7 @@ export default async function PesquisaPage({ searchParams: searchParamsPromise }
   const { data: rawCategories } = await supabase.from('categories').select('*').order('name')
   const categories: CategoryRow[] = (rawCategories || []).map(row => {
     const candidate = row as unknown as Record<string, unknown>
-    return {
-      id: String(candidate.id),
-      name: String(candidate.name || ''),
-      slug: String(candidate.slug || ''),
-      emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null,
-      parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null,
-    }
+    return { id: String(candidate.id), name: String(candidate.name || ''), slug: String(candidate.slug || ''), emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null, parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null }
   })
   const selectedCategory = categoryParam ? categories.find(category => category.slug === categoryParam || category.id === categoryParam || category.name.toLowerCase() === categoryParam.toLowerCase()) : null
   const categoryIds = selectedCategory ? categoryBranchIds(categories, selectedCategory.id) : []
@@ -87,17 +81,17 @@ export default async function PesquisaPage({ searchParams: searchParamsPromise }
     if (ratingParam) db = db.gte('rating_avg', ratingParam)
     if (selectedCategory) db = spaceIdsForCategory?.length ? db.in('id', spaceIdsForCategory) : db.eq('id', '00000000-0000-0000-0000-000000000000')
     const { data } = await db.limit(30)
-    results.push(...(data || []).map(space => ({ id: `space-${space.id}`, itemType: 'space' as const, title: space.name, subtitle: space.description || 'Espaço desportivo', address: space.address || '', rating_avg: space.rating_avg, review_count: space.review_count, is_verified: true, image_url: space.cover_url || space.gallery_urls?.[0] || null, link: `/espacos/${space.slug || space.id}`, created_at: space.created_at, latitude: space.latitude, longitude: space.longitude })))
+    results.push(...(data || []).map(space => ({ id: `space-${space.id}`, itemType: 'space' as const, title: space.name, subtitle: space.description || 'Espaço desportivo', address: space.address || '', rating_avg: space.rating_avg, review_count: space.review_count, is_verified: Boolean(space.is_verified), image_url: space.cover_url || space.gallery_urls?.[0] || null, link: `/espacos/${space.slug || space.id}`, created_at: space.created_at, latitude: space.latitude, longitude: space.longitude })))
   }
 
   if (includeAll || typeParam === 'profissionais') {
-    let db = supabase.from('professionals').select('id,full_name,professional_name,public_slug,address,location,bio,rating_avg,review_count,is_verified,avatar_url,created_at,latitude,longitude,status').eq('is_verified', true).eq('status', 'active')
+    let db = supabase.from('professionals').select('id,full_name,professional_name,public_slug,address,location,bio,rating_avg,review_count,is_verified,avatar_url,created_at,latitude,longitude,status').eq('status', 'active')
     if (query) db = db.or(`full_name.ilike.%${query}%,professional_name.ilike.%${query}%,address.ilike.%${query}%,location.ilike.%${query}%,bio.ilike.%${query}%`)
     if (locationParam) db = db.or(`address.ilike.%${locationParam}%,location.ilike.%${locationParam}%`)
     if (ratingParam) db = db.gte('rating_avg', ratingParam)
     if (selectedCategory) db = professionalIdsForCategory?.length ? db.in('id', professionalIdsForCategory) : db.eq('id', '00000000-0000-0000-0000-000000000000')
     const { data } = await db.limit(30)
-    results.push(...(data || []).map(prof => ({ id: `pro-${prof.id}`, itemType: 'professional' as const, title: prof.professional_name || prof.full_name || 'Profissional', subtitle: prof.bio || prof.full_name || 'Profissional de desporto', address: prof.location || prof.address || '', rating_avg: prof.rating_avg, review_count: prof.review_count, is_verified: true, image_url: prof.avatar_url || null, link: `/profissionais/${prof.public_slug || prof.id}`, created_at: prof.created_at, latitude: prof.latitude, longitude: prof.longitude })))
+    results.push(...(data || []).map(prof => ({ id: `pro-${prof.id}`, itemType: 'professional' as const, title: prof.professional_name || prof.full_name || 'Profissional', subtitle: prof.bio || prof.full_name || 'Profissional de desporto', address: prof.location || prof.address || '', rating_avg: prof.rating_avg, review_count: prof.review_count, is_verified: Boolean(prof.is_verified), image_url: prof.avatar_url || null, link: `/profissionais/${prof.public_slug || prof.id}`, created_at: prof.created_at, latitude: prof.latitude, longitude: prof.longitude })))
   }
 
   if (includeAll || typeParam === 'eventos') {
