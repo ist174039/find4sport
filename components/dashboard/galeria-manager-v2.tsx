@@ -70,7 +70,10 @@ export function GaleriaManagerV2({ entity, maxPhotos }: Props) {
   }
 
   async function removePhoto(url: string) {
-    const confirmed = await showConfirm('Eliminar fotografia', 'Esta fotografia será removida da galeria. Continuar?', 'destructive')
+    const confirmed = await showConfirm('Eliminar fotografia', 'Esta fotografia será removida da galeria. Continuar?', {
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    })
     if (!confirmed) return
     setSaving(true)
     try {
