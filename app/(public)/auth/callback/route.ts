@@ -1,16 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { parsePlatformRole } from '@/lib/auth/roles'
 import { NextRequest, NextResponse } from 'next/server'
 
 function safeInternalPath(value: string | null, fallback: string) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback
   return value
-}
-
-function normalizeRequestedType(value: unknown): 'athlete' | 'professional' | 'venue_manager' | null {
-  if (value === 'athlete' || value === 'user' || value === 'utilizador' || value === 'atleta') return 'athlete'
-  if (value === 'professional' || value === 'profissional') return 'professional'
-  if (value === 'venue_manager' || value === 'sport_space' || value === 'espaco' || value === 'gestor_espaco') return 'venue_manager'
-  return null
 }
 
 export async function GET(request: NextRequest) {
@@ -24,9 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (!error && sessionData?.user) {
       const user = sessionData.user
-      const requestedType = normalizeRequestedType(
-        searchParams.get('type') ?? user.user_metadata?.type,
-      )
+      const explicitRequestedRole = parsePlatformRole(searchParams.get('type'))
 
       const { data: existingProfile } = await supabase
         .from('platform_users')
@@ -34,17 +26,37 @@ export async function GET(request: NextRequest) {
         .eq('id', user.id)
         .maybeSingle()
 
-      // Existing platform identities are resolved centrally. Never overwrite
-      // their role based on an OAuth query string or stale user metadata.
-      if (existingProfile?.type) {
+      const existingRole = parsePlatformRole(existingProfile?.type)
+
+      // New Auth users are provisioned as athlete by the database trigger (least privilege).
+      // During an explicit OAuth registration, preserve the selected elevated profile flow
+      // instead of treating that provisional athlete row as a completed registration.
+      if (existingRole === 'athlete' && explicitRequestedRole === 'professional') {
+        return NextResponse.redirect(new URL('/auth/registar/profissional', origin))
+      }
+
+      if (existingRole === 'athlete' && explicitRequestedRole === 'venue_manager') {
+        return NextResponse.redirect(new URL('/auth/registar/espaco', origin))
+      }
+
+      // Existing identities are authoritative. A query string must never downgrade or
+      // switch a completed professional/venue-manager account to another role.
+      if (existingRole) {
         const resolveUrl = new URL('/auth/resolve', origin)
         resolveUrl.searchParams.set('next', next)
         return NextResponse.redirect(resolveUrl)
       }
 
-      // Athlete is the only account type that can be completed immediately:
-      // its platform profile is the complete domain record.
-      if (requestedType === 'athlete') {
+      // Defensive fallback for identities created before/without the provisioning trigger.
+      if (explicitRequestedRole === 'professional') {
+        return NextResponse.redirect(new URL('/auth/registar/profissional', origin))
+      }
+
+      if (explicitRequestedRole === 'venue_manager') {
+        return NextResponse.redirect(new URL('/auth/registar/espaco', origin))
+      }
+
+      if (explicitRequestedRole === 'athlete') {
         const { error: profileError } = await supabase
           .from('platform_users')
           .upsert({
@@ -65,19 +77,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(resolveUrl)
       }
 
-      // Professional and venue-manager roles require a corresponding domain
-      // record. Keep the user authenticated, but do not create platform_users
-      // until the dedicated registration flow has completed successfully.
-      if (requestedType === 'professional') {
-        return NextResponse.redirect(new URL('/auth/registar/profissional', origin))
-      }
-
-      if (requestedType === 'venue_manager') {
-        return NextResponse.redirect(new URL('/auth/registar/espaco', origin))
-      }
-
-      // An authenticated identity without a platform profile must explicitly
-      // choose the account type instead of being silently classified.
+      // Ordinary social login without a platform profile must choose an account type.
       return NextResponse.redirect(new URL('/auth/registar', origin))
     }
 
