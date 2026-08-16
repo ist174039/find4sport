@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { EventCreateForm } from './event-create-form'
+import type { TaxonomyOption } from '@/components/taxonomy-combobox'
 
 export default async function CriarEventoPage() {
   const supabase = await createClient()
@@ -11,12 +12,19 @@ export default async function CriarEventoPage() {
   const access = await resolveSessionAccess(supabase, user)
   if (!access || !['professional', 'venue_manager'].includes(access.role)) redirect('/dashboard/eventos')
 
-  const { data: categories, error } = await supabase
-    .from('categories')
-    .select('id,name,emoji')
-    .order('name')
-
+  const { data: categoryRows, error } = await supabase.from('categories').select('*').order('name')
   if (error) throw new Error('Não foi possível carregar as modalidades.')
 
-  return <EventCreateForm categories={categories || []} />
+  const categories: TaxonomyOption[] = (categoryRows || []).map(row => {
+    const candidate = row as unknown as Record<string, unknown>
+    return {
+      id: String(candidate.id),
+      name: String(candidate.name || ''),
+      slug: String(candidate.slug || ''),
+      emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null,
+      parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null,
+    }
+  })
+
+  return <EventCreateForm categories={categories} />
 }
