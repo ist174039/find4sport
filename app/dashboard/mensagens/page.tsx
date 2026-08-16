@@ -5,195 +5,95 @@ import { ChatInterface, Contact, Message } from '@/components/chat-interface'
 import { getUserAvatarUrl, getUserDisplayName, getUserRoleLabel } from '@/lib/user-display'
 import { isPlatformRole } from '@/lib/auth/roles'
 
-function missingThreadSchema(error: any) {
-  const code = String(error?.code || '')
-  const message = String(error?.message || '')
-  return ['42P01','42703','PGRST204','PGRST205'].includes(code) || message.includes('message_threads') || message.includes('thread_id')
-}
-
-function lisbonNowKey() {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' }).formatToParts(new Date())
-  const get=(type:Intl.DateTimeFormatPartTypes)=>parts.find(part=>part.type===type)?.value||''
+function lisbonNowKey(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date())
+  const get=(type:Intl.DateTimeFormatPartTypes)=>parts.find(p=>p.type===type)?.value||''
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`
 }
+function bookingEndKey(date:string,endTime:string){const raw=String(endTime||'').slice(0,8);const time=raw.length>=8?raw:`${raw.slice(0,5)}:00`;return `${date}T${time}`}
+function eventStillActive(event:{start_date?:string|null;end_date?:string|null}){const start=Date.parse(String(event.start_date||''));if(!Number.isFinite(start))return false;const end=event.end_date?Date.parse(event.end_date):start+86400000;return Number.isFinite(end)&&end>Date.now()}
+function dayPt(date?:string|null){if(!date)return'';return new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})}
+function eventDayPt(date?:string|null){if(!date)return'';return new Date(date).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})}
+function timeRange(start?:string|null,end?:string|null){if(!start)return'';return `${String(start).slice(0,5)}${end?` – ${String(end).slice(0,5)}`:''}`}
+function eventTimeRange(start?:string|null,end?:string|null){if(!start)return'';const s=new Date(start);const e=end?new Date(end):null;const fmt=(d:Date)=>d.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});return `${fmt(s)}${e?` – ${fmt(e)}`:''}`}
 
-function bookingEndKey(date: string, endTime: string) {
-  const raw=String(endTime||'').slice(0,8)
-  const time=raw.length>=8?raw:`${raw.slice(0,5)}:00`
-  return `${date}T${time}`
-}
+export default async function MensagensPage(){
+  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect('/auth/login')
+  const admin=createAdminClient();const db=admin as any;const nowKey=lisbonNowKey()
+  const {data:profile}=await admin.from('platform_users').select('id,type').eq('id',user.id).maybeSingle();const role=profile?.type
 
-function eventStillActive(event: { start_date?: string|null; end_date?: string|null }) {
-  const start=Date.parse(String(event.start_date||''))
-  if(!Number.isFinite(start))return false
-  const end=event.end_date?Date.parse(event.end_date):start+24*60*60*1000
-  return Number.isFinite(end)&&end>Date.now()
-}
-
-function formatBookingDetail(date?: string | null, start?: string | null, end?: string | null) {
-  if (!date) return ''
-  const day = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT')
-  return start ? `${day} · ${String(start).slice(0,5)}${end ? `–${String(end).slice(0,5)}` : ''}` : day
-}
-
-export default async function MensagensPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login')
-  const admin = createAdminClient()
-  const db = admin as any
-  const nowKey = lisbonNowKey()
-
-  const [{ data: profile }, messageResult] = await Promise.all([
-    admin.from('platform_users').select('id,type').eq('id', user.id).maybeSingle(),
-    db.from('messages').select('id,content,created_at,sender_id,receiver_id,read_at,thread_id').or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).order('created_at', { ascending: false }),
+  const [{data:threadRows},{data:messageRows,error:messageError}]=await Promise.all([
+    db.from('message_threads').select('id,athlete_id,provider_user_id,context_type,reservation_id,event_participant_id,status,created_at,updated_at').or(`athlete_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('updated_at',{ascending:false}),
+    db.from('messages').select('id,content,created_at,sender_id,receiver_id,read_at,thread_id').or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).not('thread_id','is',null).order('created_at',{ascending:false}),
   ])
-  if (messageResult.error && !missingThreadSchema(messageResult.error)) throw new Error(`Não foi possível carregar as mensagens: ${messageResult.error.message}`)
-  let messages = (messageResult.data || []) as Message[]
-  if (messageResult.error && missingThreadSchema(messageResult.error)) {
-    const legacy = await admin.from('messages').select('id,content,created_at,sender_id,receiver_id,read_at').or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).order('created_at', { ascending: false })
-    if (legacy.error) throw new Error(`Não foi possível carregar as mensagens: ${legacy.error.message}`)
-    messages = (legacy.data || []).map(row => ({ ...row, thread_id: null })) as Message[]
+  if(messageError)throw new Error(`Não foi possível carregar as mensagens: ${messageError.message}`)
+  const threads=(threadRows||[]) as any[];const messages=(messageRows||[]) as Message[]
+
+  let reservations:any[]=[];let participants:any[]=[]
+  if(role==='athlete'){
+    const [{data:r},{data:p}]=await Promise.all([
+      admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('user_id',user.id),
+      admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').eq('user_id',user.id),
+    ]);reservations=r||[];participants=p||[]
+  }else if(role==='professional'){
+    const {data:prof}=await admin.from('professionals').select('id').eq('user_id',user.id).maybeSingle()
+    if(prof?.id){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('professional_id',prof.id);reservations=r||[]}
+    const {data:ownedEvents}=await admin.from('events').select('id').eq('created_by',user.id);const ids=(ownedEvents||[]).map(e=>e.id);if(ids.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',ids);participants=p||[]}
+  }else if(role==='venue_manager'){
+    const {data:ownedSpaces}=await admin.from('sport_spaces').select('id').eq('owner_user_id',user.id);const ids=(ownedSpaces||[]).map(s=>s.id)
+    if(ids.length){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').in('space_id',ids);reservations=r||[]}
+    const {data:ownedEvents}=await admin.from('events').select('id').eq('created_by',user.id);const eventIds=(ownedEvents||[]).map(e=>e.id);if(eventIds.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',eventIds);participants=p||[]}
   }
 
-  const threadResult = await db.from('message_threads').select('id,athlete_id,provider_user_id,context_type,reservation_id,event_participant_id,status,created_at,updated_at').or(`athlete_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('updated_at', { ascending: false })
-  const threads = threadResult.error && missingThreadSchema(threadResult.error) ? [] : (threadResult.data || [])
-  if (threadResult.error && !missingThreadSchema(threadResult.error)) throw new Error(`Não foi possível carregar as conversas: ${threadResult.error.message}`)
+  const missingReservationIds=threads.map(t=>t.reservation_id).filter(Boolean).filter((id:string)=>!reservations.some(r=>r.id===id))
+  if(missingReservationIds.length){const {data}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').in('id',missingReservationIds);reservations=[...reservations,...(data||[])]}
+  const missingParticipantIds=threads.map(t=>t.event_participant_id).filter(Boolean).filter((id:string)=>!participants.some(p=>p.id===id))
+  if(missingParticipantIds.length){const {data}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('id',missingParticipantIds);participants=[...participants,...(data||[])]}
 
-  const activeContactIds = new Set<string>()
-  const contextByUser = new Map<string, string>()
-  const role = profile?.type
-
-  if (role === 'athlete') {
-    const { data: allReservations } = await admin.from('reservations').select('professional_id,space_id,status,payment_status,date,end_time').eq('user_id', user.id).in('status', ['paid', 'confirmed'])
-    const reservations=(allReservations||[]).filter(row=>(row.payment_status==='paid'||row.status==='confirmed')&&bookingEndKey(row.date,String(row.end_time))>nowKey)
-    const professionalIds = [...new Set(reservations.map(row => row.professional_id).filter(Boolean))] as string[]
-    const spaceIds = [...new Set(reservations.map(row => row.space_id).filter(Boolean))] as string[]
-    const [{ data: professionals }, { data: spaces }, { data: participants }] = await Promise.all([
-      professionalIds.length ? admin.from('professionals').select('id,user_id').in('id', professionalIds) : Promise.resolve({ data: [] as any[] }),
-      spaceIds.length ? admin.from('sport_spaces').select('id,owner_user_id').in('id', spaceIds) : Promise.resolve({ data: [] as any[] }),
-      admin.from('event_participants').select('event_id').eq('user_id', user.id).eq('payment_status', 'paid').in('status', ['confirmed', 'paid']),
-    ])
-    for (const professional of professionals || []) if (professional.user_id) { activeContactIds.add(professional.user_id); contextByUser.set(professional.user_id, 'Reserva de serviço ativa') }
-    for (const space of spaces || []) if (space.owner_user_id) { activeContactIds.add(space.owner_user_id); contextByUser.set(space.owner_user_id, 'Reserva de espaço ativa') }
-    const eventIds = (participants || []).map(row => row.event_id)
-    if (eventIds.length) {
-      const { data: events } = await admin.from('events').select('id,created_by,start_date,end_date').in('id', eventIds)
-      for (const event of (events || []).filter(eventStillActive)) if (event.created_by) { activeContactIds.add(event.created_by); contextByUser.set(event.created_by, 'Evento pago ativo') }
-    }
-  } else if (role === 'professional' || role === 'venue_manager') {
-    const clauses: string[] = []
-    if (role === 'professional') {
-      const { data: professional } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
-      if (professional?.id) clauses.push(`professional_id.eq.${professional.id}`)
-    } else {
-      const { data: spaces } = await admin.from('sport_spaces').select('id').eq('owner_user_id', user.id)
-      if (spaces?.length) clauses.push(`space_id.in.(${spaces.map(space => space.id).join(',')})`)
-    }
-    if (clauses.length) {
-      const { data: allReservations } = await admin.from('reservations').select('user_id,status,payment_status,date,end_time').in('status', ['paid', 'confirmed']).or(clauses.join(','))
-      const reservations=(allReservations||[]).filter(row=>(row.payment_status==='paid'||row.status==='confirmed')&&bookingEndKey(row.date,String(row.end_time))>nowKey)
-      for (const reservation of reservations) if (reservation.user_id) { activeContactIds.add(reservation.user_id); contextByUser.set(reservation.user_id, 'Reserva ativa') }
-    }
-    const { data: events } = await admin.from('events').select('id,start_date,end_date').eq('created_by', user.id)
-    const eventIds = (events || []).filter(eventStillActive).map(event => event.id)
-    if (eventIds.length) {
-      const { data: participants } = await admin.from('event_participants').select('user_id').in('event_id', eventIds).eq('payment_status', 'paid').in('status', ['confirmed', 'paid'])
-      for (const participant of participants || []) if (participant.user_id) { activeContactIds.add(participant.user_id); contextByUser.set(participant.user_id, 'Evento pago ativo') }
-    }
-  }
-
-  const reservationIds = threads.map((thread:any)=>thread.reservation_id).filter(Boolean)
-  const participantIds = threads.map((thread:any)=>thread.event_participant_id).filter(Boolean)
-  const [{ data: reservationContexts }, { data: participantContexts }] = await Promise.all([
-    reservationIds.length ? admin.from('reservations').select('id,date,start_time,end_time,service_id,space_id,status,payment_status').in('id', reservationIds) : Promise.resolve({ data: [] as any[] }),
-    participantIds.length ? admin.from('event_participants').select('id,event_id,status,payment_status').in('id', participantIds) : Promise.resolve({ data: [] as any[] }),
+  const professionalIds=[...new Set(reservations.map(r=>r.professional_id).filter(Boolean))] as string[]
+  const serviceIds=[...new Set(reservations.map(r=>r.service_id).filter(Boolean))] as string[]
+  const spaceIds=[...new Set(reservations.map(r=>r.space_id).filter(Boolean))] as string[]
+  const eventIds=[...new Set(participants.map(p=>p.event_id).filter(Boolean))] as string[]
+  const [{data:professionals},{data:services},{data:spaces},{data:events}]=await Promise.all([
+    professionalIds.length?admin.from('professionals').select('id,user_id,full_name,professional_name,avatar_url').in('id',professionalIds):Promise.resolve({data:[] as any[]}),
+    serviceIds.length?admin.from('services').select('id,name,modality,duration_minutes,price').in('id',serviceIds):Promise.resolve({data:[] as any[]}),
+    spaceIds.length?admin.from('sport_spaces').select('id,owner_user_id,name,address,logo_url').in('id',spaceIds):Promise.resolve({data:[] as any[]}),
+    eventIds.length?admin.from('events').select('id,title,slug,created_by,address,start_date,end_date,price_min,price_max').in('id',eventIds):Promise.resolve({data:[] as any[]}),
   ])
-  const serviceIds = [...new Set((reservationContexts || []).map(row=>row.service_id).filter(Boolean))] as string[]
-  const spaceIds = [...new Set((reservationContexts || []).map(row=>row.space_id).filter(Boolean))] as string[]
-  const eventIds = [...new Set((participantContexts || []).map(row=>row.event_id).filter(Boolean))] as string[]
-  const [{ data: services }, { data: spacesForContext }, { data: eventsForContext }] = await Promise.all([
-    serviceIds.length ? admin.from('services').select('id,name').in('id',serviceIds) : Promise.resolve({data:[] as any[]}),
-    spaceIds.length ? admin.from('sport_spaces').select('id,name').in('id',spaceIds) : Promise.resolve({data:[] as any[]}),
-    eventIds.length ? admin.from('events').select('id,title,start_date,end_date').in('id',eventIds) : Promise.resolve({data:[] as any[]}),
-  ])
-  const reservationMap = new Map((reservationContexts || []).map(row=>[row.id,row]))
-  const participantMap = new Map((participantContexts || []).map(row=>[row.id,row]))
-  const serviceMap = new Map((services || []).map(row=>[row.id,row.name]))
-  const spaceContextMap = new Map((spacesForContext || []).map(row=>[row.id,row.name]))
-  const eventMap = new Map((eventsForContext || []).map(row=>[row.id,row]))
+  const professionalMap=new Map((professionals||[]).map((x:any)=>[x.id,x]));const serviceMap=new Map((services||[]).map((x:any)=>[x.id,x]));const spaceMap=new Map((spaces||[]).map((x:any)=>[x.id,x]));const eventMap=new Map((events||[]).map((x:any)=>[x.id,x]))
 
-  const threadCounterpartIds = threads.map((thread:any)=>thread.athlete_id===user.id?thread.provider_user_id:thread.athlete_id).filter(Boolean)
-  const legacyMessageIds = messages.flatMap(message => [message.sender_id,message.receiver_id]).filter(id=>id!==user.id)
-  const allIdentityIds = [...new Set([...threadCounterpartIds,...activeContactIds,...legacyMessageIds])]
-  const [{ data: profiles }, { data: professionals }, { data: spaces }] = allIdentityIds.length ? await Promise.all([
-    admin.from('platform_users').select('id,full_name,avatar_url,type').in('id', allIdentityIds),
-    admin.from('professionals').select('user_id,full_name,professional_name,avatar_url').in('user_id', allIdentityIds),
-    admin.from('sport_spaces').select('owner_user_id,name,logo_url').in('owner_user_id', allIdentityIds),
-  ]) : [{data:[]},{data:[]},{data:[]}]
-  const profileMap = new Map((profiles || []).map(item=>[item.id,item]))
-  const profByUserId = new Map((professionals || []).map((item:any)=>[item.user_id,item]))
-  const spaceByUserId = new Map((spaces || []).map((item:any)=>[item.owner_user_id,item]))
-
-  const identity = (userId:string) => {
-    const item:any = profileMap.get(userId)
-    if (!item || !isPlatformRole(item.type)) return null
-    const prof:any = item.type==='professional'?profByUserId.get(userId):null
-    const space:any = item.type==='venue_manager'?spaceByUserId.get(userId):null
-    return {
-      name:getUserDisplayName({type:item.type,full_name:item.full_name,professional_name:prof?.professional_name,professional_full_name:prof?.full_name,space_name:space?.name}),
-      avatar:getUserAvatarUrl({type:item.type,avatar_url:item.avatar_url,professional_avatar_url:prof?.avatar_url,space_logo_url:space?.logo_url}),
-      role:getUserRoleLabel(item.type),
-    }
+  const contexts:any[]=[]
+  for(const reservation of reservations){
+    const prof:any=reservation.professional_id?professionalMap.get(reservation.professional_id):null;const space:any=reservation.space_id?spaceMap.get(reservation.space_id):null
+    const providerUserId=prof?.user_id||space?.owner_user_id||null;if(!providerUserId)continue
+    const otherUserId=user.id===reservation.user_id?providerUserId:reservation.user_id;if(!otherUserId||otherUserId===user.id)continue
+    const active=['paid','confirmed'].includes(String(reservation.status))&&(reservation.payment_status==='paid'||reservation.status==='confirmed')&&bookingEndKey(reservation.date,String(reservation.end_time))>nowKey
+    const thread=threads.find(t=>t.reservation_id===reservation.id);if(!active&&!thread)continue
+    const service:any=reservation.service_id?serviceMap.get(reservation.service_id):null
+    contexts.push({key:`reservation:${reservation.id}`,contextType:'reservation',contextId:reservation.id,otherUserId,thread,active,kind:service?'Serviço':'Espaço',title:service?.name||space?.name||'Reserva',subtitle:service?.modality?`${service.modality}${space?.name?` · ${space.name}`:''}`:(space?.address||''),date:dayPt(reservation.date),time:timeRange(reservation.start_time,reservation.end_time),amount:Number(reservation.amount||0),status:String(reservation.status||''),createdAt:reservation.created_at})
+  }
+  for(const participant of participants){
+    const event:any=eventMap.get(participant.event_id);if(!event?.created_by)continue
+    const otherUserId=user.id===participant.user_id?event.created_by:participant.user_id;if(!otherUserId||otherUserId===user.id)continue
+    const active=participant.payment_status==='paid'&&['confirmed','paid'].includes(String(participant.status))&&eventStillActive(event)
+    const thread=threads.find(t=>t.event_participant_id===participant.id);if(!active&&!thread)continue
+    contexts.push({key:`event:${participant.id}`,contextType:'event_participant',contextId:participant.id,otherUserId,thread,active,kind:'Evento',title:event.title||'Evento',subtitle:event.address||'',date:eventDayPt(event.start_date),time:eventTimeRange(event.start_date,event.end_date),amount:event.price_min==null?null:Number(event.price_min),status:String(participant.status||''),createdAt:participant.created_at})
   }
 
-  const contacts: Contact[] = []
-  const representedActiveUsers = new Set<string>()
-  for (const thread of threads as any[]) {
-    const otherUserId = thread.athlete_id===user.id?thread.provider_user_id:thread.athlete_id
-    const person = identity(otherUserId)
-    if (!person) continue
-    const threadMessages = messages.filter(message=>message.thread_id===thread.id)
-    const lastMsg = threadMessages[0]
-    let contextLabel = thread.context_type==='reservation'?'Reserva':'Evento pago'
-    let contextDetail = ''
-    let contextActive = false
-    if (thread.reservation_id) {
-      const reservation:any = reservationMap.get(thread.reservation_id)
-      const title = reservation?.service_id?serviceMap.get(reservation.service_id):reservation?.space_id?spaceContextMap.get(reservation.space_id):null
-      contextLabel = `Reserva${title?` · ${title}`:''}`
-      contextDetail = reservation?formatBookingDetail(reservation.date,reservation.start_time,reservation.end_time):''
-      contextActive=Boolean(reservation&&['paid','confirmed'].includes(String(reservation.status))&&(reservation.payment_status==='paid'||reservation.status==='confirmed')&&bookingEndKey(reservation.date,String(reservation.end_time))>nowKey)
-    } else if (thread.event_participant_id) {
-      const participant:any = participantMap.get(thread.event_participant_id)
-      const event:any = participant?eventMap.get(participant.event_id):null
-      contextLabel = `Evento${event?.title?` · ${event.title}`:''}`
-      contextDetail = event?.start_date?new Date(event.start_date).toLocaleString('pt-PT',{dateStyle:'short',timeStyle:'short'}):''
-      contextActive=Boolean(participant&&participant.payment_status==='paid'&&['confirmed','paid'].includes(String(participant.status))&&event&&eventStillActive(event))
-    }
-    const archived=thread.status!=='active'||!contextActive
-    if (!archived) representedActiveUsers.add(otherUserId)
-    contacts.push({id:thread.id,userId:otherUserId,threadId:thread.id,...person,unread:threadMessages.filter(message=>message.sender_id===otherUserId&&message.receiver_id===user.id&&!message.read_at).length,lastMsg:lastMsg?.content||'Sem mensagens ainda',lastMsgDate:lastMsg?.created_at||thread.updated_at||thread.created_at,archived,contextLabel,contextDetail})
-  }
+  const identityIds=[...new Set(contexts.map(c=>c.otherUserId))]
+  const [{data:profiles},{data:identityProfessionals},{data:identitySpaces}]=identityIds.length?await Promise.all([
+    admin.from('platform_users').select('id,full_name,avatar_url,type').in('id',identityIds),
+    admin.from('professionals').select('user_id,full_name,professional_name,avatar_url').in('user_id',identityIds),
+    admin.from('sport_spaces').select('owner_user_id,name,logo_url').in('owner_user_id',identityIds),
+  ]):[{data:[]},{data:[]},{data:[]}]
+  const profileMap=new Map((profiles||[]).map((x:any)=>[x.id,x]));const profUserMap=new Map((identityProfessionals||[]).map((x:any)=>[x.user_id,x]));const spaceUserMap=new Map((identitySpaces||[]).map((x:any)=>[x.owner_user_id,x]))
+  const identity=(id:string)=>{const p:any=profileMap.get(id);if(!p||!isPlatformRole(p.type))return null;const prof:any=p.type==='professional'?profUserMap.get(id):null;const space:any=p.type==='venue_manager'?spaceUserMap.get(id):null;return{name:getUserDisplayName({type:p.type,full_name:p.full_name,professional_name:prof?.professional_name,professional_full_name:prof?.full_name,space_name:space?.name}),avatar:getUserAvatarUrl({type:p.type,avatar_url:p.avatar_url,professional_avatar_url:prof?.avatar_url,space_logo_url:space?.logo_url}),role:getUserRoleLabel(p.type)}}
 
-  for (const userId of activeContactIds) {
-    if (representedActiveUsers.has(userId)) continue
-    const person=identity(userId);if(!person)continue
-    const legacyMessages=messages.filter(message=>!message.thread_id&&((message.sender_id===userId&&message.receiver_id===user.id)||(message.receiver_id===userId&&message.sender_id===user.id)))
-    const lastMsg=legacyMessages[0]
-    contacts.push({id:`active-${userId}`,userId,threadId:null,...person,unread:legacyMessages.filter(message=>message.sender_id===userId&&!message.read_at).length,lastMsg:lastMsg?.content||'Conversa disponível',lastMsgDate:lastMsg?.created_at||new Date().toISOString(),archived:false,contextLabel:contextByUser.get(userId)||'Reserva ativa'})
-  }
-
-  const representedLegacyUsers = new Set(contacts.filter(contact=>!contact.threadId).map(contact=>contact.userId))
-  for (const message of messages.filter(message=>!message.thread_id)) {
-    const otherUserId=message.sender_id===user.id?message.receiver_id:message.sender_id
-    if (representedLegacyUsers.has(otherUserId)) continue
-    const person=identity(otherUserId);if(!person)continue
-    const pair=messages.filter(item=>!item.thread_id&&((item.sender_id===otherUserId&&item.receiver_id===user.id)||(item.receiver_id===otherUserId&&item.sender_id===user.id)))
-    contacts.push({id:`legacy-${otherUserId}`,userId:otherUserId,threadId:null,...person,unread:pair.filter(item=>item.sender_id===otherUserId&&!item.read_at).length,lastMsg:pair[0]?.content||'Conversa arquivada',lastMsgDate:pair[0]?.created_at||new Date(0).toISOString(),archived:!activeContactIds.has(otherUserId),contextLabel:activeContactIds.has(otherUserId)?contextByUser.get(otherUserId)||'Reserva ativa':'Histórico anterior'})
-    representedLegacyUsers.add(otherUserId)
-  }
-
+  const contacts:Contact[]=contexts.map(context=>{
+    const person=identity(context.otherUserId);if(!person)return null
+    const threadMessages=context.thread?messages.filter(m=>m.thread_id===context.thread.id):[];const last=threadMessages[0]
+    return{id:context.thread?.id||context.key,userId:context.otherUserId,threadId:context.thread?.id||null,...person,unread:threadMessages.filter(m=>m.sender_id===context.otherUserId&&m.receiver_id===user.id&&!m.read_at).length,lastMsg:last?.content||(context.active?'Conversa disponível':'Conversa encerrada'),lastMsgDate:last?.created_at||context.thread?.updated_at||context.createdAt||new Date(0).toISOString(),archived:!context.active,contextType:context.contextType,contextId:context.contextId,contextKind:context.kind,contextTitle:context.title,contextLabel:`${context.kind} · ${context.title}`,contextDetail:[context.date,context.time].filter(Boolean).join(' · '),contextDate:context.date,contextTime:context.time,contextAmount:context.amount,contextStatus:context.status,contextSubtitle:context.subtitle} as Contact
+  }).filter(Boolean) as Contact[]
   contacts.sort((a,b)=>Number(Boolean(a.archived))-Number(Boolean(b.archived))||new Date(b.lastMsgDate).getTime()-new Date(a.lastMsgDate).getTime())
-  return <div className="h-full min-h-0 overflow-hidden bg-background md:rounded-2xl md:border md:border-border/70"><ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id}/></div>
+  return <ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id}/>
 }
