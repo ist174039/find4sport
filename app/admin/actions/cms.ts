@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { getCmsPage } from '@/lib/cms/registry'
+import { writeAdminAudit } from '@/lib/admin/audit'
 import type { CMSBlock } from '@/components/cms/block-builder'
 
 async function requireAdmin() {
@@ -49,13 +50,13 @@ export async function saveCmsPageAction(input: {
   const { error } = await admin.from('cms_pages').upsert(payload, { onConflict: 'slug' })
   if (error) throw error
 
-  await admin.from('audit_logs').insert({
-    admin_id: user.id,
-    action: 'cms.page.updated',
-    entity_type: 'cms_page',
-    entity_id: definition.slug,
-    details: { published: payload.is_published, blocks: blocks.length },
-  }).then(() => undefined)
+  await writeAdminAudit(admin as any, {
+    action: 'UPDATE',
+    tableName: 'cms_pages',
+    userEmail: user.email || 'admin',
+    message: `Página CMS ${definition.slug} atualizada`,
+    data: { slug: definition.slug, published: payload.is_published, blocks: blocks.length },
+  })
 
   revalidatePath(`/${definition.slug}`)
   revalidatePath('/admin/paginas')
