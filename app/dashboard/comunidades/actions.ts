@@ -11,7 +11,6 @@ async function requireCommunityAdmin(communityId: string) {
   if (!user) throw new Error('Sessão inválida.')
   const access = await resolveSessionAccess(supabase, user)
   if (access?.role !== 'professional') throw new Error('Apenas profissionais podem gerir comunidades.')
-
   const admin = createAdminClient()
   const { data: membership } = await admin.from('community_members').select('id').eq('community_id', communityId).eq('user_id', user.id).eq('role', 'admin').maybeSingle()
   if (!membership) throw new Error('Sem permissões para gerir esta comunidade.')
@@ -29,17 +28,28 @@ export async function updateCommunityAction(communityId: string, formData: FormD
   const { admin } = await requireCommunityAdmin(communityId)
   const name = String(formData.get('name') || '').trim()
   const description = String(formData.get('description') || '').trim()
-  const sportCategory = String(formData.get('sport_category') || '').trim()
+  const categoryId = String(formData.get('category_id') || '').trim()
   const isPrivate = formData.get('is_private') === 'on'
-  if (!name) throw new Error('O nome é obrigatório.')
+  if (name.length < 3 || name.length > 160) throw new Error('O nome deve ter entre 3 e 160 caracteres.')
+  if (description.length > 5000) throw new Error('A descrição não pode exceder 5000 caracteres.')
+  if (!categoryId) throw new Error('Seleciona uma modalidade.')
 
-  const { error } = await admin.from('communities').update({
-    name,
-    description: description || null,
-    is_private: isPrivate,
-    sport_category: sportCategory || null,
-  }).eq('id', communityId)
+  const { data: category, error: categoryError } = await admin.from('categories').select('id,name').eq('id', categoryId).maybeSingle()
+  if (categoryError || !category) throw new Error('A modalidade selecionada já não está disponível.')
+
+  const { error } = await admin.from('communities').update({ name, description: description || null, is_private: isPrivate, sport_category: category.name }).eq('id', communityId)
   if (error) throw error
+
+  const relationClient = admin as unknown as { from: (table: string) => any }
+  const relationTable = relationClient.from('community_categories')
+  const deleteResult = await relationTable.delete().eq('community_id', communityId)
+  if (!deleteResult.error || ['42P01', '42703'].includes(deleteResult.error?.code || '')) {
+    if (!deleteResult.error) {
+      const insertResult = await relationClient.from('community_categories').insert({ community_id: communityId, category_id: category.id })
+      if (insertResult.error) throw new Error('Não foi possível guardar a modalidade da comunidade.')
+    }
+  } else throw new Error('Não foi possível atualizar a taxonomia da comunidade.')
+
   revalidateCommunity(communityId)
 }
 
@@ -65,18 +75,13 @@ export async function uploadCommunityMediaAction(communityId: string, formData: 
   if (!(file instanceof File) || file.size === 0) throw new Error('Selecione uma imagem.')
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Formato não suportado. Use JPEG, PNG ou WebP.')
   if (file.size > 8 * 1024 * 1024) throw new Error('A imagem não pode exceder 8 MB.')
-
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const path = `${communityId}/${user.id}/${crypto.randomUUID()}.${extension}`
   const bytes = new Uint8Array(await file.arrayBuffer())
   const { error: uploadError } = await admin.storage.from('community-media').upload(path, bytes, { contentType: file.type, upsert: false })
   if (uploadError) throw uploadError
-
   const { error: insertError } = await admin.from('community_media').insert({ community_id: communityId, uploaded_by: user.id, storage_path: path, caption: caption || null })
-  if (insertError) {
-    await admin.storage.from('community-media').remove([path])
-    throw insertError
-  }
+  if (insertError) { await admin.storage.from('community-media').remove([path]); throw insertError }
   revalidateCommunity(communityId)
 }
 
