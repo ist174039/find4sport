@@ -7,3 +7,17 @@ export function isSpacePublic(entity:{status?:string|null}){return entity.status
 export function isEventPublic(entity:{status?:string|null;start_date?:string|null}){return entity.status===PUBLIC_EVENT_STATUS&&Boolean(entity.start_date)&&new Date(String(entity.start_date)).getTime()>Date.now()}
 export function isProviderRole(value:unknown):value is 'professional'|'venue_manager'{return value==='professional'||value==='venue_manager'}
 export function canReceiveMarketplacePayment(input:{role?:string|null;status?:string|null;stripeAccountId?:string|null}){return isProviderRole(input.role)&&input.status==='active'&&String(input.stripeAccountId||'').startsWith('acct_')}
+
+export function isSpaceBookable(input:{
+  status?:string|null
+  ownerUserId?:string|null
+  ownerRole?:string|null
+  stripeAccountId?:string|null
+  activeRoomCount?:number|null
+}){
+  return input.status===PUBLIC_SPACE_STATUS
+    && Boolean(input.ownerUserId)
+    && input.ownerRole==='venue_manager'
+    && String(input.stripeAccountId||'').startsWith('acct_')
+    && Number(input.activeRoomCount||0)>0
+}
