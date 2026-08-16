@@ -5,11 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { getFollowersList, getFollowingList } from '@/app/actions/follow'
 import { FollowButton } from '@/components/follow-button'
 import Link from 'next/link'
-import { BadgeCheck, Building2, Dumbbell, Loader2, Users } from 'lucide-react'
+import { BadgeCheck, Building2, Dumbbell, Loader2, UserRound, Users } from 'lucide-react'
+import type { PlatformRole } from '@/lib/auth/roles'
 
 interface FollowItem {
   userId: string
-  type: 'professional' | 'space'
+  type: PlatformRole
   name: string
   avatar: string | null
   isVerified: boolean | null
@@ -23,6 +24,12 @@ interface FollowListModalProps {
   targetUserId: string
   mode: 'followers' | 'following'
   title?: string
+}
+
+function roleLabel(role: PlatformRole) {
+  if (role === 'professional') return 'Profissional'
+  if (role === 'venue_manager') return 'Espaço'
+  return 'Utilizador'
 }
 
 export function FollowListModal({ open, onClose, targetUserId, mode, title }: FollowListModalProps) {
@@ -62,9 +69,7 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
                 {mode === 'followers' ? 'Sem seguidores' : 'Não segue ninguém'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {mode === 'followers'
-                  ? 'Ainda ninguém segue este perfil.'
-                  : 'Este perfil ainda não segue ninguém.'}
+                {mode === 'followers' ? 'Ainda ninguém segue este perfil.' : 'Este perfil ainda não segue ninguém.'}
               </p>
             </div>
           ) : (
@@ -72,12 +77,12 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
               {items.map(item => (
                 <li key={item.userId} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors">
                   <Link href={item.href} onClick={onClose} className="flex items-center gap-3 min-w-0 flex-1 group">
-                    <div className={`w-11 h-11 shrink-0 overflow-hidden border border-border bg-muted ${item.type === 'space' ? 'rounded-xl' : 'rounded-full'}`}>
+                    <div className={`w-11 h-11 shrink-0 overflow-hidden border border-border bg-muted ${item.type === 'venue_manager' ? 'rounded-xl' : 'rounded-full'}`}>
                       {item.avatar ? (
                         <img src={item.avatar} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-primary font-bold text-sm">
-                          {item.type === 'space' ? <Building2 className="w-5 h-5" /> : <Dumbbell className="w-5 h-5" />}
+                          {item.type === 'venue_manager' ? <Building2 className="w-5 h-5" /> : item.type === 'professional' ? <Dumbbell className="w-5 h-5" /> : <UserRound className="w-5 h-5" />}
                         </div>
                       )}
                     </div>
@@ -86,19 +91,13 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
                         <p className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">{item.name}</p>
                         {item.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                       </div>
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                        {item.type === 'professional' ? 'Profissional' : 'Espaço'}
-                      </p>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{roleLabel(item.type)}</p>
                     </div>
                   </Link>
 
                   {currentUserId && currentUserId !== item.userId && (
                     <div className="ml-3 shrink-0">
-                      <FollowButton
-                        targetUserId={item.userId}
-                        initialIsFollowing={item.isFollowedByMe}
-                        variant="outline"
-                      />
+                      <FollowButton targetUserId={item.userId} initialIsFollowing={item.isFollowedByMe} variant="outline" />
                     </div>
                   )}
                 </li>
