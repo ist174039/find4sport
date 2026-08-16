@@ -25,7 +25,16 @@ function clampRate(value: unknown, fallback = 0) {
   return Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : fallback
 }
 
-export async function resolveMarketplacePaymentQuote(providerUserId: string, baseAmountCents: number): Promise<MarketplacePaymentQuote> {
+function validConnectAccount(value: unknown) {
+  const id = String(value || '').trim()
+  return id.startsWith('acct_') ? id : null
+}
+
+export async function resolveMarketplacePaymentQuote(
+  providerUserId: string,
+  baseAmountCents: number,
+  destinationAccountId?: string | null,
+): Promise<MarketplacePaymentQuote> {
   if (!providerUserId) throw new Error('Prestador inválido para pagamento.')
   if (!Number.isInteger(baseAmountCents) || baseAmountCents <= 0) throw new Error('Valor base inválido para pagamento.')
 
@@ -34,15 +43,16 @@ export async function resolveMarketplacePaymentQuote(providerUserId: string, bas
   if (!profile || !['professional', 'venue_manager'].includes(profile.type)) throw new Error('O destinatário do pagamento não é um prestador válido.')
   const audience = profile.type as MarketplaceAudience
 
-  let stripeAccountId: string | null = null
-  if (audience === 'professional') {
+  let stripeAccountId = validConnectAccount(destinationAccountId)
+  if (!stripeAccountId && audience === 'professional') {
     const { data: professional } = await admin.from('professionals').select('stripe_account_id,status').eq('user_id', providerUserId).maybeSingle()
     if (!professional || professional.status !== 'active') throw new Error('O profissional não está ativo para receber pagamentos.')
-    stripeAccountId = professional.stripe_account_id || null
-  } else {
+    stripeAccountId = validConnectAccount(professional.stripe_account_id)
+  }
+  if (!stripeAccountId && audience === 'venue_manager') {
     const { data: space } = await admin.from('sport_spaces').select('stripe_account_id,status').eq('owner_user_id', providerUserId).not('stripe_account_id', 'is', null).order('created_at', { ascending: true }).limit(1).maybeSingle()
     if (!space || !['active', 'published'].includes(String(space.status))) throw new Error('O espaço não está ativo para receber pagamentos.')
-    stripeAccountId = space.stripe_account_id || null
+    stripeAccountId = validConnectAccount(space.stripe_account_id)
   }
   if (!stripeAccountId) throw new Error('O prestador ainda não concluiu a configuração Stripe Connect. O pagamento não pode ser iniciado.')
 
@@ -90,11 +100,14 @@ export function marketplacePaymentIntentData(quote: MarketplacePaymentQuote, met
     metadata: {
       ...metadata,
       provider_user_id: quote.providerUserId,
+      connected_account_id: quote.stripeAccountId,
       plan_code: quote.planCode,
       base_amount_cents: String(quote.baseAmountCents),
       customer_fee_cents: String(quote.customerFeeCents),
       platform_commission_cents: String(quote.commissionCents),
       application_fee_cents: String(quote.applicationFeeCents),
+      commission_rate: String(quote.commissionRate),
+      customer_fee_rate: String(quote.customerFeeRate),
     },
   }
 }
