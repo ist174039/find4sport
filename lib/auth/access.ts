@@ -9,6 +9,8 @@ export type SessionAccess = {
   canAccessAdmin: boolean
   canManageProfessionals: boolean
   canManageSpaces: boolean
+  hasProfessionalProfile: boolean
+  hasManagedSpace: boolean
 }
 
 type Supabase = SupabaseClient<Database>
@@ -63,6 +65,8 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
       canAccessAdmin: true,
       canManageProfessionals: false,
       canManageSpaces: false,
+      hasProfessionalProfile: false,
+      hasManagedSpace: false,
     }
   }
 
@@ -92,12 +96,17 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
       .eq('owner_user_id', user.id),
   ])
 
+  const hasProfessionalProfile = Boolean(professionalCount)
+  const hasManagedSpace = Boolean(spaceCount)
+
   return {
     role,
     profileId: platformUser.id,
     canAccessDashboard: true,
     canAccessAdmin: false,
-    canManageProfessionals: role === 'professional' || Boolean(professionalCount),
-    canManageSpaces: role === 'venue_manager' || Boolean(spaceCount),
+    canManageProfessionals: role === 'professional' && hasProfessionalProfile,
+    canManageSpaces: role === 'venue_manager' && hasManagedSpace,
+    hasProfessionalProfile,
+    hasManagedSpace,
   }
 }
