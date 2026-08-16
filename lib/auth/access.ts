@@ -1,9 +1,9 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { normalizePlatformRole, type PlatformRole } from '@/lib/auth/roles'
+import { normalizePlatformRole, type AccessRole } from '@/lib/auth/roles'
 
 export type SessionAccess = {
-  role: PlatformRole
+  role: AccessRole
   profileId: string | null
   canAccessDashboard: boolean
   canAccessAdmin: boolean
@@ -25,7 +25,7 @@ async function resolveAdminRecord(supabase: Supabase, user: User) {
   if (modernAdmin) {
     return {
       id: modernAdmin.id as string,
-      role: 'admin' as PlatformRole,
+      role: 'admin' as const,
       adminLabel: (modernAdmin.admin_type as string) || 'general',
     }
   }
@@ -41,7 +41,7 @@ async function resolveAdminRecord(supabase: Supabase, user: User) {
 
   return {
     id: legacyAdmin.id,
-    role: 'admin' as PlatformRole,
+    role: 'admin' as const,
     adminLabel: legacyAdmin.role || 'general',
   }
 }
@@ -61,8 +61,8 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
       profileId: adminUser.id,
       canAccessDashboard: false,
       canAccessAdmin: true,
-      canManageProfessionals: true,
-      canManageSpaces: true,
+      canManageProfessionals: false,
+      canManageSpaces: false,
     }
   }
 
@@ -87,9 +87,9 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
   return {
     role,
     profileId: platformUser?.id ?? null,
-    canAccessDashboard: role !== 'admin',
+    canAccessDashboard: true,
     canAccessAdmin: false,
-    canManageProfessionals: role === 'professional' || role === 'admin' || Boolean(professionalCount),
-    canManageSpaces: role === 'venue_manager' || role === 'admin' || Boolean(spaceCount),
+    canManageProfessionals: role === 'professional' || Boolean(professionalCount),
+    canManageSpaces: role === 'venue_manager' || Boolean(spaceCount),
   }
 }
