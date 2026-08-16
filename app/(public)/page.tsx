@@ -1,222 +1,129 @@
-import { Activity, ArrowRight, BadgeCheck, Building, Heart, MapPin, MessageSquare, ShoppingBag, Star, UserCheck } from 'lucide-react'
+import { Activity, ArrowRight, BadgeCheck, Building2, CalendarDays, MapPin, Rss, Star, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { HeroCarousel } from '@/components/hero-carousel'
+import { PageContainer } from '@/components/patterns/page-shell'
+
+const ecosystem = [
+  { name: 'Profissionais', description: 'Treino, recuperação e acompanhamento', href: '/profissionais', icon: Users },
+  { name: 'Espaços', description: 'Instalações e campos desportivos', href: '/espacos', icon: Building2 },
+  { name: 'Eventos', description: 'Provas, aulas e encontros', href: '/eventos', icon: CalendarDays },
+  { name: 'Comunidades', description: 'Grupos e interesses desportivos', href: '/comunidades', icon: Users },
+  { name: 'Feed', description: 'Conteúdo da comunidade profissional', href: '/feed', icon: Rss },
+  { name: 'Pesquisa', description: 'Encontre o que precisa num só lugar', href: '/pesquisa', icon: Activity },
+]
+
+function ImageOrFallback({ src, alt, icon: Icon }: { src?: string | null; alt: string; icon: typeof Users }) {
+  return (
+    <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-primary/15 via-muted to-secondary/20 sm:aspect-square">
+      {src ? <img src={src} alt={alt} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center"><Icon className="h-12 w-12 text-primary/35" /></div>}
+    </div>
+  )
+}
 
 export default async function Page() {
   const supabase = await createClient()
+  const now = new Date().toISOString()
 
-  const [spacesCount, profsCount, eventsCount, popularSpaces, topProfessionals, carouselRes] = await Promise.all([
-    supabase.from('sport_spaces').select('id', { count: 'exact', head: true }),
-    supabase.from('professionals').select('id', { count: 'exact', head: true }),
-    supabase.from('events').select('id', { count: 'exact', head: true }),
-    supabase.from('sport_spaces').select('*, space_rooms(price_per_hour)').order('review_count', { ascending: false }).limit(8),
-    supabase.from('professionals').select('*, services(price)').order('rating_avg', { ascending: false }).limit(8),
-    supabase.from('carousel_slides').select('*').eq('is_active', true).order('display_order', { ascending: true })
+  const [spacesCount, profsCount, eventsCount, popularSpaces, topProfessionals, upcomingEvents, carouselRes] = await Promise.all([
+    supabase.from('sport_spaces').select('id', { count: 'exact', head: true }).eq('is_verified', true),
+    supabase.from('professionals').select('id', { count: 'exact', head: true }).eq('is_verified', true).eq('status', 'active'),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'published').gte('start_date', now),
+    supabase.from('sport_spaces').select('id,name,slug,address,rating_avg,review_count,gallery_urls,cover_url,is_verified').eq('is_verified', true).order('review_count', { ascending: false }).limit(4),
+    supabase.from('professionals').select('id,full_name,professional_name,public_slug,address,location,rating_avg,review_count,avatar_url,is_verified,status').eq('is_verified', true).eq('status', 'active').order('rating_avg', { ascending: false }).limit(4),
+    supabase.from('events').select('id,title,start_date,address,image_url,status').eq('status', 'published').gte('start_date', now).order('start_date', { ascending: true }).limit(3),
+    supabase.from('carousel_slides').select('*').eq('is_active', true).order('display_order', { ascending: true }),
   ])
-  
-  const spaces = (popularSpaces.data || []).map((space: any) => {
-    const rooms = space.space_rooms || []
-    const validPrices = rooms.map((r: any) => Number(r.price_per_hour)).filter((p: number) => !isNaN(p) && p > 0)
-    const avgPrice = validPrices.length > 0 ? validPrices.reduce((a: number, b: number) => a + b, 0) / validPrices.length : 0
-    return { ...space, computed_price_avg: avgPrice }
-  })
 
-  const profs = (topProfessionals.data || []).map((prof: any) => {
-    const services = prof.services || []
-    const validPrices = services.map((s: any) => Number(s.price)).filter((p: number) => !isNaN(p) && p > 0)
-    const avgPrice = validPrices.length > 0 ? validPrices.reduce((a: number, b: number) => a + b, 0) / validPrices.length : 0
-    return { ...prof, computed_price_avg: avgPrice }
-  })
-  
+  const spaces = popularSpaces.data || []
+  const professionals = topProfessionals.data || []
+  const events = upcomingEvents.data || []
   const slides = carouselRes.data || []
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Hero Carousel Section */}
-      <HeroCarousel 
-        slides={slides} 
-        spacesCount={spacesCount.count || 0}
-        profsCount={profsCount.count || 0}
-        eventsCount={eventsCount.count || 0}
-      />
+    <div className="flex min-h-screen flex-col bg-background">
+      <HeroCarousel slides={slides} spacesCount={spacesCount.count || 0} profsCount={profsCount.count || 0} eventsCount={eventsCount.count || 0} />
 
-      {/* Ecosystem Section */}
-      <section className="py-16 sm:py-24 border-b border-border bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-foreground sm:text-4xl">Tudo num só lugar</h2>
-          <p className="mt-4 text-muted-foreground text-lg mb-16">O ecossistema desportivo mais completo de Portugal</p>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-            <Link href="/pesquisa?type=espacos" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop" alt="Espaços" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <Building className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Espaços</h3>
-                <p className="text-xs text-gray-200 text-center">Reserva online</p>
-              </div>
-            </Link>
-            <Link href="/pesquisa?type=profissionais" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=600&auto=format&fit=crop" alt="Profissionais" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <UserCheck className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Profissionais</h3>
-                <p className="text-xs text-gray-200 text-center">PT, fisio, nutrição</p>
-              </div>
-            </Link>
-            <Link href="/pesquisa?q=Saúde" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=600&auto=format&fit=crop" alt="Saúde" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <Heart className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Saúde</h3>
-                <p className="text-xs text-gray-200 text-center">Recovery & bem-estar</p>
-              </div>
-            </Link>
-            <Link href="/pesquisa?type=eventos" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop" alt="Eventos" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <Activity className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Eventos</h3>
-                <p className="text-xs text-gray-200 text-center">Provas & torneios</p>
-              </div>
-            </Link>
-            <Link href="/feed" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=600&auto=format&fit=crop" alt="Feed" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <ShoppingBag className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Feed</h3>
-                <p className="text-xs text-gray-200 text-center">Publicações & notícias</p>
-              </div>
-            </Link>
-            <Link href="/comunidades" className="relative flex flex-col items-center p-6 rounded-2xl overflow-hidden hover:shadow-md transition-all cursor-pointer group border border-border/50">
-              <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=600&auto=format&fit=crop" alt="Comunidades" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-              <div className="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition-colors"></div>
-              <div className="relative z-10 flex flex-col items-center w-full h-full">
-                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg">
-                  <MessageSquare className="text-[28px]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm mb-1 text-center">Comunidades</h3>
-                <p className="text-xs text-gray-200 text-center">Inspire-se & Junte-se</p>
-              </div>
-            </Link>
+      <section className="border-b border-border py-10 sm:py-16">
+        <PageContainer>
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Explore a plataforma</h2>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">Escolha diretamente o que procura, sem percursos desnecessários.</p>
           </div>
-        </div>
-      </section>
-
-      {/* Top Professionals */}
-      <section className="py-16 sm:py-24 bg-background border-b border-border">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-10">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Top Profissionais, Lisboa, Portugal</h2>
-              <p className="mt-2 text-muted-foreground">Os profissionais mais reconhecidos da nossa rede</p>
-            </div>
-            <Link href="/pesquisa" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
-              Ver todos <ArrowRight className="text-sm h-5 w-5" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {profs.map((prof) => (
-              <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
-                <div className="relative aspect-square w-full overflow-hidden">
-                  <img 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                    alt={prof.full_name} 
-                    src={prof.avatar_url || 'https://images.unsplash.com/photo-1594381898411-846e7d193883?q=80&w=640&auto=format&fit=crop'} 
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm">
-                    <Star className="text-yellow-500 text-[12px] fill-yellow-500" />
-                    <span>{prof.rating_avg?.toFixed(1) || 'Novo'}</span>
-                  </div>
-                </div>
-                
-                <div className="p-3 flex flex-col gap-1 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <h3 className="font-semibold text-sm line-clamp-1 text-foreground" title={prof.full_name}>{prof.full_name}</h3>
-                    {prof.is_verified && <BadgeCheck className="text-emerald-500 h-4 w-4 flex-shrink-0" />}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="line-clamp-1">{prof.distance || 'Lisboa'}</span>
-                  </div>
-                  <div className="mt-auto pt-2 font-medium text-sm text-foreground">
-                    {prof.computed_price_avg ? `€${Math.round(prof.computed_price_avg)}/h` : 'Preço sob consulta'}
-                  </div>
-                </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {ecosystem.map((item) => (
+              <Link key={item.href} href={item.href} className="group flex min-h-36 flex-col justify-between rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm sm:min-h-40 sm:p-5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><item.icon className="h-5 w-5" /></div>
+                <div><h3 className="font-semibold text-foreground">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description}</p></div>
               </Link>
             ))}
           </div>
-          <div className="mt-8 text-center sm:hidden">
-            <Link href="/pesquisa" className="text-primary font-medium text-sm hover:underline">
-              Ver todos os profissionais
-            </Link>
-          </div>
-        </div>
+        </PageContainer>
       </section>
 
-      {/* Popular Spaces */}
-      <section className="py-16 sm:py-24 bg-muted/30">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-10">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">Espaços Populares, Lisboa, Portugal</h2>
-              <p className="mt-2 text-muted-foreground">Os espaços desportivos mais bem avaliados pela comunidade</p>
+      <section className="border-b border-border py-10 sm:py-16">
+        <PageContainer>
+          <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+            <div><h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Profissionais em destaque</h2><p className="mt-2 text-sm text-muted-foreground">Perfis verificados com melhor reputação registada.</p></div>
+            <Link href="/profissionais" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">Ver todos <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          {professionals.length ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {professionals.map((prof: any) => (
+                <Link href={`/profissionais/${prof.public_slug || prof.id}`} key={prof.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:border-primary/40 hover:shadow-md">
+                  <ImageOrFallback src={prof.avatar_url} alt={prof.full_name || prof.professional_name || 'Profissional'} icon={Users} />
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2"><h3 className="line-clamp-1 font-semibold">{prof.full_name || prof.professional_name || 'Profissional'}</h3><BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" /></div>
+                    {(prof.location || prof.address) && <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{prof.location || prof.address}</span></p>}
+                    {Number(prof.review_count || 0) > 0 && <p className="mt-2 flex items-center gap-1 text-xs font-medium"><Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />{Number(prof.rating_avg || 0).toFixed(1)} <span className="text-muted-foreground">({prof.review_count})</span></p>}
+                  </div>
+                </Link>
+              ))}
             </div>
-            <Link href="/pesquisa?type=spaces" className="hidden sm:flex text-primary font-medium text-sm items-center gap-1 hover:underline">
-              Ver todos <ArrowRight className="text-sm h-5 w-5" />
+          ) : <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Ainda não existem profissionais verificados para destacar.</p>}
+          <Link href="/profissionais" className="mt-5 flex min-h-11 items-center justify-center text-sm font-medium text-primary sm:hidden">Ver todos os profissionais</Link>
+        </PageContainer>
+      </section>
+
+      <section className="border-b border-border bg-muted/20 py-10 sm:py-16">
+        <PageContainer>
+          <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+            <div><h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Espaços em destaque</h2><p className="mt-2 text-sm text-muted-foreground">Espaços verificados ordenados pela reputação registada.</p></div>
+            <Link href="/espacos" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">Ver todos <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          {spaces.length ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {spaces.map((space: any) => (
+                <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:border-primary/40 hover:shadow-md">
+                  <ImageOrFallback src={space.cover_url || space.gallery_urls?.[0]} alt={space.name} icon={Building2} />
+                  <div className="p-4">
+                    <h3 className="line-clamp-1 font-semibold">{space.name}</h3>
+                    {space.address && <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{space.address}</span></p>}
+                    {Number(space.review_count || 0) > 0 && <p className="mt-2 flex items-center gap-1 text-xs font-medium"><Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />{Number(space.rating_avg || 0).toFixed(1)} <span className="text-muted-foreground">({space.review_count})</span></p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Ainda não existem espaços verificados para destacar.</p>}
+          <Link href="/espacos" className="mt-5 flex min-h-11 items-center justify-center text-sm font-medium text-primary sm:hidden">Ver todos os espaços</Link>
+        </PageContainer>
+      </section>
+
+      <section className="py-10 sm:py-16">
+        <PageContainer>
+          <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+            <div><h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Próximos eventos</h2><p className="mt-2 text-sm text-muted-foreground">Eventos publicados com data futura.</p></div>
+            <Link href="/eventos" className="hidden items-center gap-1 text-sm font-medium text-primary hover:underline sm:flex">Ver agenda <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+          {events.length ? <div className="grid gap-4 md:grid-cols-3">{events.map((event: any) => (
+            <Link href={`/eventos/${event.id}`} key={event.id} className="group rounded-2xl border border-border bg-card p-5 transition hover:border-primary/40 hover:shadow-sm">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><CalendarDays className="h-5 w-5" /></div>
+              <h3 className="mt-4 line-clamp-2 font-semibold">{event.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{new Date(event.start_date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+              {event.address && <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" /><span className="truncate">{event.address}</span></p>}
             </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {spaces.map((space) => (
-              <Link href={`/espacos/${space.slug || space.id}`} key={space.id} className="relative group rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
-                <div className="relative aspect-square w-full overflow-hidden">
-                  <img 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                    alt={space.name} 
-                    src={space.gallery_urls?.[0] || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop'} 
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-1 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium shadow-sm">
-                    <Star className="text-yellow-500 text-[12px] fill-yellow-500" />
-                    <span>{space.rating_avg?.toFixed(1) || 'Novo'}</span>
-                  </div>
-                </div>
-                
-                <div className="p-3 flex flex-col gap-1 flex-1">
-                  <h3 className="font-semibold text-sm line-clamp-1 text-foreground" title={space.name}>{space.name}</h3>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="line-clamp-1">{space.distance || 'Lisboa'}</span>
-                  </div>
-                  <div className="mt-auto pt-2 font-medium text-sm text-foreground">
-                    {space.computed_price_avg ? `€${Math.round(space.computed_price_avg)}/h` : 'Preço sob consulta'}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <div className="mt-8 text-center sm:hidden">
-            <Link href="/pesquisa?type=spaces" className="text-primary font-medium text-sm hover:underline">
-              Ver todos os espaços
-            </Link>
-          </div>
-        </div>
+          ))}</div> : <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Não existem eventos futuros publicados neste momento.</p>}
+        </PageContainer>
       </section>
     </div>
   )
