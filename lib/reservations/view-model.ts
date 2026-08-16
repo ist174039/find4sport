@@ -8,6 +8,7 @@ export type ReservationListItem = {
   status: ReservationStatus
   payment_status: string | null
   amount: number | null
+  package_session_consumed: boolean
   service: { name: string } | null
   room: { name: string } | null
   user: { id: string; full_name: string | null; avatar_url: string | null; type: string | null } | null
