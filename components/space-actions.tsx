@@ -26,10 +26,9 @@ export function ReserveSpaceBtn({ spaceName, ownerUserId, spaceId }: { spaceName
       ])
       if (cancelled) return
       const activeRooms = rooms || []
-      const hasFreeRoom = activeRooms.some((room: any) => Number(room.price_per_hour || 0) <= 0)
       const hasPaidRoom = activeRooms.some((room: any) => Number(room.price_per_hour || 0) > 0)
       const canCharge = String((space as any)?.stripe_account_id || '').startsWith('acct_')
-      setBookable((space as any)?.status === 'active' && activeRooms.length > 0 && (hasFreeRoom || (hasPaidRoom && canCharge)))
+      setBookable((space as any)?.status === 'active' && activeRooms.length > 0 && (!hasPaidRoom || canCharge))
     })()
     return () => { cancelled = true }
   }, [ownerUserId, spaceId])
