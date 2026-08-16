@@ -16,6 +16,12 @@ function addMinutes(value: string, duration: number) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+function missingRoomColumn(error: any) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  return ['42703', 'PGRST204'].includes(code) || message.includes('space_room_id') || message.includes("Could not find the 'space_room_id' column")
+}
+
 export async function createFreeReservationAction(input: { serviceId?: string | null; professionalId?: string | null; spaceId?: string | null; spaceRoomId?: string | null; date: string; startTime: string }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -62,31 +68,47 @@ export async function createFreeReservationAction(input: { serviceId?: string | 
   const dayOfWeek = bookingDate.getDay()
 
   if (professionalId) {
-    const { data: availability } = await admin.from('professional_availability').select('start_time,end_time').eq('professional_id', professionalId).eq('day_of_week', dayOfWeek).eq('is_active', true)
+    const { data: availability, error } = await admin.from('professional_availability').select('start_time,end_time').eq('professional_id', professionalId).eq('day_of_week', dayOfWeek).eq('is_active', true)
+    if (error) throw new Error('Não foi possível validar a disponibilidade do profissional.')
     const valid = (availability || []).some((slot: any) => startTime >= String(slot.start_time).slice(0,5) && endTime <= String(slot.end_time).slice(0,5))
     if (!valid) throw new Error('O horário escolhido está fora da disponibilidade do profissional.')
   }
   if (roomId) {
-    const { data: availability } = await admin.from('space_room_availability').select('start_time,end_time').eq('room_id', roomId).eq('day_of_week', dayOfWeek).eq('is_active', true)
+    const { data: availability, error } = await admin.from('space_room_availability').select('start_time,end_time').eq('room_id', roomId).eq('day_of_week', dayOfWeek).eq('is_active', true)
+    if (error) throw new Error('Não foi possível validar a disponibilidade da sala/campo.')
     const valid = (availability || []).some((slot: any) => startTime >= String(slot.start_time).slice(0,5) && endTime <= String(slot.end_time).slice(0,5))
     if (!valid) throw new Error('O horário escolhido está fora da disponibilidade da sala/campo.')
   }
 
-  let overlap = admin.from('reservations').select('id').eq('date', date).in('status', ['pending','paid','confirmed']).lt('start_time', endTime).gt('end_time', startTime)
-  if (professionalId) overlap = overlap.eq('professional_id', professionalId)
-  if (roomId) overlap = overlap.eq('space_room_id', roomId)
-  const { data: conflicts, error: conflictError } = await overlap.limit(1)
-  if (conflictError) throw new Error('Não foi possível validar conflitos da agenda.')
-  if (conflicts?.length) throw new Error('Este horário acabou de ficar indisponível.')
+  const baseOverlap = () => admin.from('reservations').select('id').eq('date', date).in('status', ['pending','paid','confirmed']).lt('start_time', endTime).gt('end_time', startTime)
+  let conflictResult
+  if (professionalId) conflictResult = await baseOverlap().eq('professional_id', professionalId).limit(1)
+  else if (roomId) {
+    conflictResult = await baseOverlap().eq('space_room_id', roomId).limit(1)
+    if (conflictResult.error && missingRoomColumn(conflictResult.error)) {
+      conflictResult = await baseOverlap().eq('space_id', spaceId!).limit(1)
+    }
+  } else conflictResult = await baseOverlap().limit(1)
 
-  const { data: reservation, error } = await admin.from('reservations').insert({ user_id: user.id, professional_id: professionalId, service_id: serviceId, space_id: spaceId, space_room_id: roomId, date, start_time: startTime, end_time: endTime, amount: 0, status: 'confirmed', payment_status: 'paid' }).select('id').single()
-  if (error || !reservation) {
-    console.error('Free reservation insert error:', error)
-    throw new Error(error?.message ? `Não foi possível criar a reserva: ${error.message}` : 'Não foi possível criar a reserva.')
+  if (conflictResult.error) throw new Error(`Não foi possível validar conflitos da agenda: ${conflictResult.error.message}`)
+  if (conflictResult.data?.length) throw new Error('Este horário acabou de ficar indisponível.')
+
+  const basePayload: Record<string, unknown> = { user_id: user.id, professional_id: professionalId, service_id: serviceId, space_id: spaceId, date, start_time: startTime, end_time: endTime, amount: 0, status: 'confirmed', payment_status: 'paid' }
+  if (roomId) basePayload.space_room_id = roomId
+
+  let insertResult = await admin.from('reservations').insert(basePayload).select('id').single()
+  if (insertResult.error && roomId && missingRoomColumn(insertResult.error)) {
+    const { space_room_id: _ignored, ...legacyPayload } = basePayload
+    insertResult = await admin.from('reservations').insert(legacyPayload).select('id').single()
+  }
+
+  if (insertResult.error || !insertResult.data) {
+    console.error('Free reservation insert error:', insertResult.error)
+    throw new Error(insertResult.error?.message ? `Não foi possível criar a reserva: ${insertResult.error.message}` : 'Não foi possível criar a reserva.')
   }
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/agenda')
   revalidatePath('/dashboard/reservas')
-  return { success: true, id: reservation.id }
+  return { success: true, id: insertResult.data.id }
 }
