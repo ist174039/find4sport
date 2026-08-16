@@ -2,7 +2,7 @@
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
+import { canCreatePostForRole, parsePersistedPlatformRole } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 
 const supabaseAdmin = createSupabaseAdmin(
@@ -21,9 +21,9 @@ export async function createCommunityPostAction(communityId: string, content: st
     .eq('id', user.id)
     .maybeSingle()
 
-  const role = normalizePlatformRole(profile?.type ?? user.user_metadata?.type)
-  if (!canCreatePostForRole(role)) {
-    throw new Error('Atletas não podem publicar em comunidades.')
+  const role = parsePersistedPlatformRole(profile?.type)
+  if (!role || !canCreatePostForRole(role)) {
+    throw new Error('Apenas profissionais e gestores de espaço podem publicar em comunidades.')
   }
 
   const trimmedContent = content.trim()
@@ -31,7 +31,6 @@ export async function createCommunityPostAction(communityId: string, content: st
   if (!trimmedContent) throw new Error('A publicação não pode estar vazia.')
   if (trimmedContent.length > 5000) throw new Error('A publicação excede o limite de 5000 caracteres.')
 
-  // Check if member (or owner)
   const { data: member } = await supabase
     .from('community_members')
     .select('id')
@@ -43,7 +42,6 @@ export async function createCommunityPostAction(communityId: string, content: st
     throw new Error('Apenas membros podem publicar nesta comunidade.')
   }
 
-  // Find professional ID if available
   const { data: professional } = await supabase
     .from('professionals')
     .select('id')
