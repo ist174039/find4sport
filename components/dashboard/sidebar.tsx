@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import type { PlatformRole } from '@/lib/auth/roles'
 import {
   Calendar,
   Users,
@@ -27,20 +27,20 @@ import {
 } from 'lucide-react'
 
 interface DashboardSidebarProps {
+  role: PlatformRole
   professional: any | null
   space: any | null
   user?: any | null
   notificationCount?: number
 }
 
-export function DashboardSidebar({ professional, space, user, notificationCount = 0 }: DashboardSidebarProps) {
+export function DashboardSidebar({ role, professional, space, user, notificationCount = 0 }: DashboardSidebarProps) {
   const pathname = usePathname()
-  
   const basePath = '/dashboard'
 
   let navItems = []
 
-  if (space) {
+  if (role === 'venue_manager') {
     navItems = [
       { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
       { name: 'Agenda & Eventos', href: `${basePath}/agenda`, icon: Calendar },
@@ -56,7 +56,7 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
       { name: 'Notificações', href: `${basePath}/notificacoes`, icon: Bell },
       { name: 'Definições', href: `${basePath}/definicoes`, icon: Settings },
     ]
-  } else if (professional) {
+  } else if (role === 'professional') {
     navItems = [
       { name: 'Visão Geral', href: basePath, icon: LayoutDashboard },
       { name: 'O Meu Perfil', href: `${basePath}/perfil`, icon: User },
@@ -98,29 +98,29 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
       </div>
 
       <div className="p-4 border-b">
-        {space ? (
+        {role === 'venue_manager' ? (
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-              {space.name?.charAt(0) || 'E'}
+              {space?.name?.charAt(0) || 'E'}
             </div>
             <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{space.name}</p>
+              <p className="font-semibold text-sm truncate">{space?.name || 'Espaço'}</p>
               <p className="text-xs text-muted-foreground truncate">Gestor de Espaço</p>
             </div>
           </div>
-        ) : professional ? (
+        ) : role === 'professional' ? (
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden">
-              {professional.avatar_url ? (
+              {professional?.avatar_url ? (
                 <img src={professional.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-primary font-bold">
-                  {professional.full_name?.charAt(0) || 'P'}
+                  {professional?.full_name?.charAt(0) || 'P'}
                 </div>
               )}
             </div>
             <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{professional.full_name}</p>
+              <p className="font-semibold text-sm truncate">{professional?.full_name || 'Profissional'}</p>
               <p className="text-xs text-muted-foreground truncate">Profissional</p>
             </div>
           </div>
@@ -130,11 +130,11 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
               {user?.user_metadata?.avatar_url ? (
                 <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                user?.user_metadata?.full_name?.charAt(0) || 'U'
+                user?.user_metadata?.full_name?.charAt(0) || 'A'
               )}
             </div>
             <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{user?.user_metadata?.full_name || 'Utilizador'}</p>
+              <p className="font-semibold text-sm truncate">{user?.user_metadata?.full_name || 'Atleta'}</p>
               <p className="text-xs text-muted-foreground truncate">Atleta</p>
             </div>
           </div>
@@ -189,7 +189,6 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
 
   return (
     <>
-      {/* Mobile trigger */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Sheet>
           <SheetTrigger
@@ -205,7 +204,6 @@ export function DashboardSidebar({ professional, space, user, notificationCount 
         </Sheet>
       </div>
 
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 border-r bg-card">
         <SidebarContent />
       </aside>
