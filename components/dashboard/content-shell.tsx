@@ -12,7 +12,7 @@ export function DashboardContentShell({ children }: { children: React.ReactNode 
       className={cn(
         'ml-0 w-full min-w-0 flex-1 lg:ml-64',
         immersive
-          ? 'h-dvh overflow-hidden p-0 lg:h-screen lg:p-5'
+          ? 'h-[calc(100dvh-4rem-env(safe-area-inset-bottom))] overflow-hidden p-0 lg:h-screen lg:p-5'
           : 'px-4 pb-24 pt-20 sm:px-6 lg:p-8',
       )}
     >
