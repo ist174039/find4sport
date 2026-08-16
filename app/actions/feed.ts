@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache'
 const MAX_POST_MEDIA_BYTES = 10 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime'])
+const REPORT_REASONS = new Set(['spam', 'harassment', 'hate', 'nudity', 'violence', 'fraud', 'other'])
 
 export async function createPostAction(formData: FormData) {
   let uploadedPath: string | null = null
@@ -62,9 +63,11 @@ export async function createPostAction(formData: FormData) {
     await incrementUsage(user.id, 'feed.posts_daily.max', 'day')
     revalidatePath('/feed')
     return { success: true, postId: post.id }
-  } catch (err: any) {
-    if (uploadedPath) { try { createAdminClient().storage.from('avatars').remove([uploadedPath]) } catch {} }
-    return { error: err.message || 'Ocorreu um erro no servidor.' }
+  } catch (error) {
+    if (uploadedPath) {
+      try { await createAdminClient().storage.from('avatars').remove([uploadedPath]) } catch {}
+    }
+    return { error: error instanceof Error ? error.message : 'Ocorreu um erro no servidor.' }
   }
 }
 
@@ -74,7 +77,7 @@ export async function toggleLikeAction(postId: string) {
   if (!user) throw new Error('Autenticação necessária')
   const { error: insertError } = await supabase.from('post_likes').insert({ post_id: postId, user_id: user.id })
   if (!insertError) return { liked: true }
-  if ((insertError as any)?.code === '23505') {
+  if (insertError.code === '23505') {
     const { error: deleteError } = await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', user.id)
     if (deleteError) throw new Error('Erro ao remover gosto')
     return { liked: false }
@@ -94,16 +97,16 @@ export async function addCommentAction(postId: string, content: string) {
   const { data: post } = await admin.from('posts').select('id, community_id').eq('id', postId).maybeSingle()
   if (!post) throw new Error('Publicação não encontrada')
 
-  if ((post as any).community_id) {
-    const communityId = (post as any).community_id
+  if (post.community_id) {
+    const communityId = post.community_id
     const [{ data: member }, { data: community }] = await Promise.all([
       admin.from('community_members').select('role').eq('community_id', communityId).eq('user_id', user.id).maybeSingle(),
       admin.from('communities').select('*').eq('id', communityId).maybeSingle(),
     ])
     if (!member) throw new Error('Apenas membros podem comentar nesta comunidade.')
-    const policy = (community as any)?.posting_policy || 'members'
+    const policy = String((community as Record<string, unknown> | null)?.posting_policy || 'members')
     if (policy === 'reactions_only' && member.role !== 'admin') throw new Error('Nesta comunidade, os membros podem apenas colocar gosto nas publicações.')
-    if (policy === 'admin_only' && member.role !== 'admin') throw new Error('Apenas administradores podem comentar nesta comunidade.')
+    // admin_only restringe quem cria publicações; membros continuam a poder comentar e gostar.
   }
 
   const { error } = await admin.from('post_comments').insert({ post_id: postId, user_id: user.id, content: trimmedContent })
@@ -115,12 +118,13 @@ export async function reportPostAction(postId: string, reason: 'spam' | 'harassm
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Autenticação necessária')
+  if (!REPORT_REASONS.has(reason)) throw new Error('Motivo de denúncia inválido.')
   const { data: postExists } = await supabase.from('posts').select('id').eq('id', postId).maybeSingle()
   if (!postExists) throw new Error('Publicação não encontrada')
   const cleanDetails = details?.trim().slice(0, 2000) || null
   const { error } = await supabase.from('content_reports').insert({ reporter_user_id: user.id, target_type: 'post', target_id: postId, reason, details: cleanDetails })
   if (error) {
-    if ((error as any)?.code === '23505') return { success: true, duplicate: true }
+    if (error.code === '23505') return { success: true, duplicate: true }
     throw new Error('Não foi possível enviar a denúncia.')
   }
   return { success: true, duplicate: false }
