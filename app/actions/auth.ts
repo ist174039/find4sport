@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import { isPlatformRole, type PlatformRole } from '@/lib/auth/roles'
 
 async function requireAdminAccess() {
   const supabase = await createClient()
@@ -21,10 +22,11 @@ async function requireAdminAccess() {
   }
 }
 
-function normalizeAllowedUserType(type: string): 'athlete' | 'professional' | 'venue_manager' {
-  if (type === 'professional' || type === 'profissional') return 'professional'
-  if (type === 'venue_manager' || type === 'espaco') return 'venue_manager'
-  return 'athlete'
+function requirePlatformRole(value: unknown): PlatformRole {
+  if (!isPlatformRole(value)) {
+    throw new Error('Tipo de perfil inválido')
+  }
+  return value
 }
 
 export async function adminCreateProfessional(input: {
@@ -92,26 +94,25 @@ export async function adminUpdateProfessional(id: string, input: {
   return { professional: data }
 }
 
-export async function adminCreateUser(email: string, password: string, fullName: string, type: string) {
+export async function adminCreateUser(email: string, password: string, fullName: string, type: PlatformRole) {
   await requireAdminAccess()
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { error: 'Missing Supabase admin credentials' }
   }
 
-  const safeType = normalizeAllowedUserType(type)
+  const role = requirePlatformRole(type)
 
   const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 
-  // Tenta criar o utilizador usando a API de Admin (que ignora o rate limit do cliente)
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: fullName, type: safeType }
+    user_metadata: { full_name: fullName, type: role }
   })
 
   if (error) {
