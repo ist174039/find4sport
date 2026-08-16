@@ -11,6 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const access = await resolveSessionAccess(supabase, user)
   if (!access || !access.canAccessDashboard) redirect('/auth/login?redirect=/dashboard')
+  if (access.role === 'admin') redirect('/admin')
   if (access.role === 'professional' && !access.hasProfessionalProfile) redirect('/auth/registar/profissional')
   if (access.role === 'venue_manager' && !access.hasManagedSpace) redirect('/auth/registar/espaco')
 
@@ -25,12 +26,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('read_at', null)
 
-  return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-muted/30">
-      <div className="flex w-full">
-        <DashboardSidebar role={access.role} professional={professionalResult.data} space={spaceResult.data} user={user} notificationCount={count || 0} />
-        <DashboardContentShell>{children}</DashboardContentShell>
-      </div>
-    </div>
-  )
+  return <div className="min-h-screen w-full overflow-x-hidden bg-muted/30"><div className="flex w-full"><DashboardSidebar role={access.role} professional={professionalResult.data} space={spaceResult.data} user={user} notificationCount={count || 0} /><DashboardContentShell>{children}</DashboardContentShell></div></div>
 }
