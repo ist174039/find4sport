@@ -15,10 +15,10 @@ export function ContactarProfissionalBtn({
       targetUserId={userId}
       targetName={profName}
       icon={MessageSquare}
-      label="Enviar Mensagem / Marcar Sessão"
+      label="Mensagem"
       emptyTargetMessage="Este profissional ainda não ativou a caixa de mensagens."
       selfTargetMessage="Este é o seu próprio perfil de profissional."
-      initialMessageBuilder={(name) => `Olá ${name}! Gostaria de saber mais informações sobre os seus serviços de treino/consulta.`}
+      initialMessageBuilder={(name) => `Olá ${name}! Gostaria de saber mais informações sobre os seus serviços.`}
       errorMessage="Erro ao enviar mensagem ao profissional."
       successMessage="Mensagem enviada com sucesso! A redirecionar para a caixa de mensagens..."
     />
