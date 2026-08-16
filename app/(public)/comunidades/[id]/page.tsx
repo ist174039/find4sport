@@ -76,14 +76,10 @@ export default async function CommunityProfilePage({ params }: { params: Promise
 
       <EntityDetailLayout
         main={<>
-          <DetailSection title="Sobre a comunidade">
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">{community.description || 'Esta comunidade ainda não tem descrição.'}</p>
-          </DetailSection>
+          <DetailSection title="Sobre a comunidade"><p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">{community.description || 'Esta comunidade ainda não tem descrição.'}</p></DetailSection>
 
           {!canViewPrivateContent ? (
-            <DetailSection>
-              <div className="py-6 text-center"><Lock className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-4 text-xl font-bold">Conteúdo reservado a membros</h2><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Esta comunidade é privada. Envie um pedido de adesão para aceder ao feed e aos membros.</p><div className="mx-auto mt-5 max-w-xs">{actions}</div></div>
-            </DetailSection>
+            <DetailSection><div className="py-6 text-center"><Lock className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-4 text-xl font-bold">Conteúdo reservado a membros</h2><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Esta comunidade é privada. Envie um pedido de adesão para aceder ao feed e aos membros.</p><div className="mx-auto mt-5 max-w-xs">{actions}</div></div></DetailSection>
           ) : (
             <DetailSection title="Feed" icon={<MessageSquare className="h-5 w-5 text-primary" />}>
               {canPost && <CreateCommunityPostBox communityId={community.id} currentUserName={profile?.full_name || ''} currentUserAvatar={profile?.avatar_url || user?.user_metadata?.avatar_url || ''} />}
@@ -98,14 +94,12 @@ export default async function CommunityProfilePage({ params }: { params: Promise
           )}
         </>}
         aside={<>
-          <DetailSection title="Resumo">
-            <div className="grid grid-cols-2 gap-4"><DetailStat label="Membros" value={memberCount} /><DetailStat label="Privacidade" value={community.is_private ? 'Privada' : 'Pública'} />{canViewPrivateContent && <DetailStat label="Publicações" value={posts.length} />}{community.sport_category && <DetailStat label="Tema" value={community.sport_category} />}</div>
-          </DetailSection>
+          <DetailSection title="Resumo"><div className="grid grid-cols-2 gap-4"><DetailStat label="Membros" value={memberCount} /><DetailStat label="Privacidade" value={community.is_private ? 'Privada' : 'Pública'} />{canViewPrivateContent && <DetailStat label="Publicações" value={posts.length} />}{community.sport_category && <DetailStat label="Tema" value={community.sport_category} />}</div></DetailSection>
           {canViewPrivateContent && <DetailSection title="Membros" icon={<Users className="h-5 w-5 text-primary" />}><CommunityMembersList members={members} /></DetailSection>}
         </>}
       />
 
-      {!isMember && <MobileActionBar>{actions}</MobileActionBar>}
+      <MobileActionBar>{actions}</MobileActionBar>
     </main>
   )
 }
