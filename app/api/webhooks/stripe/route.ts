@@ -9,6 +9,8 @@ function normalizeSubscriptionStatus(status: string) { const allowed=new Set(['a
 function cents(value: unknown) { const n=Number(value); return Number.isFinite(n)?n:0 }
 function moneyFromCents(value: unknown) { return cents(value)/100 }
 function missingAuditColumns(error: any) { const code=String(error?.code||''); const msg=String(error?.message||''); return ['42703','PGRST204'].includes(code)||['gross_amount','stripe_payment_intent_id','provider_net_amount','financial_metadata'].some(key=>msg.includes(key)) }
+function refundStatus(status: string|null|undefined): 'pending'|'completed'|'failed' { return status==='succeeded'?'completed':status==='pending'?'pending':'failed' }
+function disputeStatus(status: string|null|undefined): 'pending'|'completed'|'failed' { return status==='lost'?'completed':status==='won'||status==='warning_closed'?'failed':'pending' }
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +22,7 @@ export async function POST(req: Request) {
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
     const adminSupabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const db=adminSupabase as any
     const { data: processedEvent } = await adminSupabase.from('stripe_webhook_events').select('id').eq('event_id', event.id).maybeSingle()
     if (processedEvent) return NextResponse.json({ received: true })
     const recordEvent = async (extra: Record<string, unknown> = {}) => { await adminSupabase.from('stripe_webhook_events').upsert({ event_id:event.id,event_type:event.type,payload:event as any,...extra },{onConflict:'event_id',ignoreDuplicates:true}) }
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
       const customerId=typeof invoice.customer==='string'?invoice.customer:invoice.customer?.id; if(!customerId)return
       const {data:subscriptionRow}=await adminSupabase.from('user_subscriptions').select('user_id').eq('stripe_customer_id',customerId).maybeSingle(); if(!subscriptionRow?.user_id)return
       const invoiceId=invoice.id; const {data:existing}=await adminSupabase.from('transactions').select('id').eq('stripe_charge_id',invoiceId).maybeSingle()
-      const payload={user_id:subscriptionRow.user_id,amount:Number((status==='completed'?invoice.amount_paid:invoice.amount_due)||0)/100,currency:invoice.currency||'eur',type:'subscription_payment',status,stripe_charge_id:invoiceId}
+      const payload={user_id:subscriptionRow.user_id,amount:Number((status==='completed'?invoice.amount_paid:invoice.amount_due)||0)/100,currency:invoice.currency||'eur',type:'subscription_payment',status,stripe_charge_id:invoiceId,financial_metadata:{invoice_id:invoiceId}}
       const result=existing?await adminSupabase.from('transactions').update(payload).eq('id',existing.id):await adminSupabase.from('transactions').insert(payload); if(result.error)throw result.error
     }
 
@@ -63,32 +66,9 @@ export async function POST(req: Request) {
       const transferId=typeof charge?.transfer==='string'?charge.transfer:charge?.transfer?.id||null
       const txType=`${sourceType}_payment`
       const enriched={
-        user_id:buyerUserId,
-        provider_user_id:providerUserId,
-        amount:moneyFromCents(grossCents),
-        gross_amount:moneyFromCents(grossCents),
-        base_amount:moneyFromCents(baseCents),
-        customer_fee_amount:moneyFromCents(customerFeeCents),
-        platform_commission_amount:moneyFromCents(commissionCents),
-        application_fee_amount:moneyFromCents(applicationFeeCents),
-        stripe_processing_fee_amount:moneyFromCents(stripeFeeCents),
-        provider_net_amount:moneyFromCents(providerNetCents),
-        platform_net_amount:moneyFromCents(platformNetCents),
-        commission_rate:Number(metadata.commission_rate||0),
-        customer_fee_rate:Number(metadata.customer_fee_rate||0),
-        currency:session.currency||'eur',
-        type:txType,
-        status:'completed',
-        source_type:sourceType,
-        source_id:sourceId,
-        stripe_charge_id:chargeId,
-        stripe_payment_intent_id:paymentIntentId,
-        stripe_connected_account_id:connectedAccountId,
-        stripe_transfer_id:transferId,
-        financial_metadata:{checkout_session_id:session.id,balance_transaction_id:balance?.id||null,plan_code:metadata.plan_code||null},
+        user_id:buyerUserId,provider_user_id:providerUserId,amount:moneyFromCents(grossCents),gross_amount:moneyFromCents(grossCents),base_amount:moneyFromCents(baseCents),customer_fee_amount:moneyFromCents(customerFeeCents),platform_commission_amount:moneyFromCents(commissionCents),application_fee_amount:moneyFromCents(applicationFeeCents),stripe_processing_fee_amount:moneyFromCents(stripeFeeCents),provider_net_amount:moneyFromCents(providerNetCents),platform_net_amount:moneyFromCents(platformNetCents),commission_rate:Number(metadata.commission_rate||0),customer_fee_rate:Number(metadata.customer_fee_rate||0),currency:session.currency||'eur',type:txType,status:'completed',source_type:sourceType,source_id:sourceId,stripe_charge_id:chargeId,stripe_payment_intent_id:paymentIntentId,stripe_connected_account_id:connectedAccountId,stripe_transfer_id:transferId,financial_metadata:{checkout_session_id:session.id,balance_transaction_id:balance?.id||null,plan_code:metadata.plan_code||null},
       }
-      const db=adminSupabase as any
-      const {data:existing,error:existingError}=await db.from('transactions').select('id').eq('stripe_payment_intent_id',paymentIntentId).maybeSingle()
+      const {data:existing,error:existingError}=await db.from('transactions').select('id').eq('stripe_payment_intent_id',paymentIntentId).in('type',['service_reservation_payment','space_reservation_payment','service_package_payment','event_payment']).maybeSingle()
       let result:any
       if(existingError&&missingAuditColumns(existingError)) result={error:existingError}
       else if(existingError) throw existingError
@@ -98,9 +78,70 @@ export async function POST(req: Request) {
         const legacy={user_id:buyerUserId,amount:moneyFromCents(grossCents),currency:session.currency||'eur',type:txType,status:'completed',stripe_charge_id:chargeId}
         const fallback=legacyExisting?await adminSupabase.from('transactions').update(legacy).eq('id',legacyExisting.id):await adminSupabase.from('transactions').insert(legacy)
         if(fallback.error)throw fallback.error
-        console.warn('Marketplace financial audit columns are not applied yet; persisted legacy transaction only.',{paymentIntentId,sourceType,sourceId})
       }else if(result.error)throw result.error
-      return {paymentIntentId,chargeId,transferId,grossCents,stripeFeeCents,providerNetCents,platformNetCents}
+      return {paymentIntentId,chargeId,transferId}
+    }
+
+    const findOriginalTransaction = async (chargeId?: string|null, paymentIntentId?: string|null) => {
+      const select='id,user_id,provider_user_id,amount,gross_amount,base_amount,provider_net_amount,platform_net_amount,currency,source_type,source_id,stripe_charge_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id,financial_metadata'
+      if(paymentIntentId){const {data}=await db.from('transactions').select(select).eq('stripe_payment_intent_id',paymentIntentId).in('type',['service_reservation_payment','space_reservation_payment','service_package_payment','event_payment']).maybeSingle();if(data)return data}
+      if(chargeId){const {data}=await db.from('transactions').select(select).eq('stripe_charge_id',chargeId).maybeSingle();if(data)return data}
+      return null
+    }
+
+    const persistRefunds = async (charge: Stripe.Charge) => {
+      const paymentIntentId=typeof charge.payment_intent==='string'?charge.payment_intent:charge.payment_intent?.id||null
+      const original=await findOriginalTransaction(charge.id,paymentIntentId)
+      if(!original)return
+      const originalGross=Math.max(Number(original.gross_amount??original.amount??0),0.01)
+      for(const refund of charge.refunds?.data||[]){
+        const ratio=Math.min(1,moneyFromCents(refund.amount)/originalGross)
+        const providerImpact=Number(original.provider_net_amount||0)*ratio
+        const platformImpact=Number(original.platform_net_amount||0)*ratio
+        const payload={
+          user_id:original.provider_user_id||original.user_id,
+          provider_user_id:null,
+          amount:moneyFromCents(refund.amount),gross_amount:moneyFromCents(refund.amount),base_amount:moneyFromCents(refund.amount),provider_net_amount:providerImpact,platform_net_amount:platformImpact,
+          currency:refund.currency||original.currency||'eur',type:'refund',status:refundStatus(refund.status),source_type:original.source_type,source_id:original.source_id,related_transaction_id:original.id,
+          stripe_charge_id:refund.id,stripe_payment_intent_id:original.stripe_payment_intent_id,stripe_connected_account_id:original.stripe_connected_account_id,stripe_transfer_id:original.stripe_transfer_id,
+          financial_metadata:{refund_id:refund.id,refund_reason:refund.reason||null,original_charge_id:charge.id,buyer_user_id:original.user_id,provider_user_id:original.provider_user_id,refund_ratio:ratio},
+        }
+        const {data:existing}=await db.from('transactions').select('id').eq('stripe_charge_id',refund.id).maybeSingle()
+        const result=existing?await db.from('transactions').update(payload).eq('id',existing.id):await db.from('transactions').insert(payload)
+        if(result.error)throw result.error
+      }
+    }
+
+    const persistDispute = async (dispute: Stripe.Dispute) => {
+      const chargeId=typeof dispute.charge==='string'?dispute.charge:dispute.charge?.id||null
+      const paymentIntentId=typeof dispute.payment_intent==='string'?dispute.payment_intent:dispute.payment_intent?.id||null
+      const original=await findOriginalTransaction(chargeId,paymentIntentId)
+      if(!original)return
+      const originalGross=Math.max(Number(original.gross_amount??original.amount??0),0.01)
+      const disputeAmount=moneyFromCents(dispute.amount)
+      const ratio=Math.min(1,disputeAmount/originalGross)
+      const payload={
+        user_id:original.provider_user_id||original.user_id,provider_user_id:null,amount:disputeAmount,gross_amount:disputeAmount,base_amount:disputeAmount,
+        provider_net_amount:Number(original.provider_net_amount||0)*ratio,platform_net_amount:Number(original.platform_net_amount||0)*ratio,currency:dispute.currency||original.currency||'eur',type:'dispute',status:disputeStatus(dispute.status),source_type:original.source_type,source_id:original.source_id,related_transaction_id:original.id,
+        stripe_charge_id:dispute.id,stripe_payment_intent_id:original.stripe_payment_intent_id,stripe_connected_account_id:original.stripe_connected_account_id,stripe_transfer_id:original.stripe_transfer_id,
+        financial_metadata:{dispute_id:dispute.id,dispute_status:dispute.status,dispute_reason:dispute.reason,original_charge_id:chargeId,buyer_user_id:original.user_id,provider_user_id:original.provider_user_id,dispute_ratio:ratio},
+      }
+      const {data:existing}=await db.from('transactions').select('id').eq('stripe_charge_id',dispute.id).maybeSingle()
+      const result=existing?await db.from('transactions').update(payload).eq('id',existing.id):await db.from('transactions').insert(payload)
+      if(result.error)throw result.error
+    }
+
+    const persistTransferReversal = async (transfer: Stripe.Transfer) => {
+      const {data:original}=await db.from('transactions').select('id,user_id,provider_user_id,currency,source_type,source_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id').eq('stripe_transfer_id',transfer.id).in('type',['service_reservation_payment','space_reservation_payment','service_package_payment','event_payment']).maybeSingle()
+      if(!original)return
+      const reversalKey=`transfer_reversal:${transfer.id}`
+      const payload={
+        user_id:original.provider_user_id||original.user_id,provider_user_id:null,amount:moneyFromCents((transfer as any).amount_reversed||0),gross_amount:moneyFromCents((transfer as any).amount_reversed||0),currency:transfer.currency||original.currency||'eur',type:'transfer_reversal',status:'completed',source_type:original.source_type,source_id:original.source_id,related_transaction_id:original.id,
+        stripe_charge_id:reversalKey,stripe_payment_intent_id:original.stripe_payment_intent_id,stripe_connected_account_id:original.stripe_connected_account_id,stripe_transfer_id:transfer.id,financial_metadata:{transfer_id:transfer.id,amount_reversed_cents:(transfer as any).amount_reversed||0,provider_user_id:original.provider_user_id},
+      }
+      const {data:existing}=await db.from('transactions').select('id').eq('stripe_charge_id',reversalKey).maybeSingle()
+      const result=existing?await db.from('transactions').update(payload).eq('id',existing.id):await db.from('transactions').insert(payload)
+      if(result.error)throw result.error
     }
 
     if(event.type==='checkout.session.completed'){
@@ -109,7 +150,6 @@ export async function POST(req: Request) {
 
       const packagePurchaseId=session.metadata?.service_package_purchase_id
       if(packagePurchaseId){
-        const db=adminSupabase as any
         const {data:purchase,error:purchaseError}=await db.from('service_package_purchases').select('id,user_id,package_id,sessions_total,price_paid,status').eq('id',packagePurchaseId).maybeSingle()
         if(purchaseError||!purchase)return NextResponse.json({error:'Package purchase not found'},{status:404})
         const paidAmount=Number(session.amount_total||0)/100
@@ -124,21 +164,16 @@ export async function POST(req: Request) {
           if(error)throw error
         }
         const settlement=await persistMarketplaceTransaction(session,purchase.user_id,'service_package',packagePurchaseId)
-        await recordEvent({service_package_purchase_id:packagePurchaseId,stripe_payment_intent_id:settlement.paymentIntentId})
-        return NextResponse.json({received:true})
+        await recordEvent({service_package_purchase_id:packagePurchaseId,stripe_payment_intent_id:settlement.paymentIntentId});return NextResponse.json({received:true})
       }
 
       const eventParticipantId=session.metadata?.event_participant_id
       if(eventParticipantId){
         const {data:participant}=await adminSupabase.from('event_participants').select('id,event_id,user_id,payment_status,status').eq('id',eventParticipantId).maybeSingle()
         if(!participant)return NextResponse.json({error:'Event participant not found'},{status:404})
-        if(participant.payment_status!=='paid'){
-          const {error}=await adminSupabase.from('event_participants').update({status:'confirmed',payment_status:'paid',updated_at:new Date().toISOString()}).eq('id',eventParticipantId)
-          if(error)throw error
-        }
+        if(participant.payment_status!=='paid'){const {error}=await adminSupabase.from('event_participants').update({status:'confirmed',payment_status:'paid',updated_at:new Date().toISOString()}).eq('id',eventParticipantId);if(error)throw error}
         const settlement=await persistMarketplaceTransaction(session,participant.user_id,'event',eventParticipantId)
-        await recordEvent({event_participant_id:eventParticipantId,stripe_payment_intent_id:settlement.paymentIntentId})
-        return NextResponse.json({received:true})
+        await recordEvent({event_participant_id:eventParticipantId,stripe_payment_intent_id:settlement.paymentIntentId});return NextResponse.json({received:true})
       }
 
       const reservationId=session.metadata?.reservation_id
@@ -147,15 +182,26 @@ export async function POST(req: Request) {
         if(!reservation)return NextResponse.json({error:'Reservation not found'},{status:404})
         const paidAmount=(session.amount_total||0)/100
         if(Number(reservation.amount)!==Number(paidAmount))return NextResponse.json({error:'Amount mismatch'},{status:400})
-        if(reservation.payment_status!=='paid'){
-          const {error}=await adminSupabase.from('reservations').update({status:'paid',payment_status:'paid'}).eq('id',reservationId)
-          if(error)throw error
-        }
+        if(reservation.payment_status!=='paid'){const {error}=await adminSupabase.from('reservations').update({status:'paid',payment_status:'paid'}).eq('id',reservationId);if(error)throw error}
         const sourceType=reservation.space_id?'space_reservation':'service_reservation'
         const settlement=await persistMarketplaceTransaction(session,reservation.user_id,sourceType,reservationId)
-        await recordEvent({reservation_id:reservationId,stripe_payment_intent_id:settlement.paymentIntentId})
-        return NextResponse.json({received:true})
+        await recordEvent({reservation_id:reservationId,stripe_payment_intent_id:settlement.paymentIntentId});return NextResponse.json({received:true})
       }
+    }
+
+    if(event.type==='charge.refunded'){const charge=event.data.object as Stripe.Charge;await persistRefunds(charge);await recordEvent({stripe_payment_intent_id:typeof charge.payment_intent==='string'?charge.payment_intent:charge.payment_intent?.id||null});return NextResponse.json({received:true})}
+    if(event.type==='charge.dispute.created'||event.type==='charge.dispute.updated'||event.type==='charge.dispute.closed'){const dispute=event.data.object as Stripe.Dispute;await persistDispute(dispute);await recordEvent({stripe_payment_intent_id:typeof dispute.payment_intent==='string'?dispute.payment_intent:dispute.payment_intent?.id||null});return NextResponse.json({received:true})}
+    if(event.type==='transfer.reversed'){const transfer=event.data.object as Stripe.Transfer;await persistTransferReversal(transfer);await recordEvent();return NextResponse.json({received:true})}
+    if(event.type==='transfer.created'||event.type==='transfer.updated'){
+      const transfer=event.data.object as Stripe.Transfer
+      const destination=typeof transfer.destination==='string'?transfer.destination:transfer.destination?.id||null
+      await db.from('transactions').update({stripe_connected_account_id:destination||undefined,financial_metadata:{transfer_status_event:event.type,transfer_id:transfer.id}}).eq('stripe_transfer_id',transfer.id)
+      await recordEvent();return NextResponse.json({received:true})
+    }
+    if(event.type==='payout.created'||event.type==='payout.updated'||event.type==='payout.paid'||event.type==='payout.failed'||event.type==='payout.canceled'){
+      const payout=event.data.object as Stripe.Payout
+      await recordEvent({stripe_connected_account_id:typeof event.account==='string'?event.account:null,financial_metadata:{payout_id:payout.id,payout_status:payout.status,payout_amount:payout.amount,payout_currency:payout.currency}} as any)
+      return NextResponse.json({received:true})
     }
 
     if(event.type==='customer.subscription.created'||event.type==='customer.subscription.updated'||event.type==='customer.subscription.deleted'){const subscription=event.data.object as Stripe.Subscription; await syncSubscription(subscription,event.type==='customer.subscription.deleted'); await recordEvent(); return NextResponse.json({received:true})}
