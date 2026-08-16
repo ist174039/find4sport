@@ -1,648 +1,93 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { Building2, Camera, ExternalLink, MapPin, UserRound } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { resolveSessionAccess } from '@/lib/auth/access'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import Link from 'next/link'
-import { CheckCircle, Upload, Loader2, User as UserIcon, Camera, MapPin, Briefcase, Globe, ExternalLink, X, Search, Image as ImageIcon } from 'lucide-react'
+import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
+import { updateProfileAction, uploadAvatarAction, uploadBannerAction } from './actions'
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
-import type { Professional, Category } from '@/lib/types'
 
-export default function ProfilePage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [isProfessional, setIsProfessional] = useState(false)
-  const [professional, setProfessional] = useState<Professional | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [categorySearch, setCategorySearch] = useState('')
-  
-  const [formData, setFormData] = useState({
-    full_name: '',
-    professional_name: '',
-    bio: '',
-    email: '',
-    phone: '',
-    whatsapp: '',
-    address: '',
-    website: '',
-    service_radius_km: 10,
-    avatar_url: '',
-    location: '',
-    language: 'pt',
-    nif: '',
-    banner_url: ''
-  })
+export default async function ProfilePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login?redirect=/dashboard/perfil')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.role) redirect('/auth/login')
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = e.target.files?.[0]
-      if (!file) return
+  const [{ data: platformUser }, { data: categories }] = await Promise.all([
+    supabase.from('platform_users').select('id, full_name, avatar_url, banner_url, location, language').eq('id', user.id).maybeSingle(),
+    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji').order('name') : Promise.resolve({ data: [] as any[] }),
+  ])
 
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${fileName}`
-
-      setSaving(true)
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file)
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath)
-
-      setFormData(prev => ({ ...prev, avatar_url: publicUrlData.publicUrl }))
-    } catch (error: any) {
-      console.error('Error uploading avatar:', error)
-      alert(`Erro ao fazer upload: ${error?.message || 'Erro desconhecido'}`)
-    } finally {
-      setSaving(false)
-    }
+  let professional: any = null
+  let selectedCategoryIds: string[] = []
+  if (access.role === 'professional') {
+    const { data } = await supabase.from('professionals').select('*, professional_categories(category_id)').eq('user_id', user.id).maybeSingle()
+    professional = data
+    selectedCategoryIds = (data?.professional_categories || []).map((row: any) => row.category_id)
   }
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = e.target.files?.[0]
-      if (!file) return
-
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-banner-${Math.random().toString(36).substring(7)}.${fileExt}`
-      const filePath = `${fileName}`
-
-      setSaving(true)
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file)
-
-      if (uploadError) {
-        throw uploadError
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath)
-
-      setFormData(prev => ({ ...prev, banner_url: publicUrl }))
-      
-    } catch (error: any) {
-      console.error('Error uploading banner:', error)
-      alert(`Erro ao fazer upload: ${error?.message || 'Erro desconhecido'}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  useEffect(() => {
-    async function fetchData() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-
-      const { data: proData } = await supabase
-        .from('professionals')
-        .select(`*, professional_categories(category_id)`)
-        .eq('user_id', user.id)
-        .single()
-
-      const { data: platformUser } = await supabase
-        .from('platform_users')
-        .select('location, language, banner_url')
-        .eq('id', user.id)
-        .single()
-
-      if (proData) {
-        setIsProfessional(true)
-        setProfessional(proData)
-        setFormData({
-          full_name: proData.full_name || user.user_metadata?.full_name || '',
-          professional_name: proData.professional_name || '',
-          bio: proData.bio || '',
-          email: proData.email || user.email || '',
-          phone: proData.phone || '',
-          whatsapp: proData.whatsapp || '',
-          address: proData.address || '',
-          website: proData.website || '',
-          service_radius_km: proData.service_radius_km || 10,
-          avatar_url: proData.avatar_url || user.user_metadata?.avatar_url || '',
-          location: platformUser?.location || '',
-          language: platformUser?.language || 'pt',
-          nif: proData.nif || user.user_metadata?.nif || '',
-          banner_url: platformUser?.banner_url || ''
-        })
-        setSelectedCategories(
-          proData.professional_categories?.map((pc: { category_id: string }) => pc.category_id) || []
-        )
-        
-        const { data: catData } = await supabase.from('categories').select('*').order('name')
-        if (catData) setCategories(catData)
-      } else {
-        setIsProfessional(false)
-        setFormData(prev => ({
-          ...prev,
-          full_name: user.user_metadata?.full_name || '',
-          email: user.email || '',
-          avatar_url: user.user_metadata?.avatar_url || '',
-          location: platformUser?.location || '',
-          language: platformUser?.language || 'pt',
-          phone: user.user_metadata?.phone || '',
-          nif: user.user_metadata?.nif || '',
-          banner_url: platformUser?.banner_url || ''
-        }))
-      }
-
-      setLoading(false)
-    }
-
-    fetchData()
-  }, [router])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  const toggleCategory = (categoryId: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
-    )
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) return
-
-    try {
-      if (isProfessional && professional) {
-        await supabase
-          .from('professionals')
-          .update({
-            full_name: formData.full_name,
-            professional_name: formData.professional_name,
-            bio: formData.bio,
-            phone: formData.phone,
-            whatsapp: formData.whatsapp,
-            address: formData.address,
-            website: formData.website,
-            avatar_url: formData.avatar_url,
-            service_radius_km: formData.service_radius_km,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', professional.id)
-
-        await supabase.from('professional_categories').delete().eq('professional_id', professional.id)
-        if (selectedCategories.length > 0) {
-          await supabase.from('professional_categories').insert(
-            selectedCategories.map((catId, index) => ({
-              professional_id: professional.id,
-              category_id: catId,
-              is_primary: index === 0,
-            }))
-          )
-        }
-      }
-
-      await supabase.auth.updateUser({
-        data: { 
-          full_name: formData.full_name,
-          avatar_url: formData.avatar_url,
-          phone: formData.phone,
-          nif: formData.nif
-        }
-      })
-
-      await supabase
-        .from('platform_users')
-        .update({
-          full_name: formData.full_name,
-          location: formData.location,
-          language: formData.language,
-          banner_url: formData.banner_url
-        })
-        .eq('id', user.id)
-
-      router.refresh()
-    } catch (error) {
-      console.error('Error saving profile:', error)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  const initials = formData.full_name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
+  const avatarUrl = professional?.avatar_url || platformUser?.avatar_url || user.user_metadata?.avatar_url || null
+  const bannerUrl = professional?.cover_url || platformUser?.banner_url || null
+  const publicProfileHref = access.role === 'professional' && professional ? `/profissionais/${professional.public_slug || professional.id}` : access.role === 'venue_manager' ? '/dashboard/espaco' : null
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-12">
-      
-      {/* Header Section - Standard Homepage Layout */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-border">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">O Meu Perfil</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            {isProfessional ? 'Gere a tua presença pública e atualiza as tuas informações na plataforma.' : 'Atualiza os teus dados pessoais.'}
-          </p>
-        </div>
-        
-        {isProfessional && professional && (
-          <Link href={`/profissionais/${professional.public_slug || professional.id}`} target="_blank">
-            <Button variant="outline" className="gap-2 font-bold rounded-xl border-primary text-primary hover:bg-primary/10 shadow-sm">
-              <Globe className="w-4 h-4" />
-              Ver Perfil Público Online
-              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-            </Button>
-          </Link>
-        )}
-      </div>
+    <DashboardPage>
+      <DashboardPageHeader
+        title="O Meu Perfil"
+        description={access.role === 'professional' ? 'Identidade pessoal e informação pública do seu perfil profissional.' : access.role === 'venue_manager' ? 'Dados pessoais da conta. A informação comercial do espaço é gerida em “O Meu Espaço”.' : 'Dados pessoais da sua conta Find4Sport.'}
+        action={publicProfileHref ? <Button asChild variant="outline" className="min-h-11"><Link href={publicProfileHref} target={access.role === 'professional' ? '_blank' : undefined}>{access.role === 'professional' ? 'Ver perfil público' : 'Gerir espaço'}<ExternalLink className="ml-2 h-4 w-4" /></Link></Button> : undefined}
+      />
 
-      {isProfessional && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Link href="/dashboard/reservas" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Operação</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Gerir Reservas</p>
-            <p className="mt-1 text-xs text-muted-foreground">Confirmação e estado dos serviços.</p>
-          </Link>
-          <Link href="/dashboard/agenda" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Disponibilidade</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Agenda e Horas</p>
-            <p className="mt-1 text-xs text-muted-foreground">Controla horários e confirma horas de serviço.</p>
-          </Link>
-          <Link href="/dashboard/eventos" className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:bg-primary/5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Eventos</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Gestão de Eventos</p>
-            <p className="mt-1 text-xs text-muted-foreground">Publicar, editar e acompanhar atividade.</p>
-          </Link>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* Banner Section */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm mb-6">
-          <h3 className="font-bold text-base mb-4">Imagem de Fundo (Banner)</h3>
-          <p className="text-xs text-muted-foreground mb-4">Esta imagem vai aparecer no topo do seu perfil público.</p>
-          <div className="relative group rounded-xl overflow-hidden h-32 md:h-48 bg-muted border border-border flex items-center justify-center">
-            {formData.banner_url ? (
-              <img src={formData.banner_url} alt="Banner" className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-muted-foreground flex flex-col items-center">
-                <ImageIcon className="h-8 w-8 mb-2 opacity-50" />
-                <span className="text-sm font-medium">Nenhum banner</span>
-              </div>
-            )}
-            <label htmlFor="banner-upload" className="cursor-pointer absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Button type="button" variant="secondary" className="pointer-events-none gap-2">
-                <Upload className="w-4 h-4" /> Alterar Banner
-              </Button>
-            </label>
-            <input 
-              id="banner-upload"
-              type="file" 
-              accept="image/*" 
-              onChange={handleBannerUpload}
-              disabled={saving}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
+      <DashboardSection title="Imagem e capa" description="JPEG, PNG ou WebP até 5 MB. Os ficheiros são guardados no Storage; a base de dados guarda apenas os URLs.">
+        <div className="grid gap-5 md:grid-cols-[180px_1fr]">
+          <div className="space-y-3">
+            <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-border bg-primary/10 text-3xl font-bold text-primary md:mx-0">{avatarUrl ? <img src={avatarUrl} alt="Foto de perfil" className="h-full w-full object-cover" /> : (platformUser?.full_name || 'U').charAt(0)}</div>
+            <form action={uploadAvatarAction} className="space-y-2"><Input type="file" name="file" accept="image/jpeg,image/png,image/webp" required className="min-h-11 text-base" /><Button type="submit" variant="outline" className="min-h-11 w-full"><Camera className="mr-2 h-4 w-4" />Atualizar foto</Button></form>
+          </div>
+          <div className="space-y-3">
+            <div className="aspect-[3/1] min-h-32 overflow-hidden rounded-2xl border border-border bg-muted">{bannerUrl ? <img src={bannerUrl} alt="Capa" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Sem imagem de capa</div>}</div>
+            <form action={uploadBannerAction} className="grid gap-2 sm:grid-cols-[1fr_auto]"><Input type="file" name="file" accept="image/jpeg,image/png,image/webp" required className="min-h-11 text-base" /><Button type="submit" variant="outline" className="min-h-11">Atualizar capa</Button></form>
           </div>
         </div>
-        
-        {/* Avatar Section - Standard Card */}
-        <div className="bg-card border border-border rounded-xl p-6 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
-          <div className="relative group shrink-0">
-            <Avatar className="h-24 w-24 border border-border shadow-sm">
-              <AvatarImage src={formData.avatar_url || undefined} />
-              <AvatarFallback className="text-3xl bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
-            </Avatar>
-            <label htmlFor="avatar-upload" className="cursor-pointer absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Camera className="h-6 w-6 text-white" />
-            </label>
+      </DashboardSection>
+
+      <DashboardSection title="Informação do perfil" description="A informação é guardada no servidor e sincronizada com a identidade da conta.">
+        <form action={updateProfileAction} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="full_name">Nome *</Label><Input id="full_name" name="full_name" defaultValue={professional?.full_name || platformUser?.full_name || user.user_metadata?.full_name || ''} required className="min-h-11 text-base" /></div>
+            <div className="space-y-2"><Label>Email</Label><Input value={user.email || ''} disabled className="min-h-11 text-base" /><p className="text-xs text-muted-foreground">O email de autenticação não é alterado nesta página.</p></div>
+            <div className="space-y-2"><Label htmlFor="phone">Telefone</Label><Input id="phone" name="phone" defaultValue={professional?.phone || user.user_metadata?.phone || ''} className="min-h-11 text-base" autoComplete="tel" /></div>
+            <div className="space-y-2"><Label htmlFor="location">Localização</Label><Input id="location" name="location" defaultValue={platformUser?.location || ''} className="min-h-11 text-base" /></div>
+            <div className="space-y-2"><Label htmlFor="language">Idioma</Label><select id="language" name="language" defaultValue={platformUser?.language || 'pt'} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base"><option value="pt">Português</option><option value="en">English</option><option value="fr">Français</option></select></div>
+            <div className="space-y-2"><Label htmlFor="nif">NIF</Label><Input id="nif" name="nif" defaultValue={professional?.nif || user.user_metadata?.nif || ''} className="min-h-11 text-base" inputMode="numeric" /></div>
           </div>
-          <div className="text-center sm:text-left">
-            <h3 className="font-bold text-base mb-1">Fotografia de Perfil</h3>
-            <p className="text-xs text-muted-foreground mb-4 max-w-sm">Esta imagem será visível para todos os utilizadores da plataforma.</p>
-            <div className="relative inline-block">
-              <Button type="button" variant="outline" className="rounded-lg border-border hover:bg-muted text-xs h-9 gap-1.5 pointer-events-none">
-                <Upload className="h-3.5 w-3.5" /> Alterar Foto
-              </Button>
-              <input 
-                id="avatar-upload"
-                type="file" 
-                accept="image/*" 
-                onChange={handleAvatarUpload}
-                disabled={saving}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Basic Info Section - Standard Card */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-          <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
-             <UserIcon className="h-4.5 w-4.5 text-primary" /> Informações Básicas
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name" className="text-xs font-semibold text-foreground/80">Nome completo *</Label>
-              <Input
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleInputChange}
-                required
-                className="rounded-lg h-10 bg-background border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-semibold text-foreground/80">Email *</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                disabled
-                className="rounded-lg h-10 bg-muted border-border opacity-70 cursor-not-allowed"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-xs font-semibold text-foreground/80">Telefone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="rounded-lg h-10 bg-background border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nif" className="text-xs font-semibold text-foreground/80">NIF</Label>
-              <Input
-                id="nif"
-                name="nif"
-                value={formData.nif}
-                onChange={handleInputChange}
-                className="rounded-lg h-10 bg-background border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location" className="text-xs font-semibold text-foreground/80">Morada / Localidade</Label>
-              <Input
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Ex: Lisboa, Portugal"
-                className="rounded-lg h-10 bg-background border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="language" className="text-xs font-semibold text-foreground/80">Idioma de Preferência</Label>
-              <Select value={formData.language} onValueChange={(val) => setFormData(p => ({...p, language: val || 'pt'}))}>
-                <SelectTrigger className="w-full rounded-lg h-10 bg-background border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pt">Português (PT)</SelectItem>
-                  <SelectItem value="en">English (EN)</SelectItem>
-                  <SelectItem value="es">Español (ES)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Professional Details */}
-        {isProfessional && (
-          <>
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
-                <Briefcase className="h-4.5 w-4.5 text-teal-500" /> Detalhes Profissionais
-              </h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="professional_name" className="text-xs font-semibold text-foreground/80">Nome Profissional</Label>
-                <Input
-                  id="professional_name"
-                  name="professional_name"
-                  value={formData.professional_name}
-                  onChange={handleInputChange}
-                  placeholder="Ex: PT João Silva"
-                  className="rounded-lg h-10 bg-background border-border"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="text-xs font-semibold text-foreground/80">Biografia</Label>
-                <Textarea
-                  id="bio"
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleInputChange}
-                  placeholder="Conta um pouco sobre a tua experiência..."
-                  rows={4}
-                  className="rounded-lg bg-background border-border resize-none text-sm"
-                />
-              </div>
-              
-              <div className="space-y-4 pt-2">
-                <div>
-                  <Label className="text-xs font-semibold text-foreground/80 mb-2 block">Modalidades Selecionadas</Label>
-                  {selectedCategories.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">Nenhuma modalidade selecionada.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {selectedCategories.map((catId) => {
-                        const cat = categories.find(c => c.id === catId)
-                        if (!cat) return null
-                        return (
-                          <Badge
-                            key={cat.id}
-                            variant="default"
-                            className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-primary hover:bg-primary/90"
-                          >
-                            {cat.emoji} {cat.name}
-                            <X 
-                              className="h-3 w-3 cursor-pointer ml-1 hover:text-white/70" 
-                              onClick={(e) => { e.preventDefault(); toggleCategory(cat.id); }} 
-                            />
-                          </Badge>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Pesquisar modalidades..."
-                    value={categorySearch}
-                    onChange={(e) => setCategorySearch(e.target.value)}
-                    className="pl-9 h-10 bg-background rounded-lg"
-                  />
-                </div>
-
-                <div className="border rounded-lg overflow-hidden bg-background">
-                  <Accordion className="w-full">
-                    {categories.filter(c => !c.parent_id).filter(parent => {
-                      if (!categorySearch) return true
-                      const lowerSearch = categorySearch.toLowerCase()
-                      const children = categories.filter(c => c.parent_id === parent.id)
-                      return parent.name.toLowerCase().includes(lowerSearch) || children.some(child => child.name.toLowerCase().includes(lowerSearch))
-                    }).map((parent) => {
-                      const lowerSearch = categorySearch.toLowerCase()
-                      const parentMatches = parent.name.toLowerCase().includes(lowerSearch)
-                      
-                      const allChildren = categories.filter(c => c.parent_id === parent.id)
-                      const children = categorySearch 
-                        ? allChildren.filter(child => parentMatches || child.name.toLowerCase().includes(lowerSearch))
-                        : allChildren
-                      
-                      // Se não tem filhos, apresentamos a própria categoria como selecionável (fallback)
-                      if (allChildren.length === 0) {
-                        const isSelected = selectedCategories.includes(parent.id)
-                        return (
-                          <div key={parent.id} className="p-3 border-b last:border-0 flex items-center justify-between hover:bg-muted/50">
-                            <span className="text-sm font-medium">{parent.emoji} {parent.name}</span>
-                            <Badge
-                              variant={isSelected ? 'default' : 'outline'}
-                              className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
-                              onClick={() => toggleCategory(parent.id)}
-                            >
-                              {isSelected ? 'Selecionado' : 'Selecionar'}
-                            </Badge>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <AccordionItem value={parent.id} key={parent.id} className="border-b last:border-0 px-1">
-                          <AccordionTrigger className="hover:no-underline hover:bg-muted/30 px-3 py-3 rounded-md text-sm font-semibold">
-                            <div className="flex items-center gap-2">
-                              <span>{parent.emoji} {parent.name}</span>
-                              <Badge variant="secondary" className="text-[10px] ml-2 font-normal">
-                                {children.length} {children.length === 1 ? 'opção' : 'opções'}
-                              </Badge>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-3 pb-4">
-                            <div className="flex flex-wrap gap-2 pt-2">
-                              {children.map(child => {
-                                const isSelected = selectedCategories.includes(child.id)
-                                return (
-                                  <Badge
-                                    key={child.id}
-                                    variant={isSelected ? 'default' : 'outline'}
-                                    className={`cursor-pointer transition-all px-2.5 py-1 text-xs rounded-md ${isSelected ? 'bg-primary hover:bg-primary/90' : 'hover:bg-muted'}`}
-                                    onClick={() => toggleCategory(child.id)}
-                                  >
-                                    {child.emoji} {child.name}
-                                    {isSelected && <CheckCircle className="h-3 w-3 ml-1.5" />}
-                                  </Badge>
-                                )
-                              })}
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      )
-                    })}
-                  </Accordion>
-                </div>
-              </div>
+          {access.role === 'professional' && professional && <>
+            <div className="border-t border-border pt-5"><h3 className="font-semibold">Perfil profissional</h3><p className="mt-1 text-sm text-muted-foreground">Dados apresentados aos clientes na página pública.</p></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="professional_name">Nome profissional</Label><Input id="professional_name" name="professional_name" defaultValue={professional.professional_name || ''} className="min-h-11 text-base" /></div>
+              <div className="space-y-2"><Label htmlFor="service_radius_km">Raio de serviço (km)</Label><Input id="service_radius_km" name="service_radius_km" type="number" min="1" max="200" defaultValue={professional.service_radius_km || 10} className="min-h-11 text-base" /></div>
+              <div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" name="whatsapp" defaultValue={professional.whatsapp || ''} className="min-h-11 text-base" /></div>
+              <div className="space-y-2"><Label htmlFor="website">Website</Label><Input id="website" name="website" type="url" defaultValue={professional.website || ''} className="min-h-11 text-base" /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">Morada / zona de atendimento</Label><Input id="address" name="address" defaultValue={professional.address || ''} className="min-h-11 text-base" /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="bio">Biografia</Label><Textarea id="bio" name="bio" defaultValue={professional.bio || ''} className="min-h-36 text-base" maxLength={3000} /></div>
             </div>
 
-            {/* Qualifications & Certifications Manager */}
-            {professional && (
-              <QualificationsManager professionalId={professional.id} />
-            )}
+            {(categories || []).length > 0 && <div className="space-y-2"><Label>Modalidades</Label><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{(categories || []).map((category: any) => <label key={category.id} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-border px-3 py-2 text-sm"><input type="checkbox" name="category_ids" value={category.id} defaultChecked={selectedCategoryIds.includes(category.id)} className="h-5 w-5" /><span>{category.emoji ? `${category.emoji} ` : ''}{category.name}</span></label>)}</div></div>}
+          </>}
 
-            <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
-              <h3 className="font-bold text-base border-b border-border pb-3 flex items-center gap-2">
-                <MapPin className="h-4.5 w-4.5 text-amber-500" /> Localização & Contactos
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp" className="text-xs font-semibold">WhatsApp Profissional</Label>
-                  <Input id="whatsapp" name="whatsapp" value={formData.whatsapp} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="website" className="text-xs font-semibold">Website Profissional</Label>
-                  <Input id="website" name="website" type="url" value={formData.website} onChange={handleInputChange} placeholder="https://" className="rounded-lg h-10 bg-background border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-xs font-semibold">Morada / Zona de Atuação</Label>
-                  <Input id="address" name="address" value={formData.address} onChange={handleInputChange} className="rounded-lg h-10 bg-background border-border" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="service_radius_km" className="text-xs font-semibold">Raio de Deslocação</Label>
-                  <Select value={String(formData.service_radius_km)} onValueChange={(val) => setFormData(p => ({...p, service_radius_km: Number(val)}))}>
-                    <SelectTrigger className="w-full rounded-lg h-10 bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">Até 5 km</SelectItem>
-                      <SelectItem value="10">Até 10 km</SelectItem>
-                      <SelectItem value="20">Até 20 km</SelectItem>
-                      <SelectItem value="50">Até 50 km</SelectItem>
-                      <SelectItem value="100">Qualquer zona (Online)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+          {access.role === 'venue_manager' && <div className="rounded-2xl border border-border bg-muted/30 p-4"><div className="flex items-start gap-3"><Building2 className="mt-0.5 h-5 w-5 text-primary" /><div><p className="font-semibold">Informação do espaço separada</p><p className="mt-1 text-sm text-muted-foreground">Nome, descrição, contactos, comodidades, morada e instalações são geridos em “O Meu Espaço”, evitando misturar identidade pessoal e entidade comercial.</p><Button asChild variant="link" className="mt-2 h-auto p-0"><Link href="/dashboard/espaco">Gerir o meu espaço</Link></Button></div></div></div>}
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={() => router.back()} className="rounded-lg h-10 px-5 hover:bg-muted border-border transition-all">
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={saving} className="rounded-lg h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm transition-all">
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Guardar Alterações
-          </Button>
-        </div>
-      </form>
-    </div>
+          <Button type="submit" className="min-h-11 w-full sm:w-auto"><UserRound className="mr-2 h-4 w-4" />Guardar perfil</Button>
+        </form>
+      </DashboardSection>
+
+      {access.role === 'professional' && professional && <DashboardSection title="Qualificações" description="Certificações e formação associadas ao perfil profissional."><QualificationsManager professionalId={professional.id} /></DashboardSection>}
+    </DashboardPage>
   )
 }
