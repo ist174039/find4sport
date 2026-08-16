@@ -1,135 +1,58 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, X } from 'lucide-react'
+import { Users, X, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { isPlatformRole } from '@/lib/auth/roles'
+import { UserAvatar } from '@/components/user-avatar'
 
 const resolveUserLink = (u: any) => {
   if (!u || !isPlatformRole(u.type)) return '#'
-  if (u.type === 'professional') {
-    return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
-  }
-  if (u.type === 'venue_manager') {
-    return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
-  }
+  if (u.type === 'professional') return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
+  if (u.type === 'venue_manager') return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
   return `/utilizadores/${u.id}`
 }
 
 const resolveUserInfo = (u: any) => {
   let name = u?.full_name || 'Utilizador'
-  let avatar = u?.avatar_url
-
+  let avatar = u?.avatar_url || null
   if (!u || !isPlatformRole(u.type)) return { name, avatar }
-
   if (u.type === 'professional') {
-    name = u.professionals?.[0]?.full_name || name
+    name = u.professionals?.[0]?.professional_name || u.professionals?.[0]?.full_name || name
     avatar = u.professionals?.[0]?.avatar_url || avatar
   } else if (u.type === 'venue_manager') {
     name = u.sport_spaces?.[0]?.name || name
     avatar = u.sport_spaces?.[0]?.logo_url || avatar
   }
-
   return { name, avatar }
 }
 
-export function CommunityMembersList({
-  members,
-  memberCount,
-}: {
-  members: any[]
-  memberCount: number
-}) {
+export function CommunityMembersList({ members, memberCount }: { members: any[]; memberCount: number }) {
   const [open, setOpen] = useState(false)
+  const safeCount = Math.max(Number(memberCount || 0), members.length)
   const displayMembers = members.slice(0, 5)
-  const remaining = Math.max(0, memberCount - 5)
+  const remaining = Math.max(0, safeCount - displayMembers.length)
 
   return (
-    <div className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-lg text-foreground">Membros Ativos</h3>
-        <button onClick={() => setOpen(true)} className="text-primary text-xs font-bold cursor-pointer hover:underline">
-          Ver Todos
-        </button>
+    <div className="min-w-0">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="min-w-0"><p className="font-semibold text-foreground">{safeCount} {safeCount === 1 ? 'membro' : 'membros'}</p><p className="text-xs text-muted-foreground">Toca num membro para abrir o perfil.</p></div>
+        {members.length > 0 && <button type="button" onClick={() => setOpen(true)} className="shrink-0 text-xs font-bold text-primary hover:underline">Ver todos</button>}
       </div>
 
-      {members.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sem membros visíveis ainda.</p>
-      ) : (
-        <div className="flex -space-x-4">
-          {displayMembers.map((m: any, i: number) => {
-            const user = m.platform_users
-            const { name, avatar } = resolveUserInfo(user)
-            const userLink = user ? resolveUserLink(user) : '#'
-
-            return (
-              <Link
-                key={m.id || i}
-                href={userLink}
-                title={name}
-                className="w-12 h-12 rounded-full border-2 border-background bg-muted overflow-hidden relative shadow-sm hover:scale-110 hover:z-20 transition-all cursor-pointer"
-              >
-                <img
-                  src={avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`}
-                  alt={name}
-                  className="w-full h-full object-cover"
-                />
-              </Link>
-            )
-          })}
-          {remaining > 0 && (
-            <div
-              onClick={() => setOpen(true)}
-              className="w-12 h-12 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shadow-sm relative z-10 cursor-pointer hover:brightness-90 transition-all"
-            >
-              +{remaining}
-            </div>
-          )}
+      {members.length === 0 ? <p className="text-sm text-muted-foreground">Sem membros visíveis.</p> : (
+        <div className="flex -space-x-3">
+          {displayMembers.map((m: any, index: number) => { const user = m.platform_users; const { name, avatar } = resolveUserInfo(user); return <Link key={m.id || index} href={resolveUserLink(user)} title={name} className="relative z-0 h-12 w-12 overflow-hidden rounded-full border-2 border-background bg-muted shadow-sm transition hover:z-10 hover:scale-110"><UserAvatar name={name} src={avatar} className="h-full w-full" /></Link> })}
+          {remaining > 0 && <button type="button" onClick={() => setOpen(true)} className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-bold text-muted-foreground shadow-sm">+{remaining}</button>}
         </div>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card border border-border w-full max-w-md rounded-3xl overflow-hidden shadow-xl relative animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-            <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card z-10">
-              <div className="flex items-center gap-2">
-                <Users className="text-primary h-5 w-5" />
-                <h3 className="text-lg font-bold text-foreground">Todos os Membros</h3>
-              </div>
-              <button onClick={() => setOpen(false)} className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {members.map((m: any) => {
-                const user = m.platform_users
-                const { name, avatar } = resolveUserInfo(user)
-                const userLink = user ? resolveUserLink(user) : '#'
-
-                return (
-                  <Link
-                    key={m.id}
-                    href={userLink}
-                    onClick={() => setOpen(false)}
-                    className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted transition-colors border border-transparent hover:border-border cursor-pointer group"
-                  >
-                    <img
-                      src={avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`}
-                      alt={name}
-                      className="w-12 h-12 rounded-full object-cover border border-border group-hover:border-primary/50 transition-colors"
-                    />
-                    <div className="flex-1">
-                      <p className="font-bold text-foreground text-sm group-hover:text-primary transition-colors">{name}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{m.role === 'admin' ? 'Administrador' : 'Membro'}</p>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
+      {open && <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setOpen(false)}>
+        <div className="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-xl sm:rounded-3xl" onClick={event => event.stopPropagation()}>
+          <div className="flex shrink-0 items-center justify-between border-b border-border p-4 sm:p-5"><div><h3 className="font-bold">Membros</h3><p className="text-xs text-muted-foreground">{safeCount} no total</p></div><button type="button" onClick={() => setOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-muted"><X className="h-5 w-5" /></button></div>
+          <div className="flex-1 overflow-y-auto p-2 sm:p-3">{members.map((m: any) => { const user = m.platform_users; const { name, avatar } = resolveUserInfo(user); const href = resolveUserLink(user); return <Link key={m.id} href={href} onClick={() => setOpen(false)} className="flex min-h-16 items-center gap-3 rounded-xl p-3 transition hover:bg-muted"><UserAvatar name={name} src={avatar} size="lg" roleLabel={m.role === 'admin' ? 'Administrador' : undefined} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{name}</p><p className="text-xs text-muted-foreground">{m.role === 'admin' ? 'Administrador' : 'Membro'}</p></div><ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" /></Link> })}</div>
         </div>
-      )}
+      </div>}
     </div>
   )
 }
