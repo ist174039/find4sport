@@ -1,97 +1,90 @@
-'use client';
-import { Gavel } from 'lucide-react'
+import { Gavel, ShieldAlert } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { dismissContentReportAction, removeReportedContentAction } from '@/app/admin/actions/moderation'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { TablePagination } from '@/components/ui/table-pagination'
+const reasonLabel: Record<string, string> = {
+  spam: 'Spam',
+  harassment: 'Assédio',
+  hate: 'Discurso de ódio',
+  nudity: 'Conteúdo sexual/nudez',
+  violence: 'Violência',
+  fraud: 'Fraude',
+  other: 'Outro',
+}
 
-export default function Page() {
-  const [reports, setReports] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
-  const paginatedData = reports.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-  const totalPages = Math.ceil(reports.length / ITEMS_PER_PAGE)
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [reports.length])
-
- useEffect(() => {
-  async function load() {
-   // For now, load bad reviews as moderation queue
-   const supabase = createClient()
-   const { data } = await supabase
-    .from('reviews')
-    .select('*, platform_users:user_id(full_name)')
-    .lte('rating', 2)
+export default async function Page() {
+  const admin = createAdminClient()
+  const { data: reports = [] } = await admin
+    .from('content_reports')
+    .select('id, reporter_user_id, target_type, target_id, reason, details, status, created_at')
+    .in('status', ['pending', 'reviewing'])
     .order('created_at', { ascending: false })
-   
-   setReports(data || [])
-   setLoading(false)
+
+  const reporterIds = [...new Set(reports.map((report: any) => report.reporter_user_id))]
+  const postIds = reports.filter((r: any) => r.target_type === 'post').map((r: any) => r.target_id)
+  const commentIds = reports.filter((r: any) => r.target_type === 'comment').map((r: any) => r.target_id)
+  const communityIds = reports.filter((r: any) => r.target_type === 'community').map((r: any) => r.target_id)
+
+  const [{ data: reporters = [] }, { data: posts = [] }, { data: comments = [] }, { data: communities = [] }] = await Promise.all([
+    reporterIds.length ? admin.from('platform_users').select('id, full_name').in('id', reporterIds) : Promise.resolve({ data: [] as any[] }),
+    postIds.length ? admin.from('posts').select('id, content').in('id', postIds) : Promise.resolve({ data: [] as any[] }),
+    commentIds.length ? admin.from('post_comments').select('id, content').in('id', commentIds) : Promise.resolve({ data: [] as any[] }),
+    communityIds.length ? admin.from('communities').select('id, name, description').in('id', communityIds) : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const reporterMap = new Map(reporters.map((item: any) => [item.id, item.full_name]))
+  const postMap = new Map(posts.map((item: any) => [item.id, item.content]))
+  const commentMap = new Map(comments.map((item: any) => [item.id, item.content]))
+  const communityMap = new Map(communities.map((item: any) => [item.id, item.name || item.description]))
+
+  const getPreview = (report: any) => {
+    if (report.target_type === 'post') return postMap.get(report.target_id) || 'Publicação já removida'
+    if (report.target_type === 'comment') return commentMap.get(report.target_id) || 'Comentário já removido'
+    if (report.target_type === 'community') return communityMap.get(report.target_id) || 'Comunidade indisponível'
+    return 'Conteúdo indisponível'
   }
-  load()
- }, [])
 
- return (
-  <div className="space-y-6">
-   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-    <div>
-     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Centro de Moderação</h1>
-     <p className="text-muted-foreground mt-1 text-sm">Gestão unificada de denúncias, conteúdos sinalizados e bloqueios.</p>
-    </div>
-   </section>
+  return (
+    <div className="space-y-6">
+      <section className="flex flex-col gap-2 border-b border-border pb-6">
+        <div className="flex items-center gap-2 text-primary"><ShieldAlert className="h-5 w-5" /><span className="text-xs font-bold uppercase tracking-widest">Segurança e confiança</span></div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">Centro de Moderação</h1>
+        <p className="text-sm text-muted-foreground">Denúncias reais submetidas pelos utilizadores. Nenhum rating negativo é tratado automaticamente como abuso.</p>
+      </section>
 
-   <section className="bg-card rounded-xl border border-border overflow-hidden">
-    <div className="p-6 border-b border-border flex items-center gap-2">
-     <Gavel className="text-destructive h-5 w-5" />
-     <h3 className="text-xl font-bold text-foreground">Fila de Moderação (Conteúdo Sensível)</h3>
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="flex items-center justify-between border-b border-border p-5">
+          <div className="flex items-center gap-2"><Gavel className="h-5 w-5 text-destructive" /><h2 className="text-lg font-bold">Fila pendente</h2></div>
+          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-bold text-destructive">{reports.length} pendente{reports.length === 1 ? '' : 's'}</span>
+        </div>
+
+        {reports.length === 0 ? (
+          <div className="p-12 text-center"><ShieldAlert className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" /><p className="font-semibold">Sem denúncias pendentes</p><p className="mt-1 text-sm text-muted-foreground">A fila está limpa.</p></div>
+        ) : (
+          <div className="divide-y divide-border">
+            {reports.map((report: any) => (
+              <article key={report.id} className="grid gap-4 p-5 lg:grid-cols-[180px_1fr_220px] lg:items-center">
+                <div>
+                  <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold uppercase text-muted-foreground">{report.target_type}</span>
+                  <p className="mt-2 text-sm font-semibold">{reasonLabel[report.reason] || report.reason}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{new Date(report.created_at).toLocaleString('pt-PT')}</p>
+                </div>
+
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-sm text-foreground">{String(getPreview(report))}</p>
+                  {report.details && <p className="mt-2 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">“{report.details}”</p>}
+                  <p className="mt-2 text-xs text-muted-foreground">Denunciante: <span className="font-medium text-foreground">{reporterMap.get(report.reporter_user_id) || 'Utilizador'}</span></p>
+                </div>
+
+                <div className="flex gap-2 lg:justify-end">
+                  <form action={dismissContentReportAction.bind(null, report.id)}><button type="submit" className="rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">Arquivar</button></form>
+                  <form action={removeReportedContentAction.bind(null, report.id)}><button type="submit" className="rounded-xl bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90">Remover conteúdo</button></form>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-    
-    <div className="overflow-x-auto">
-     <table className="w-full text-left">
-      <thead className="bg-muted/30 border-b border-border">
-       <tr>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Tipo</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Conteúdo</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs">Denunciante</th>
-        <th className="px-6 py-4 font-medium text-sm text-muted-foreground uppercase text-xs text-right">Ação Rápida</th>
-       </tr>
-      </thead>
-      <tbody className="divide-y divide-border">
-       {loading ? (
-        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">A carregar fila...</td></tr>
-       ) : reports.length === 0 ? (
-        <tr><td colSpan={4} className="text-center py-10 text-muted-foreground">Nenhum item na fila de moderação.</td></tr>
-       ) : (
-        reports.map((report) => (
-         <tr key={report.id} className="hover:bg-destructive/5 transition-colors">
-          <td className="px-6 py-4">
-           <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-muted text-muted-foreground rounded-full text-[11px] font-bold uppercase">
-            Avaliação ({report.rating}★)
-           </span>
-          </td>
-          <td className="px-6 py-4">
-           <p className="text-sm text-foreground max-w-[300px] truncate">"{report.comment || report.title}"</p>
-          </td>
-          <td className="px-6 py-4">
-           <p className="font-semibold text-foreground">{report.platform_users?.full_name || 'Utilizador'}</p>
-           <p className="text-xs text-muted-foreground">{new Date(report.created_at).toLocaleDateString('pt-PT')}</p>
-          </td>
-          <td className="px-6 py-4 text-right">
-           <div className="flex justify-end gap-2">
-            <button className="px-3 py-1.5 border border-border rounded font-medium text-sm text-xs hover:bg-muted">Ignorar</button>
-            <button className="px-3 py-1.5 bg-destructive text-white rounded font-medium text-sm text-xs hover:bg-destructive/90">Remover</button>
-           </div>
-          </td>
-         </tr>
-        ))
-       )}
-      </tbody>
-     </table>
-    </div>
-   </section>
-  </div>
- )
+  )
 }
