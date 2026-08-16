@@ -1,43 +1,38 @@
-'use client';
-import { BadgeCheck, Building2, Flag, Globe, Heart, MapPin, MessageSquare, MoreVertical, Share2, User } from 'lucide-react'
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { BadgeCheck, Building2, Flag, Globe, Heart, Loader2, MapPin, MessageSquare, MoreVertical, Share2, User } from 'lucide-react'
+import { addCommentAction, reportPostAction, toggleLikeAction } from '@/app/actions/feed'
 import { useModal } from '@/components/providers/modal-provider'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/user-avatar'
-
-import { useState } from 'react'
-import { formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import Link from 'next/link'
-import { toggleLikeAction, addCommentAction } from '@/app/actions/feed'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { normalizePlatformRole } from '@/lib/auth/roles'
 
-// Helper function to resolve user link
 const resolveUserLink = (u: any) => {
   if (!u) return '#'
-  if (u.type === 'professional' || u.type === 'profissional') {
-    return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
-  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
-    return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
-  }
+  const role = normalizePlatformRole(u.type)
+  if (role === 'professional') return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
+  if (role === 'venue_manager') return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
   return `/utilizadores/${u.id}`
 }
 
-// Helper function to resolve user name and avatar
 const resolveUserInfo = (u: any) => {
+  const role = normalizePlatformRole(u?.type)
   let name = u?.full_name || 'Utilizador'
-  let avatar = u?.avatar_url
-  
-  if (!u) return { name, avatar }
-  
-  if (u.type === 'professional' || u.type === 'profissional') {
-    name = u.professionals?.[0]?.full_name || name
-    avatar = u.professionals?.[0]?.avatar_url || avatar
-  } else if (u.type === 'espaco' || u.type === 'venue_manager' || u.type === 'sport_space' || u.type === 'gestor_espaco') {
-    name = u.sport_spaces?.[0]?.name || name
-    avatar = u.sport_spaces?.[0]?.logo_url || avatar
+  let avatar = u?.avatar_url || null
+
+  if (role === 'professional') {
+    name = u?.professionals?.[0]?.full_name || name
+    avatar = u?.professionals?.[0]?.avatar_url || avatar
+  } else if (role === 'venue_manager') {
+    name = u?.sport_spaces?.[0]?.name || name
+    avatar = u?.sport_spaces?.[0]?.logo_url || avatar
   }
-  
+
   return { name, avatar }
 }
 
@@ -55,11 +50,7 @@ const renderPostContent = (value: string) =>
     return `<a href="/pesquisa?q=${encodedTag}" class="text-primary font-semibold hover:underline">#${tag}</a>`
   })
 
-export default function PostCard({
-  post,
-  initialIsLiked = false,
-  isAuthenticated = false,
-}: {
+export default function PostCard({ post, initialIsLiked = false, isAuthenticated = false }: {
   post: any
   initialIsLiked?: boolean
   isAuthenticated?: boolean
@@ -74,43 +65,42 @@ export default function PostCard({
   const [commentText, setCommentText] = useState('')
   const [commenting, setCommenting] = useState(false)
   const [commentsList, setCommentsList] = useState<any[]>([])
-  
   const [showLikesModal, setShowLikesModal] = useState(false)
   const [likesList, setLikesList] = useState<any[]>([])
   const [loadingLikes, setLoadingLikes] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportReason, setReportReason] = useState<'spam' | 'harassment' | 'hate' | 'nudity' | 'violence' | 'fraud' | 'other'>('spam')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reporting, setReporting] = useState(false)
 
-  const authorName = post.professional_id 
-    ? post.professionals?.full_name 
-    : post.sport_space_id 
-    ? post.sport_spaces?.name 
-    : post.platform_users?.full_name || 'Utilizador'
+  const authorName = post.professional_id
+    ? post.professionals?.full_name
+    : post.sport_space_id
+      ? post.sport_spaces?.name
+      : post.platform_users?.full_name || 'Utilizador'
 
-  const authorAvatar = post.professional_id 
-    ? post.professionals?.avatar_url 
-    : post.sport_space_id 
-    ? post.sport_spaces?.logo_url 
-    : post.platform_users?.avatar_url
+  const authorAvatar = post.professional_id
+    ? post.professionals?.avatar_url
+    : post.sport_space_id
+      ? post.sport_spaces?.logo_url
+      : post.platform_users?.avatar_url
 
   const authorType = post.professional_id ? 'PRO' : post.sport_space_id ? 'ESPAÇO' : 'MEMBRO'
-  
-  // Resolve link properly using public_slug if available, otherwise fallback to id
-  const authorSlug = post.professional_id 
+  const authorSlug = post.professional_id
     ? (post.professionals?.public_slug || post.professional_id)
     : post.sport_space_id
-    ? (post.sport_spaces?.slug || post.sport_space_id)
-    : null
-  
-  const authorLink = authorSlug 
+      ? (post.sport_spaces?.slug || post.sport_space_id)
+      : null
+  const authorLink = authorSlug
     ? (post.professional_id ? `/profissionais/${authorSlug}` : `/espacos/${authorSlug}`)
-    : '#'
-  
-  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })
+    : post.platform_users?.id ? `/utilizadores/${post.platform_users.id}` : '#'
 
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ptBR })
   const postUrl = typeof window !== 'undefined' ? `${window.location.origin}/feed#post-${post.id}` : ''
 
   const guardAuth = () => {
     if (!isAuthenticated) {
-      showAlert('Inicia sessão', 'Precisas de iniciar sessão para interagir com publicações.', 'error')
+      showAlert('Inicia sessão', 'Precisas de iniciar sessão para interagir com publicações.', 'info')
       return false
     }
     return true
@@ -118,26 +108,21 @@ export default function PostCard({
 
   const handleLike = async () => {
     if (!guardAuth() || liking) return
-
     setLiking(true)
-    const nextLiked = !isLiked
+    const previous = isLiked
+    const next = !previous
+    setIsLiked(next)
+    setLikesCount((value: number) => Math.max(0, value + (next ? 1 : -1)))
 
-    // Optimistic UI update
-    setIsLiked(nextLiked)
-    setLikesCount((prev: number) => nextLiked ? prev + 1 : Math.max(0, prev - 1))
-    
     try {
       const result = await toggleLikeAction(post.id)
-      setIsLiked(result.liked)
-      setLikesCount((prev: number) => {
-        if (result.liked && !nextLiked) return prev + 1
-        if (!result.liked && nextLiked) return Math.max(0, prev - 1)
-        return prev
-      })
-    } catch (err) {
-      // Revert if error
-      setIsLiked(isLiked)
-      setLikesCount((prev: number) => isLiked ? prev + 1 : Math.max(0, prev - 1))
+      if (result.liked !== next) {
+        setIsLiked(result.liked)
+        setLikesCount((value: number) => Math.max(0, value + (result.liked ? 1 : -1)))
+      }
+    } catch {
+      setIsLiked(previous)
+      setLikesCount((value: number) => Math.max(0, value + (previous ? 1 : -1)))
       showAlert('Erro', 'Não foi possível atualizar o gosto.', 'error')
     } finally {
       setLiking(false)
@@ -146,19 +131,14 @@ export default function PostCard({
 
   const handleShare = async () => {
     if (!postUrl) return
-
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Publicação de ${authorName} - FIND4SPORT`,
-          url: postUrl,
-        })
-      } else {
+      if (navigator.share) await navigator.share({ title: `Publicação de ${authorName} - FIND4SPORT`, url: postUrl })
+      else {
         await navigator.clipboard.writeText(postUrl)
-        showAlert('Sucesso', 'Link copiado para a área de transferência!', 'success')
+        showAlert('Link copiado', 'O link da publicação foi copiado.', 'success')
       }
-    } catch (e) {
-      console.error(e)
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') showAlert('Erro', 'Não foi possível partilhar a publicação.', 'error')
     }
   }
 
@@ -166,58 +146,57 @@ export default function PostCard({
     if (!postUrl) return
     try {
       await navigator.clipboard.writeText(postUrl)
-      showAlert('Sucesso', 'Link da publicação copiado.', 'success')
+      showAlert('Link copiado', 'O link da publicação foi copiado.', 'success')
     } catch {
       showAlert('Erro', 'Não foi possível copiar o link.', 'error')
     }
   }
 
-  const handleReport = () => {
-    showAlert('Obrigado', 'Publicação sinalizada para revisão.', 'success')
+  const submitReport = async () => {
+    if (!guardAuth() || reporting) return
+    setReporting(true)
+    try {
+      const result = await reportPostAction(post.id, reportReason, reportDetails)
+      setShowReportModal(false)
+      setReportDetails('')
+      showAlert(
+        result.duplicate ? 'Denúncia já registada' : 'Denúncia enviada',
+        result.duplicate ? 'Já tinhas denunciado esta publicação. A denúncia existente continua em análise.' : 'A publicação foi enviada para moderação.',
+        'success',
+      )
+    } catch (error: any) {
+      showAlert('Erro', error?.message || 'Não foi possível enviar a denúncia.', 'error')
+    } finally {
+      setReporting(false)
+    }
   }
 
   const fetchComments = async () => {
     setLoadingComments(true)
     try {
       const supabase = createClient()
-      
-      // Step 1: Get comments
-      const { data: commentsData } = await supabase
-        .from('post_comments')
-        .select('*')
-        .eq('post_id', post.id)
-        .order('created_at', { ascending: true })
+      const { data: commentsData, error } = await supabase
+        .from('post_comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
+      if (error) throw error
 
-      if (commentsData && commentsData.length > 0) {
-        const userIds = commentsData.map((c: any) => c.user_id)
-        
-        // Step 2: Get user details for comments
-        const { data: usersData } = await supabase
-          .from('platform_users')
-          .select(`
-            id, full_name, avatar_url, type,
-            professionals (public_slug, full_name, avatar_url),
-            sport_spaces (slug, name, logo_url)
-          `)
-          .in('id', userIds)
-
-        if (usersData) {
-          // Combine comments with their user profiles
-          const combined = commentsData.map((comment: any) => {
-            return {
-              ...comment,
-              platform_users: usersData.find(u => u.id === comment.user_id) || null
-            }
-          })
-          setCommentsList(combined)
-        } else {
-          setCommentsList(commentsData)
-        }
-      } else {
+      if (!commentsData?.length) {
         setCommentsList([])
+        return
       }
-    } catch (e) {
-      console.error('Error fetching comments:', e)
+
+      const userIds = [...new Set(commentsData.map((c: any) => c.user_id))]
+      const { data: usersData } = await supabase
+        .from('platform_users')
+        .select('id, full_name, avatar_url, type, professionals (public_slug, full_name, avatar_url), sport_spaces (slug, name, logo_url)')
+        .in('id', userIds)
+
+      setCommentsList(commentsData.map((comment: any) => ({
+        ...comment,
+        platform_users: usersData?.find((u: any) => u.id === comment.user_id) || null,
+      })))
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+      showAlert('Erro', 'Não foi possível carregar os comentários.', 'error')
     } finally {
       setLoadingComments(false)
     }
@@ -227,269 +206,125 @@ export default function PostCard({
     setLoadingLikes(true)
     try {
       const supabase = createClient()
-      
-      // Step 1: get user_ids of likes
-      const { data: likesData } = await supabase
-        .from('post_likes')
-        .select('id, user_id')
-        .eq('post_id', post.id)
-
-      if (likesData && likesData.length > 0) {
-        const userIds = likesData.map((l: any) => l.user_id)
-        
-        // Step 2: get platform_users with nested profiles
-        const { data: usersData } = await supabase
-          .from('platform_users')
-          .select(`
-            id, full_name, avatar_url, type,
-            professionals (public_slug, full_name, avatar_url),
-            sport_spaces (slug, name, logo_url)
-          `)
-          .in('id', userIds)
-
-        if (usersData) {
-          // Map back to the shape expected by the UI
-          const combined = likesData.map(like => {
-            return {
-              id: like.id,
-              platform_users: usersData.find(u => u.id === like.user_id) || null
-            }
-          })
-          setLikesList(combined)
-        } else {
-          setLikesList([])
-        }
-      } else {
+      const { data: likesData, error } = await supabase.from('post_likes').select('id, user_id').eq('post_id', post.id)
+      if (error) throw error
+      if (!likesData?.length) {
         setLikesList([])
+        return
       }
-    } catch (e) {
-      console.error('Error fetching likes:', e)
+
+      const userIds = [...new Set(likesData.map((l: any) => l.user_id))]
+      const { data: usersData } = await supabase
+        .from('platform_users')
+        .select('id, full_name, avatar_url, type, professionals (public_slug, full_name, avatar_url), sport_spaces (slug, name, logo_url)')
+        .in('id', userIds)
+
+      setLikesList(likesData.map((like: any) => ({ ...like, platform_users: usersData?.find((u: any) => u.id === like.user_id) || null })))
+    } catch (error) {
+      console.error('Error fetching likes:', error)
+      showAlert('Erro', 'Não foi possível carregar os gostos.', 'error')
     } finally {
       setLoadingLikes(false)
     }
   }
 
-  const handleOpenLikesModal = () => {
-    setShowLikesModal(true)
-    fetchLikesList()
-  }
-
-  const handleComment = () => {
-    const nextState = !showComments
-    setShowComments(nextState)
-    if (nextState) {
-      fetchComments()
-    }
-  }
-
-  const submitComment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!guardAuth()) return
-    if (!commentText.trim()) return
-
+  const submitComment = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!guardAuth() || !commentText.trim() || commenting) return
     setCommenting(true)
     try {
       await addCommentAction(post.id, commentText)
-      setCommentsCount((prev: number) => prev + 1)
+      setCommentsCount((value: number) => value + 1)
       setCommentText('')
+      if (!showComments) setShowComments(true)
       await fetchComments()
-    } catch (err: any) {
-      showAlert('Erro', err.message || 'Erro ao comentar', 'error')
+    } catch (error: any) {
+      showAlert('Erro', error?.message || 'Erro ao comentar.', 'error')
     } finally {
       setCommenting(false)
     }
   }
 
   return (
-    <article id={`post-${post.id}`} className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm transition-all hover:shadow-md">
+    <article id={`post-${post.id}`} className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center justify-between border-b border-border/70 p-4">
         <div className="flex items-center gap-3">
-          <Link href={authorLink} className="relative block hover:opacity-80 transition-opacity">
+          <Link href={authorLink} className="relative block transition-opacity hover:opacity-80">
             <UserAvatar name={authorName} src={authorAvatar} className="size-10" />
-            {!authorAvatar && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                {post.professional_id ? (
-                  <User className="h-5 w-5 text-primary" />
-                ) : (
-                  <Building2 className="h-5 w-5 text-primary" />
-                )}
-              </div>
-            )}
-            {post.professional_id && post.professionals?.is_verified && (
-              <BadgeCheck className="absolute -bottom-1 -right-1 bg-emerald-100 text-emerald-700 text-[10px] rounded-full p-0.5 border border-emerald-200" />
-            )}
+            {!authorAvatar && <div className="pointer-events-none absolute inset-0 flex items-center justify-center">{post.professional_id ? <User className="h-5 w-5 text-primary" /> : <Building2 className="h-5 w-5 text-primary" />}</div>}
+            {post.professional_id && post.professionals?.is_verified && <BadgeCheck className="absolute -bottom-1 -right-1 rounded-full border border-emerald-200 bg-emerald-100 p-0.5 text-emerald-700" />}
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <Link href={authorLink}>
-                <h3 className="text-sm font-semibold text-foreground hover:underline">{authorName}</h3>
-              </Link>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${post.professional_id ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                {authorType}
-              </span>
+              <Link href={authorLink}><h3 className="text-sm font-semibold text-foreground hover:underline">{authorName}</h3></Link>
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">{authorType}</span>
             </div>
-            <p className="text-muted-foreground text-xs flex items-center gap-1 font-medium mt-0.5">
-              {timeAgo} • {post.professional_id ? <Globe className="h-3 w-3 inline" /> : <MapPin className="h-3 w-3 inline" />} {post.professional_id ? 'Público' : 'Local'}
+            <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+              {timeAgo} • {post.professional_id ? <Globe className="h-3 w-3" /> : <MapPin className="h-3 w-3" />} {post.professional_id ? 'Público' : 'Local'}
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleReport} className="text-muted-foreground hover:text-destructive transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Denunciar">
-            <Flag className="text-[20px]" />
+        <div className="flex gap-1">
+          <button onClick={() => guardAuth() && setShowReportModal(true)} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive" title="Denunciar">
+            <Flag className="h-4 w-4" />
           </button>
-          <button onClick={handleCopyLink} className="text-muted-foreground hover:text-primary transition-colors w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center" title="Copiar link">
-            <MoreVertical className="text-[20px]" />
+          <button onClick={handleCopyLink} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Copiar link">
+            <MoreVertical className="h-4 w-4" />
           </button>
         </div>
       </div>
-      
-      <div className="px-4 pt-3 pb-3">
-        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderPostContent(post.content || '') }}></p>
-      </div>
-      
-      {post.media_url && (
-        <div className="relative group aspect-video overflow-hidden border-y border-border bg-muted" onDoubleClick={handleLike}>
-          {post.media_type === 'video' ? (
-            <video className="w-full h-full object-contain bg-black/5" src={post.media_url} controls playsInline />
-          ) : (
-            <img className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.015]" src={post.media_url} alt="Post media" />
-          )}
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/35 via-black/10 to-transparent" />
+      <div className="px-4 py-3"><p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground" dangerouslySetInnerHTML={{ __html: renderPostContent(post.content || '') }} /></div>
+
+      {post.media_url && (
+        <div className="relative aspect-video overflow-hidden border-y border-border bg-muted" onDoubleClick={handleLike}>
+          {post.media_type?.startsWith('video') ? <video className="h-full w-full bg-black/5 object-contain" src={post.media_url} controls playsInline /> : <img className="h-full w-full object-cover" src={post.media_url} alt="Conteúdo da publicação" />}
         </div>
       )}
-      
+
       <div className="px-4 py-3">
-        {/* Interaction Buttons */}
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/35 px-2 py-1">
-            <button 
-              onClick={handleLike}
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition-transform active:scale-75 ${isLiked ? 'bg-destructive/10 text-destructive' : 'text-foreground hover:bg-background hover:text-muted-foreground'}`}
-              disabled={liking}
-              title={isAuthenticated ? 'Gostar' : 'Inicia sessão para gostar'}
-            >
-              <Heart className={`h-5 w-5 transition-all ${isLiked ? 'fill-current scale-110' : ''}`} />
+            <button onClick={handleLike} disabled={liking} className={`inline-flex h-8 w-8 items-center justify-center rounded-full ${isLiked ? 'bg-destructive/10 text-destructive' : 'text-foreground hover:bg-background'}`} title="Gostar">
+              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
             </button>
-            <button 
-              onClick={handleComment}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-transform hover:bg-background hover:text-muted-foreground active:scale-90"
-            >
-              <MessageSquare className="h-5 w-5" />
-            </button>
-            <button 
-              onClick={handleShare}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-transform hover:bg-background hover:text-muted-foreground active:scale-90"
-            >
-              <Share2 className="h-5 w-5" />
-            </button>
+            <button onClick={() => { const next = !showComments; setShowComments(next); if (next) void fetchComments() }} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-background"><MessageSquare className="h-5 w-5" /></button>
+            <button onClick={handleShare} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-background"><Share2 className="h-5 w-5" /></button>
           </div>
-          {post.sport_space_id && (
-             <Link href={authorLink} className="rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary hover:text-primary-foreground active:scale-95">
-               Reservar
-             </Link>
-          )}
+          {post.sport_space_id && <Link href={authorLink} className="rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground">Reservar</Link>}
         </div>
 
-        {/* Likes Social Text */}
-        {likesCount > 0 && (
-          <div className="mb-2">
-            <button onClick={handleOpenLikesModal} className="cursor-pointer text-sm font-semibold hover:underline">
-              {likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}
-            </button>
-          </div>
-        )}
-
-        {/* Comments Section */}
-        {commentsCount > 0 && !showComments && (
-          <button onClick={handleComment} className="text-sm text-muted-foreground mb-2 hover:underline">
-            Ver {commentsCount === 1 ? 'o comentário' : `todos os ${commentsCount} comentários`}
-          </button>
-        )}
+        {likesCount > 0 && <button onClick={() => { setShowLikesModal(true); void fetchLikesList() }} className="mb-2 text-sm font-semibold hover:underline">{likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}</button>}
+        {commentsCount > 0 && !showComments && <button onClick={() => { setShowComments(true); void fetchComments() }} className="mb-2 block text-sm text-muted-foreground hover:underline">Ver {commentsCount === 1 ? 'o comentário' : `todos os ${commentsCount} comentários`}</button>}
 
         {showComments && (
-          <div className="mb-3 animate-in fade-in duration-300">
-            {loadingComments ? (
-              <div className="flex justify-center py-2">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : commentsList.length > 0 ? (
-              <div className="space-y-1 mt-2">
-                {commentsList.map(c => {
-                  const u = c.platform_users
-                  const { name, avatar } = resolveUserInfo(u)
-                  const userLink = resolveUserLink(u)
-                  
-                  return (
-                    <div key={c.id} className="flex gap-2.5 mb-3 group/comment">
-                      <Link href={userLink} className="shrink-0 mt-0.5 hover:opacity-80 transition-opacity">
-                        <UserAvatar name={name} src={avatar} className="size-7" />
-                      </Link>
-                      <div className="flex-1 bg-muted/30 rounded-2xl px-3.5 py-2 text-sm leading-snug">
-                        <Link href={userLink} className="font-bold text-foreground hover:underline block mb-0.5">{name}</Link>
-                        <span className="text-muted-foreground whitespace-pre-wrap break-words text-[13px]">{c.content}</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
+          <div className="mb-3">
+            {loadingComments ? <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin" /></div> : commentsList.map((comment) => {
+              const user = comment.platform_users
+              const { name, avatar } = resolveUserInfo(user)
+              const userLink = resolveUserLink(user)
+              return <div key={comment.id} className="mb-3 flex gap-2.5"><Link href={userLink}><UserAvatar name={name} src={avatar} className="size-7" /></Link><div className="flex-1 rounded-2xl bg-muted/40 px-3.5 py-2 text-sm"><Link href={userLink} className="mb-0.5 block font-bold hover:underline">{name}</Link><span className="whitespace-pre-wrap break-words text-[13px] text-muted-foreground">{comment.content}</span></div></div>
+            })}
           </div>
         )}
 
-        {/* Always visible comment input */}
         <form onSubmit={submitComment} className="mt-2 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2">
-          <input 
-            type="text"
-            value={commentText}
-            onChange={e => setCommentText(e.target.value)}
-            placeholder="Adiciona um comentário..."
-            className="flex-1 border-none bg-transparent px-0 text-sm focus:outline-none focus:ring-0 placeholder:text-muted-foreground"
-          />
-          {commentText.trim() && (
-            <button 
-              type="submit"
-              disabled={commenting}
-              className="text-primary font-semibold text-sm hover:text-primary/80 transition-colors"
-            >
-              {commenting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Publicar'}
-            </button>
-          )}
+          <input value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={2000} placeholder="Adiciona um comentário..." className="flex-1 border-none bg-transparent text-sm focus:outline-none" />
+          {commentText.trim() && <button type="submit" disabled={commenting} className="text-sm font-semibold text-primary">{commenting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publicar'}</button>}
         </form>
       </div>
 
-      {/* Likes Modal */}
       <Dialog open={showLikesModal} onOpenChange={setShowLikesModal}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Gostos</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[300px] overflow-y-auto mt-4 pr-2 space-y-4">
-            {loadingLikes ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : likesList.length > 0 ? (
-              likesList.map((like) => {
-                const u = like.platform_users
-                if (!u) return null
-                const { name, avatar } = resolveUserInfo(u)
-                const userLink = resolveUserLink(u)
+        <DialogContent className="sm:max-w-[400px]"><DialogHeader><DialogTitle>Gostos</DialogTitle></DialogHeader><div className="max-h-[300px] space-y-4 overflow-y-auto pt-2">{loadingLikes ? <div className="flex justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div> : likesList.length ? likesList.map((like) => { const user = like.platform_users; if (!user) return null; const { name, avatar } = resolveUserInfo(user); const href = resolveUserLink(user); return <div key={like.id} className="flex items-center gap-3"><Link href={href}><UserAvatar name={name} src={avatar} className="size-10" /></Link><Link href={href} className="text-sm font-semibold hover:underline">{name}</Link></div> }) : <p className="text-center text-sm text-muted-foreground">Nenhum gosto encontrado.</p>}</div></DialogContent>
+      </Dialog>
 
-                return (
-                  <div key={like.id} className="flex items-center gap-3">
-                    <Link href={userLink} className="hover:opacity-80 transition-opacity">
-                      <UserAvatar name={name} src={avatar} className="size-10" />
-                    </Link>
-                    <Link href={userLink} className="font-semibold text-sm text-foreground hover:underline">
-                      {name}
-                    </Link>
-                  </div>
-                )
-              })
-            ) : (
-              <p className="text-center text-sm text-muted-foreground">Nenhum gosto encontrado.</p>
-            )}
+      <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader><DialogTitle>Denunciar publicação</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div><label className="mb-1.5 block text-sm font-medium">Motivo</label><select value={reportReason} onChange={(e) => setReportReason(e.target.value as any)} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"><option value="spam">Spam</option><option value="harassment">Assédio</option><option value="hate">Discurso de ódio</option><option value="nudity">Conteúdo sexual/nudez</option><option value="violence">Violência</option><option value="fraud">Fraude</option><option value="other">Outro</option></select></div>
+            <div><label className="mb-1.5 block text-sm font-medium">Detalhes opcionais</label><textarea value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} maxLength={2000} rows={4} className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm" placeholder="Ajuda a equipa de moderação a perceber o problema." /></div>
+            <button onClick={submitReport} disabled={reporting} className="w-full rounded-xl bg-destructive px-4 py-2.5 text-sm font-bold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">{reporting ? 'A enviar...' : 'Enviar denúncia'}</button>
           </div>
         </DialogContent>
       </Dialog>
