@@ -39,15 +39,13 @@ async function uploadImage(admin: ReturnType<typeof createAdminClient>, userId: 
   return { path, url: data.publicUrl }
 }
 
-export async function createEventAction(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Autenticação necessária.')
+function storagePathForEvent(url: string, userId: string, eventFolderId: string) {
+  const marker = '/storage/v1/object/public/events/'
+  const path = url.split(marker)[1]
+  return path?.startsWith(`${userId}/${eventFolderId}/`) ? path : null
+}
 
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Apenas profissionais e gestores de espaço podem criar eventos.')
-  await requireFeature(user.id, 'events.create.enabled')
-
+function validateEventFields(formData: FormData) {
   const title = text(formData, 'title', 180)
   if (!title) throw new Error('O título é obrigatório.')
   const description = text(formData, 'description', 5000) || null
@@ -62,8 +60,28 @@ export async function createEventAction(formData: FormData) {
   const priceMin = optionalNumber(formData, 'price_min')
   const priceMax = optionalNumber(formData, 'price_max')
   if (priceMin !== null && priceMax !== null && priceMax < priceMin) throw new Error('O preço máximo não pode ser inferior ao preço mínimo.')
+  return { title, description, categoryId, address, startDate, endDate, capacity, priceMin, priceMax }
+}
 
+async function validateCategory(admin: ReturnType<typeof createAdminClient>, categoryId: string | null) {
+  if (!categoryId) return
+  const { data: category } = await admin.from('categories').select('id').eq('id', categoryId).maybeSingle()
+  if (!category) throw new Error('Modalidade inválida.')
+}
+
+export async function createEventAction(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Autenticação necessária.')
+
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Apenas profissionais e gestores de espaço podem criar eventos.')
+  await requireFeature(user.id, 'events.create.enabled')
+
+  const fields = validateEventFields(formData)
   const admin = createAdminClient()
+  await validateCategory(admin, fields.categoryId)
+
   let organizerName = user.user_metadata?.full_name || 'Organizador'
   let professionalId: string | null = null
 
@@ -77,11 +95,6 @@ export async function createEventAction(formData: FormData) {
     const { data: space } = await admin.from('sport_spaces').select('id,name,status').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
     if (!space) throw new Error('Não existe um espaço associado a esta conta.')
     organizerName = space.name || organizerName
-  }
-
-  if (categoryId) {
-    const { data: category } = await admin.from('categories').select('id').eq('id', categoryId).maybeSingle()
-    if (!category) throw new Error('Modalidade inválida.')
   }
 
   const { data: configData } = await admin.from('system_config').select('settings').maybeSingle()
@@ -105,15 +118,15 @@ export async function createEventAction(formData: FormData) {
     const galleryUrls = uploaded.filter(item => item.url !== imageUrl).map(item => item.url)
 
     const { data: event, error } = await admin.from('events').insert({
-      title,
-      description,
-      category_id: categoryId,
-      address,
-      start_date: startDate.toISOString(),
-      end_date: endDate?.toISOString() || null,
-      capacity,
-      price_min: priceMin,
-      price_max: priceMax,
+      title: fields.title,
+      description: fields.description,
+      category_id: fields.categoryId,
+      address: fields.address,
+      start_date: fields.startDate.toISOString(),
+      end_date: fields.endDate?.toISOString() || null,
+      capacity: fields.capacity,
+      price_min: fields.priceMin,
+      price_max: fields.priceMax,
       image_url: imageUrl,
       gallery_urls: galleryUrls.length ? galleryUrls : null,
       created_by: user.id,
@@ -126,6 +139,74 @@ export async function createEventAction(formData: FormData) {
     revalidatePath('/dashboard/eventos')
     revalidatePath('/eventos')
     return { success: true, eventId: event.id, status }
+  } catch (error) {
+    if (uploaded.length) await admin.storage.from('events').remove(uploaded.map(item => item.path))
+    throw error
+  }
+}
+
+export async function updateEventAction(eventId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Autenticação necessária.')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Sem permissão para editar eventos.')
+
+  const admin = createAdminClient()
+  const { data: current } = await admin
+    .from('events')
+    .select('id,created_by,image_url,gallery_urls,status')
+    .eq('id', eventId)
+    .eq('created_by', user.id)
+    .maybeSingle()
+  if (!current) throw new Error('Evento não encontrado ou sem permissão para editar.')
+
+  const fields = validateEventFields(formData)
+  await validateCategory(admin, fields.categoryId)
+
+  const currentGallery = Array.isArray(current.gallery_urls) ? current.gallery_urls.filter((value): value is string => typeof value === 'string') : []
+  const requestedExisting = formData.getAll('existing_gallery').map(String)
+  const keptGallery = requestedExisting.filter(url => currentGallery.includes(url)).slice(0, MAX_GALLERY_FILES)
+  const newGallery = formData.getAll('gallery').filter((value): value is File => value instanceof File && value.size > 0)
+  if (keptGallery.length + newGallery.length > MAX_GALLERY_FILES) throw new Error(`A galeria pode ter no máximo ${MAX_GALLERY_FILES} imagens.`)
+  const banner = formData.get('banner')
+  const removeBanner = text(formData, 'remove_banner', 10) === 'true'
+
+  const uploaded: Array<{ path: string; url: string }> = []
+  try {
+    let imageUrl = removeBanner ? null : current.image_url
+    if (banner instanceof File && banner.size > 0) {
+      const item = await uploadImage(admin, user.id, eventId, banner, 'banner')
+      uploaded.push(item)
+      imageUrl = item.url
+    }
+    for (const file of newGallery) uploaded.push(await uploadImage(admin, user.id, eventId, file, 'gallery'))
+    const galleryUrls = [...keptGallery, ...uploaded.filter(item => item.url !== imageUrl).map(item => item.url)]
+
+    const { error } = await admin.from('events').update({
+      title: fields.title,
+      description: fields.description,
+      category_id: fields.categoryId,
+      address: fields.address,
+      start_date: fields.startDate.toISOString(),
+      end_date: fields.endDate?.toISOString() || null,
+      capacity: fields.capacity,
+      price_min: fields.priceMin,
+      price_max: fields.priceMax,
+      image_url: imageUrl,
+      gallery_urls: galleryUrls.length ? galleryUrls : null,
+    }).eq('id', eventId).eq('created_by', user.id)
+    if (error) throw new Error(error.message)
+
+    const removedUrls = currentGallery.filter(url => !galleryUrls.includes(url))
+    if (current.image_url && current.image_url !== imageUrl) removedUrls.push(current.image_url)
+    const paths = [...new Set(removedUrls.map(url => storagePathForEvent(url, user.id, eventId)).filter((value): value is string => Boolean(value)))]
+    if (paths.length) await admin.storage.from('events').remove(paths)
+
+    revalidatePath('/dashboard/eventos')
+    revalidatePath(`/dashboard/eventos/${eventId}/editar`)
+    revalidatePath('/eventos')
+    return { success: true }
   } catch (error) {
     if (uploaded.length) await admin.storage.from('events').remove(uploaded.map(item => item.path))
     throw error
