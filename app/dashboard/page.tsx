@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { UserDashboard } from '@/components/dashboard/user-dashboard'
 import { ProfessionalDashboard } from '@/components/dashboard/professional-dashboard'
 import { SpaceDashboard } from '@/components/dashboard/space-dashboard'
+import { resolveSessionAccess } from '@/lib/auth/access'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -12,48 +13,47 @@ export default async function DashboardPage() {
     redirect('/auth/login?redirect=/dashboard')
   }
 
-  const { data: platformUser } = await supabase
-    .from('platform_users')
-    .select('type, full_name')
-    .eq('id', user.id)
-    .maybeSingle()
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access || !access.canAccessDashboard) {
+    redirect('/auth/login?redirect=/dashboard')
+  }
 
-  const userType = platformUser?.type || user.user_metadata?.type
+  if (access.role === 'venue_manager') {
+    const { data: space } = await supabase
+      .from('sport_spaces')
+      .select('*')
+      .eq('owner_user_id', user.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
-  // Priority 1: Check if user has a space profile
-  const { data: space } = await supabase
-    .from('sport_spaces')
-    .select('*')
-    .eq('owner_user_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+    if (!space) {
+      redirect('/auth/registar/espaco')
+    }
 
-  if (space) {
     return <SpaceDashboard space={space} />
   }
 
-  // Fetch subscription tier to pass to dashboards for feature locking
-  const { data: sub } = await supabase
-    .from('user_subscriptions')
-    .select('tier')
-    .eq('user_id', user.id)
-    .maybeSingle()
-  
-  const subscriptionTier = sub?.tier || 'free'
+  if (access.role === 'professional') {
+    const [{ data: professional }, { data: sub }] = await Promise.all([
+      supabase
+        .from('professionals')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('user_subscriptions')
+        .select('tier')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ])
 
-  // Priority 2: Check if user has a professional profile
-  let { data: professional } = await supabase
-    .from('professionals')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
+    if (!professional) {
+      redirect('/auth/registar/profissional')
+    }
 
-  if (professional) {
-    return <ProfessionalDashboard professional={professional} subscriptionTier={subscriptionTier} />
+    return <ProfessionalDashboard professional={professional} subscriptionTier={sub?.tier || 'free'} />
   }
 
-
-  // Otherwise, normal user (Priority 3)
   return <UserDashboard user={user} />
 }
