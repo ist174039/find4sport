@@ -36,7 +36,7 @@ export default async function EspacosPage({ searchParams }: PageProps) {
     title={selectedCategory ? `Espaços de ${selectedCategory.name}` : 'Espaços Desportivos'}
     description="Encontra espaços pela família desportiva, modalidade, localização e avaliações."
     countLabel={`${spaces.length} ${spaces.length === 1 ? 'espaço encontrado' : 'espaços encontrados'}`}
-    search={<SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="espacos" showFilters filterType="espacos" currentFilters={filters as Record<string, string>} />}
+    search={<SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="espacos" showType={false} basePath="/espacos" showFilters filterType="espacos" currentFilters={filters as Record<string, string>} placeholder="Pesquisar espaços…" />}
     categories={[
       { label: 'Todas as modalidades', href: href('/espacos', filterRecord, { category: null }), active: !filters.category },
       ...categories.map(cat => { const family = getSportFamily(cat.name); return { label: `${cat.emoji || family.emoji} ${cat.name}`.trim(), group: `${family.emoji} ${family.name}`, href: href('/espacos', filterRecord, { category: cat.slug }), active: filters.category === cat.slug } }),
