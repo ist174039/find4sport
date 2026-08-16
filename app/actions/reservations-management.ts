@@ -10,18 +10,29 @@ async function getProviderContext() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Autenticação necessária.')
-
   const access = await resolveSessionAccess(supabase, user)
   if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Esta operação é exclusiva de profissionais e gestores de espaço.')
   return { user, role: access.role, admin: createAdminClient() }
 }
 
-export async function updateProviderReservationStatusAction(reservationId: string, newStatus: 'confirmed' | 'cancelled') {
+function missingThreadSchema(error: any) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(code) || message.includes('message_threads')
+}
+
+async function archiveReservationThread(admin: ReturnType<typeof createAdminClient>, reservationId: string) {
+  const db = admin as any
+  const { error } = await db.from('message_threads').update({ status: 'archived', archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('reservation_id', reservationId).eq('status', 'active')
+  if (error && !missingThreadSchema(error)) console.error('Unable to archive reservation chat:', error)
+}
+
+export async function updateProviderReservationStatusAction(reservationId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') {
   const { user, role, admin } = await getProviderContext()
   const db = admin as any
   const { data: reservation } = await db
     .from('reservations')
-    .select('id,user_id,professional_id,space_id,status,payment_status,amount,stripe_session_id,package_purchase_id,package_session_consumed')
+    .select('id,user_id,professional_id,space_id,date,start_time,end_time,status,payment_status,amount,stripe_session_id,package_purchase_id,package_session_consumed')
     .eq('id', reservationId)
     .maybeSingle()
   if (!reservation) throw new Error('Reserva não encontrada.')
@@ -37,6 +48,21 @@ export async function updateProviderReservationStatusAction(reservationId: strin
   }
   if (!authorized) throw new Error('Não tem permissão para alterar esta reserva.')
   if (!['pending', 'paid', 'confirmed'].includes(reservation.status)) throw new Error('Esta reserva já não pode ser alterada.')
+
+  if (newStatus === 'completed') {
+    if (!['paid', 'confirmed'].includes(reservation.status)) throw new Error('A reserva tem de estar confirmada antes de poder ser concluída.')
+    const endAt = new Date(`${reservation.date}T${String(reservation.end_time).slice(0, 8)}`)
+    if (Number.isNaN(endAt.getTime()) || endAt.getTime() > Date.now()) throw new Error('Só podes concluir a reserva depois do horário previsto terminar.')
+    const { error } = await db.from('reservations').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', reservation.id).in('status', ['paid', 'confirmed'])
+    if (error) throw new Error('Não foi possível concluir a reserva.')
+    await archiveReservationThread(admin, reservation.id)
+    revalidatePath('/dashboard/reservas')
+    revalidatePath('/dashboard/agenda')
+    revalidatePath('/dashboard/compras')
+    revalidatePath('/dashboard/mensagens')
+    revalidatePath('/dashboard')
+    return { success: true, completed: true }
+  }
 
   if (newStatus === 'cancelled' && reservation.package_purchase_id && reservation.package_session_consumed) {
     const { data: purchase, error: purchaseError } = await db
@@ -70,9 +96,11 @@ export async function updateProviderReservationStatusAction(reservationId: strin
       throw new Error('Não foi possível cancelar a reserva; o crédito foi preservado.')
     }
 
+    await archiveReservationThread(admin, reservation.id)
     revalidatePath('/dashboard/reservas')
     revalidatePath('/dashboard/agenda')
     revalidatePath('/dashboard/compras')
+    revalidatePath('/dashboard/mensagens')
     revalidatePath('/dashboard')
     return { success: true, packageCreditRestored: true }
   }
@@ -109,9 +137,12 @@ export async function updateProviderReservationStatusAction(reservationId: strin
       })
     }
 
+    await archiveReservationThread(admin, reservation.id)
     revalidatePath('/dashboard/reservas')
-    revalidatePath('/dashboard')
+    revalidatePath('/dashboard/agenda')
     revalidatePath('/dashboard/faturacao')
+    revalidatePath('/dashboard/mensagens')
+    revalidatePath('/dashboard')
     return { success: true, refunded: true }
   }
 
