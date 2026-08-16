@@ -4,13 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
-import { FollowButton } from '@/components/follow-button'
+import { PublicFollowAction } from '@/components/public-follow-action'
 import { EntityHero, EntityDetailLayout, DetailSection, DetailStat, MobileActionBar } from '@/components/patterns/entity-detail'
 
 export default async function SpaceProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
   const { id: rawId } = await params
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
 
   let space: any = null
   if (isUuid) space = (await supabase.from('sport_spaces').select('*').eq('id', rawId).maybeSingle()).data
@@ -18,7 +18,7 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
   if (!space) notFound()
 
   void supabase.rpc('increment_space_views', { space_id: space.id })
-  const targetUserId = space.owner_user_id || space.created_by
+  const targetUserId = space.owner_user_id || space.created_by || null
   const { data: { user } } = await supabase.auth.getUser()
 
   const [{ data: associationRows }, followersResult, followResult] = await Promise.all([
@@ -35,8 +35,9 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
   const description = space.description || 'Este espaço ainda não adicionou uma descrição detalhada.'
   const amenities = Array.isArray(space.amenities) ? space.amenities.filter(Boolean) : []
   const gallery = Array.isArray(space.gallery_urls) ? space.gallery_urls.filter(Boolean) : []
+  const publicPath = `/espacos/${space.slug || space.id}`
 
-  const followAction = user && targetUserId && user.id !== targetUserId ? <FollowButton targetUserId={targetUserId} initialIsFollowing={isFollowing} className="min-h-11 rounded-xl px-4" /> : null
+  const followAction = <PublicFollowAction targetUserId={targetUserId} currentUserId={user?.id || null} initialIsFollowing={isFollowing} loginRedirect={publicPath} />
   const reserveAction = <ReserveSpaceBtn spaceName={space.name} ownerUserId={targetUserId} spaceId={space.id} />
   const directionsAction = <ObterDirecoesBtn address={space.address} name={space.name} latitude={space.latitude} longitude={space.longitude} />
 
@@ -62,12 +63,12 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
         </>}
         aside={<>
           <DetailSection title="Informação"><div className="grid grid-cols-2 gap-4 lg:grid-cols-1"><DetailStat label="Avaliação" value={space.rating_avg > 0 ? `${Number(space.rating_avg).toFixed(1)} / 5` : 'Sem avaliações'} /><DetailStat label="Seguidores" value={followersCount} /><DetailStat label="Profissionais" value={associatedProfessionals.length} />{space.address && <DetailStat label="Localização" value={space.address} />}</div><div className="mt-4">{directionsAction}</div></DetailSection>
-          {(space.phone || space.email) && <DetailSection title="Contactos"><div className="space-y-3 text-sm">{space.phone && <a href={`tel:${space.phone}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-foreground hover:border-primary/40"><Phone className="h-4 w-4 text-primary" />{space.phone}</a>}{space.email && <a href={`mailto:${space.email}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-foreground hover:border-primary/40"><Mail className="h-4 w-4 text-primary" /><span className="truncate">{space.email}</span></a>}</div></DetailSection>}
-          <DetailSection title="Reservar"><p className="mb-4 text-sm text-muted-foreground">Consulta disponibilidade e inicia uma reserva neste espaço.</p>{reserveAction}{followAction && <div className="mt-2">{followAction}</div>}</DetailSection>
+          {(space.phone || space.email) && <DetailSection title="Contactos"><div className="space-y-3 text-sm">{space.phone && <a href={`tel:${space.phone}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-foreground hover:border-primary/40"><Phone className="h-4 w-4 text-primary" />{space.phone}</a>}{space.email && <a href={`mailto:${space.email}`} className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-border px-3 text-foreground hover:border-primary/40"><Mail className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{space.email}</span></a>}</div></DetailSection>}
+          <DetailSection title="Reservar"><p className="mb-4 text-sm text-muted-foreground">Consulta disponibilidade e inicia uma reserva neste espaço.</p><div className="space-y-2">{reserveAction}{followAction}</div></DetailSection>
         </>}
       />
 
-      <MobileActionBar>{reserveAction}{followAction || directionsAction}</MobileActionBar>
+      <MobileActionBar>{reserveAction}{followAction}</MobileActionBar>
     </main>
   )
 }
