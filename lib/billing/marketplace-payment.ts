@@ -27,7 +27,7 @@ function clampRate(value: unknown, fallback = 0) {
 
 function validConnectAccount(value: unknown) {
   const id = String(value || '').trim()
-  return id.startsWith('acct_') ? id : null
+  return /^acct_[A-Za-z0-9]{16,}$/.test(id) ? id : null
 }
 
 export async function resolveMarketplacePaymentQuote(
