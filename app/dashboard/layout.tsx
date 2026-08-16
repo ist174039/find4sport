@@ -54,7 +54,7 @@ export default async function DashboardLayout({
     .is('read_at', null)
 
   return (
-    <div className="min-h-screen bg-muted/30 w-full overflow-x-hidden">
+    <div className="min-h-screen w-full overflow-x-hidden bg-muted/30">
       <div className="flex w-full">
         <DashboardSidebar
           role={access.role}
@@ -63,8 +63,8 @@ export default async function DashboardLayout({
           user={user}
           notificationCount={count || 0}
         />
-        <main className="flex-1 w-full min-w-0 p-6 pt-20 lg:p-8 ml-0 lg:ml-64">
-          <div className="max-w-6xl mx-auto w-full">
+        <main className="ml-0 w-full min-w-0 flex-1 px-4 pb-6 pt-20 sm:px-6 lg:ml-64 lg:p-8">
+          <div className="mx-auto w-full max-w-6xl">
             {children}
           </div>
         </main>
