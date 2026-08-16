@@ -21,12 +21,12 @@ const configs:Record<PlatformRole,DashboardNavGroup[]>={
   professional:[
     {label:'Trabalho',items:[{name:'Visão Geral',href:base,icon:LayoutDashboard},{name:'Agenda',href:`${base}/agenda`,icon:Calendar},{name:'Reservas',href:`${base}/reservas`,icon:CalendarCheck},{name:'Serviços',href:`${base}/servicos`,icon:Activity},{name:'Clientes',href:`${base}/clientes`,icon:Users}]},
     {label:'Presença',items:[{name:'O Meu Perfil',href:`${base}/perfil`,icon:User},{name:'Galeria',href:`${base}/galeria`,icon:Camera},{name:'Comunidades',href:`${base}/comunidades`,icon:Users},{name:'Seguidores',href:`${base}/seguidores`,icon:UserRound},{name:'Avaliações',href:`${base}/avaliacoes`,icon:Star}]},
-    {label:'Conta',items:[{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
+    {label:'Conta',items:[{name:'Minhas compras',href:`${base}/compras`,icon:ReceiptText},{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
   ],
   venue_manager:[
     {label:'Operação',items:[{name:'Visão Geral',href:base,icon:LayoutDashboard},{name:'Agenda',href:`${base}/agenda`,icon:Calendar},{name:'Reservas',href:`${base}/reservas`,icon:CalendarCheck},{name:'Salas / Campos',href:`${base}/espacos/salas`,icon:Building2},{name:'Clientes',href:`${base}/clientes`,icon:Users}]},
     {label:'Presença',items:[{name:'O Meu Espaço',href:`${base}/espaco`,icon:Building2},{name:'Galeria',href:`${base}/galeria`,icon:Camera},{name:'Seguidores',href:`${base}/seguidores`,icon:UserRound},{name:'Avaliações',href:`${base}/avaliacoes`,icon:Star}]},
-    {label:'Conta',items:[{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
+    {label:'Conta',items:[{name:'Minhas compras',href:`${base}/compras`,icon:ReceiptText},{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
   ],
 }
 export function getDashboardNavigation(role:PlatformRole){return configs[role]}
