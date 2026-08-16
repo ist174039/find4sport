@@ -14,6 +14,11 @@ type CreateCommunityInput = {
   postingPolicy?: 'members' | 'reactions_only' | 'admin_only'
 }
 
+function isMissingOptionalColumn(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  return ['42703', 'PGRST204'].includes(error.code || '') || /column .* does not exist|could not find .* column|schema cache/i.test(error.message || '')
+}
+
 export async function createCommunityAction(input: CreateCommunityInput) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -54,7 +59,7 @@ export async function createCommunityAction(input: CreateCommunityInput) {
   let created: { id: string } | null = null
   let createError: { code?: string; message?: string } | null = null
   ;({ data: created, error: createError } = await admin.from('communities').insert({ ...requiredPayload, location, posting_policy: policy }).select('id').single())
-  if (createError && (createError.code === '42703' || /column .* does not exist/i.test(createError.message || ''))) {
+  if (isMissingOptionalColumn(createError)) {
     ;({ data: created, error: createError } = await admin.from('communities').insert(requiredPayload).select('id').single())
   }
   if (createError || !created) throw new Error(createError?.message || 'Erro ao criar comunidade.')
@@ -65,11 +70,9 @@ export async function createCommunityAction(input: CreateCommunityInput) {
     throw new Error('A comunidade foi criada, mas não foi possível atribuir o administrador. A operação foi revertida.')
   }
 
-  // Forward-compatible normalization: after the taxonomy migration exists, persist the
-  // canonical relation as well. Older databases keep working through sport_category.
   const relationClient = admin as unknown as { from: (table: string) => { insert: (payload: unknown) => Promise<{ error: { code?: string; message?: string } | null }> } }
   const relation = await relationClient.from('community_categories').insert({ community_id: created.id, category_id: category.id })
-  if (relation.error && !['42P01', '42703'].includes(relation.error.code || '')) {
+  if (relation.error && !['42P01', '42703', 'PGRST204', 'PGRST205'].includes(relation.error.code || '')) {
     await admin.from('community_members').delete().eq('community_id', created.id).eq('user_id', user.id)
     await admin.from('communities').delete().eq('id', created.id)
     throw new Error('Não foi possível associar a modalidade à comunidade. A operação foi revertida.')
