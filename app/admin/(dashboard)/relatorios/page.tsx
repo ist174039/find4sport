@@ -1,140 +1,60 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { Building2, Calendar, Star, Users } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveSessionAccess } from '@/lib/auth/access'
+import { DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Activity, Building2, Calendar, FileText, LineChart, Loader2, Star, Store, Users } from 'lucide-react'
+export default async function AdminReportsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/admin/login')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.canAccessAdmin) redirect('/admin/login?error=unauthorized')
 
-export default function Page() {
- const [stats, setStats] = useState<any>(null)
- const [loading, setLoading] = useState(true)
+  const admin = createAdminClient()
+  const [users, professionals, spaces, events, reviews, reservations, completedReservations] = await Promise.all([
+    admin.from('platform_users').select('id', { count: 'exact', head: true }),
+    admin.from('professionals').select('id', { count: 'exact', head: true }),
+    admin.from('sport_spaces').select('id', { count: 'exact', head: true }),
+    admin.from('events').select('id', { count: 'exact', head: true }),
+    admin.from('reviews').select('id', { count: 'exact', head: true }),
+    admin.from('reservations').select('id', { count: 'exact', head: true }),
+    admin.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+  ])
 
- useEffect(() => {
-  async function load() {
-   const supabase = createClient()
-   const [
-    { count: users },
-    { count: professionals },
-    { count: spaces },
-    { count: events },
-    { count: reviews },
-   ] = await Promise.all([
-    supabase.from('platform_users').select('*', { count: 'exact', head: true }),
-    supabase.from('professionals').select('*', { count: 'exact', head: true }),
-    supabase.from('sport_spaces').select('*', { count: 'exact', head: true }),
-    supabase.from('events').select('*', { count: 'exact', head: true }),
-    supabase.from('reviews').select('*', { count: 'exact', head: true }),
-   ])
+  const totalReservations = reservations.count || 0
+  const completed = completedReservations.count || 0
+  const completionRate = totalReservations > 0 ? (completed / totalReservations) * 100 : null
 
-   setStats({
-    users: users || 0,
-    professionals: professionals || 0,
-    spaces: spaces || 0,
-    events: events || 0,
-    reviews: reviews || 0
-   })
-   setLoading(false)
-  }
-  load()
- }, [])
+  return (
+    <DashboardPage>
+      <DashboardPageHeader title="Relatórios" description="Indicadores factuais calculados a partir da base de dados. Esta página não produz conclusões automáticas sem evidência." />
 
- const exportPDF = () => {
-  window.print()
- }
+      <DashboardStatGrid>
+        <DashboardStat label="Utilizadores" value={users.count || 0} icon={<Users className="h-5 w-5" />} />
+        <DashboardStat label="Profissionais" value={professionals.count || 0} icon={<Users className="h-5 w-5" />} />
+        <DashboardStat label="Espaços" value={spaces.count || 0} icon={<Building2 className="h-5 w-5" />} />
+        <DashboardStat label="Eventos" value={events.count || 0} icon={<Calendar className="h-5 w-5" />} />
+      </DashboardStatGrid>
 
- return (
-  <div className="space-y-6 print:m-0 print:p-0">
-   <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden">
-    <div>
-     <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Relatórios de Desempenho</h1>
-     <p className="text-muted-foreground mt-1 text-sm">Métricas globais da plataforma e geração de relatórios oficiais.</p>
-    </div>
-    <div className="flex gap-3">
-     <button onClick={exportPDF} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium text-sm hover:opacity-90 shadow-sm transition-all">
-      <FileText className="text-[20px]" />
-      Exportar Relatório Global
-     </button>
-    </div>
-   </section>
+      <div className="grid gap-6 md:grid-cols-2">
+        <DashboardSection title="Atividade" description="Volumes acumulados registados na plataforma.">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reservas</p><p className="mt-2 text-2xl font-bold">{totalReservations}</p></div>
+            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Concluídas</p><p className="mt-2 text-2xl font-bold">{completed}</p></div>
+            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Taxa conclusão</p><p className="mt-2 text-2xl font-bold">{completionRate === null ? '—' : `${completionRate.toFixed(1)}%`}</p></div>
+            <div className="rounded-xl border border-border p-4"><p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Star className="h-3.5 w-3.5" />Avaliações</p><p className="mt-2 text-2xl font-bold">{reviews.count || 0}</p></div>
+          </div>
+        </DashboardSection>
 
-   {/* Report Container to print */}
-   <div className="bg-card rounded-xl border border-border p-8 print:border-none print:p-0">
-    <div className="hidden print:block mb-8 border-b border-border pb-6">
-     <h1 className="font-bold text-2xl text-3xl font-bold text-foreground">Find4Sport - Relatório Global de Plataforma</h1>
-     <p className="text-muted-foreground mt-2">Gerado em: {new Date().toLocaleDateString('pt-PT')}</p>
-    </div>
-
-    <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-     <Activity className="text-primary h-5 w-5" /> Resumo de Métricas Atuais
-    </h3>
-
-    {loading ? (
-     <div className="flex items-center justify-center p-12">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-     </div>
-    ) : (
-     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
-       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-         <Users className="h-5 w-5" />
-        </div>
-        <h4 className="text-lg font-semibold">Utilizadores Registados</h4>
-       </div>
-       <p className="text-3xl font-bold text-foreground">{stats?.users}</p>
+        <DashboardSection title="Leitura dos dados" description="O painel apresenta métricas; interpretações de negócio devem ser feitas com contexto temporal e financeiro.">
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>Os números apresentados são totais atuais da base de dados e não representam, por si só, crescimento, retenção ou saúde do negócio.</p>
+            <p>Para análise de tendência será necessário adicionar séries temporais confiáveis, coortes e métricas financeiras reconciliadas.</p>
+          </div>
+        </DashboardSection>
       </div>
-      
-      <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
-       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-secondary/50 text-secondary-foreground rounded-lg flex items-center justify-center">
-         <Store className="h-5 w-5" />
-        </div>
-        <h4 className="text-lg font-semibold">Profissionais & Entidades</h4>
-       </div>
-       <p className="text-3xl font-bold text-foreground">{stats?.professionals}</p>
-      </div>
-
-      <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
-       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-green-500/10 text-green-600 dark:text-green-400 rounded-lg flex items-center justify-center">
-         <Building2 className="h-5 w-5" />
-        </div>
-        <h4 className="text-lg font-semibold">Espaços Desportivos</h4>
-       </div>
-       <p className="text-3xl font-bold text-foreground">{stats?.spaces}</p>
-      </div>
-
-      <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
-       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-secondary/10 text-secondary rounded-lg flex items-center justify-center">
-         <Calendar className="h-5 w-5" />
-        </div>
-        <h4 className="text-lg font-semibold">Eventos & Torneios</h4>
-       </div>
-       <p className="text-3xl font-bold text-foreground">{stats?.events}</p>
-      </div>
-
-      <div className="bg-muted/30 p-6 rounded-xl border border-border print:border-border">
-       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-trust-gold/10 text-amber-500 rounded-lg flex items-center justify-center">
-         <Star className="h-5 w-5" />
-        </div>
-        <h4 className="text-lg font-semibold">Avaliações Recebidas</h4>
-       </div>
-       <p className="text-3xl font-bold text-foreground">{stats?.reviews}</p>
-      </div>
-     </div>
-    )}
-
-    <div className="mt-8 p-6 bg-primary/5 rounded-xl border border-primary/20 print:border-border">
-     <h4 className="text-lg font-bold text-primary mb-2 flex items-center gap-2">
-      <LineChart className="text-[20px]" />
-      Resumo Executivo
-     </h4>
-     <p className="text-sm text-muted-foreground leading-relaxed">
-      A plataforma encontra-se num estado saudável. Existem {stats?.spaces} espaços cadastrados que servem como pilar de retenção dos utilizadores. A taxa de avaliações reflete um forte engajamento da comunidade (total de {stats?.reviews} avaliações processadas).
-     </p>
-    </div>
-   </div>
-  </div>
- )
+    </DashboardPage>
+  )
 }
