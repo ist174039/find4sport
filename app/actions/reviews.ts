@@ -22,6 +22,12 @@ export type PublicReview = {
   }
 }
 
+function missingOptionalReviewColumn(error: any) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  return ['42703', 'PGRST204'].includes(code) || /status|response|schema cache/i.test(message)
+}
+
 export async function getReviewsAction(targetType: ReviewTargetType, targetId: string) {
   if (!targetId || targetType === 'event') return { reviews: [] as PublicReview[], currentUserId: null }
 
@@ -30,19 +36,14 @@ export async function getReviewsAction(targetType: ReviewTargetType, targetId: s
   const admin = createAdminClient()
   const typeColumn = targetType === 'space' ? 'space_id' : 'professional_id'
 
-  const { data: rows, error } = await admin
-    .from('reviews')
-    .select('id,user_id,rating,comment,response,created_at,status')
-    .eq(typeColumn, targetId)
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-
+  const { data: rawRows, error } = await admin.from('reviews').select('*').eq(typeColumn, targetId).order('created_at', { ascending: false })
   if (error) {
     console.error('Erro ao carregar avaliações:', error)
-    throw new Error('Não foi possível carregar as avaliações.')
+    throw new Error(`Não foi possível carregar as avaliações: ${error.message}`)
   }
 
-  const userIds = [...new Set((rows || []).map(row => row.user_id).filter(Boolean))]
+  const rows = (rawRows || []).filter((row: any) => !row.status || row.status === 'approved')
+  const userIds = [...new Set(rows.map((row: any) => row.user_id).filter(Boolean))] as string[]
   const [{ data: profiles }, { data: professionals }, { data: spaces }] = userIds.length
     ? await Promise.all([
         admin.from('platform_users').select('id,full_name,avatar_url,type').in('id', userIds),
@@ -55,7 +56,7 @@ export async function getReviewsAction(targetType: ReviewTargetType, targetId: s
   const professionalMap = new Map((professionals || []).map(profile => [profile.user_id, profile.public_slug]))
   const spaceMap = new Map((spaces || []).map(space => [space.owner_user_id, space.slug]))
 
-  const reviews: PublicReview[] = (rows || []).map(row => {
+  const reviews: PublicReview[] = rows.map((row: any) => {
     const profile = profileMap.get(row.user_id)
     return {
       id: row.id,
@@ -95,25 +96,19 @@ export async function submitReviewAction(targetType: ReviewTargetType, targetId:
   const { data: target } = await admin.from(targetTable).select('id').eq('id', targetId).maybeSingle()
   if (!target) throw new Error(targetType === 'space' ? 'Espaço não encontrado' : 'Profissional não encontrado')
 
-  const { data: existingReview } = await admin
-    .from('reviews')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq(typeColumn, targetId)
-    .maybeSingle()
+  const { data: existingReview } = await admin.from('reviews').select('id').eq('user_id', user.id).eq(typeColumn, targetId).maybeSingle()
   if (existingReview) throw new Error('Já avaliou este perfil.')
 
-  const { error } = await admin.from('reviews').insert({
-    user_id: user.id,
-    [typeColumn]: targetId,
-    rating,
-    comment: normalizedComment || null,
-    status: 'approved',
-  })
+  const payload: Record<string, unknown> = { user_id: user.id, [typeColumn]: targetId, rating, comment: normalizedComment || null, status: 'approved' }
+  let { error } = await admin.from('reviews').insert(payload)
+  if (error && missingOptionalReviewColumn(error)) {
+    const { status: _ignored, ...legacyPayload } = payload
+    const retry = await admin.from('reviews').insert(legacyPayload)
+    error = retry.error
+  }
   if (error) {
     console.error('Erro ao submeter avaliação:', error)
-    throw new Error('Erro ao submeter avaliação')
+    throw new Error(`Erro ao submeter avaliação: ${error.message}`)
   }
-
   return { success: true }
 }
