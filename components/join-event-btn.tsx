@@ -1,60 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { CalendarCheck, Loader2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CalendarCheck, Loader2, Ticket } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { joinEventAction } from '@/app/actions/events'
 import { useModal } from '@/components/providers/modal-provider'
 
-export function JoinEventBtn({ eventId, eventPrice = 0 }: { eventId: string; eventPrice?: number }) {
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const { showAlert } = useModal()
-
-  const handleJoin = async () => {
-    if (loading) return
-    setLoading(true)
-    try {
-      if (eventPrice > 0) {
-        const response = await fetch('/api/checkout_sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId }),
-        })
-        const payload = await response.json().catch(() => ({}))
-        if (response.status === 401) {
-          router.push(`/auth/login?redirect=${encodeURIComponent(`/eventos/${eventId}`)}`)
-          return
-        }
-        if (!response.ok || !payload.url) throw new Error(payload.error || 'Não foi possível iniciar o pagamento.')
-        window.location.assign(payload.url)
-        return
-      }
-
-      await joinEventAction(eventId)
-      showAlert('Inscrição concluída', 'A tua participação no evento ficou confirmada e aparece na tua agenda.', 'success')
-      router.push('/dashboard/agenda')
-      router.refresh()
-    } catch (error) {
-      const code = String(error instanceof Error ? error.message : '')
-      if (code === 'user_not_authenticated') {
-        router.push(`/auth/login?redirect=${encodeURIComponent(`/eventos/${eventId}`)}`)
-      } else if (code === 'already_enrolled') {
-        showAlert('Já estás inscrito', 'Este evento já faz parte da tua agenda.', 'info')
-      } else if (code === 'event_full') {
-        showAlert('Evento esgotado', 'A capacidade máxima deste evento já foi atingida.', 'info')
-      } else if (code === 'event_finished' || code === 'event_not_available') {
-        showAlert('Evento indisponível', 'Este evento já não aceita novas inscrições.', 'info')
-      } else {
-        showAlert('Não foi possível participar', code && !code.includes('_') ? code : 'Não foi possível concluir a inscrição. Tenta novamente.', 'error')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return <button onClick={handleJoin} disabled={loading} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-60">
-    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
-    {loading ? 'A processar…' : eventPrice > 0 ? `Participar · ${Number(eventPrice).toFixed(2)} €` : 'Participar'}
-  </button>
+type TicketType={id:string;name:string;description?:string|null;price:number;capacity?:number|null}
+export function JoinEventBtn({eventId,eventPrice=0,ticketTypes=[]}:{eventId:string;eventPrice?:number;ticketTypes?:TicketType[]}){
+  const paidTickets=useMemo(()=>ticketTypes.filter(t=>Number(t.price)>0),[ticketTypes]);const defaultTicket=paidTickets[0]||ticketTypes[0]||null
+  const[selectedTicketId,setSelectedTicketId]=useState(defaultTicket?.id||'');const selected=ticketTypes.find(t=>t.id===selectedTicketId)||defaultTicket;const price=selected?Number(selected.price):Number(eventPrice||0)
+  const[loading,setLoading]=useState(false);const router=useRouter();const{showAlert}=useModal()
+  const handleJoin=async()=>{if(loading)return;setLoading(true);try{if(price>0){const response=await fetch('/api/checkout_sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,ticketTypeId:selected?.id||null})});const payload=await response.json().catch(()=>({}));if(response.status===401){router.push(`/auth/login?redirect=${encodeURIComponent(`/eventos/${eventId}`)}`);return}if(!response.ok||!payload.url)throw new Error(payload.error||'Não foi possível iniciar o pagamento.');window.location.assign(payload.url);return}await joinEventAction(eventId);showAlert('Inscrição concluída','A tua participação ficou confirmada e aparece na agenda.','success');router.push('/dashboard/agenda');router.refresh()}catch(error){const code=String(error instanceof Error?error.message:'');if(code==='user_not_authenticated')router.push(`/auth/login?redirect=${encodeURIComponent(`/eventos/${eventId}`)}`);else if(code==='already_enrolled')showAlert('Já estás inscrito','Este evento já faz parte da tua agenda.','info');else if(code==='event_full')showAlert('Evento esgotado','A capacidade máxima já foi atingida.','info');else if(code==='event_finished'||code==='event_not_available')showAlert('Evento indisponível','Este evento já não aceita novas inscrições.','info');else showAlert('Não foi possível participar',code&&!code.includes('_')?code:'Não foi possível concluir a inscrição.','error')}finally{setLoading(false)}}
+  return <div className="w-full space-y-3">{ticketTypes.length>1&&<label className="block"><span className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-muted-foreground"><Ticket className="h-3.5 w-3.5"/>Tipo de bilhete</span><select value={selectedTicketId} onChange={e=>setSelectedTicketId(e.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-medium">{ticketTypes.map(t=><option key={t.id} value={t.id}>{t.name} · {Number(t.price)===0?'Grátis':`${Number(t.price).toFixed(2)} €`}</option>)}</select>{selected?.description&&<p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>}</label>}<button onClick={handleJoin} disabled={loading} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-60">{loading?<Loader2 className="h-4 w-4 animate-spin"/>:<CalendarCheck className="h-4 w-4"/>}{loading?'A processar…':price>0?`Participar · ${price.toFixed(2)} €`:'Participar'}</button></div>
 }
