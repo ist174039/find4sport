@@ -37,7 +37,7 @@ export function CreatePostBox({
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file.size > 10 * 1024 * 1024) {
       showAlert('Erro', 'O ficheiro não pode exceder 10MB.', 'error')
       return
     }
@@ -82,13 +82,13 @@ export function CreatePostBox({
         const { data: { publicUrl } } = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath)
-        
+
         media_url = publicUrl
         media_type = mediaFile.type.startsWith('video/') ? 'video' : 'image'
       }
 
       const result = await createPostAction(content, media_url, media_type)
-      
+
       if (result?.error) {
         throw new Error(result.error)
       }
@@ -107,16 +107,16 @@ export function CreatePostBox({
       <div className="mb-3 flex items-center justify-between border-b border-border/70 pb-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary">
           <PenLine className="h-3.5 w-3.5" />
-          {currentUserType === 'espaco' ? 'Publicação do espaço' : 'Publicação oficial'}
+          {currentUserType === 'venue_manager' ? 'Publicação do espaço' : 'Publicação oficial'}
         </div>
         <span className="text-[11px] font-medium text-muted-foreground">Qualidade visual recomendada: 1200x1200</span>
       </div>
 
       <div className="flex gap-4">
-        <img 
-          src={currentUserAvatar || 'https://i.pravatar.cc/150'} 
-          alt={currentUserName} 
-          className="h-11 w-11 shrink-0 rounded-full border border-border object-cover" 
+        <img
+          src={currentUserAvatar || 'https://i.pravatar.cc/150'}
+          alt={currentUserName}
+          className="h-11 w-11 shrink-0 rounded-full border border-border object-cover"
         />
         <form onSubmit={handleSubmit} className="flex-1 space-y-3">
           <textarea
@@ -130,7 +130,7 @@ export function CreatePostBox({
           <div className="text-right text-[11px] text-muted-foreground">
             {content.length}/5000
           </div>
-          
+
           {mediaPreview && (
             <div className="relative mt-2 inline-block rounded-xl border border-border bg-muted/30 p-1">
               {mediaFile?.type.startsWith('video/') ? (
@@ -138,8 +138,8 @@ export function CreatePostBox({
               ) : (
                 <img src={mediaPreview} alt="Preview" className="max-h-48 rounded-lg object-cover" />
               )}
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={clearMedia}
                 className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 shadow-sm hover:bg-destructive/90"
               >
@@ -153,16 +153,16 @@ export function CreatePostBox({
               <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary">
                 <ImageIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Foto/Vídeo</span>
-                <input 
-                  type="file" 
-                  accept="image/*,video/*" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
                   onChange={handleMediaChange}
                   disabled={loading}
                 />
               </label>
             </div>
-            
+
             <button
               type="submit"
               disabled={loading || (!content.trim() && !mediaFile)}
