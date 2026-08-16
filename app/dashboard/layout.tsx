@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
+import { DashboardContentShell } from '@/components/dashboard/content-shell'
 import { resolveSessionAccess } from '@/lib/auth/access'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,9 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen w-full overflow-x-hidden bg-muted/30">
       <div className="flex w-full">
         <DashboardSidebar role={access.role} professional={professionalResult.data} space={spaceResult.data} user={user} notificationCount={count || 0} />
-        <main className="ml-0 w-full min-w-0 flex-1 px-4 pb-24 pt-20 sm:px-6 lg:ml-64 lg:p-8">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
-        </main>
+        <DashboardContentShell>{children}</DashboardContentShell>
       </div>
     </div>
   )
