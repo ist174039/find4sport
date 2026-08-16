@@ -37,17 +37,36 @@ export async function adminCreateProfessional(input: {
 }) {
   await requireAdminAccess()
   const supabaseAdmin = createAdminClient()
-  const userId = crypto.randomUUID()
+
+  // A platform profile must always belong to a real Supabase Auth identity because
+  // platform_users.id is a foreign key to auth.users.id. Create the identity first
+  // and let the database provisioning trigger create the initial athlete profile.
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: input.email,
+    email_confirm: true,
+    user_metadata: {
+      full_name: input.full_name,
+      type: 'professional',
+    },
+  })
+
+  if (authError || !authData.user) {
+    return { error: authError?.message || 'Não foi possível criar a identidade do profissional' }
+  }
+
+  const userId = authData.user.id
 
   const { error: profileError } = await supabaseAdmin
     .from('platform_users')
-    .insert({
-      id: userId,
+    .update({
       full_name: input.full_name,
+      email: input.email,
       type: 'professional',
     })
+    .eq('id', userId)
 
   if (profileError) {
+    await supabaseAdmin.auth.admin.deleteUser(userId)
     return { error: profileError.message }
   }
 
@@ -66,7 +85,7 @@ export async function adminCreateProfessional(input: {
     .single()
 
   if (error) {
-    await supabaseAdmin.from('platform_users').delete().eq('id', userId)
+    await supabaseAdmin.auth.admin.deleteUser(userId)
     return { error: error.message }
   }
 
