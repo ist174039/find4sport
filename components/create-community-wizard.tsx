@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ArrowRight, ArrowLeft, Image as ImageIcon, MapPin, Tag, Users, CheckCircle2, Trophy, Loader2, MessageSquare, Heart, ShieldCheck } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { useRouter } from 'next/navigation'
-import { createCommunityAction } from '@/app/actions/community'
+import { createCommunityAction } from '@/app/actions/community-create'
 import { TaxonomyCombobox, type TaxonomyOption } from '@/components/taxonomy-combobox'
 
 export function CreateCommunityWizard({ categories }: { categories: TaxonomyOption[] }) {
@@ -17,31 +17,17 @@ export function CreateCommunityWizard({ categories }: { categories: TaxonomyOpti
   const selectedCategory = categories.find(category => category.id === formData.categoryId)
 
   const nextStep = () => {
-    if (step === 1 && (formData.name.trim().length < 3 || formData.description.trim().length < 10)) {
-      showAlert('Dados incompletos', 'Indica um nome e uma descrição com pelo menos 10 caracteres.', 'info')
-      return
-    }
-    if (step === 2 && !formData.categoryId) {
-      showAlert('Modalidade em falta', 'Seleciona a modalidade principal da comunidade.', 'info')
-      return
-    }
+    if (step === 1 && (formData.name.trim().length < 3 || formData.description.trim().length < 10)) { showAlert('Dados incompletos', 'Indica um nome e uma descrição com pelo menos 10 caracteres.', 'info'); return }
+    if (step === 2 && !formData.categoryId) { showAlert('Modalidade em falta', 'Seleciona a modalidade principal da comunidade.', 'info'); return }
     setStep(current => Math.min(current + 1, 3))
   }
   const prevStep = () => setStep(current => Math.max(current - 1, 1))
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (loading) return
-    setLoading(true)
-    try {
-      const result = await createCommunityAction(formData)
-      showAlert('Comunidade criada', 'A comunidade já está disponível.', 'success')
-      router.push(`/comunidades/${result.id}`)
-    } catch (err) {
-      showAlert('Não foi possível criar a comunidade', err instanceof Error ? err.message : 'Erro ao criar comunidade.', 'error')
-    } finally {
-      setLoading(false)
-    }
+    e.preventDefault(); if (loading) return; setLoading(true)
+    try { const result = await createCommunityAction(formData); showAlert('Comunidade criada', 'A comunidade já está disponível.', 'success'); router.push(`/comunidades/${result.id}`) }
+    catch (err) { showAlert('Não foi possível criar a comunidade', err instanceof Error ? err.message : 'Erro ao criar comunidade.', 'error') }
+    finally { setLoading(false) }
   }
 
   const rules = [
