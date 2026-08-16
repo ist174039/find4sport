@@ -38,7 +38,11 @@ export function EntityHero({
               {meta && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/85">{meta}</div>}
             </div>
           </div>
-          {actions && <div className="hidden shrink-0 gap-2 sm:flex sm:pb-2">{actions}</div>}
+          {actions && (
+            <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 sm:shrink-0 sm:overflow-visible sm:pb-2 [&>*]:min-h-11 [&>*]:shrink-0">
+              {actions}
+            </div>
+          )}
         </div>
       </PageContainer>
     </section>
@@ -59,12 +63,7 @@ export function EntityDetailLayout({ main, aside }: { main: ReactNode; aside?: R
 export function DetailSection({ title, icon, description, children, className }: { title?: string; icon?: ReactNode; description?: string; children: ReactNode; className?: string }) {
   return (
     <section className={cn('rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5', className)}>
-      {title && (
-        <div className="mb-4">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-foreground sm:text-xl">{icon}{title}</h2>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-        </div>
-      )}
+      {title && <div className="mb-4"><h2 className="flex items-center gap-2 text-lg font-bold text-foreground sm:text-xl">{icon}{title}</h2>{description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}</div>}
       {children}
     </section>
   )
@@ -72,8 +71,8 @@ export function DetailSection({ title, icon, description, children, className }:
 
 export function MobileActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:hidden">
-      <div className="mx-auto flex max-w-lg gap-2 [&>*]:min-h-11 [&>*]:flex-1">{children}</div>
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:hidden">
+      <div className="mx-auto flex max-w-lg gap-2 overflow-x-auto [&>*]:min-h-11 [&>*]:min-w-0 [&>*]:flex-1">{children}</div>
     </div>
   )
 }
