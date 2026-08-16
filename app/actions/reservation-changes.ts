@@ -7,11 +7,20 @@ import { resolveSessionAccess } from '@/lib/auth/access'
 
 function minutes(value:string){const[h,m]=String(value).slice(0,5).split(':').map(Number);return h*60+m}
 function hhmm(total:number){return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`}
-function reservationStart(date:string,time:string){return new Date(`${date}T${String(time).slice(0,5)}:00`)}
-function assert24Hours(date:string,time:string){const start=reservationStart(date,time);if(Number.isNaN(start.getTime())||start.getTime()-Date.now()<24*60*60*1000)throw new Error('As alterações só podem ser pedidas com pelo menos 24 horas de antecedência.')}
+function lisbonLocalEpoch(date:string,time:string){
+  const[y,m,d]=date.split('-').map(Number);const[h,min]=String(time).slice(0,5).split(':').map(Number)
+  if(![y,m,d,h,min].every(Number.isFinite))return NaN
+  const wallClockUtc=Date.UTC(y,m-1,d,h,min,0)
+  const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})
+  const parts=formatter.formatToParts(new Date(wallClockUtc));const get=(type:Intl.DateTimeFormatPartTypes)=>Number(parts.find(part=>part.type===type)?.value)
+  const representedAsUtc=Date.UTC(get('year'),get('month')-1,get('day'),get('hour'),get('minute'),get('second'))
+  const offsetMs=representedAsUtc-wallClockUtc
+  return wallClockUtc-offsetMs
+}
+function assert24Hours(date:string,time:string){const start=lisbonLocalEpoch(date,time);if(!Number.isFinite(start)||start-Date.now()<24*60*60*1000)throw new Error('As alterações só podem ser pedidas com pelo menos 24 horas de antecedência.')}
 
 async function validateSlot(admin:ReturnType<typeof createAdminClient>,reservation:any,date:string,startTime:string,endTime:string,excludeReservationId:string){
-  const day=new Date(`${date}T12:00:00`).getDay()
+  const midday=lisbonLocalEpoch(date,'12:00');const day=new Date(midday).getUTCDay()
   if(reservation.professional_id){const{data:availability,error}=await admin.from('professional_availability').select('start_time,end_time').eq('professional_id',reservation.professional_id).eq('day_of_week',day).eq('is_active',true);if(error)throw new Error('Não foi possível validar a disponibilidade do profissional.');if(!(availability||[]).some((slot:any)=>startTime>=String(slot.start_time).slice(0,5)&&endTime<=String(slot.end_time).slice(0,5)))throw new Error('O novo horário está fora da disponibilidade do profissional.')}
   if(reservation.space_room_id){const{data:availability,error}=await admin.from('space_room_availability').select('start_time,end_time').eq('room_id',reservation.space_room_id).eq('day_of_week',day).eq('is_active',true);if(error)throw new Error('Não foi possível validar a disponibilidade da sala/campo.');if(!(availability||[]).some((slot:any)=>startTime>=String(slot.start_time).slice(0,5)&&endTime<=String(slot.end_time).slice(0,5)))throw new Error('O novo horário está fora da disponibilidade da sala/campo.')}
   let conflicts=admin.from('reservations').select('id').eq('date',date).in('status',['pending','paid','confirmed']).neq('id',excludeReservationId).lt('start_time',endTime).gt('end_time',startTime)
