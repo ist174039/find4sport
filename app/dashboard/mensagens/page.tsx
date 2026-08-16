@@ -11,6 +11,25 @@ function missingThreadSchema(error: any) {
   return ['42P01','42703','PGRST204','PGRST205'].includes(code) || message.includes('message_threads') || message.includes('thread_id')
 }
 
+function lisbonNowKey() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' }).formatToParts(new Date())
+  const get=(type:Intl.DateTimeFormatPartTypes)=>parts.find(part=>part.type===type)?.value||''
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`
+}
+
+function bookingEndKey(date: string, endTime: string) {
+  const raw=String(endTime||'').slice(0,8)
+  const time=raw.length>=8?raw:`${raw.slice(0,5)}:00`
+  return `${date}T${time}`
+}
+
+function eventStillActive(event: { start_date?: string|null; end_date?: string|null }) {
+  const start=Date.parse(String(event.start_date||''))
+  if(!Number.isFinite(start))return false
+  const end=event.end_date?Date.parse(event.end_date):start+24*60*60*1000
+  return Number.isFinite(end)&&end>Date.now()
+}
+
 function formatBookingDetail(date?: string | null, start?: string | null, end?: string | null) {
   if (!date) return ''
   const day = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT')
@@ -23,6 +42,7 @@ export default async function MensagensPage() {
   if (!user) redirect('/auth/login')
   const admin = createAdminClient()
   const db = admin as any
+  const nowKey = lisbonNowKey()
 
   const [{ data: profile }, messageResult] = await Promise.all([
     admin.from('platform_users').select('id,type').eq('id', user.id).maybeSingle(),
@@ -45,9 +65,10 @@ export default async function MensagensPage() {
   const role = profile?.type
 
   if (role === 'athlete') {
-    const { data: reservations } = await admin.from('reservations').select('professional_id,space_id,status,payment_status').eq('user_id', user.id).in('status', ['paid', 'confirmed'])
-    const professionalIds = [...new Set((reservations || []).map(row => row.professional_id).filter(Boolean))] as string[]
-    const spaceIds = [...new Set((reservations || []).map(row => row.space_id).filter(Boolean))] as string[]
+    const { data: allReservations } = await admin.from('reservations').select('professional_id,space_id,status,payment_status,date,end_time').eq('user_id', user.id).in('status', ['paid', 'confirmed'])
+    const reservations=(allReservations||[]).filter(row=>(row.payment_status==='paid'||row.status==='confirmed')&&bookingEndKey(row.date,String(row.end_time))>nowKey)
+    const professionalIds = [...new Set(reservations.map(row => row.professional_id).filter(Boolean))] as string[]
+    const spaceIds = [...new Set(reservations.map(row => row.space_id).filter(Boolean))] as string[]
     const [{ data: professionals }, { data: spaces }, { data: participants }] = await Promise.all([
       professionalIds.length ? admin.from('professionals').select('id,user_id').in('id', professionalIds) : Promise.resolve({ data: [] as any[] }),
       spaceIds.length ? admin.from('sport_spaces').select('id,owner_user_id').in('id', spaceIds) : Promise.resolve({ data: [] as any[] }),
@@ -57,9 +78,8 @@ export default async function MensagensPage() {
     for (const space of spaces || []) if (space.owner_user_id) { activeContactIds.add(space.owner_user_id); contextByUser.set(space.owner_user_id, 'Reserva de espaço ativa') }
     const eventIds = (participants || []).map(row => row.event_id)
     if (eventIds.length) {
-      const now = new Date().toISOString()
-      const { data: events } = await admin.from('events').select('created_by').in('id', eventIds).or(`end_date.is.null,end_date.gte.${now}`)
-      for (const event of events || []) if (event.created_by) { activeContactIds.add(event.created_by); contextByUser.set(event.created_by, 'Evento pago ativo') }
+      const { data: events } = await admin.from('events').select('id,created_by,start_date,end_date').in('id', eventIds)
+      for (const event of (events || []).filter(eventStillActive)) if (event.created_by) { activeContactIds.add(event.created_by); contextByUser.set(event.created_by, 'Evento pago ativo') }
     }
   } else if (role === 'professional' || role === 'venue_manager') {
     const clauses: string[] = []
@@ -71,12 +91,12 @@ export default async function MensagensPage() {
       if (spaces?.length) clauses.push(`space_id.in.(${spaces.map(space => space.id).join(',')})`)
     }
     if (clauses.length) {
-      const { data: reservations } = await admin.from('reservations').select('user_id').in('status', ['paid', 'confirmed']).or(clauses.join(','))
-      for (const reservation of reservations || []) if (reservation.user_id) { activeContactIds.add(reservation.user_id); contextByUser.set(reservation.user_id, 'Reserva ativa') }
+      const { data: allReservations } = await admin.from('reservations').select('user_id,status,payment_status,date,end_time').in('status', ['paid', 'confirmed']).or(clauses.join(','))
+      const reservations=(allReservations||[]).filter(row=>(row.payment_status==='paid'||row.status==='confirmed')&&bookingEndKey(row.date,String(row.end_time))>nowKey)
+      for (const reservation of reservations) if (reservation.user_id) { activeContactIds.add(reservation.user_id); contextByUser.set(reservation.user_id, 'Reserva ativa') }
     }
-    const now = new Date().toISOString()
-    const { data: events } = await admin.from('events').select('id').eq('created_by', user.id).or(`end_date.is.null,end_date.gte.${now}`)
-    const eventIds = (events || []).map(event => event.id)
+    const { data: events } = await admin.from('events').select('id,start_date,end_date').eq('created_by', user.id)
+    const eventIds = (events || []).filter(eventStillActive).map(event => event.id)
     if (eventIds.length) {
       const { data: participants } = await admin.from('event_participants').select('user_id').in('event_id', eventIds).eq('payment_status', 'paid').in('status', ['confirmed', 'paid'])
       for (const participant of participants || []) if (participant.user_id) { activeContactIds.add(participant.user_id); contextByUser.set(participant.user_id, 'Evento pago ativo') }
@@ -86,8 +106,8 @@ export default async function MensagensPage() {
   const reservationIds = threads.map((thread:any)=>thread.reservation_id).filter(Boolean)
   const participantIds = threads.map((thread:any)=>thread.event_participant_id).filter(Boolean)
   const [{ data: reservationContexts }, { data: participantContexts }] = await Promise.all([
-    reservationIds.length ? admin.from('reservations').select('id,date,start_time,end_time,service_id,space_id').in('id', reservationIds) : Promise.resolve({ data: [] as any[] }),
-    participantIds.length ? admin.from('event_participants').select('id,event_id').in('id', participantIds) : Promise.resolve({ data: [] as any[] }),
+    reservationIds.length ? admin.from('reservations').select('id,date,start_time,end_time,service_id,space_id,status,payment_status').in('id', reservationIds) : Promise.resolve({ data: [] as any[] }),
+    participantIds.length ? admin.from('event_participants').select('id,event_id,status,payment_status').in('id', participantIds) : Promise.resolve({ data: [] as any[] }),
   ])
   const serviceIds = [...new Set((reservationContexts || []).map(row=>row.service_id).filter(Boolean))] as string[]
   const spaceIds = [...new Set((reservationContexts || []).map(row=>row.space_id).filter(Boolean))] as string[]
@@ -137,19 +157,23 @@ export default async function MensagensPage() {
     const lastMsg = threadMessages[0]
     let contextLabel = thread.context_type==='reservation'?'Reserva':'Evento pago'
     let contextDetail = ''
+    let contextActive = false
     if (thread.reservation_id) {
       const reservation:any = reservationMap.get(thread.reservation_id)
       const title = reservation?.service_id?serviceMap.get(reservation.service_id):reservation?.space_id?spaceContextMap.get(reservation.space_id):null
       contextLabel = `Reserva${title?` · ${title}`:''}`
       contextDetail = reservation?formatBookingDetail(reservation.date,reservation.start_time,reservation.end_time):''
+      contextActive=Boolean(reservation&&['paid','confirmed'].includes(String(reservation.status))&&(reservation.payment_status==='paid'||reservation.status==='confirmed')&&bookingEndKey(reservation.date,String(reservation.end_time))>nowKey)
     } else if (thread.event_participant_id) {
       const participant:any = participantMap.get(thread.event_participant_id)
       const event:any = participant?eventMap.get(participant.event_id):null
       contextLabel = `Evento${event?.title?` · ${event.title}`:''}`
       contextDetail = event?.start_date?new Date(event.start_date).toLocaleString('pt-PT',{dateStyle:'short',timeStyle:'short'}):''
+      contextActive=Boolean(participant&&participant.payment_status==='paid'&&['confirmed','paid'].includes(String(participant.status))&&event&&eventStillActive(event))
     }
-    if (thread.status==='active') representedActiveUsers.add(otherUserId)
-    contacts.push({id:thread.id,userId:otherUserId,threadId:thread.id,...person,unread:threadMessages.filter(message=>message.sender_id===otherUserId&&message.receiver_id===user.id&&!message.read_at).length,lastMsg:lastMsg?.content||'Sem mensagens ainda',lastMsgDate:lastMsg?.created_at||thread.updated_at||thread.created_at,archived:thread.status!=='active',contextLabel,contextDetail})
+    const archived=thread.status!=='active'||!contextActive
+    if (!archived) representedActiveUsers.add(otherUserId)
+    contacts.push({id:thread.id,userId:otherUserId,threadId:thread.id,...person,unread:threadMessages.filter(message=>message.sender_id===otherUserId&&message.receiver_id===user.id&&!message.read_at).length,lastMsg:lastMsg?.content||'Sem mensagens ainda',lastMsgDate:lastMsg?.created_at||thread.updated_at||thread.created_at,archived,contextLabel,contextDetail})
   }
 
   for (const userId of activeContactIds) {
