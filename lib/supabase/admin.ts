@@ -1,13 +1,16 @@
+import 'server-only'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 /**
- * Admin client — bypasses RLS using the service role key.
- * ONLY use this in admin/server-side contexts.
- * NEVER expose the service role key to the browser.
+ * Service-role client. This bypasses RLS and therefore belongs exclusively in
+ * trusted server code after explicit authorization checks.
  */
 export function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceRoleKey) throw new Error('Supabase admin credentials are not configured')
+
+  return createSupabaseClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 }
