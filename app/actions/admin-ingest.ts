@@ -19,6 +19,41 @@ function cleanSlug(value: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
 
+export async function searchImportPlacesAction(query: string) {
+  await requireAdminAccess()
+  const q = query.trim()
+  if (q.length < 3 || q.length > 160) throw new Error('Indique uma pesquisa válida.')
+
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('format', 'jsonv2')
+  url.searchParams.set('q', q)
+  url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('limit', '8')
+  url.searchParams.set('countrycodes', 'pt')
+  url.searchParams.set('dedupe', '1')
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Find4Sport/1.0 (admin geocoding search)',
+      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.6',
+    },
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error('O serviço de pesquisa geográfica não respondeu corretamente.')
+
+  const results = await response.json()
+  return (Array.isArray(results) ? results : []).map((place: any) => ({
+    id: `${place.osm_type || 'osm'}-${place.osm_id || crypto.randomUUID()}`,
+    name: String(place.name || place.display_name?.split(',')?.[0] || 'Local').trim(),
+    address: String(place.display_name || '').trim(),
+    type: 'space' as const,
+    lat: Number(place.lat),
+    lon: Number(place.lon),
+    source: 'OpenStreetMap/Nominatim',
+    sourceType: place.type || null,
+  })).filter((item: any) => item.name && item.address && Number.isFinite(item.lat) && Number.isFinite(item.lon))
+}
+
 export async function adminIngestData(queueItems: any[]) {
   const { user, admin } = await requireAdminAccess()
 
@@ -39,7 +74,6 @@ export async function adminIngestData(queueItems: any[]) {
 
   if (candidates.length === 0) return { error: invalid[0] || 'Não existem espaços válidos para importar.', invalid }
 
-  const names = candidates.map(item => String(item.name).trim().toLowerCase())
   const { data: existing } = await admin.from('sport_spaces').select('name').in('name', candidates.map(item => String(item.name).trim()))
   const existingNames = new Set((existing || []).map(row => String(row.name).trim().toLowerCase()))
 
