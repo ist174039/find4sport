@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { canCreatePostForRole, parsePersistedPlatformRole } from '@/lib/auth/roles'
+import { canCreatePostForRole, parsePlatformRole } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 
 export async function createPostAction(content: string, media_url?: string | null, media_type?: string | null) {
@@ -19,7 +19,7 @@ export async function createPostAction(content: string, media_url?: string | nul
       .eq('id', user.id)
       .maybeSingle()
 
-    const role = parsePersistedPlatformRole(profile?.type)
+    const role = parsePlatformRole(profile?.type)
     if (!role || !canCreatePostForRole(role)) {
       throw new Error('Apenas profissionais e gestores de espaço podem publicar no feed.')
     }
