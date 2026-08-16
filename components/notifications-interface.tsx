@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Check, Trash2, Calendar, MessageSquare, Info, Star, CreditCard } from 'lucide-react'
+import Link from 'next/link'
+import { Bell, Calendar, Check, CreditCard, Info, MessageSquare, Star, Trash2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { pt } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { formatDistanceToNow } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { deleteNotificationAction, markAllNotificationsAsRead, markNotificationAsRead } from '@/app/actions/notifications'
+import { useModal } from '@/components/providers/modal-provider'
+import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
 export type Notification = {
   id: string
@@ -17,139 +20,92 @@ export type Notification = {
   link: string | null
 }
 
-export function NotificationsInterface({
-  initialNotifications,
-}: {
-  initialNotifications: Notification[]
-}) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
+function notificationMeta(type: string) {
+  if (type === 'event') return { label: 'Evento', icon: Calendar }
+  if (type === 'message') return { label: 'Mensagem', icon: MessageSquare }
+  if (type === 'review') return { label: 'Avaliação', icon: Star }
+  if (type === 'billing') return { label: 'Faturação', icon: CreditCard }
+  return { label: 'Geral', icon: Info }
+}
 
-  const markAllAsRead = async () => {
-    // Optimistic UI update
-    setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })))
+export function NotificationsInterface({ initialNotifications }: { initialNotifications: Notification[] }) {
+  const [notifications, setNotifications] = useState(initialNotifications)
+  const { showAlert, showConfirm } = useModal()
+  const unreadCount = notifications.filter(notification => !notification.read_at).length
+
+  async function markAll() {
+    const previous = notifications
+    setNotifications(current => current.map(notification => ({ ...notification, read_at: notification.read_at || new Date().toISOString() })))
     try {
       await markAllNotificationsAsRead()
     } catch (error) {
-      console.error(error)
+      setNotifications(previous)
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível atualizar as notificações.', 'error')
     }
   }
 
-  const markAsRead = async (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
+  async function markOne(id: string) {
+    const current = notifications.find(notification => notification.id === id)
+    if (!current || current.read_at) return
+    setNotifications(list => list.map(notification => notification.id === id ? { ...notification, read_at: new Date().toISOString() } : notification))
     try {
       await markNotificationAsRead(id)
     } catch (error) {
-      console.error(error)
+      setNotifications(list => list.map(notification => notification.id === id ? current : notification))
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível marcar como lida.', 'error')
     }
   }
 
-  const deleteNotification = async (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
+  async function remove(id: string) {
+    const confirmed = await showConfirm('Eliminar notificação', 'Esta notificação será removida da sua lista.', { confirmLabel: 'Eliminar', destructive: true })
+    if (!confirmed) return
+    const previous = notifications
+    setNotifications(current => current.filter(notification => notification.id !== id))
     try {
       await deleteNotificationAction(id)
     } catch (error) {
-      console.error(error)
+      setNotifications(previous)
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível eliminar a notificação.', 'error')
     }
   }
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'event': return <Calendar className="h-4 w-4 text-primary" />
-      case 'message': return <MessageSquare className="h-4 w-4 text-info" />
-      case 'review': return <Star className="h-4 w-4 text-warning fill-warning" />
-      case 'billing': return <CreditCard className="h-4 w-4 text-success" />
-      default: return <Info className="h-4 w-4 text-muted-foreground" />
-    }
-  }
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'event': return <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] rounded-md font-bold">Evento</Badge>
-      case 'message': return <Badge className="bg-info/10 text-info border-info/20 text-[10px] rounded-md font-bold">Mensagem</Badge>
-      case 'review': return <Badge className="bg-warning/10 text-warning border-warning/20 text-[10px] rounded-md font-bold">Avaliação</Badge>
-      case 'billing': return <Badge className="bg-success/10 text-success border-success/20 text-[10px] rounded-md font-bold">Sistema</Badge>
-      default: return <Badge variant="outline" className="text-[10px] rounded-md">Geral</Badge>
-    }
-  }
-
-  const unreadCount = notifications.filter(n => !n.read_at).length
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-      
-      {/* Header Section */}
-      <div className="flex justify-between items-end mb-10 pb-6 border-b border-border">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Notificações</h1>
-          <p className="mt-2 text-muted-foreground">Acompanha as novidades, respostas de profissionais e estado das tuas reservas.</p>
-        </div>
-        {unreadCount > 0 && (
-          <Button onClick={markAllAsRead} variant="outline" className="rounded-lg border-border hover:bg-muted text-xs h-9 gap-1.5 shrink-0">
-            <Check className="h-4 w-4" /> Marcar lidas
-          </Button>
-        )}
-      </div>
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Notificações"
+        description="Atualizações da plataforma, mensagens, reservas, avaliações e faturação."
+        action={unreadCount > 0 ? <Button variant="outline" className="min-h-11" onClick={markAll}><Check className="mr-2 h-4 w-4" />Marcar todas como lidas</Button> : undefined}
+      />
 
-      {notifications.length === 0 ? (
-        <div className="bg-card border border-border p-12 rounded-xl flex flex-col items-center justify-center text-center shadow-sm">
-          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
-            <Bell className="h-6 w-6 text-muted-foreground opacity-50" />
-          </div>
-          <h3 className="font-semibold text-foreground">Sem notificações</h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs">Estás a par de tudo! Quando surgirem novidades, elas aparecerão aqui.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {notifications.map((n) => {
-            const isRead = !!n.read_at
-            return (
-              <div 
-                key={n.id} 
-                className={`group relative rounded-xl border transition-all p-4 flex items-start gap-4 ${
-                  isRead 
-                    ? 'bg-card border-border/60 opacity-80 hover:opacity-100' 
-                    : 'bg-card border-primary/20 shadow-sm cursor-pointer'
-                }`}
-                onClick={() => !isRead && markAsRead(n.id)}
-              >
-                {!isRead && (
-                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-                
-                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center shrink-0 border border-border/20">
-                  {getTypeIcon(n.type)}
-                </div>
+      <DashboardStatGrid>
+        <DashboardStat label="Total" value={notifications.length} icon={<Bell className="h-5 w-5" />} />
+        <DashboardStat label="Não lidas" value={unreadCount} icon={<Bell className="h-5 w-5" />} />
+        <DashboardStat label="Lidas" value={notifications.length - unreadCount} icon={<Check className="h-5 w-5" />} />
+        <DashboardStat label="Com destino" value={notifications.filter(notification => Boolean(notification.link)).length} icon={<Info className="h-5 w-5" />} />
+      </DashboardStatGrid>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
-                    <h3 className="font-bold text-xs md:text-sm text-foreground truncate">
-                      {n.type === 'message' ? 'Nova Mensagem' : n.type === 'event' ? 'Notificação de Evento' : 'Notificação'}
-                    </h3>
-                    <span className="text-[9px] text-muted-foreground font-medium shrink-0">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-3">{n.message}</p>
-                  <div className="flex items-center justify-between">
-                    {getTypeBadge(n.type)}
-                    <Button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        deleteNotification(n.id)
-                      }} 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+      <DashboardSection title="Atividade" description="Ações importantes permanecem visíveis também em ecrãs tácteis.">
+        {notifications.length === 0 ? <DashboardEmptyState icon={<Bell className="h-10 w-10" />} title="Sem notificações" description="Está a par de tudo. Novas atualizações aparecerão aqui." /> : <div className="space-y-3">{notifications.map(notification => {
+          const meta = notificationMeta(notification.type)
+          const Icon = meta.icon
+          const isRead = Boolean(notification.read_at)
+          return <article key={notification.id} className={`rounded-2xl border p-4 ${isRead ? 'border-border bg-card' : 'border-primary/25 bg-primary/[0.03]'}`}>
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-primary"><Icon className="h-5 w-5" /></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2"><Badge variant={isRead ? 'outline' : 'default'}>{meta.label}</Badge>{!isRead && <span className="text-xs font-semibold text-primary">Nova</span>}</div>
+                <p className="mt-2 text-sm leading-relaxed text-foreground">{notification.message}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: pt })}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex">
+                  {!isRead && <Button variant="outline" className="min-h-11" onClick={() => markOne(notification.id)}><Check className="mr-2 h-4 w-4" />Marcar lida</Button>}
+                  {notification.link && <Button asChild variant="outline" className="min-h-11"><Link href={notification.link} onClick={() => void markOne(notification.id)}>Abrir</Link></Button>}
+                  <Button variant="ghost" className="min-h-11 text-destructive sm:ml-auto" onClick={() => remove(notification.id)}><Trash2 className="mr-2 h-4 w-4" />Eliminar</Button>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+            </div>
+          </article>
+        })}</div>}
+      </DashboardSection>
+    </DashboardPage>
   )
 }
