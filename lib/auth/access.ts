@@ -1,6 +1,6 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { normalizePlatformRole, type AccessRole } from '@/lib/auth/roles'
+import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
 
 export type SessionAccess = {
   role: AccessRole
@@ -72,21 +72,29 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
     .eq('id', user.id)
     .maybeSingle()
 
-  const role = normalizePlatformRole(platformUser?.type ?? user.user_metadata?.type)
+  if (!platformUser?.id) {
+    return null
+  }
 
-  const { count: professionalCount } = await supabase
-    .from('professionals')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+  const role = parsePlatformRole(platformUser.type)
+  if (!role) {
+    return null
+  }
 
-  const { count: spaceCount } = await supabase
-    .from('sport_spaces')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_user_id', user.id)
+  const [{ count: professionalCount }, { count: spaceCount }] = await Promise.all([
+    supabase
+      .from('professionals')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('sport_spaces')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_user_id', user.id),
+  ])
 
   return {
     role,
-    profileId: platformUser?.id ?? null,
+    profileId: platformUser.id,
     canAccessDashboard: true,
     canAccessAdmin: false,
     canManageProfessionals: role === 'professional' || Boolean(professionalCount),
