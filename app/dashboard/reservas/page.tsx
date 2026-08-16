@@ -58,7 +58,7 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
   }
 
   let countQuery = supabase.from('reservations').select('id', { count: 'exact', head: true })
-  let dataQuery = supabase.from('reservations').select('id,date,start_time,end_time,status,payment_status,amount,service:services(name),room:space_rooms(name),user:platform_users(id,full_name,avatar_url,type)')
+  let dataQuery = (supabase as any).from('reservations').select('id,date,start_time,end_time,status,payment_status,amount,package_session_consumed,service:services(name),room:space_rooms(name),user:platform_users(id,full_name,avatar_url,type)')
   if (professionalId) { countQuery = countQuery.eq('professional_id', professionalId); dataQuery = dataQuery.eq('professional_id', professionalId) }
   else { countQuery = countQuery.in('space_id', spaceIds); dataQuery = dataQuery.in('space_id', spaceIds) }
   if (status !== 'all') { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status) }
@@ -76,6 +76,6 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
   const { data: reservationRows, error } = await dataQuery.order('date', { ascending: false }).order('start_time', { ascending: false }).range(from, from + PAGE_SIZE - 1)
   if (error) throw new Error(`Não foi possível carregar reservas: ${error.message}`)
 
-  const items = (reservationRows || []).map(row => row as unknown as ReservationListItem)
+  const items = (reservationRows || []).map((row: any) => ({ ...row, package_session_consumed: Boolean(row.package_session_consumed) }) as ReservationListItem)
   return <ReservationsClient role={access.role} data={{ items, total, page, pageSize: PAGE_SIZE, query, status }} initialAvailability={availability} />
 }
