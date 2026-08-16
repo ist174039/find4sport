@@ -2,8 +2,51 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { assertWithinUsageLimit, incrementUsage, isFeatureEnabled } from '@/lib/billing/entitlements'
 import { revalidatePath } from 'next/cache'
+
+type MessagingAccess = { allowed: boolean; label?: string }
+
+async function hasActiveMessagingContext(userA: string, userB: string): Promise<MessagingAccess> {
+  const admin = createAdminClient()
+  const { data: profiles } = await admin.from('platform_users').select('id,type').in('id', [userA, userB])
+  const typeById = new Map((profiles || []).map(row => [row.id, row.type]))
+
+  const resolvePair = async (athleteId: string, providerId: string) => {
+    const [{ data: professional }, { data: spaces }] = await Promise.all([
+      admin.from('professionals').select('id').eq('user_id', providerId).maybeSingle(),
+      admin.from('sport_spaces').select('id').eq('owner_user_id', providerId),
+    ])
+    const clauses: string[] = []
+    if (professional?.id) clauses.push(`professional_id.eq.${professional.id}`)
+    if (spaces?.length) clauses.push(`space_id.in.(${spaces.map(space => space.id).join(',')})`)
+    if (clauses.length) {
+      const { data: reservation } = await admin.from('reservations').select('id,status,payment_status').eq('user_id', athleteId).in('status', ['paid', 'confirmed']).or(clauses.join(',')).limit(1).maybeSingle()
+      if (reservation && (reservation.payment_status === 'paid' || reservation.status === 'confirmed')) return { allowed: true, label: 'Reserva ativa' }
+    }
+
+    const { data: participantRows } = await admin.from('event_participants').select('event_id,status,payment_status').eq('user_id', athleteId).eq('payment_status', 'paid').in('status', ['confirmed', 'paid'])
+    const eventIds = (participantRows || []).map(row => row.event_id)
+    if (eventIds.length) {
+      const now = new Date().toISOString()
+      const { data: event } = await admin.from('events').select('id').in('id', eventIds).eq('created_by', providerId).or(`end_date.is.null,end_date.gte.${now}`).limit(1).maybeSingle()
+      if (event) return { allowed: true, label: 'Evento pago ativo' }
+    }
+    return { allowed: false }
+  }
+
+  const typeA = typeById.get(userA)
+  const typeB = typeById.get(userB)
+  if (typeA === 'athlete' && (typeB === 'professional' || typeB === 'venue_manager')) return resolvePair(userA, userB)
+  if (typeB === 'athlete' && (typeA === 'professional' || typeA === 'venue_manager')) return resolvePair(userB, userA)
+  return { allowed: false }
+}
+
+export async function canMessageUser(otherUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !otherUserId || otherUserId === user.id) return { allowed: false }
+  return hasActiveMessagingContext(user.id, otherUserId)
+}
 
 export async function sendMessage(receiverId: string, content: string) {
   const supabase = await createClient()
@@ -19,30 +62,11 @@ export async function sendMessage(receiverId: string, content: string) {
   const { data: receiver } = await admin.from('platform_users').select('id').eq('id', receiverId).maybeSingle()
   if (!receiver) throw new Error('O destinatário já não está disponível.')
 
-  const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
-  const isProvider = profile?.type === 'professional' || profile?.type === 'venue_manager'
-  let isNewConversation = false
-
-  if (isProvider) {
-    if (!(await isFeatureEnabled(user.id, 'chat.enabled'))) throw new Error('Chat não está disponível no seu plano.')
-    await assertWithinUsageLimit(user.id, 'chat.messages_daily.max', 'day')
-
-    const { count, error: historyError } = await admin
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
-    if (historyError) throw historyError
-    isNewConversation = (count ?? 0) === 0
-    if (isNewConversation) await assertWithinUsageLimit(user.id, 'chat.new_conversations_daily.max', 'day')
-  }
+  const access = await hasActiveMessagingContext(user.id, receiverId)
+  if (!access.allowed) throw new Error('Esta conversa está arquivada. As mensagens só ficam ativas enquanto existir uma reserva confirmada/paga ou um evento pago ativo entre as duas partes.')
 
   const { data: inserted, error } = await admin.from('messages').insert({ sender_id: user.id, receiver_id: receiverId, content: trimmedContent }).select('id,created_at').single()
   if (error || !inserted) throw new Error('Erro ao enviar a mensagem')
-
-  if (isProvider) {
-    await incrementUsage(user.id, 'chat.messages_daily.max', 'day')
-    if (isNewConversation) await incrementUsage(user.id, 'chat.new_conversations_daily.max', 'day')
-  }
 
   revalidatePath('/dashboard/mensagens')
   return inserted
