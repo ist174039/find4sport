@@ -93,9 +93,10 @@ export function ChatInterface({ initialContacts, initialMessages, currentUserId 
     setIsSending(true)
     try {
       const result = await sendMessage(activeContact.userId, content)
-      const optimisticMessage: Message = { id: result?.id || `optimistic-${Date.now()}`, content, created_at: result?.created_at || new Date().toISOString(), sender_id: currentUserId, receiver_id: activeContact.userId, read_at: null, thread_id: activeContact.threadId || null }
+      const resolvedThreadId = (result as { thread_id?: string | null })?.thread_id || activeContact.threadId || null
+      const optimisticMessage: Message = { id: result?.id || `optimistic-${Date.now()}`, content, created_at: result?.created_at || new Date().toISOString(), sender_id: currentUserId, receiver_id: activeContact.userId, read_at: null, thread_id: resolvedThreadId }
       setMessages(previous => previous.some(message => message.id === optimisticMessage.id) ? previous : [...previous, optimisticMessage])
-      setContacts(previous => previous.map(contact => contact.id === activeContact.id ? { ...contact, lastMsg: content, lastMsgDate: optimisticMessage.created_at } : contact))
+      setContacts(previous => previous.map(contact => contact.id === activeContact.id ? { ...contact, threadId: resolvedThreadId, lastMsg: content, lastMsgDate: optimisticMessage.created_at } : contact))
       setNewMessage('')
     } catch (error) {
       showAlert('Mensagem não enviada', error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.', 'error')
