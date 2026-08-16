@@ -20,7 +20,7 @@ function ImageOrFallback({ src, alt, icon: Icon }: { src?: string | null; alt: s
   return <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-primary/15 via-muted to-secondary/20">{src ? <img src={src} alt={alt} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center"><Icon className="h-10 w-10 text-primary/35 sm:h-12 sm:w-12" /></div>}</div>
 }
 
-function bump(map: Map<string, number>, key?: string | null) { if (key) map.set(key, (map.get(key) || 0) + 1) }
+function bump(map: Map<string, number>, key?: unknown) { if (typeof key === 'string' && key) map.set(key, (map.get(key) || 0) + 1) }
 function proximityBonus(distance: number | null) { return distance == null ? 0 : Math.max(0, 15 - distance / 3) }
 
 export default async function Page() {
