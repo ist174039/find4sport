@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {  ArrowRight, ArrowLeft, Image as ImageIcon, MapPin, Tag, Users, CheckCircle2, Trophy, Loader2  } from 'lucide-react'
+import { ArrowRight, ArrowLeft, Image as ImageIcon, MapPin, Tag, Users, CheckCircle2, Trophy, Loader2, MessageSquare, Heart, ShieldCheck } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { useRouter } from 'next/navigation'
 import { createCommunityAction } from '@/app/actions/community'
@@ -11,242 +11,31 @@ export function CreateCommunityWizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    description: '',
-    modality: 'Futebol',
-    privacy: 'pub',
-    city: ''
-  })
-
-  const handleChange = (e: any) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  const nextStep = () => setStep(s => Math.min(s + 1, 3))
+  const [formData, setFormData] = useState({ name: '', description: '', modality: 'Futebol', privacy: 'pub', city: '', postingPolicy: 'members' as 'members' | 'reactions_only' | 'admin_only' })
+  const handleChange = (e: any) => setFormData({ ...formData, [e.target.name]: e.target.value })
+  const nextStep = () => { if (step === 1 && (formData.name.trim().length < 3 || formData.description.trim().length < 10)) { showAlert('Dados incompletos', 'Indica um nome e uma descrição com pelo menos 10 caracteres.', 'info'); return } setStep(s => Math.min(s + 1, 3)) }
   const prevStep = () => setStep(s => Math.max(s - 1, 1))
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    try {
-      const result = await createCommunityAction(formData)
-      showAlert('Sucesso', 'Comunidade criada com sucesso!', 'success')
-      router.push(`/comunidades/${result.id}`)
-    } catch (err: any) {
-      showAlert('Erro', err.message || 'Erro ao criar comunidade.', 'error')
-    } finally {
-      setLoading(false)
-    }
+    e.preventDefault(); setLoading(true)
+    try { const result = await createCommunityAction(formData); showAlert('Comunidade criada', 'A comunidade já está disponível.', 'success'); router.push(`/comunidades/${result.id}`) }
+    catch (err: any) { showAlert('Não foi possível criar a comunidade', err.message || 'Erro ao criar comunidade.', 'error') }
+    finally { setLoading(false) }
   }
 
-  return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      <div className="max-w-3xl mx-auto">
-        
-        {/* Progress Header */}
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold text-foreground text-center mb-8">Criar Nova Comunidade</h1>
-          
-          <div className="flex justify-between items-center relative">
-            <div className="absolute left-0 top-1/2 w-full h-1 bg-border -z-10 transform -translate-y-1/2 rounded-full"></div>
-            <div className={`absolute left-0 top-1/2 h-1 bg-primary -z-10 transform -translate-y-1/2 rounded-full transition-all duration-500`} style={{ width: `${((step - 1) / 2) * 100}%` }}></div>
-            
-            {[1, 2, 3].map((i) => (
-              <div key={i} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
-                step >= i ? 'bg-primary text-primary-foreground shadow-md' : 'bg-card text-muted-foreground border-2 border-border'
-              }`}>
-                {step > i ? <CheckCircle2 className="w-5 h-5" /> : i}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-xs font-medium text-muted-foreground mt-3 px-1">
-            <span>Básico</span>
-            <span>Detalhes</span>
-            <span>Branding</span>
-          </div>
-        </div>
+  const rules = [
+    { value: 'members', icon: MessageSquare, title: 'Todos publicam', text: 'Todos os membros podem criar publicações, comentar e colocar gosto.' },
+    { value: 'reactions_only', icon: Heart, title: 'Membros só reagem', text: 'Administradores publicam. Os restantes membros podem acompanhar e colocar gosto.' },
+    { value: 'admin_only', icon: ShieldCheck, title: 'Só administradores', text: 'Publicação e discussão ficam reservadas à equipa de administração.' },
+  ] as const
 
-        {/* Wizard Form Content */}
-        <div className="bg-card border border-border shadow-lg rounded-3xl overflow-hidden">
-          <form onSubmit={handleSubmit}>
-            
-            {/* STEP 1: Basic Info */}
-            {step === 1 && (
-              <div className="p-8 md:p-12 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="h-8 w-8" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">A base da sua comunidade</h2>
-                  <p className="text-muted-foreground mt-2">Dê um nome e identidade forte para o seu novo grupo desportivo.</p>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-2">Nome da Comunidade</label>
-                    <input 
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" 
-                      placeholder="Ex: Lisbon Padel Club" 
-                      required 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-2">Descrição Curta</label>
-                    <textarea 
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows={4}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" 
-                      placeholder="Qual é o objetivo principal desta comunidade? Quem deve participar?" 
-                      required 
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: Categorization */}
-            {step === 2 && (
-              <div className="p-8 md:p-12 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Tag className="h-8 w-8" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">Detalhes Técnicos</h2>
-                  <p className="text-muted-foreground mt-2">Como os atletas vão encontrar e juntar-se à sua comunidade.</p>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-2">Modalidade Principal</label>
-                    <select 
-                      name="modality"
-                      value={formData.modality}
-                      onChange={handleChange}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
-                    >
-                      <option>Futebol</option>
-                      <option>Padel</option>
-                      <option>Ténis</option>
-                      <option>Crossfit</option>
-                      <option>Corrida</option>
-                      <option>Yoga</option>
-                      <option>Outra</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-2">Localização Base</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
-                      <input 
-                        name="city"
-                        value={formData.city}
-                        onChange={handleChange}
-                        className="w-full bg-background border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary transition-all" 
-                        placeholder="Ex: Lisboa, Portugal" 
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-foreground mb-3">Privacidade</label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <label className={`cursor-pointer border p-4 rounded-xl flex items-start gap-3 transition-all ${formData.privacy === 'pub' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:border-primary/50'}`}>
-                        <input type="radio" name="privacy" value="pub" checked={formData.privacy === 'pub'} onChange={handleChange} className="mt-1" />
-                        <div>
-                          <span className="font-bold text-sm block text-foreground">Pública</span>
-                          <span className="text-xs text-muted-foreground">Qualquer um pode aderir de imediato.</span>
-                        </div>
-                      </label>
-                      <label className={`cursor-pointer border p-4 rounded-xl flex items-start gap-3 transition-all ${formData.privacy === 'priv' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:border-primary/50'}`}>
-                        <input type="radio" name="privacy" value="priv" checked={formData.privacy === 'priv'} onChange={handleChange} className="mt-1" />
-                        <div>
-                          <span className="font-bold text-sm block text-foreground">Privada</span>
-                          <span className="text-xs text-muted-foreground">Requer aprovação para adesão.</span>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: Visuals & Preview */}
-            {step === 3 && (
-              <div className="p-8 md:p-12 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon className="h-8 w-8" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-foreground">Identidade Visual</h2>
-                  <p className="text-muted-foreground mt-2">Dê uma cara ao seu projeto (Pode adicionar imagens mais tarde).</p>
-                </div>
-
-                <div className="space-y-8">
-                  {/* Live Preview Card */}
-                  <div className="border border-border rounded-2xl overflow-hidden shadow-sm">
-                    <div className="h-32 bg-muted relative">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent"></div>
-                      <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-white border-2 border-border shadow-md flex items-center justify-center">
-                        <Users className="text-primary h-6 w-6" />
-                      </div>
-                    </div>
-                    <div className="pt-10 px-6 pb-6 bg-card">
-                      <h3 className="font-bold text-xl text-foreground mb-1">{formData.name || 'Nome da Comunidade'}</h3>
-                      <p className="text-xs font-bold text-primary uppercase tracking-wider mb-3">{formData.modality}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{formData.description || 'Descrição da sua comunidade aparecerá aqui...'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Footer Actions */}
-            <div className="p-6 bg-muted/30 border-t border-border flex items-center justify-between">
-              {step > 1 ? (
-                <button 
-                  type="button" 
-                  onClick={prevStep}
-                  className="px-6 py-2.5 rounded-xl font-bold text-foreground bg-background border border-border shadow-sm hover:bg-muted transition-all flex items-center gap-2"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Anterior
-                </button>
-              ) : (
-                <div></div> // Spacer
-              )}
-
-              {step < 3 ? (
-                <button 
-                  type="button" 
-                  onClick={nextStep}
-                  className="px-8 py-2.5 rounded-xl font-bold text-primary-foreground bg-primary shadow-md hover:bg-primary/90 transition-all flex items-center gap-2"
-                >
-                  Próximo Passo <ArrowRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="px-8 py-2.5 rounded-xl font-bold text-primary-foreground bg-primary shadow-md hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-70"
-                >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                  Publicar Comunidade
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-
-      </div>
-    </div>
-  )
+  return <div className="min-h-screen bg-background px-4 py-6 sm:py-10"><div className="mx-auto max-w-3xl">
+    <div className="mb-8"><h1 className="text-center text-2xl font-bold sm:text-3xl">Criar comunidade</h1><p className="mt-2 text-center text-sm text-muted-foreground">Define identidade, acesso e regras antes de publicar.</p><div className="mt-6 flex items-center gap-2">{[1,2,3].map(i => <div key={i} className={`h-2 flex-1 rounded-full ${step >= i ? 'bg-primary' : 'bg-muted'}`} />)}</div></div>
+    <form onSubmit={handleSubmit} className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      {step === 1 && <div className="space-y-6 p-5 sm:p-8"><div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Trophy className="h-7 w-7" /></div><h2 className="mt-4 text-xl font-bold">Identidade</h2></div><div><label className="mb-2 block text-sm font-semibold">Nome</label><input name="name" value={formData.name} onChange={handleChange} className="min-h-11 w-full rounded-xl border border-border bg-background px-4" placeholder="Ex: Lisbon Padel Club" required /></div><div><label className="mb-2 block text-sm font-semibold">Descrição</label><textarea name="description" value={formData.description} onChange={handleChange} rows={5} className="w-full rounded-xl border border-border bg-background px-4 py-3" placeholder="Objetivo, público e tipo de atividade da comunidade..." required /></div></div>}
+      {step === 2 && <div className="space-y-6 p-5 sm:p-8"><div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Tag className="h-7 w-7" /></div><h2 className="mt-4 text-xl font-bold">Descoberta e acesso</h2></div><div className="grid gap-4 sm:grid-cols-2"><div><label className="mb-2 block text-sm font-semibold">Modalidade principal</label><input name="modality" value={formData.modality} onChange={handleChange} className="min-h-11 w-full rounded-xl border border-border bg-background px-4" placeholder="Ex: Padel" /></div><div><label className="mb-2 block text-sm font-semibold">Localização base</label><div className="relative"><MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" /><input name="city" value={formData.city} onChange={handleChange} className="min-h-11 w-full rounded-xl border border-border bg-background pl-10 pr-4" placeholder="Lisboa, Portugal" /></div></div></div><div><label className="mb-2 block text-sm font-semibold">Privacidade</label><div className="grid gap-3 sm:grid-cols-2">{[['pub','Pública','Adesão imediata.'],['priv','Privada','Adesão sujeita a aprovação.']].map(([value,title,text]) => <label key={value} className={`cursor-pointer rounded-xl border p-4 ${formData.privacy===value?'border-primary bg-primary/5':'border-border'}`}><input type="radio" name="privacy" value={value} checked={formData.privacy===value} onChange={handleChange} className="mr-2" /><span className="font-semibold">{title}</span><p className="mt-1 text-xs text-muted-foreground">{text}</p></label>)}</div></div><div><label className="mb-2 block text-sm font-semibold">Quem pode publicar?</label><div className="grid gap-3">{rules.map(rule => { const Icon=rule.icon; return <label key={rule.value} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${formData.postingPolicy===rule.value?'border-primary bg-primary/5':'border-border'}`}><input type="radio" name="postingPolicy" value={rule.value} checked={formData.postingPolicy===rule.value} onChange={handleChange} className="mt-1" /><Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div><p className="font-semibold">{rule.title}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{rule.text}</p></div></label> })}</div></div></div>}
+      {step === 3 && <div className="space-y-6 p-5 sm:p-8"><div className="text-center"><div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><ImageIcon className="h-7 w-7" /></div><h2 className="mt-4 text-xl font-bold">Confirmar</h2></div><div className="overflow-hidden rounded-2xl border border-border"><div className="h-28 bg-gradient-to-r from-primary/20 via-muted to-secondary/20" /><div className="p-5"><div className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" /><h3 className="text-lg font-bold">{formData.name || 'Nome da comunidade'}</h3></div><p className="mt-2 text-sm text-muted-foreground">{formData.description}</p><div className="mt-4 grid gap-2 text-xs sm:grid-cols-3"><span className="rounded-lg bg-muted px-3 py-2">{formData.modality || 'Sem modalidade'}</span><span className="rounded-lg bg-muted px-3 py-2">{formData.privacy==='priv'?'Privada':'Pública'}</span><span className="rounded-lg bg-muted px-3 py-2">{rules.find(r=>r.value===formData.postingPolicy)?.title}</span></div></div></div></div>}
+      <div className="flex items-center justify-between border-t border-border bg-muted/20 p-4 sm:p-5">{step>1?<button type="button" onClick={prevStep} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Anterior</button>:<span />}{step<3?<button type="button" onClick={nextStep} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">Continuar<ArrowRight className="h-4 w-4" /></button>:<button type="submit" disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-60">{loading?<Loader2 className="h-4 w-4 animate-spin" />:<CheckCircle2 className="h-4 w-4" />}Criar comunidade</button>}</div>
+    </form>
+  </div></div>
 }
