@@ -11,7 +11,7 @@ import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions
 export default async function SpaceProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
   const { id: rawId } = await params
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
 
   let space: any = null
   if (isUuid) space = (await supabase.from('sport_spaces').select('*').eq('id', rawId).maybeSingle()).data
