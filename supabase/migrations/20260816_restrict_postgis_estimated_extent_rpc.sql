@@ -1,3 +1,10 @@
-revoke execute on function public.st_estimatedextent(text,text) from public, anon, authenticated;
-revoke execute on function public.st_estimatedextent(text,text,text) from public, anon, authenticated;
-revoke execute on function public.st_estimatedextent(text,text,text,boolean) from public, anon, authenticated;
+-- Intentionally no-op.
+--
+-- PostGIS 3.3.7 is installed in the public schema by the managed Supabase
+-- environment and is not relocatable (extrelocatable = false). The extension
+-- owns st_estimatedextent and restores its ACLs, so REVOKE statements do not
+-- persist. Moving PostGIS would require dropping/recreating the extension and
+-- is not safe to automate against the production database.
+--
+-- Application-owned SECURITY DEFINER exposure is handled separately in
+-- 20260816_harden_admin_view_and_view_counters.sql.
