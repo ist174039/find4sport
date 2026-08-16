@@ -3,14 +3,36 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Stripe from 'stripe'
 
-function getBaseUrl(req: Request) {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (configured) {
-    try {
-      return new URL(/^https?:\/\//i.test(configured) ? configured : `https://${configured}`).origin
-    } catch {}
+function asHttpOrigin(value?: string | null) {
+  const candidate = value?.trim()
+  if (!candidate) return null
+  try {
+    const url = new URL(/^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`)
+    if (!['http:', 'https:'].includes(url.protocol)) return null
+    return url.origin
+  } catch {
+    return null
   }
-  return new URL(req.url).origin
+}
+
+function getBaseUrl(req: Request) {
+  const originHeader = asHttpOrigin(req.headers.get('origin'))
+  if (originHeader) return originHeader
+
+  const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host')
+  const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  if (forwardedHost) {
+    const forwardedOrigin = asHttpOrigin(`${forwardedProto === 'http' ? 'http' : 'https'}://${forwardedHost.split(',')[0].trim()}`)
+    if (forwardedOrigin) return forwardedOrigin
+  }
+
+  const configured = asHttpOrigin(process.env.NEXT_PUBLIC_SITE_URL)
+  if (configured) return configured
+
+  const requestOrigin = asHttpOrigin(req.url)
+  if (requestOrigin) return requestOrigin
+
+  throw new Error('Não foi possível determinar uma URL pública HTTP/HTTPS para o Stripe Connect.')
 }
 
 export async function POST(req: Request) {
@@ -69,10 +91,13 @@ export async function POST(req: Request) {
     }
 
     const baseUrl = getBaseUrl(req)
+    const refreshUrl = new URL('/dashboard/faturacao?connect=refresh', baseUrl).toString()
+    const returnUrl = new URL('/dashboard/faturacao?connect=complete', baseUrl).toString()
+
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${baseUrl}/dashboard/faturacao?connect=refresh`,
-      return_url: `${baseUrl}/dashboard/faturacao?connect=complete`,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding',
     })
 
