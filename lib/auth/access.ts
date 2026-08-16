@@ -18,33 +18,18 @@ type Supabase = SupabaseClient<Database>
 async function resolveAdminRecord(supabase: Supabase, user: User) {
   const unsafeSupabase = supabase as any
 
-  const { data: modernAdmin } = await unsafeSupabase
+  const { data: admin } = await unsafeSupabase
     .from('admins')
     .select('id, auth_user_id, admin_type')
     .eq('auth_user_id', user.id)
     .maybeSingle()
 
-  if (modernAdmin) {
-    return {
-      id: modernAdmin.id as string,
-      role: 'admin' as const,
-      adminLabel: (modernAdmin.admin_type as string) || 'general',
-    }
-  }
-
-  const { data: legacyAdmin } = await supabase
-    .from('admin_users')
-    .select('id, user_id, is_active, role')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (!legacyAdmin) return null
+  if (!admin) return null
 
   return {
-    id: legacyAdmin.id,
+    id: admin.id as string,
     role: 'admin' as const,
-    adminLabel: legacyAdmin.role || 'general',
+    adminLabel: (admin.admin_type as string) || 'general',
   }
 }
 
