@@ -8,5 +8,6 @@ A release is eligible for production only when all of the following are true:
 - No P0/P1 runtime errors are observed after smoke tests.
 - Smoke tests cover public discovery, authentication, reservation checkout, Stripe Connect, webhook persistence, chat realtime, notifications realtime, cancellation/change/refund, mobile navigation, and Admin operational views.
 - Security Advisor has no unresolved application-owned high-risk findings.
+- Gallery images upload directly from the browser to Supabase Storage; Server Actions receive storage paths only and must not proxy multi-megabyte image bodies.
 
 Do not classify a release as production-ready when CI is green but Vercel is serving an older commit.
