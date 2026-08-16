@@ -47,7 +47,7 @@ export function ProfessionalStateActions({ id, name, isVerified, status }: { id:
     finally { setBusy(false) }
   }
 
-  if (status === 'suspended') return <Button variant="outline" disabled={busy} className="min-h-10" onClick={()=>update({status:'active',is_verified:true},'Profissional reativado')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>Reativar</Button>
-  if (!isVerified || status !== 'active') return <Button disabled={busy} className="min-h-10" onClick={()=>update({status:'active',is_verified:true},'Profissional aprovado')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>Aprovar</Button>
+  if (status === 'suspended') return <Button variant="outline" disabled={busy} className="min-h-10" onClick={()=>update({status:'active',is_verified:true},'Profissional reativado')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Reativar</Button>
+  if (!isVerified || status !== 'active') return <Button disabled={busy} className="min-h-10" onClick={()=>update({status:'active',is_verified:true},'Profissional aprovado')}>{busy&&<Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Aprovar</Button>
   return <Button variant="outline" disabled={busy} className="min-h-10 text-destructive" onClick={async()=>{if(await showConfirm('Suspender profissional',`Suspender “${name}”?`,{confirmLabel:'Suspender',destructive:true})) await update({status:'suspended',is_verified:false},'Profissional suspenso')}}>Suspender</Button>
 }
