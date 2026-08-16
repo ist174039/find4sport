@@ -67,18 +67,10 @@ export default function ProfessionalRegisterPage() {
   const stepIndex = STEPS.findIndex(item => item.id === step)
   const selectedNames = useMemo(() => categories.filter(category => selectedCategories.includes(category.id)).map(category => category.name), [categories, selectedCategories])
 
-  function validateCurrentStep() {
-    if (step === 'perfil') {
-      if (formData.full_name.trim().length < 2) return 'Indica o teu nome completo.'
-      if (!formData.phone.trim()) return 'Indica um contacto telefónico.'
-    }
-    if (step === 'modalidades' && selectedCategories.length === 0) return 'Seleciona pelo menos uma modalidade.'
-    return null
-  }
-
   function nextStep() {
-    const validation = validateCurrentStep()
-    if (validation) { setError(validation); return }
+    if (step === 'perfil' && formData.full_name.trim().length < 2) return setError('Indica o teu nome completo.')
+    if (step === 'perfil' && !formData.phone.trim()) return setError('Indica um contacto telefónico.')
+    if (step === 'modalidades' && selectedCategories.length === 0) return setError('Seleciona pelo menos uma modalidade.')
     setError(null)
     setStep(STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].id)
   }
@@ -94,7 +86,11 @@ export default function ProfessionalRegisterPage() {
 
   function addQualification() {
     if (!newQualification.title.trim()) return
-    setQualifications(current => [...current, { title: newQualification.title.trim(), issuer: newQualification.issuer.trim(), issue_date: newQualification.issue_date || new Date().toISOString().slice(0, 10) }])
+    setQualifications(current => [...current, {
+      title: newQualification.title.trim(),
+      issuer: newQualification.issuer.trim(),
+      issue_date: newQualification.issue_date || new Date().toISOString().slice(0, 10),
+    }])
     setNewQualification({ title: '', issuer: '', issue_date: '' })
   }
 
@@ -133,21 +129,51 @@ export default function ProfessionalRegisterPage() {
   return (
     <main className="min-h-[calc(100dvh-4rem)] bg-muted/15 px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Onboarding · Profissional</p><h1 className="mt-2 text-3xl font-black tracking-tight">Cria o teu perfil profissional</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">A identidade já está autenticada. Aqui configuramos apenas informação profissional — sem voltar a pedir password.</p></div>
+        <div className="mb-6">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Onboarding · Profissional</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">Cria o teu perfil profissional</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">A identidade já está autenticada. Aqui configuramos apenas informação profissional — sem voltar a pedir palavra-passe.</p>
+        </div>
 
-        <div className="mb-5 rounded-2xl border border-border bg-card p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold text-muted-foreground">Passo {stepIndex + 1} de {STEPS.length}</p><p className="font-bold">{STEPS[stepIndex].label}</p></div><div className="flex gap-1.5" aria-label="Progresso">{STEPS.map((item, index) => <span key={item.id} className={`h-2 flex-1 min-w-8 rounded-full ${index <= stepIndex ? 'bg-primary' : 'bg-muted'}`} />)}</div></div></div>
+        <div className="mb-5 rounded-2xl border border-border bg-card p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="text-xs font-semibold text-muted-foreground">Passo {stepIndex + 1} de {STEPS.length}</p><p className="font-bold">{STEPS[stepIndex].label}</p></div>
+            <div className="flex min-w-32 flex-1 gap-1.5 sm:max-w-xs" aria-label="Progresso">{STEPS.map((item, index) => <span key={item.id} className={`h-2 flex-1 rounded-full ${index <= stepIndex ? 'bg-primary' : 'bg-muted'}`} />)}</div>
+          </div>
+        </div>
 
-        <Card className="rounded-3xl"><CardHeader className="border-b border-border"><div className="flex items-start gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Trophy className="h-5 w-5" /></div><div><CardTitle>{STEPS[stepIndex].label}</CardTitle><CardDescription>{step === 'perfil' ? 'Dados públicos e contactos profissionais.' : step === 'modalidades' ? 'Escolhe até cinco áreas em que trabalhas.' : step === 'qualificacoes' ? 'Adiciona certificações relevantes. Podes completar depois.' : 'Revê os dados antes de submeter.'}</CardDescription></div></div></CardHeader><CardContent className="p-5 sm:p-7">\          {step === 'perfil' && <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Nome completo *</Label><Input value={formData.full_name} onChange={e => setFormData(prev => ({ ...prev, full_name: e.target.value }))} className="min-h-11" /></label><label className="space-y-2"><Label>Nome profissional</Label><Input value={formData.professional_name} onChange={e => setFormData(prev => ({ ...prev, professional_name: e.target.value }))} placeholder="Ex.: Coach João Silva" className="min-h-11" /></label></div><label className="block space-y-2"><Label>Biografia</Label><Textarea rows={4} value={formData.bio} onChange={e => setFormData(prev => ({ ...prev, bio: e.target.value }))} placeholder="Experiência, especialidades e abordagem profissional." /></label><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>E-mail da conta</Label><Input value={formData.email} readOnly className="min-h-11 bg-muted/40" /></label><label className="space-y-2"><Label>Telemóvel *</Label><Input value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} inputMode="tel" className="min-h-11" /></label></div><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>WhatsApp</Label><Input value={formData.whatsapp} onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))} className="min-h-11" /></label><label className="space-y-2"><Label>NIF</Label><Input value={formData.nif} onChange={e => setFormData(prev => ({ ...prev, nif: e.target.value }))} inputMode="numeric" className="min-h-11" /></label></div><label className="block space-y-2"><Label>Morada / zona de atuação</Label><Input value={formData.address} onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))} className="min-h-11" /></label><div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Website</Label><Input value={formData.website} onChange={e => setFormData(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." className="min-h-11" /></label><label className="space-y-2"><Label>Raio de atuação (km)</Label><Input type="number" min={0} max={500} value={formData.service_radius_km} onChange={e => setFormData(prev => ({ ...prev, service_radius_km: Number(e.target.value) }))} className="min-h-11" /></label></div></div>}
+        <Card className="rounded-3xl">
+          <CardHeader className="border-b border-border">
+            <div className="flex items-start gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Trophy className="h-5 w-5" /></div><div><CardTitle>{STEPS[stepIndex].label}</CardTitle><CardDescription>{step === 'perfil' ? 'Dados públicos e contactos profissionais.' : step === 'modalidades' ? 'Escolhe até cinco áreas em que trabalhas.' : step === 'qualificacoes' ? 'Adiciona certificações relevantes. Podes completar depois.' : 'Revê os dados antes de submeter.'}</CardDescription></div></div>
+          </CardHeader>
+          <CardContent className="p-5 sm:p-7">
+            {step === 'perfil' && (
+              <div className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Nome completo *</Label><Input value={formData.full_name} onChange={e => setFormData(prev => ({ ...prev, full_name: e.target.value }))} className="min-h-11" /></label><label className="space-y-2"><Label>Nome profissional</Label><Input value={formData.professional_name} onChange={e => setFormData(prev => ({ ...prev, professional_name: e.target.value }))} placeholder="Ex.: Coach João Silva" className="min-h-11" /></label></div>
+                <label className="block space-y-2"><Label>Biografia</Label><Textarea rows={4} value={formData.bio} onChange={e => setFormData(prev => ({ ...prev, bio: e.target.value }))} placeholder="Experiência, especialidades e abordagem profissional." /></label>
+                <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>E-mail da conta</Label><Input value={formData.email} readOnly className="min-h-11 bg-muted/40" /></label><label className="space-y-2"><Label>Telemóvel *</Label><Input value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} inputMode="tel" className="min-h-11" /></label></div>
+                <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>WhatsApp</Label><Input value={formData.whatsapp} onChange={e => setFormData(prev => ({ ...prev, whatsapp: e.target.value }))} className="min-h-11" /></label><label className="space-y-2"><Label>NIF</Label><Input value={formData.nif} onChange={e => setFormData(prev => ({ ...prev, nif: e.target.value }))} inputMode="numeric" className="min-h-11" /></label></div>
+                <label className="block space-y-2"><Label>Morada / zona de atuação</Label><Input value={formData.address} onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))} className="min-h-11" /></label>
+                <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Website</Label><Input value={formData.website} onChange={e => setFormData(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." className="min-h-11" /></label><label className="space-y-2"><Label>Raio de atuação (km)</Label><Input type="number" min={0} max={500} value={formData.service_radius_km} onChange={e => setFormData(prev => ({ ...prev, service_radius_km: Number(e.target.value) }))} className="min-h-11" /></label></div>
+              </div>
+            )}
 
-          {step === 'modalidades' && <div><div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Seleciona as modalidades/áreas em que prestas serviços.</p><Badge variant="secondary">{selectedCategories.length}/5</Badge></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{categories.map(category => { const selected = selectedCategories.includes(category.id); return <button type="button" key={category.id} onClick={() => toggleCategory(category.id)} disabled={!selected && selectedCategories.length >= 5} className={`flex min-h-12 items-center justify-between rounded-xl border px-4 text-left text-sm font-semibold transition ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 hover:bg-muted/30'} disabled:opacity-40`}><span>{category.name}</span>{selected && <Check className="h-4 w-4" />}</button> })}</div></div>}
+            {step === 'modalidades' && (
+              <div><div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Seleciona as modalidades/áreas em que prestas serviços.</p><Badge variant="secondary">{selectedCategories.length}/5</Badge></div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{categories.map(category => { const selected = selectedCategories.includes(category.id); return <button type="button" key={category.id} onClick={() => toggleCategory(category.id)} disabled={!selected && selectedCategories.length >= 5} className={`flex min-h-12 items-center justify-between rounded-xl border px-4 text-left text-sm font-semibold transition ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/40 hover:bg-muted/30'} disabled:opacity-40`}><span>{category.name}</span>{selected && <Check className="h-4 w-4" />}</button> })}</div></div>
+            )}
 
-          {step === 'qualificacoes' && <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px_auto]"><Input value={newQualification.title} onChange={e => setNewQualification(prev => ({ ...prev, title: e.target.value }))} placeholder="Certificação" className="min-h-11" /><Input value={newQualification.issuer} onChange={e => setNewQualification(prev => ({ ...prev, issuer: e.target.value }))} placeholder="Entidade" className="min-h-11" /><Input type="date" value={newQualification.issue_date} onChange={e => setNewQualification(prev => ({ ...prev, issue_date: e.target.value }))} className="min-h-11" /><Button type="button" variant="outline" onClick={addQualification} className="min-h-11">Adicionar</Button></div>{qualifications.length === 0 ? <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhuma qualificação adicionada. Este passo é opcional.</div> : <div className="space-y-2">{qualifications.map((qualification, index) => <div key={`${qualification.title}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{qualification.title}</p><p className="text-xs text-muted-foreground">{qualification.issuer || 'Entidade não indicada'} · {qualification.issue_date}</p></div><Button type="button" variant="ghost" size="sm" onClick={() => setQualifications(current => current.filter((_, i) => i !== index))}>Remover</Button></div>)}</div>}<p className="text-xs text-muted-foreground">Fotografias e documentos devem ser carregados depois pelo módulo de galeria/documentos, que usa storage próprio. Não são enviados em Base64 neste onboarding.</p></div>}
+            {step === 'qualificacoes' && (
+              <div className="space-y-4"><div className="grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]"><Input value={newQualification.title} onChange={e => setNewQualification(prev => ({ ...prev, title: e.target.value }))} placeholder="Certificação" className="min-h-11" /><Input value={newQualification.issuer} onChange={e => setNewQualification(prev => ({ ...prev, issuer: e.target.value }))} placeholder="Entidade" className="min-h-11" /><Input type="date" value={newQualification.issue_date} onChange={e => setNewQualification(prev => ({ ...prev, issue_date: e.target.value }))} className="min-h-11" /><Button type="button" variant="outline" onClick={addQualification} className="min-h-11">Adicionar</Button></div>{qualifications.length === 0 ? <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhuma qualificação adicionada. Este passo é opcional.</div> : <div className="space-y-2">{qualifications.map((qualification, index) => <div key={`${qualification.title}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{qualification.title}</p><p className="text-xs text-muted-foreground">{qualification.issuer || 'Entidade não indicada'} · {qualification.issue_date}</p></div><Button type="button" variant="ghost" size="sm" onClick={() => setQualifications(current => current.filter((_, i) => i !== index))}>Remover</Button></div>)}</div>}<p className="text-xs text-muted-foreground">Fotografias e documentos são carregados depois nos módulos próprios de storage. Não enviamos imagens em Base64 durante o onboarding.</p></div>
+            )}
 
-          {step === 'confirmar' && <div className="space-y-4"><div className="rounded-2xl border bg-muted/20 p-4"><p className="text-sm font-bold">{formData.professional_name || formData.full_name}</p><p className="mt-1 text-sm text-muted-foreground">{formData.email} · {formData.phone}</p>{formData.bio && <p className="mt-3 text-sm">{formData.bio}</p>}</div><div><p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Modalidades</p><div className="flex flex-wrap gap-2">{selectedNames.map(name => <Badge key={name} variant="secondary">{name}</Badge>)}</div></div><div className="rounded-xl border border-border p-4 text-sm text-muted-foreground">O estado inicial e a verificação dependem da política de aprovação configurada na plataforma. Podes completar galeria, serviços e disponibilidade depois.</div></div>}
+            {step === 'confirmar' && (
+              <div className="space-y-4"><div className="rounded-2xl border bg-muted/20 p-4"><p className="text-sm font-bold">{formData.professional_name || formData.full_name}</p><p className="mt-1 text-sm text-muted-foreground">{formData.email} · {formData.phone}</p>{formData.bio && <p className="mt-3 text-sm">{formData.bio}</p>}</div><div><p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Modalidades</p><div className="flex flex-wrap gap-2">{selectedNames.map(name => <Badge key={name} variant="secondary">{name}</Badge>)}</div></div><div className="rounded-xl border border-border p-4 text-sm text-muted-foreground">O estado inicial e a verificação dependem da política de aprovação configurada na plataforma. Galeria, serviços e disponibilidade ficam no dashboard.</div></div>
+            )}
 
-          {error && <div role="alert" className="mt-5 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-          <div className="mt-6 grid grid-cols-2 gap-3"><Button type="button" variant="outline" onClick={previousStep} disabled={stepIndex === 0 || saving} className="min-h-11"><ArrowLeft className="mr-2 h-4 w-4" />Anterior</Button>{step === 'confirmar' ? <Button type="button" onClick={submit} disabled={saving} className="min-h-11">{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />A guardar…</> : 'Criar perfil'}</Button> : <Button type="button" onClick={nextStep} className="min-h-11">Continuar<ArrowRight className="ml-2 h-4 w-4" /></Button>}</div>
-        </CardContent></Card>
+            {error && <div role="alert" className="mt-5 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            <div className="mt-6 grid grid-cols-2 gap-3"><Button type="button" variant="outline" onClick={previousStep} disabled={stepIndex === 0 || saving} className="min-h-11"><ArrowLeft className="mr-2 h-4 w-4" />Anterior</Button>{step === 'confirmar' ? <Button type="button" onClick={submit} disabled={saving} className="min-h-11">{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />A guardar…</> : 'Criar perfil'}</Button> : <Button type="button" onClick={nextStep} className="min-h-11">Continuar<ArrowRight className="ml-2 h-4 w-4" /></Button>}</div>
+          </CardContent>
+        </Card>
       </div>
     </main>
   )
