@@ -63,36 +63,6 @@ export async function registerGalleryUploadsAction(expected: GalleryEntity, path
   return { publicGallery: nextPublic, privateGallery: currentPrivate }
 }
 
-export async function uploadGalleryPhotosAction(expected: GalleryEntity, formData: FormData) {
-  const { user, admin, table, entity } = await requireGalleryEntity(expected)
-  const files = formData.getAll('files').filter((value): value is File => value instanceof File && value.size > 0)
-  if (!files.length) throw new Error('Selecione pelo menos uma imagem.')
-  const currentPublic = Array.isArray(entity.gallery_urls) ? entity.gallery_urls : []
-  const currentPrivate = Array.isArray(entity.private_gallery_urls) ? entity.private_gallery_urls : []
-  const limit = await getLimit(user.id, 'profile.photos.max')
-  if (limit !== null && currentPublic.length + currentPrivate.length + files.length > limit) throw new Error(`O seu plano permite no máximo ${limit} fotografias.`)
-  const uploaded: Array<{ path: string; url: string }> = []
-  try {
-    for (const file of files) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Apenas JPEG, PNG e WebP são permitidos.')
-      if (file.size > 5 * 1024 * 1024) throw new Error('Cada imagem pode ter no máximo 5 MB.')
-      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const path = `${user.id}/gallery/${crypto.randomUUID()}.${extension}`
-      const { error: uploadError } = await admin.storage.from('avatars').upload(path, new Uint8Array(await file.arrayBuffer()), { contentType: file.type, upsert: false })
-      if (uploadError) throw uploadError
-      uploaded.push({ path, url: admin.storage.from('avatars').getPublicUrl(path).data.publicUrl })
-    }
-    const nextPublic = [...currentPublic, ...uploaded.map(item => item.url)]
-    const { error } = await admin.from(table).update({ gallery_urls: nextPublic }).eq('id', expected.id)
-    if (error) throw error
-    revalidateGallery()
-    return { publicGallery: nextPublic, privateGallery: currentPrivate }
-  } catch (error) {
-    if (uploaded.length) await admin.storage.from('avatars').remove(uploaded.map(item => item.path))
-    throw error
-  }
-}
-
 export async function toggleGalleryVisibilityAction(expected: GalleryEntity, url: string, makePublic: boolean) {
   const { admin, table, entity } = await requireGalleryEntity(expected)
   const currentPublic = Array.isArray(entity.gallery_urls) ? entity.gallery_urls : []
