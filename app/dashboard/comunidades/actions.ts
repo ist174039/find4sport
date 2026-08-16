@@ -24,6 +24,12 @@ function revalidateCommunity(communityId: string) {
   revalidatePath('/comunidades')
 }
 
+function optionalSchemaMissing(error: any) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(code) || /community_categories|community_media|schema cache/i.test(message)
+}
+
 export async function updateCommunityAction(communityId: string, formData: FormData) {
   const { admin } = await requireCommunityAdmin(communityId)
   const name = String(formData.get('name') || '').trim()
@@ -38,19 +44,35 @@ export async function updateCommunityAction(communityId: string, formData: FormD
   if (categoryError || !category) throw new Error('A modalidade selecionada já não está disponível.')
 
   const { error } = await admin.from('communities').update({ name, description: description || null, is_private: isPrivate, sport_category: category.name }).eq('id', communityId)
-  if (error) throw error
+  if (error) throw new Error(`Não foi possível guardar a comunidade: ${error.message}`)
 
   const relationClient = admin as unknown as { from: (table: string) => any }
-  const relationTable = relationClient.from('community_categories')
-  const deleteResult = await relationTable.delete().eq('community_id', communityId)
-  if (!deleteResult.error || ['42P01', '42703'].includes(deleteResult.error?.code || '')) {
-    if (!deleteResult.error) {
-      const insertResult = await relationClient.from('community_categories').insert({ community_id: communityId, category_id: category.id })
-      if (insertResult.error) throw new Error('Não foi possível guardar a modalidade da comunidade.')
-    }
-  } else throw new Error('Não foi possível atualizar a taxonomia da comunidade.')
+  const deleteResult = await relationClient.from('community_categories').delete().eq('community_id', communityId)
+  if (!deleteResult.error) {
+    const insertResult = await relationClient.from('community_categories').insert({ community_id: communityId, category_id: category.id })
+    if (insertResult.error && !optionalSchemaMissing(insertResult.error)) throw new Error('Não foi possível guardar a modalidade da comunidade.')
+  } else if (!optionalSchemaMissing(deleteResult.error)) {
+    throw new Error('Não foi possível atualizar a taxonomia da comunidade.')
+  }
 
   revalidateCommunity(communityId)
+}
+
+export async function setCommunityCoverAction(communityId: string, storagePath: string) {
+  const { user, admin } = await requireCommunityAdmin(communityId)
+  const path = String(storagePath || '').trim()
+  const prefix = `${user.id}/communities/${communityId}/`
+  if (!path.startsWith(prefix)) throw new Error('Imagem de capa inválida.')
+  const parts = path.split('/')
+  const fileName = parts.pop()!
+  const directory = parts.join('/')
+  const { data, error: listError } = await admin.storage.from('avatars').list(directory, { search: fileName, limit: 10 })
+  if (listError || !(data || []).some(item => item.name === fileName)) throw new Error('A imagem carregada não foi encontrada no Storage.')
+  const coverUrl = admin.storage.from('avatars').getPublicUrl(path).data.publicUrl
+  const { error } = await admin.from('communities').update({ cover_url: coverUrl }).eq('id', communityId)
+  if (error) throw new Error(`Não foi possível atualizar a capa: ${error.message}`)
+  revalidateCommunity(communityId)
+  return { coverUrl }
 }
 
 export async function removeCommunityMemberAction(communityId: string, memberUserId: string) {
