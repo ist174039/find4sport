@@ -82,6 +82,40 @@ export async function POST(req: Request) {
       if (error) throw error
     }
 
+    const persistInvoiceTransaction = async (invoice: Stripe.Invoice, status: 'completed' | 'failed') => {
+      const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
+      if (!customerId) return
+
+      const { data: subscriptionRow } = await adminSupabase
+        .from('user_subscriptions')
+        .select('user_id')
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle()
+      if (!subscriptionRow?.user_id) return
+
+      const invoiceId = invoice.id
+      const { data: existing } = await adminSupabase
+        .from('transactions')
+        .select('id')
+        .eq('stripe_charge_id', invoiceId)
+        .maybeSingle()
+
+      const amountMinor = status === 'completed' ? invoice.amount_paid : invoice.amount_due
+      const payload = {
+        user_id: subscriptionRow.user_id,
+        amount: Number(amountMinor || 0) / 100,
+        currency: invoice.currency || 'eur',
+        type: 'subscription_payment',
+        status,
+        stripe_charge_id: invoiceId,
+      }
+
+      const result = existing
+        ? await adminSupabase.from('transactions').update(payload).eq('id', existing.id)
+        : await adminSupabase.from('transactions').insert(payload)
+      if (result.error) throw result.error
+    }
+
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
       const reservationId = session.metadata?.reservation_id
@@ -108,7 +142,6 @@ export async function POST(req: Request) {
           if (Number(reservation.amount) !== Number(paidAmount)) {
             return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
           }
-
           await adminSupabase.from('reservations').update({ status: 'paid', payment_status: 'paid' }).eq('id', reservationId)
         }
 
@@ -128,6 +161,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true })
     }
 
+    if (event.type === 'invoice.paid') {
+      const invoice = event.data.object as Stripe.Invoice
+      await persistInvoiceTransaction(invoice, 'completed')
+      await recordEvent()
+      return NextResponse.json({ received: true })
+    }
+
     if (event.type === 'invoice.payment_failed') {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
@@ -136,6 +176,7 @@ export async function POST(req: Request) {
           .update({ status: 'past_due', updated_at: new Date().toISOString() })
           .eq('stripe_customer_id', customerId)
       }
+      await persistInvoiceTransaction(invoice, 'failed')
       await recordEvent()
       return NextResponse.json({ received: true })
     }
