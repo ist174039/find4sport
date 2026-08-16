@@ -18,9 +18,10 @@ async function getProviderContext() {
 
 export async function updateProviderReservationStatusAction(reservationId: string, newStatus: 'confirmed' | 'cancelled') {
   const { user, role, admin } = await getProviderContext()
-  const { data: reservation } = await admin
+  const db = admin as any
+  const { data: reservation } = await db
     .from('reservations')
-    .select('id, user_id, professional_id, space_id, status, payment_status, amount, stripe_session_id')
+    .select('id,user_id,professional_id,space_id,status,payment_status,amount,stripe_session_id,package_purchase_id,package_session_consumed')
     .eq('id', reservationId)
     .maybeSingle()
   if (!reservation) throw new Error('Reserva não encontrada.')
@@ -36,6 +37,45 @@ export async function updateProviderReservationStatusAction(reservationId: strin
   }
   if (!authorized) throw new Error('Não tem permissão para alterar esta reserva.')
   if (!['pending', 'paid', 'confirmed'].includes(reservation.status)) throw new Error('Esta reserva já não pode ser alterada.')
+
+  if (newStatus === 'cancelled' && reservation.package_purchase_id && reservation.package_session_consumed) {
+    const { data: purchase, error: purchaseError } = await db
+      .from('service_package_purchases')
+      .select('id,sessions_total,sessions_remaining,status,expires_at')
+      .eq('id', reservation.package_purchase_id)
+      .maybeSingle()
+    if (purchaseError || !purchase) throw new Error('Não foi possível localizar o pacote associado à reserva. O cancelamento foi interrompido para preservar o saldo.')
+
+    const previousRemaining = Number(purchase.sessions_remaining || 0)
+    const restoredRemaining = Math.min(Number(purchase.sessions_total || previousRemaining + 1), previousRemaining + 1)
+    const expired = purchase.expires_at && new Date(purchase.expires_at).getTime() <= Date.now()
+    const restoredStatus = expired ? 'expired' : restoredRemaining > 0 ? 'active' : purchase.status
+
+    const { data: restored, error: restoreError } = await db
+      .from('service_package_purchases')
+      .update({ sessions_remaining: restoredRemaining, status: restoredStatus, updated_at: new Date().toISOString() })
+      .eq('id', purchase.id)
+      .eq('sessions_remaining', previousRemaining)
+      .select('id')
+      .maybeSingle()
+    if (restoreError || !restored) throw new Error('O saldo do pacote foi alterado entretanto. Tenta novamente.')
+
+    const { error: cancelError } = await db
+      .from('reservations')
+      .update({ status: 'cancelled', payment_status: 'paid', package_session_consumed: false, updated_at: new Date().toISOString() })
+      .eq('id', reservation.id)
+      .eq('package_session_consumed', true)
+    if (cancelError) {
+      await db.from('service_package_purchases').update({ sessions_remaining: previousRemaining, status: purchase.status, updated_at: new Date().toISOString() }).eq('id', purchase.id).eq('sessions_remaining', restoredRemaining)
+      throw new Error('Não foi possível cancelar a reserva; o crédito foi preservado.')
+    }
+
+    revalidatePath('/dashboard/reservas')
+    revalidatePath('/dashboard/agenda')
+    revalidatePath('/dashboard/compras')
+    revalidatePath('/dashboard')
+    return { success: true, packageCreditRestored: true }
+  }
 
   if (newStatus === 'cancelled' && reservation.payment_status === 'paid') {
     if (!reservation.stripe_session_id) throw new Error('A reserva foi paga, mas não tem sessão Stripe associada. O cancelamento deve ser tratado pelo suporte para evitar divergência financeira.')
