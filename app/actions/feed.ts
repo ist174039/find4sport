@@ -79,3 +79,34 @@ export async function addCommentAction(postId: string, content: string) {
   if (error) throw new Error('Erro ao comentar')
   return { success: true }
 }
+
+export async function reportPostAction(
+  postId: string,
+  reason: 'spam' | 'harassment' | 'hate' | 'nudity' | 'violence' | 'fraud' | 'other' = 'other',
+  details?: string,
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Autenticação necessária')
+
+  const { data: postExists } = await supabase.from('posts').select('id').eq('id', postId).maybeSingle()
+  if (!postExists) throw new Error('Publicação não encontrada')
+
+  const cleanDetails = details?.trim().slice(0, 2000) || null
+  const { error } = await supabase.from('content_reports').insert({
+    reporter_user_id: user.id,
+    target_type: 'post',
+    target_id: postId,
+    reason,
+    details: cleanDetails,
+  })
+
+  if (error) {
+    if ((error as any)?.code === '23505') {
+      return { success: true, duplicate: true }
+    }
+    throw new Error('Não foi possível enviar a denúncia.')
+  }
+
+  return { success: true, duplicate: false }
+}
