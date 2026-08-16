@@ -1,105 +1,55 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Edit3, Globe, EyeOff, Loader2 } from 'lucide-react'
+import { Edit3, Eye, EyeOff, Globe, Loader2 } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
-
-const FIXED_PAGES = [
-  { slug: 'planos', title: 'Planos e Preços' },
-  { slug: 'como-funciona', title: 'Como Funciona' },
-  { slug: 'recursos', title: 'Recursos e Ajuda' },
-  { slug: 'sobre', title: 'Sobre Nós' },
-  { slug: 'blog', title: 'Blog Oficial' },
-  { slug: 'contacto', title: 'Contacto' },
-  { slug: 'carreiras', title: 'Carreiras' },
-  { slug: 'termos', title: 'Termos e Condições' },
-  { slug: 'privacidade', title: 'Política de Privacidade' },
-  { slug: 'cookies', title: 'Política de Cookies' },
-  { slug: 'rgpd', title: 'RGPD' }
-]
+import { CMS_PAGES } from '@/lib/cms/registry'
 
 export default function AdminPagesList() {
-  const router = useRouter()
   const { showAlert } = useModal()
   const [dbPages, setDbPages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadPages()
-  }, [])
-
-  async function loadPages() {
-    setLoading(true)
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('cms_pages')
-      .select('id, slug, is_published, updated_at')
-
-    if (error) {
-      console.error(error)
-      showAlert('Erro', 'Não foi possível carregar o estado das páginas.', 'error')
-    } else {
+    async function loadPages() {
+      const supabase = createClient()
+      const { data, error } = await supabase.from('cms_pages').select('slug, is_published, updated_at')
+      if (error) showAlert('Erro', 'Não foi possível carregar o estado das páginas.', 'error')
       setDbPages(data || [])
+      setLoading(false)
     }
-    setLoading(false)
-  }
+    loadPages()
+  }, [showAlert])
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Páginas Institucionais (Conteúdo)</h1>
-          <p className="text-muted-foreground mt-1">Gere o texto das páginas fixas do site.</p>
-        </div>
-      </div>
+      <header className="border-b border-border pb-5">
+        <h1 className="text-2xl font-bold sm:text-3xl">Conteúdo institucional</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Edite apenas páginas institucionais reais. Planos, blog, empregos e dados operacionais são geridos nos respetivos módulos.</p>
+      </header>
 
-      <div className="bg-card border rounded-2xl overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center p-12">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="divide-y">
-            {FIXED_PAGES.map((fixedPage) => {
-              const dbRecord = dbPages.find(p => p.slug === fixedPage.slug)
-              
-              return (
-                <div key={fixedPage.slug} className="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-muted/50 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-bold text-lg">{fixedPage.title}</h3>
-                      {dbRecord?.is_published ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                          <Globe className="w-3 h-3" /> Publicada
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 text-[10px] font-bold flex items-center gap-1">
-                          <EyeOff className="w-3 h-3" /> {dbRecord ? 'Rascunho' : 'Vazia / Padrão'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">/{fixedPage.slug}</p>
-                  </div>
-                  
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Button variant="secondary" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push(`/admin/paginas/${fixedPage.slug}`)}>
-                      <Edit3 className="w-4 h-4 mr-2" /> Editar Conteúdo
-                    </Button>
-                    <Button variant="outline" size="sm" asChild className="flex-1 sm:flex-none">
-                      <a href={fixedPage.slug === 'planos' ? '/profissionais/planos' : `/${fixedPage.slug}`} target="_blank" rel="noreferrer">
-                        Ver
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div> : <div className="grid gap-3">
+        {CMS_PAGES.map(definition => {
+          const record = dbPages.find(page => page.slug === definition.slug)
+          return <article key={definition.slug} className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-semibold">{definition.title}</h2>
+                {record?.is_published ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400"><Globe className="h-3 w-3" />Publicada</span> : <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400"><EyeOff className="h-3 w-3" />{record ? 'Rascunho' : 'Por configurar'}</span>}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{definition.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground">/{definition.slug}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button asChild variant="secondary" className="min-h-11"><Link href={`/admin/paginas/${definition.slug}`}><Edit3 className="mr-2 h-4 w-4" />Editar</Link></Button>
+              <Button asChild variant="outline" className="min-h-11" disabled={!record?.is_published}><Link href={`/${definition.slug}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button>
+            </div>
+          </article>
+        })}
+      </div>}
     </div>
   )
 }
