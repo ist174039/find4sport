@@ -1,79 +1,39 @@
-"use client"
+'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, Plus, MessageCircle, User } from 'lucide-react'
+import { Home, Search, CalendarDays, MessageCircle, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type UserProfile = {
-  id: string
-  avatar_url?: string | null
-} | null
+type UserProfile = { id: string; avatar_url?: string | null } | null
 
 export function MobileBottomBar({ userProfile }: { userProfile: UserProfile }) {
   const pathname = usePathname()
   const isLoggedIn = !!userProfile
-
   const tabs = [
-    { name: 'Feed', href: '/feed', icon: Home, isCenter: false },
-    { name: 'Pesquisa', href: '/pesquisa', icon: Search, isCenter: false },
-    { name: 'Criar', href: isLoggedIn ? '/dashboard/reservas' : '/auth/login', icon: Plus, isCenter: true },
-    { name: 'Mensagens', href: isLoggedIn ? '/dashboard/mensagens' : '/auth/login', icon: MessageCircle, isCenter: false },
-    { name: 'Perfil', href: isLoggedIn ? '/dashboard/perfil' : '/auth/login', icon: User, isCenter: false, isAvatar: true },
+    { name: 'Feed', href: '/feed', icon: Home },
+    { name: 'Pesquisa', href: '/pesquisa', icon: Search },
+    { name: 'Eventos', href: '/eventos', icon: CalendarDays },
+    { name: 'Mensagens', href: isLoggedIn ? '/dashboard/mensagens' : '/auth/login?redirect=/dashboard/mensagens', icon: MessageCircle },
+    { name: 'Perfil', href: isLoggedIn ? '/dashboard/perfil' : '/auth/login?redirect=/dashboard/perfil', icon: User, isAvatar: true },
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 z-50 w-full h-14 sm:h-16 bg-background/95 backdrop-blur-md border-t border-border/40 md:hidden flex items-center justify-around pb-safe px-2">
-      {tabs.map((tab) => {
-        const Icon = tab.icon
-        // Match exact or startsWith depending on the route
-        const isActive = pathname === tab.href || (tab.href !== '/' && pathname.startsWith(tab.href))
-        
-        if (tab.isCenter) {
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden" aria-label="Navegação principal">
+      <div className="grid h-16 grid-cols-5 px-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon
+          const isActive = pathname === tab.href || (!tab.href.startsWith('/auth/') && pathname.startsWith(tab.href))
           return (
-            <Link
-              key={tab.name}
-              href={tab.href}
-              className="flex items-center justify-center -mt-6 rounded-full w-14 h-14 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-            >
-              <Icon className="h-6 w-6 stroke-[2.5]" />
+            <Link key={tab.name} href={tab.href} aria-current={isActive ? 'page' : undefined} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-medium transition-colors', isActive ? 'text-primary' : 'text-muted-foreground active:text-foreground')}>
+              {tab.isAvatar && userProfile?.avatar_url ? (
+                <div className={cn('h-6 w-6 overflow-hidden rounded-full border-2', isActive ? 'border-primary' : 'border-transparent')}><img src={userProfile.avatar_url} alt="" className="h-full w-full object-cover" /></div>
+              ) : <Icon className={cn('h-5 w-5', isActive && 'stroke-[2.5]')} />}
+              <span className="max-w-full truncate">{tab.name}</span>
             </Link>
           )
-        }
-
-        if (tab.isAvatar && userProfile?.avatar_url) {
-           return (
-            <Link
-              key={tab.name}
-              href={tab.href}
-              className="flex items-center justify-center h-full w-12"
-            >
-              <div className={cn(
-                "w-7 h-7 rounded-full overflow-hidden border-2 transition-all",
-                isActive ? "border-foreground" : "border-transparent opacity-70"
-              )}>
-                <img src={userProfile.avatar_url} alt="Perfil" className="w-full h-full object-cover" />
-              </div>
-            </Link>
-          )
-        }
-
-        return (
-          <Link
-            key={tab.name}
-            href={tab.href}
-            className={cn(
-              "flex flex-col items-center justify-center h-full w-12 transition-colors",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Icon 
-              className={cn("h-[26px] w-[26px] transition-all", isActive ? "stroke-[2.5]" : "stroke-[1.5]")} 
-              fill={isActive ? "currentColor" : "none"} 
-            />
-          </Link>
-        )
-      })}
-    </div>
+        })}
+      </div>
+    </nav>
   )
 }
