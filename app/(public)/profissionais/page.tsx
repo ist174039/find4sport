@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { SearchBar } from '@/components/search-bar'
 import { ProfessionalGrid } from '@/components/professional-card'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
-import { getSportFamily } from '@/lib/sports-taxonomy'
+import { DiscoveryTaxonomyFilter } from '@/components/discovery-taxonomy-filter'
 import type { Category, Professional } from '@/lib/types'
 
 interface PageProps { searchParams: Promise<{ category?: string; q?: string; location?: string; sort?: string }> }
@@ -34,15 +34,13 @@ async function getProfessionalsData(searchParams: { category?: string; q?: strin
   const categoryMap = new Map<string, Category[]>()
   if (professionals.length) {
     const ids = professionals.map(item => item.id)
-    const { data: links, error } = await supabase.from('professional_categories').select('professional_id,category_id').in('professional_id', ids)
-    if (!error) {
-      for (const link of links || []) {
-        const category = categoriesById.get(link.category_id)
-        if (!category) continue
-        const current = categoryMap.get(link.professional_id) || []
-        current.push(category)
-        categoryMap.set(link.professional_id, current)
-      }
+    const { data: links } = await supabase.from('professional_categories').select('professional_id,category_id').in('professional_id', ids)
+    for (const link of links || []) {
+      const category = categoriesById.get(link.category_id)
+      if (!category) continue
+      const current = categoryMap.get(link.professional_id) || []
+      current.push(category)
+      categoryMap.set(link.professional_id, current)
     }
   }
 
@@ -67,13 +65,9 @@ export default async function ProfissionaisPage({ searchParams }: PageProps) {
 
   return <DiscoveryPage
     title={selectedCategory ? `Profissionais de ${selectedCategory.name}` : 'Profissionais de Desporto'}
-    description="Encontra profissionais por família desportiva, modalidade, avaliações e localização."
+    description="Encontra profissionais por modalidade, localização e reputação."
     countLabel={`${professionals.length} ${professionals.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'}`}
-    search={<SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="profissionais" showType={false} basePath="/profissionais" showFilters filterType="profissionais" currentFilters={filters as Record<string, string>} placeholder="Pesquisar profissionais…" />}
-    categories={[
-      { label: 'Todas as modalidades', href: href('/profissionais', filterRecord, { category: null }), active: !filters.category },
-      ...categories.map(cat => { const family = getSportFamily(cat.name); return { label: `${cat.emoji || family.emoji} ${cat.name}`.trim(), group: `${family.emoji} ${family.name}`, href: href('/profissionais', filterRecord, { category: cat.slug }), active: filters.category === cat.slug } }),
-    ]}
+    search={<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]"><SearchBar defaultQuery={filters.q} defaultLocation={filters.location} defaultType="profissionais" showType={false} basePath="/profissionais" showFilters filterType="profissionais" currentFilters={filters as Record<string, string>} placeholder="Pesquisar profissionais…" /><DiscoveryTaxonomyFilter basePath="/profissionais" categories={categories} currentCategory={filters.category} query={filters.q} location={filters.location} sort={filters.sort} /></div>}
     sorts={[
       { label: 'Relevância', href: href('/profissionais', filterRecord, { sort: 'relevance' }), active: currentSort === 'relevance' },
       { label: 'Melhor avaliados', href: href('/profissionais', filterRecord, { sort: 'rating' }), active: currentSort === 'rating' },
@@ -82,7 +76,7 @@ export default async function ProfissionaisPage({ searchParams }: PageProps) {
     ]}
     clearHref={filters.q || filters.location || filters.category || currentSort !== 'relevance' ? '/profissionais' : undefined}
   >
-    {professionals.length ? <ProfessionalGrid professionals={professionals} columns={3} /> : <DiscoveryEmptyState title="Nenhum profissional encontrado" description="Experimenta outra família, modalidade ou localização." clearHref="/profissionais" />}
+    {professionals.length ? <ProfessionalGrid professionals={professionals} columns={3} /> : <DiscoveryEmptyState title="Nenhum profissional encontrado" description="Experimenta outra modalidade ou localização." clearHref="/profissionais" />}
   </DiscoveryPage>
 }
 
