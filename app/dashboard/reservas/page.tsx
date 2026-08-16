@@ -18,7 +18,7 @@ export default async function ReservasPage() {
     const [{ data: reservations = [] }, { data: availability = [] }] = await Promise.all([
       supabase
         .from('reservations')
-        .select('*, service:services(name), user:platform_users(full_name, email)')
+        .select('*, service:services(name), user:platform_users(id, full_name, avatar_url, type)')
         .eq('professional_id', professional.id)
         .order('date', { ascending: false }),
       supabase
@@ -36,7 +36,7 @@ export default async function ReservasPage() {
 
   const { data: reservations = [] } = await supabase
     .from('reservations')
-    .select('*, service:services(name), user:platform_users(full_name, email)')
+    .select('*, service:services(name), user:platform_users(id, full_name, avatar_url, type)')
     .in('space_id', spaceIds)
     .order('date', { ascending: false })
 
