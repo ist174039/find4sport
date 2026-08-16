@@ -173,9 +173,7 @@ export async function assertWithinUsageLimit(
   const limit = await getLimit(userId, featureKey)
   if (limit === null) return
   const usage = await getUsage(userId, featureKey, periodType)
-  if (usage + incrementBy > limit) {
-    throw new Error(`Limite do plano atingido para ${featureKey}`)
-  }
+  if (usage + incrementBy > limit) throw new Error(`Limite do plano atingido para ${featureKey}`)
 }
 
 export async function incrementUsage(
@@ -184,32 +182,15 @@ export async function incrementUsage(
   periodType: 'day' | 'month' | 'lifetime',
   incrementBy = 1,
 ) {
+  if (!Number.isInteger(incrementBy) || incrementBy <= 0) throw new Error('Incremento de utilização inválido')
   const admin = createAdminClient()
-  const start = periodStart(periodType)
-  const { data: current } = await admin
-    .from('feature_usage')
-    .select('id, usage_count')
-    .eq('user_id', userId)
-    .eq('feature_key', featureKey)
-    .eq('period_type', periodType)
-    .eq('period_start', start)
-    .maybeSingle()
-
-  if (current) {
-    const { error } = await admin
-      .from('feature_usage')
-      .update({ usage_count: Number(current.usage_count) + incrementBy, updated_at: new Date().toISOString() })
-      .eq('id', current.id)
-    if (error) throw error
-    return
-  }
-
-  const { error } = await admin.from('feature_usage').insert({
-    user_id: userId,
-    feature_key: featureKey,
-    period_type: periodType,
-    period_start: start,
-    usage_count: incrementBy,
+  const { data, error } = await admin.rpc('increment_feature_usage', {
+    p_user_id: userId,
+    p_feature_key: featureKey,
+    p_period_type: periodType,
+    p_period_start: periodStart(periodType),
+    p_increment: incrementBy,
   })
   if (error) throw error
+  return Number(data ?? 0)
 }
