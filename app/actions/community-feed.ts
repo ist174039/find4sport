@@ -2,7 +2,7 @@
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import { canCreatePostForRole, parsePersistedPlatformRole } from '@/lib/auth/roles'
+import { canCreatePostForRole, parsePlatformRole } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 
 const supabaseAdmin = createSupabaseAdmin(
@@ -21,7 +21,7 @@ export async function createCommunityPostAction(communityId: string, content: st
     .eq('id', user.id)
     .maybeSingle()
 
-  const role = parsePersistedPlatformRole(profile?.type)
+  const role = parsePlatformRole(profile?.type)
   if (!role || !canCreatePostForRole(role)) {
     throw new Error('Apenas profissionais e gestores de espaço podem publicar em comunidades.')
   }
