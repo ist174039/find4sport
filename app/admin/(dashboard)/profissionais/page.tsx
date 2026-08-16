@@ -1,115 +1,98 @@
-'use client'
-
-import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Dumbbell, Eye, Loader2, Search, ShieldAlert, Star, UserPlus } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { adminCreateProfessional, adminUpdateProfessional } from '@/app/actions/auth'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
+import { redirect } from 'next/navigation'
+import { CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Eye, Search, ShieldAlert, Star } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveSessionAccess } from '@/lib/auth/access'
 import { Badge } from '@/components/ui/badge'
-import { TablePagination } from '@/components/ui/table-pagination'
-import { useModal } from '@/components/providers/modal-provider'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { CreateProfessionalButton, ProfessionalStateActions } from './professional-admin-actions'
 
-const FILTERS = [
-  { id: 'all', label: 'Todos' },
-  { id: 'active', label: 'Ativos' },
-  { id: 'pending', label: 'Pendentes' },
-  { id: 'suspended', label: 'Suspensos' },
-] as const
-
-type Filter = typeof FILTERS[number]['id']
 const PAGE_SIZE = 20
+const FILTERS = ['all', 'active', 'pending', 'suspended'] as const
+type Filter = typeof FILTERS[number]
 
-export default function AdminProfessionalsPage() {
-  const { showAlert, showConfirm } = useModal()
-  const [professionals, setProfessionals] = useState<any[]>([])
-  const [criticalReviewCount, setCriticalReviewCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
-  const [page, setPage] = useState(1)
-  const [inviteOpen, setInviteOpen] = useState(false)
-  const [inviting, setInviting] = useState(false)
-  const [invite, setInvite] = useState({ name: '', email: '' })
+function cleanQuery(value: string) {
+  return value.trim().replace(/[,%()]/g, ' ').replace(/\s+/g, ' ').slice(0, 100)
+}
 
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient()
-      const [{ data: profs, error }, { count }] = await Promise.all([
-        supabase.from('professionals').select('*').order('full_name', { ascending: true }),
-        supabase.from('reviews').select('id', { count: 'exact', head: true }).not('professional_id', 'is', null).lte('rating', 2),
-      ])
-      if (error) showAlert('Erro', 'Não foi possível carregar os profissionais.', 'error')
-      setProfessionals(profs || [])
-      setCriticalReviewCount(count || 0)
-      setLoading(false)
-    }
-    void load()
-  }, [showAlert])
+function pageHref(page: number, q: string, filter: Filter) {
+  const params = new URLSearchParams()
+  if (page > 1) params.set('page', String(page))
+  if (q) params.set('q', q)
+  if (filter !== 'all') params.set('status', filter)
+  const suffix = params.toString()
+  return `/admin/profissionais${suffix ? `?${suffix}` : ''}`
+}
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return professionals.filter(pro => {
-      if (filter === 'active' && !(pro.status === 'active' && pro.is_verified)) return false
-      if (filter === 'pending' && (pro.status === 'active' || pro.is_verified)) return false
-      if (filter === 'suspended' && pro.status !== 'suspended') return false
-      if (!q) return true
-      return `${pro.full_name || ''} ${pro.professional_name || ''} ${pro.email || ''} ${pro.address || ''}`.toLowerCase().includes(q)
-    })
-  }, [filter, professionals, search])
+export default async function AdminProfessionalsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/admin/login')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.canAccessAdmin) redirect('/admin/login?error=unauthorized')
 
-  useEffect(() => { setPage(1) }, [filter, search])
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const params = await searchParams
+  const q = cleanQuery(String(Array.isArray(params.q) ? params.q[0] : params.q || ''))
+  const rawFilter = String(Array.isArray(params.status) ? params.status[0] : params.status || 'all')
+  const filter: Filter = FILTERS.includes(rawFilter as Filter) ? rawFilter as Filter : 'all'
+  const page = Math.max(1, Number.parseInt(String(Array.isArray(params.page) ? params.page[0] : params.page || '1'), 10) || 1)
+  const from = (page - 1) * PAGE_SIZE
+  const admin = createAdminClient()
 
-  const pending = professionals.filter(pro => !pro.is_verified && pro.status !== 'suspended').length
-  const active = professionals.filter(pro => pro.is_verified && pro.status === 'active').length
-  const ratingValues = professionals.map(pro => Number(pro.rating_avg)).filter(value => Number.isFinite(value) && value > 0)
-  const avgRating = ratingValues.length ? ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length : 0
+  let listQuery = admin
+    .from('professionals')
+    .select('id,user_id,full_name,professional_name,email,address,avatar_url,public_slug,status,is_verified,rating_avg,review_count,created_at', { count: 'exact' })
+    .order('created_at', { ascending: false })
 
-  async function inviteProfessional() {
-    if (!invite.name.trim() || !invite.email.trim()) return showAlert('Dados em falta', 'Nome e email são obrigatórios.', 'error')
-    setInviting(true)
-    try {
-      const result = await adminCreateProfessional({ full_name: invite.name.trim(), email: invite.email.trim(), professional_name: invite.name.trim(), public_slug: `convidado-${crypto.randomUUID().slice(0, 8)}` })
-      if (result.error) throw new Error(result.error)
-      if (result.professional) setProfessionals(current => [...current, result.professional])
-      setInvite({ name: '', email: '' }); setInviteOpen(false)
-      showAlert('Criado', 'A identidade e o perfil profissional foram criados.', 'success')
-    } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar o profissional.', 'error') }
-    finally { setInviting(false) }
-  }
+  if (q) listQuery = listQuery.or(`full_name.ilike.%${q}%,professional_name.ilike.%${q}%,email.ilike.%${q}%,address.ilike.%${q}%`)
+  if (filter === 'active') listQuery = listQuery.eq('status', 'active').eq('is_verified', true)
+  else if (filter === 'pending') listQuery = listQuery.eq('status', 'pending')
+  else if (filter === 'suspended') listQuery = listQuery.eq('status', 'suspended')
 
-  async function approve(pro: any) {
-    const result = await adminUpdateProfessional(pro.id, { status: 'active', is_verified: true })
-    if (result.error) return showAlert('Erro', result.error, 'error')
-    if (result.professional) setProfessionals(current => current.map(item => item.id === pro.id ? result.professional : item))
-    showAlert('Aprovado', 'Perfil profissional ativado e verificado.', 'success')
-  }
+  const [listResult, totalResult, activeResult, pendingResult, criticalReviewResult] = await Promise.all([
+    listQuery.range(from, from + PAGE_SIZE - 1),
+    admin.from('professionals').select('id', { count: 'exact', head: true }),
+    admin.from('professionals').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('is_verified', true),
+    admin.from('professionals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    admin.from('reviews').select('id', { count: 'exact', head: true }).not('professional_id', 'is', null).lte('rating', 2),
+  ])
 
-  async function suspend(pro: any) {
-    const confirmed = await showConfirm('Suspender profissional', `Suspender o acesso público de “${pro.full_name || pro.professional_name}”?`, { confirmLabel: 'Suspender', destructive: true })
-    if (!confirmed) return
-    const result = await adminUpdateProfessional(pro.id, { status: 'suspended', is_verified: false })
-    if (result.error) return showAlert('Erro', result.error, 'error')
-    if (result.professional) setProfessionals(current => current.map(item => item.id === pro.id ? result.professional : item))
-    showAlert('Suspenso', 'O perfil profissional foi suspenso.', 'success')
-  }
+  if (listResult.error) throw new Error(`Não foi possível carregar profissionais: ${listResult.error.message}`)
+  const rows = listResult.data || []
+  const total = listResult.count || 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if (page > totalPages && total > 0) redirect(pageHref(totalPages, q, filter))
 
-  return (
-    <DashboardPage>
-      <DashboardPageHeader title="Profissionais" description="Onboarding, aprovação e estado dos perfis profissionais." action={<Dialog open={inviteOpen} onOpenChange={setInviteOpen}><DialogTrigger render={<Button className="min-h-11"><UserPlus className="mr-2 h-4 w-4" />Criar profissional</Button>} /><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Novo profissional</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>Nome *</Label><Input className="min-h-11 text-base" value={invite.name} onChange={e => setInvite(v => ({ ...v, name: e.target.value }))} /></div><div className="space-y-2"><Label>Email *</Label><Input type="email" className="min-h-11 text-base" value={invite.email} onChange={e => setInvite(v => ({ ...v, email: e.target.value }))} /></div><Button className="min-h-11" onClick={inviteProfessional} disabled={inviting}>{inviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar identidade e perfil</Button></div></DialogContent></Dialog>} />
-      <DashboardStatGrid><DashboardStat label="Total" value={professionals.length} icon={<Dumbbell className="h-5 w-5" />} /><DashboardStat label="Ativos" value={active} icon={<CheckCircle2 className="h-5 w-5" />} /><DashboardStat label="Pendentes" value={pending} icon={<ShieldAlert className="h-5 w-5" />} /><DashboardStat label="Rating médio" value={avgRating ? avgRating.toFixed(1) : '—'} hint={`${criticalReviewCount} avaliações ≤ 2 estrelas`} icon={<Star className="h-5 w-5" />} /></DashboardStatGrid>
-      <DashboardSection title="Perfis" description="Pesquisa, filtros e paginação sobre os perfis registados.">
-        <div className="mb-4 space-y-3"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="min-h-11 pl-9 text-base" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar nome, email ou localização" /></div><div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => setFilter(item.id)}>{item.label}</Button>)}</div></div>
-        {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : visible.length === 0 ? <DashboardEmptyState icon={<Dumbbell className="h-10 w-10" />} title="Sem profissionais" description="Não existem resultados para os critérios selecionados." /> : <div className="grid gap-3">{visible.map(pro => <article key={pro.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex min-w-0 items-center gap-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{pro.avatar_url ? <img src={pro.avatar_url} alt="" className="h-full w-full object-cover" /> : (pro.full_name || 'P').charAt(0)}</div><div className="min-w-0"><p className="truncate font-semibold">{pro.full_name || pro.professional_name}</p><p className="truncate text-sm text-muted-foreground">{pro.email || 'Sem email'}{pro.address ? ` · ${pro.address}` : ''}</p><div className="mt-1 flex gap-2"><Badge variant="outline">{pro.status || 'sem estado'}</Badge>{pro.is_verified && <Badge>Verificado</Badge>}</div></div></div><div className="grid grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-11"><Link href={`/profissionais/${pro.public_slug || pro.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button>{!pro.is_verified && pro.status !== 'suspended' ? <Button className="min-h-11" onClick={() => approve(pro)}>Aprovar</Button> : pro.status !== 'suspended' ? <Button variant="outline" className="min-h-11 text-destructive" onClick={() => suspend(pro)}>Suspender</Button> : null}</div></article>)}</div>}
-        <TablePagination currentPage={safePage} totalPages={totalPages} totalItems={filtered.length} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
-      </DashboardSection>
-    </DashboardPage>
-  )
+  return <DashboardPage>
+    <DashboardPageHeader title="Profissionais" description="Onboarding, aprovação e estado dos perfis profissionais. Filtros e paginação são executados no servidor." action={<CreateProfessionalButton />} />
+    <DashboardStatGrid>
+      <DashboardStat label="Total" value={totalResult.count || 0} icon={<Dumbbell className="h-5 w-5" />} />
+      <DashboardStat label="Ativos" value={activeResult.count || 0} icon={<CheckCircle2 className="h-5 w-5" />} />
+      <DashboardStat label="Pendentes" value={pendingResult.count || 0} icon={<ShieldAlert className="h-5 w-5" />} />
+      <DashboardStat label="Avaliações críticas" value={criticalReviewResult.count || 0} hint="Avaliações com 2 estrelas ou menos; não são denúncias." icon={<Star className="h-5 w-5" />} />
+    </DashboardStatGrid>
+
+    <DashboardSection title="Perfis" description="Pesquisa por nome, email ou localização e filtra pelo estado real do perfil.">
+      <form method="get" className="mb-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_200px_auto]">
+        <label className="relative min-w-0"><span className="sr-only">Pesquisar profissionais</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input name="q" defaultValue={q} placeholder="Nome, email ou localização" className="min-h-11 w-full pl-10" /></label>
+        <select name="status" defaultValue={filter} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="all">Todos</option><option value="active">Ativos</option><option value="pending">Pendentes</option><option value="suspended">Suspensos</option></select>
+        <Button type="submit" className="min-h-11">Filtrar</Button>
+      </form>
+
+      {rows.length === 0 ? <DashboardEmptyState icon={<Dumbbell className="h-10 w-10" />} title="Sem profissionais" description="Não existem perfis para os critérios selecionados." /> : <div className="grid min-w-0 gap-3">
+        {rows.map(professional => {
+          const name = professional.full_name || professional.professional_name || 'Profissional'
+          return <article key={professional.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{professional.avatar_url ? <img src={professional.avatar_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="truncate text-sm text-muted-foreground">{professional.email || 'Sem email profissional'}{professional.address ? ` · ${professional.address}` : ''}</p><div className="mt-1 flex flex-wrap gap-2"><Badge variant="outline">{professional.status || 'sem estado'}</Badge>{professional.is_verified && <Badge>Verificado</Badge>}{Number(professional.review_count || 0) > 0 && <Badge variant="secondary">{Number(professional.rating_avg || 0).toFixed(1)} · {professional.review_count} avaliações</Badge>}</div></div></div>
+            <div className="grid grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-10"><Link href={`/profissionais/${professional.public_slug || professional.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button><ProfessionalStateActions id={professional.id} name={name} isVerified={Boolean(professional.is_verified)} status={professional.status} /></div>
+          </article>
+        })}
+      </div>}
+
+      {total > 0 && <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">A mostrar {from + 1}–{Math.min(from + PAGE_SIZE, total)} de {total}</p><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm" className={page <= 1 ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page - 1, q, filter)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Link></Button><span className="px-2 text-sm font-medium">{page} / {totalPages}</span><Button asChild variant="outline" size="sm" className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page + 1, q, filter)}>Seguinte<ChevronRight className="ml-1 h-4 w-4" /></Link></Button></div></div>}
+    </DashboardSection>
+  </DashboardPage>
 }
