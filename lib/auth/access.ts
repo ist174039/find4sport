@@ -28,13 +28,19 @@ export async function resolveAdminSidebarUser(supabase: Supabase, user: User): P
   return { role: adminRecord.adminLabel }
 }
 
+export function getAccountStatus(user: User) {
+  // app_metadata is controlled by trusted server/admin APIs. user_metadata is kept only
+  // as a temporary read fallback for accounts marked before the migration.
+  return String(user.app_metadata?.account_status || user.user_metadata?.account_status || '')
+}
+
 export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
   const adminUser = await resolveAdminRecord(supabase, user)
   if (adminUser) {
     return { role: 'admin', profileId: adminUser.id, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false }
   }
 
-  const accountStatus = String(user.user_metadata?.account_status || '')
+  const accountStatus = getAccountStatus(user)
   if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') return null
 
   const { data: platformUser } = await supabase.from('platform_users').select('id, type').eq('id', user.id).maybeSingle()
