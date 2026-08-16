@@ -5,6 +5,16 @@ import Stripe from 'stripe'
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
+function getBaseUrl(req: Request) {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (configured) {
+    try {
+      return new URL(/^https?:\/\//i.test(configured) ? configured : `https://${configured}`).origin
+    } catch {}
+  }
+  return new URL(req.url).origin
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
@@ -14,10 +24,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const planCode = String(body.planCode || '')
     const billingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
-
-    if (!['pro', 'premium'].includes(planCode)) {
-      return NextResponse.json({ error: 'Plano inválido' }, { status: 400 })
-    }
+    if (!['pro', 'premium'].includes(planCode)) return NextResponse.json({ error: 'Plano inválido' }, { status: 400 })
 
     const admin = createAdminClient()
     const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
@@ -33,7 +40,6 @@ export async function POST(req: Request) {
       .eq('is_active', true)
       .eq('is_public', true)
       .maybeSingle()
-
     if (planError || !plan) return NextResponse.json({ error: 'Plano não disponível' }, { status: 404 })
 
     const priceId = billingCycle === 'annual' ? plan.stripe_annual_price_id : plan.stripe_monthly_price_id
@@ -46,36 +52,25 @@ export async function POST(req: Request) {
       .eq('user_id', user.id)
       .maybeSingle()
 
+    const baseUrl = getBaseUrl(req)
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/faturacao?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/faturacao?canceled=true`,
+      success_url: `${baseUrl}/dashboard/faturacao?success=true`,
+      cancel_url: `${baseUrl}/dashboard/faturacao?canceled=true`,
       client_reference_id: user.id,
       customer: existingSubscription?.stripe_customer_id || undefined,
       customer_email: existingSubscription?.stripe_customer_id ? undefined : user.email,
-      metadata: {
-        user_id: user.id,
-        plan_id: plan.id,
-        plan_code: plan.code,
-        audience: profile.type,
-        billing_cycle: billingCycle,
-      },
-      subscription_data: {
-        metadata: {
-          user_id: user.id,
-          plan_id: plan.id,
-          plan_code: plan.code,
-          audience: profile.type,
-        },
-      },
+      metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type, billing_cycle: billingCycle },
+      subscription_data: { metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type } },
     }, {
       idempotencyKey: `subscription-checkout:${user.id}:${plan.id}:${billingCycle}`,
     })
 
+    if (!session.url) return NextResponse.json({ error: 'Stripe não devolveu uma URL de checkout.' }, { status: 502 })
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
     console.error('Stripe checkout error:', error)
-    return NextResponse.json({ error: error.message || 'Erro ao iniciar checkout' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Erro ao iniciar checkout' }, { status: 500 })
   }
 }
