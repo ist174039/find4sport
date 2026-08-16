@@ -13,13 +13,7 @@ async function requireCommunityAdmin(communityId: string) {
   if (access?.role !== 'professional') throw new Error('Apenas profissionais podem gerir comunidades.')
 
   const admin = createAdminClient()
-  const { data: membership } = await admin
-    .from('community_members')
-    .select('id')
-    .eq('community_id', communityId)
-    .eq('user_id', user.id)
-    .eq('role', 'admin')
-    .maybeSingle()
+  const { data: membership } = await admin.from('community_members').select('id').eq('community_id', communityId).eq('user_id', user.id).eq('role', 'admin').maybeSingle()
   if (!membership) throw new Error('Sem permissões para gerir esta comunidade.')
   return { user, admin }
 }
@@ -31,15 +25,19 @@ function revalidateCommunity(communityId: string) {
   revalidatePath('/comunidades')
 }
 
-export async function updateCommunityAction(communityId: string, input: { name: string; description: string; isPrivate: boolean; sportCategory?: string }) {
+export async function updateCommunityAction(communityId: string, formData: FormData) {
   const { admin } = await requireCommunityAdmin(communityId)
-  const name = input.name.trim()
+  const name = String(formData.get('name') || '').trim()
+  const description = String(formData.get('description') || '').trim()
+  const sportCategory = String(formData.get('sport_category') || '').trim()
+  const isPrivate = formData.get('is_private') === 'on'
   if (!name) throw new Error('O nome é obrigatório.')
+
   const { error } = await admin.from('communities').update({
     name,
-    description: input.description.trim() || null,
-    is_private: input.isPrivate,
-    sport_category: input.sportCategory?.trim() || null,
+    description: description || null,
+    is_private: isPrivate,
+    sport_category: sportCategory || null,
   }).eq('id', communityId)
   if (error) throw error
   revalidateCommunity(communityId)
