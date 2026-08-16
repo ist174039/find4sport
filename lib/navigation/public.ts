@@ -17,15 +17,19 @@ export const publicPrimaryNavigation: PublicNavItem[] = [
 ]
 
 export const publicSecondaryNavigation: PublicNavItem[] = [
-  { name: 'Profissionais', href: '/profissionais', icon: Users },
-  { name: 'Espaços', href: '/espacos', icon: MapPin },
-  { name: 'Eventos', href: '/eventos', icon: CalendarDays },
   { name: 'Comunidades', href: '/comunidades', icon: Users },
   { name: 'Modalidades', href: '/modalidades', icon: Activity },
 ]
 
-// Mobile stays intentionally capped at five primary destinations. Discovery
-// sections remain available in the right-side "Mais" drawer.
+export const mobileSecondaryNavigation: PublicNavItem[] = [
+  { name: 'Profissionais', href: '/profissionais', icon: Users },
+  { name: 'Espaços', href: '/espacos', icon: MapPin },
+  { name: 'Eventos', href: '/eventos', icon: CalendarDays },
+  ...publicSecondaryNavigation,
+]
+
+// Keep five stable destinations in the bottom bar. Discovery sections live in
+// the right-side "Mais" drawer to avoid an overcrowded mobile navigation bar.
 export const mobilePrimaryNavigation: PublicNavItem[] = [
   { name: 'Início', href: '/', icon: Home, mobilePrimary: true },
   { name: 'Feed', href: '/feed', icon: Rss, mobilePrimary: true },
