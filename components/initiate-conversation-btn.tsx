@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, type LucideIcon } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { sendMessage } from '@/app/actions/messages'
 import { useModal } from '@/components/providers/modal-provider'
 import { Button } from '@/components/ui/button'
@@ -20,63 +19,41 @@ type InitiateConversationButtonProps = {
   successMessage: string
 }
 
-export function InitiateConversationButton({
-  targetUserId,
-  targetName,
-  icon: Icon,
-  label,
-  emptyTargetMessage,
-  selfTargetMessage,
-  initialMessageBuilder,
-  errorMessage,
-  successMessage,
-}: InitiateConversationButtonProps) {
+export function InitiateConversationButton({ targetUserId, targetName, icon: Icon, label, emptyTargetMessage, selfTargetMessage, initialMessageBuilder, errorMessage, successMessage }: InitiateConversationButtonProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const { showAlert } = useModal()
 
   const handleStartConversation = async () => {
+    if (loading) return
+    if (!targetUserId) {
+      showAlert('Aviso', emptyTargetMessage, 'info')
+      return
+    }
+
     setLoading(true)
     try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      await sendMessage(targetUserId, initialMessageBuilder(targetName))
+      showAlert('Mensagem enviada', successMessage, 'success')
+      router.push('/dashboard/mensagens')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : errorMessage
+      if (message === 'Não autenticado') {
         router.push(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`)
         return
       }
-
-      if (!targetUserId) {
-        showAlert('Aviso', emptyTargetMessage, 'info')
-        return
-      }
-
-      if (targetUserId === user.id) {
+      if (message === 'Destinatário inválido') {
         showAlert('Aviso', selfTargetMessage, 'info')
         return
       }
-
-      await sendMessage(targetUserId, initialMessageBuilder(targetName))
-      showAlert('Sucesso', successMessage, 'success')
-      router.push('/dashboard/mensagens')
-    } catch (err: any) {
-      console.error(err)
-      showAlert('Erro', err?.message || errorMessage, 'error')
+      showAlert('Erro', message || errorMessage, 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <Button
-      onClick={handleStartConversation}
-      disabled={loading}
-      className="w-full sm:w-auto font-bold px-8 py-3 rounded-xl flex items-center justify-center gap-2 shadow-sm"
-    >
-      {loading ? <Loader2 className="text-[20px] animate-spin" /> : <Icon className="text-[20px]" />}
-      {label}
-    </Button>
-  )
+  return <Button onClick={handleStartConversation} disabled={loading} className="min-h-11 w-full rounded-xl px-5 font-semibold shadow-sm sm:w-auto">
+    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Icon className="mr-2 h-4 w-4" />}
+    {label}
+  </Button>
 }
