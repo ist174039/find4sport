@@ -63,26 +63,17 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const originalAlert = window.alert
-    const originalConfirm = window.confirm
-
     window.alert = (message?: unknown) => {
       const text = typeof message === 'string' ? message : String(message ?? '')
       const lower = text.toLowerCase()
       const type: ModalType = lower.includes('erro') || lower.includes('falh') || lower.includes('inválid') ? 'error' : 'info'
       showAlert(type === 'error' ? 'Ocorreu um problema' : 'Aviso', text, type)
     }
-
-    window.confirm = (message?: string) => {
-      void showConfirm('Confirmar ação', String(message ?? ''), { destructive: true })
-      return false
-    }
-
     return () => {
       window.alert = originalAlert
-      window.confirm = originalConfirm
       resolvePending(false)
     }
-  }, [resolvePending, showAlert, showConfirm])
+  }, [resolvePending, showAlert])
 
   return (
     <ModalContext.Provider value={{ showAlert, showConfirm }}>
