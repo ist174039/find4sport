@@ -6,134 +6,51 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Loader2, Calendar as CalendarIcon, Clock, CreditCard, CheckCircle2, ChevronLeft } from 'lucide-react'
+import { Loader2, Calendar as CalendarIcon, Clock, CreditCard, CheckCircle2, ChevronLeft, PackageCheck } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
 import { pt } from 'date-fns/locale'
 import type { Service, SpaceRoom } from '@/lib/types'
-import { createFreeReservationAction } from '@/app/actions/booking'
+import { createFreeReservationAction, createPackageReservationAction } from '@/app/actions/booking'
 
 interface BookingWizardProps { open: boolean; onOpenChange: (open: boolean) => void; service?: Service | null; professionalId?: string | null; spaceId?: string | null }
-
-function timeToMinutes(value: string) { const [hours, minutes] = value.split(':').map(Number); return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : NaN }
-function addMinutesToTime(value: string, durationMinutes: number) { const start = timeToMinutes(value); if (!Number.isFinite(start)) return ''; const total = start + durationMinutes; if (total >= 1440) return ''; return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}` }
-
 type AvailabilitySlot = { day_of_week: number; start_time: string; end_time: string; is_active: boolean }
+type PackageCredit = { id:string; sessions_remaining:number; expires_at:string|null; package_name:string }
+function timeToMinutes(value:string){const[h,m]=value.split(':').map(Number);return Number.isFinite(h)&&Number.isFinite(m)?h*60+m:NaN}
+function addMinutesToTime(value:string,durationMinutes:number){const start=timeToMinutes(value);if(!Number.isFinite(start))return'';const total=start+durationMinutes;if(total>=1440)return'';return`${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`}
 
-export function BookingWizard({ open, onOpenChange, service, professionalId, spaceId }: BookingWizardProps) {
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>([])
-  const [rooms, setRooms] = useState<SpaceRoom[]>([])
-  const [selectedRoom, setSelectedRoom] = useState<SpaceRoom | null>(null)
-  const [selectedDate, setSelectedDate] = useState('')
-  const [selectedTime, setSelectedTime] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
-  const durationMinutes = spaceId ? 60 : Math.max(1, Number(service?.duration_minutes || 60))
-  const computedEndTime = selectedTime ? addMinutesToTime(selectedTime, durationMinutes) : ''
+export function BookingWizard({ open,onOpenChange,service,professionalId,spaceId }:BookingWizardProps){
+  const[step,setStep]=useState(1),[loading,setLoading]=useState(false),[availability,setAvailability]=useState<AvailabilitySlot[]>([]),[rooms,setRooms]=useState<SpaceRoom[]>([]),[selectedRoom,setSelectedRoom]=useState<SpaceRoom|null>(null),[selectedDate,setSelectedDate]=useState(''),[selectedTime,setSelectedTime]=useState(''),[errorMsg,setErrorMsg]=useState('')
+  const[packageCredits,setPackageCredits]=useState<PackageCredit[]>([]),[usePackage,setUsePackage]=useState(false),[selectedPackagePurchaseId,setSelectedPackagePurchaseId]=useState('')
+  const durationMinutes=spaceId?60:Math.max(1,Number(service?.duration_minutes||60));const computedEndTime=selectedTime?addMinutesToTime(selectedTime,durationMinutes):''
 
-  useEffect(() => {
-    if (!open) return
-    setStep(spaceId ? 1 : 2); setSelectedRoom(null); setSelectedDate(''); setSelectedTime(''); setErrorMsg('')
-    if (spaceId) void loadRooms()
-    else if (professionalId) void loadProfessionalAvailability()
-  }, [open, professionalId, spaceId])
+  useEffect(()=>{if(!open)return;setStep(spaceId?1:2);setSelectedRoom(null);setSelectedDate('');setSelectedTime('');setErrorMsg('');setUsePackage(false);setSelectedPackagePurchaseId('');setPackageCredits([]);if(spaceId)void loadRooms();else if(professionalId)void loadProfessionalAvailability();if(service?.id&&!spaceId)void loadPackageCredits(service.id)},[open,professionalId,spaceId,service?.id])
+  useEffect(()=>{if(selectedRoom)void loadRoomAvailability(selectedRoom.id)},[selectedRoom])
 
-  useEffect(() => { if (selectedRoom) void loadRoomAvailability(selectedRoom.id) }, [selectedRoom])
+  async function loadPackageCredits(serviceId:string){try{const response=await fetch(`/api/services/${encodeURIComponent(serviceId)}/package-credits`,{cache:'no-store'});const payload=await response.json().catch(()=>({}));const items=Array.isArray(payload.purchases)?payload.purchases:[];setPackageCredits(items);if(items.length){setUsePackage(true);setSelectedPackagePurchaseId(items[0].id)}}catch{setPackageCredits([])}}
+  async function loadRooms(){if(!spaceId)return;const{data,error}=await createClient().from('space_rooms').select('*').eq('space_id',spaceId).eq('is_active',true).order('name');if(error){setRooms([]);setErrorMsg('Não foi possível carregar as salas/campos deste espaço.');return}setRooms((data||[])as SpaceRoom[])}
+  async function loadProfessionalAvailability(){if(!professionalId)return;const{data,error}=await createClient().from('professional_availability').select('day_of_week,start_time,end_time,is_active').eq('professional_id',professionalId).eq('is_active',true).order('day_of_week').order('start_time');if(error){setAvailability([]);setErrorMsg('Não foi possível carregar a disponibilidade.');return}setAvailability((data||[])as AvailabilitySlot[])}
+  async function loadRoomAvailability(roomId:string){const{data,error}=await createClient().from('space_room_availability').select('day_of_week,start_time,end_time,is_active').eq('room_id',roomId).eq('is_active',true).order('day_of_week').order('start_time');if(error){setAvailability([]);setErrorMsg('Não foi possível carregar a disponibilidade desta sala/campo.');return}setAvailability((data||[])as AvailabilitySlot[])}
 
-  async function loadRooms() {
-    if (!spaceId) return
-    const { data, error } = await createClient().from('space_rooms').select('*').eq('space_id', spaceId).eq('is_active', true).order('name')
-    if (error) { setRooms([]); setErrorMsg('Não foi possível carregar as salas/campos deste espaço.'); return }
-    setRooms((data || []) as SpaceRoom[])
-  }
+  const validateDateTime=()=>{if(!selectedDate||!selectedTime||!computedEndTime){setErrorMsg('Seleciona uma data e hora válidas.');return false}const dayOfWeek=new Date(`${selectedDate}T12:00:00`).getDay();const slots=availability.filter(slot=>slot.day_of_week===dayOfWeek);if(!slots.length){setErrorMsg('Não há disponibilidade para este dia.');return false}if(!slots.some(slot=>selectedTime>=String(slot.start_time).slice(0,5)&&computedEndTime<=String(slot.end_time).slice(0,5))){setErrorMsg(`A reserva de ${durationMinutes} min tem de ficar dentro de um período disponível.`);return false}setErrorMsg('');return true}
+  const handleNext=()=>{if(step===1&&spaceId){if(!selectedRoom)return setErrorMsg('Seleciona uma sala/campo.');setErrorMsg('');setStep(2)}else if(step===2&&validateDateTime())setStep(3)}
 
-  async function loadProfessionalAvailability() {
-    if (!professionalId) return
-    const { data, error } = await createClient().from('professional_availability').select('day_of_week,start_time,end_time,is_active').eq('professional_id', professionalId).eq('is_active', true).order('day_of_week').order('start_time')
-    if (error) { setAvailability([]); setErrorMsg('Não foi possível carregar a disponibilidade.'); return }
-    setAvailability((data || []) as AvailabilitySlot[])
-  }
+  const handleCheckout=async()=>{if(!validateDateTime())return;setLoading(true);setErrorMsg('');try{
+    if(!spaceId&&service?.id&&professionalId&&usePackage&&selectedPackagePurchaseId){await createPackageReservationAction({serviceId:service.id,professionalId,packagePurchaseId:selectedPackagePurchaseId,date:selectedDate,startTime:selectedTime});onOpenChange(false);window.location.assign('/dashboard/agenda?booking=package');return}
+    const price=spaceId?selectedRoom?.price_per_hour:service?.price;const isFree=!price||price<=0
+    if(isFree){await createFreeReservationAction({serviceId:service?.id||null,professionalId:professionalId||null,spaceId:spaceId||null,spaceRoomId:selectedRoom?.id||null,date:selectedDate,startTime:selectedTime});onOpenChange(false);window.location.assign('/dashboard/agenda?booking=success');return}
+    const response=await fetch('/api/checkout_sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serviceId:service?.id||null,spaceId:spaceId||null,spaceRoomId:selectedRoom?.id||null,professionalId:professionalId||null,date:selectedDate,startTime:selectedTime})});const payload=await response.json().catch(()=>({}));if(response.status===401){window.location.assign(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`);return}if(!response.ok||!payload.url)throw new Error(payload.error||'Não foi possível iniciar o pagamento.');window.location.assign(payload.url)
+  }catch(error){const message=error instanceof Error?error.message:'Não foi possível criar a reserva.';if(message.toLowerCase().includes('autenticação')||message.toLowerCase().includes('iniciar sessão'))window.location.assign(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`);else{setErrorMsg(message);setLoading(false)}}}
 
-  async function loadRoomAvailability(roomId: string) {
-    const { data, error } = await createClient().from('space_room_availability').select('day_of_week,start_time,end_time,is_active').eq('room_id', roomId).eq('is_active', true).order('day_of_week').order('start_time')
-    if (error) { setAvailability([]); setErrorMsg('Não foi possível carregar a disponibilidade desta sala/campo.'); return }
-    setAvailability((data || []) as AvailabilitySlot[])
-  }
+  const getTitle=()=>spaceId?(selectedRoom?`Reserva · ${selectedRoom.name}`:'Escolher sala/campo'):`Reserva · ${service?.name||'Serviço'}`;const singlePrice=spaceId?selectedRoom?.price_per_hour:service?.price;const coveredByPackage=!spaceId&&usePackage&&Boolean(selectedPackagePurchaseId);const isFree=coveredByPackage||!singlePrice||singlePrice<=0;const canGoBack=(step===2&&spaceId)||step===3;const selectedCredit=packageCredits.find(item=>item.id===selectedPackagePurchaseId)
 
-  const validateDateTime = () => {
-    if (!selectedDate || !selectedTime || !computedEndTime) { setErrorMsg('Seleciona uma data e hora válidas.'); return false }
-    const dayOfWeek = new Date(`${selectedDate}T12:00:00`).getDay()
-    const slots = availability.filter(slot => slot.day_of_week === dayOfWeek)
-    if (!slots.length) { setErrorMsg('Não há disponibilidade para este dia.'); return false }
-    const valid = slots.some(slot => selectedTime >= String(slot.start_time).slice(0,5) && computedEndTime <= String(slot.end_time).slice(0,5))
-    if (!valid) { setErrorMsg(`A reserva de ${durationMinutes} min tem de ficar dentro de um período disponível.`); return false }
-    setErrorMsg(''); return true
-  }
-
-  const handleNext = () => {
-    if (step === 1 && spaceId) {
-      if (!selectedRoom) return setErrorMsg('Seleciona uma sala/campo.')
-      setErrorMsg(''); setStep(2)
-    } else if (step === 2 && validateDateTime()) setStep(3)
-  }
-
-  const handleCheckout = async () => {
-    if (!validateDateTime()) return
-    setLoading(true); setErrorMsg('')
-    try {
-      const price = spaceId ? selectedRoom?.price_per_hour : service?.price
-      const isFree = !price || price <= 0
-      if (isFree) {
-        await createFreeReservationAction({ serviceId: service?.id || null, professionalId: professionalId || null, spaceId: spaceId || null, spaceRoomId: selectedRoom?.id || null, date: selectedDate, startTime: selectedTime })
-        onOpenChange(false)
-        window.location.assign('/dashboard/agenda?booking=success')
-        return
-      }
-
-      const response = await fetch('/api/checkout_sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId: service?.id || null, spaceId: spaceId || null, spaceRoomId: selectedRoom?.id || null, professionalId: professionalId || null, date: selectedDate, startTime: selectedTime }),
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (response.status === 401) {
-        window.location.assign(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`)
-        return
-      }
-      if (!response.ok || !payload.url) throw new Error(payload.error || 'Não foi possível iniciar o pagamento.')
-      window.location.assign(payload.url)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Não foi possível criar a reserva.'
-      if (message.toLowerCase().includes('autenticação') || message.toLowerCase().includes('iniciar sessão')) window.location.assign(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`)
-      else { setErrorMsg(message); setLoading(false) }
-    }
-  }
-
-  const getTitle = () => spaceId ? (selectedRoom ? `Reserva · ${selectedRoom.name}` : 'Escolher sala/campo') : `Reserva · ${service?.name || 'Serviço'}`
-  const priceToPay = spaceId ? selectedRoom?.price_per_hour : service?.price
-  const isFree = !priceToPay || priceToPay <= 0
-  const canGoBack = (step === 2 && spaceId) || step === 3
-
-  return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="flex h-[100dvh] w-screen max-w-none flex-col overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90dvh] sm:w-full sm:max-w-lg sm:rounded-3xl">
-      <DialogHeader className="shrink-0 border-b bg-background px-4 py-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2">{canGoBack && <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={()=>setStep(step-1)} aria-label="Voltar"><ChevronLeft className="h-4 w-4" /></Button>}<div className="min-w-0"><DialogTitle className="truncate text-left">{getTitle()}</DialogTitle><DialogDescription className="mt-1 text-left">{step===1&&spaceId?'Escolhe onde queres reservar.':step===2?`Escolhe data e hora. Duração: ${durationMinutes} min.`:'Confirma antes de continuar.'}</DialogDescription></div></div>
-      </DialogHeader>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        {errorMsg && <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{errorMsg}</div>}
-
-        {step===1&&spaceId&&<div className="space-y-3">{rooms.length===0?<div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Este espaço não tem salas/campos disponíveis.</div>:rooms.map(room=><button type="button" key={room.id} onClick={()=>{setSelectedRoom(room);setErrorMsg('');setStep(2)}} className="flex min-h-20 w-full items-center gap-3 rounded-2xl border p-3 text-left transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">{room.gallery_urls?.length?<img src={room.gallery_urls[0]} alt="" className="h-full w-full object-cover"/>:null}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{room.name}</p><p className="mt-1 text-xs text-muted-foreground">Capacidade: {room.capacity || '—'}</p></div><span className="shrink-0 text-sm font-semibold text-primary">{Number(room.price_per_hour||0)>0?`${Number(room.price_per_hour).toFixed(2)} €/h`:'Grátis'}</span></button>)}</div>}
-
-        {step===2&&<div className="space-y-5"><div className="space-y-2"><Label>Data</Label><div className="flex justify-center rounded-2xl border p-3"><Calendar mode="single" selected={selectedDate?new Date(`${selectedDate}T12:00:00`):undefined} onSelect={date=>{if(!date){setSelectedDate('');return};const yyyy=date.getFullYear();const mm=String(date.getMonth()+1).padStart(2,'0');const dd=String(date.getDate()).padStart(2,'0');setSelectedDate(`${yyyy}-${mm}-${dd}`);setSelectedTime('');setErrorMsg('')}} disabled={date=>{const today=new Date();today.setHours(0,0,0,0);return date<today||!availability.some(slot=>slot.day_of_week===date.getDay())}} locale={pt} className="p-0"/></div></div>{selectedDate&&<div className="rounded-2xl border bg-muted/30 p-3 text-sm"><div className="mb-2 flex items-center gap-2 font-semibold"><CalendarIcon className="h-4 w-4 text-primary"/>Períodos disponíveis</div>{availability.filter(slot=>slot.day_of_week===new Date(`${selectedDate}T12:00:00`).getDay()).map((slot,index)=><p key={index} className="text-muted-foreground">{String(slot.start_time).slice(0,5)}–{String(slot.end_time).slice(0,5)}</p>)}</div>}<div className="space-y-2"><Label htmlFor="booking-time">Hora de início</Label><div className="relative"><Clock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground"/><Input id="booking-time" type="time" value={selectedTime} onChange={e=>{setSelectedTime(e.target.value);setErrorMsg('')}} className="min-h-12 pl-9 text-base" disabled={!selectedDate}/></div>{selectedTime&&computedEndTime&&<p className="text-xs text-muted-foreground">Fim previsto: <strong>{computedEndTime}</strong></p>}</div></div>}
-
-        {step===3&&<div className="space-y-5"><div className="space-y-3 rounded-2xl border bg-muted/30 p-4 text-sm"><div className="flex justify-between gap-3"><span className="text-muted-foreground">{spaceId?'Sala/campo':'Serviço'}</span><strong className="text-right">{spaceId?selectedRoom?.name:service?.name}</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Data</span><strong>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-PT')}</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Horário</span><strong>{selectedTime}–{computedEndTime}</strong></div><div className="flex justify-between border-t pt-3"><span>Total</span><strong className="text-primary">{isFree?'Gratuito':`${Number(priceToPay).toFixed(2)} €`}</strong></div></div></div>}
-      </div>
-
-      <div className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
-        {step===2&&<Button className="min-h-12 w-full rounded-xl" onClick={handleNext} disabled={!selectedDate||!selectedTime}>Continuar</Button>}
-        {step===3&&<Button className="min-h-12 w-full rounded-xl" size="lg" onClick={handleCheckout} disabled={loading}>{loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:isFree?<CheckCircle2 className="mr-2 h-4 w-4"/>:<CreditCard className="mr-2 h-4 w-4"/>}{loading?'A processar…':isFree?'Confirmar reserva':'Pagar e confirmar'}</Button>}
-      </div>
-    </DialogContent>
-  </Dialog>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[100dvh] w-screen max-w-none flex-col overflow-hidden rounded-none p-0 sm:h-auto sm:max-h-[90dvh] sm:w-full sm:max-w-lg sm:rounded-3xl">
+    <DialogHeader className="shrink-0 border-b bg-background px-4 py-4 sm:px-6"><div className="flex min-w-0 items-center gap-2">{canGoBack&&<Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={()=>setStep(step-1)} aria-label="Voltar"><ChevronLeft className="h-4 w-4"/></Button>}<div className="min-w-0"><DialogTitle className="truncate text-left">{getTitle()}</DialogTitle><DialogDescription className="mt-1 text-left">{step===1&&spaceId?'Escolhe onde queres reservar.':step===2?`Escolhe data e hora. Duração: ${durationMinutes} min.`:'Confirma antes de continuar.'}</DialogDescription></div></div></DialogHeader>
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">{errorMsg&&<div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{errorMsg}</div>}
+      {step===1&&spaceId&&<div className="space-y-3">{rooms.length===0?<div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Este espaço não tem salas/campos disponíveis.</div>:rooms.map(room=><button type="button" key={room.id} onClick={()=>{setSelectedRoom(room);setErrorMsg('');setStep(2)}} className="flex min-h-20 w-full items-center gap-3 rounded-2xl border p-3 text-left transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">{room.gallery_urls?.length?<img src={room.gallery_urls[0]} alt="" className="h-full w-full object-cover"/>:null}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{room.name}</p><p className="mt-1 text-xs text-muted-foreground">Capacidade: {room.capacity||'—'}</p></div><span className="shrink-0 text-sm font-semibold text-primary">{Number(room.price_per_hour||0)>0?`${Number(room.price_per_hour).toFixed(2)} €/h`:'Grátis'}</span></button>)}</div>}
+      {step===2&&<div className="space-y-5"><div className="space-y-2"><Label>Data</Label><div className="flex justify-center rounded-2xl border p-3"><Calendar mode="single" selected={selectedDate?new Date(`${selectedDate}T12:00:00`):undefined} onSelect={date=>{if(!date){setSelectedDate('');return};setSelectedDate(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`);setSelectedTime('');setErrorMsg('')}} disabled={date=>{const today=new Date();today.setHours(0,0,0,0);return date<today||!availability.some(slot=>slot.day_of_week===date.getDay())}} locale={pt} className="p-0"/></div></div>{selectedDate&&<div className="rounded-2xl border bg-muted/30 p-3 text-sm"><div className="mb-2 flex items-center gap-2 font-semibold"><CalendarIcon className="h-4 w-4 text-primary"/>Períodos disponíveis</div>{availability.filter(slot=>slot.day_of_week===new Date(`${selectedDate}T12:00:00`).getDay()).map((slot,index)=><p key={index} className="text-muted-foreground">{String(slot.start_time).slice(0,5)}–{String(slot.end_time).slice(0,5)}</p>)}</div>}<div className="space-y-2"><Label htmlFor="booking-time">Hora de início</Label><div className="relative"><Clock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground"/><Input id="booking-time" type="time" value={selectedTime} onChange={e=>{setSelectedTime(e.target.value);setErrorMsg('')}} className="min-h-12 pl-9 text-base" disabled={!selectedDate}/></div>{selectedTime&&computedEndTime&&<p className="text-xs text-muted-foreground">Fim previsto: <strong>{computedEndTime}</strong></p>}</div></div>}
+      {step===3&&<div className="space-y-4">{packageCredits.length>0&&!spaceId&&<div className="rounded-2xl border p-3"><p className="mb-2 text-sm font-semibold">Como queres pagar?</p><button type="button" onClick={()=>setUsePackage(true)} className={`flex min-h-14 w-full items-center justify-between rounded-xl border p-3 text-left ${usePackage?'border-primary bg-primary/5':'border-border'}`}><span className="flex items-center gap-2"><PackageCheck className="h-4 w-4 text-primary"/><span><span className="block text-sm font-medium">Usar pacote</span><span className="block text-xs text-muted-foreground">{selectedCredit?.package_name||packageCredits[0].package_name} · {selectedCredit?.sessions_remaining||packageCredits[0].sessions_remaining} restantes</span></span></span></button>{Number(singlePrice||0)>0&&<button type="button" onClick={()=>setUsePackage(false)} className={`mt-2 flex min-h-12 w-full items-center justify-between rounded-xl border p-3 text-left ${!usePackage?'border-primary bg-primary/5':'border-border'}`}><span className="text-sm font-medium">Pagar sessão avulsa</span><strong>{Number(singlePrice).toFixed(2)} €</strong></button>}</div>}
+        <div className="space-y-3 rounded-2xl border bg-muted/30 p-4 text-sm"><div className="flex justify-between gap-3"><span className="text-muted-foreground">{spaceId?'Sala/campo':'Serviço'}</span><strong className="text-right">{spaceId?selectedRoom?.name:service?.name}</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Data</span><strong>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString('pt-PT')}</strong></div><div className="flex justify-between"><span className="text-muted-foreground">Horário</span><strong>{selectedTime}–{computedEndTime}</strong></div><div className="flex justify-between border-t pt-3"><span>Total</span><strong className="text-primary">{coveredByPackage?'1 crédito do pacote':isFree?'Gratuito':`${Number(singlePrice).toFixed(2)} €`}</strong></div></div></div>}
+    </div>
+    <div className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">{step===2&&<Button className="min-h-12 w-full rounded-xl" onClick={handleNext} disabled={!selectedDate||!selectedTime}>Continuar</Button>}{step===3&&<Button className="min-h-12 w-full rounded-xl" size="lg" onClick={handleCheckout} disabled={loading}>{loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:coveredByPackage?<PackageCheck className="mr-2 h-4 w-4"/>:isFree?<CheckCircle2 className="mr-2 h-4 w-4"/>:<CreditCard className="mr-2 h-4 w-4"/>}{loading?'A processar…':coveredByPackage?'Usar 1 sessão do pacote':isFree?'Confirmar reserva':'Pagar e confirmar'}</Button>}</div>
+  </DialogContent></Dialog>
 }
