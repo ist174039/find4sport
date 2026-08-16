@@ -1,120 +1,76 @@
-import { Activity } from 'lucide-react'
+import { Activity, ArrowRight, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { SuggestModalityModal } from '@/components/suggest-modality-modal'
+import { groupSports } from '@/lib/sports-taxonomy'
 
-export default async function ModalitiesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>
-}) {
+export default async function ModalitiesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const supabase = await createClient()
   const params = await searchParams
   const query = typeof params.q === 'string' ? params.q.trim().toLowerCase() : ''
 
-  // Fetch all sports categories
-  const { data: categories, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name')
-
+  const { data: categories } = await supabase.from('categories').select('id,name,slug,emoji').order('name')
   let safeCategories = categories || []
-  if (query) {
-    safeCategories = safeCategories.filter((cat: any) => {
-      const name = (cat.name || '').toLowerCase()
-      const slug = (cat.slug || '').toLowerCase()
-      return name.includes(query) || slug.includes(query)
-    })
-  }
-
-  // Fallback beautiful colors if not provided by DB
-  const gradients = [
-    'from-blue-500 to-cyan-400',
-    'from-emerald-500 to-teal-400',
-    'from-orange-500 to-amber-400',
-    'from-purple-500 to-fuchsia-400',
-    'from-rose-500 to-pink-400',
-    'from-indigo-500 to-blue-400',
-  ]
+  if (query) safeCategories = safeCategories.filter((cat: any) => `${cat.name || ''} ${cat.slug || ''}`.toLowerCase().includes(query))
+  const groups = groupSports(safeCategories)
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Hero Section */}
-      <section className="border-b border-border bg-muted/30 py-8 sm:py-12">
+    <main className="min-h-screen bg-background pb-20">
+      <section className="border-b border-border bg-gradient-to-b from-primary/8 to-background py-8 sm:py-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl text-center md:text-left mb-4">
-            Modalidades
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl text-center md:text-left">
-            Explora o desporto ideal para ti. Temos dezenas de opções disponíveis na plataforma para te manteres ativo, com acompanhamento profissional.
-          </p>
+          <div className="max-w-3xl">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Explorar desporto</span>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Encontra a modalidade certa para ti</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">Em vez de uma lista solta, as modalidades estão organizadas por famílias que fazem sentido para quem procura treino, espaços ou eventos.</p>
+          </div>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <form action="/modalidades" method="get" className="w-full sm:max-w-md">
-              <input
-                name="q"
-                defaultValue={query}
-                placeholder="Pesquisar modalidade..."
-                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
-              />
-            </form>
-            <p className="text-sm text-muted-foreground">{safeCategories.length} modalidades</p>
+          <form action="/modalidades" method="get" className="relative mt-6 max-w-2xl">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <input name="q" defaultValue={query} placeholder="Ex.: padel, natação, boxe, yoga..." className="min-h-12 w-full rounded-2xl border border-border bg-background pl-12 pr-4 text-base shadow-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
+          </form>
+
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {groups.map(group => <a key={group.id} href={`#${group.id}`} className="shrink-0 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:text-primary"><span className="mr-1.5">{group.emoji}</span>{group.name}</a>)}
           </div>
         </div>
       </section>
 
-      {/* Grid Section */}
-      <section className="py-8 sm:py-12 bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {safeCategories.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-muted-foreground border border-dashed border-border rounded-xl">
-                Nenhuma modalidade encontrada.
-              </div>
-            ) : (
-              safeCategories.map((cat, index) => {
-                const gradient = gradients[index % gradients.length]
-                return (
-                  <div key={cat.id} className={`relative group rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-primary/50 bg-gradient-to-br ${gradient}`}>
-                    <Link href={`/pesquisa?category=${cat.slug}`} className="relative block aspect-square">
-                      {/* Texture Overlay */}
-                      <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] mix-blend-overlay"></div>
-                      
-                      {/* Content */}
-                      <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-white text-center z-10">
-                        <span className="text-5xl md:text-6xl mb-4 transform group-hover:scale-110 transition-transform duration-300 drop-shadow-sm">
-                          {cat.emoji || '🏅'}
-                        </span>
-                        <h3 className="font-semibold text-lg md:text-xl drop-shadow-sm group-hover:text-white/90">
-                          {cat.name}
-                        </h3>
-                      </div>
-                    </Link>
-
-                    <div className="p-3 bg-background/90 backdrop-blur-sm border-t border-white/15 grid grid-cols-3 gap-2 text-[11px] font-semibold">
-                      <Link href={`/profissionais?category=${cat.slug}`} className="rounded-lg bg-card px-2 py-1 text-center text-foreground hover:text-primary hover:border-primary/50 border border-border">Profissionais</Link>
-                      <Link href={`/espacos?category=${cat.slug}`} className="rounded-lg bg-card px-2 py-1 text-center text-foreground hover:text-primary hover:border-primary/50 border border-border">Espacos</Link>
-                      <Link href={`/eventos?category=${cat.slug}`} className="rounded-lg bg-card px-2 py-1 text-center text-foreground hover:text-primary hover:border-primary/50 border border-border">Eventos</Link>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-
-          {/* Hero CTA below grid */}
-          <div className="mt-16 bg-card border border-border rounded-2xl p-8 md:p-12 text-center relative overflow-hidden shadow-sm">
-            <div className="absolute -right-16 -top-16 opacity-[0.03] text-foreground">
-              <Activity className="text-[300px]" />
+      <section className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        {safeCategories.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border p-10 text-center"><Activity className="mx-auto h-9 w-9 text-muted-foreground/40" /><h2 className="mt-3 font-semibold">Nenhuma modalidade encontrada</h2><p className="mt-1 text-sm text-muted-foreground">Tenta outra pesquisa ou sugere uma nova modalidade.</p></div>
+        ) : groups.map(group => (
+          <section key={group.id} id={group.id} className="scroll-mt-24">
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-2xl">{group.emoji}</div>
+              <div><h2 className="text-xl font-bold text-foreground sm:text-2xl">{group.name}</h2><p className="mt-1 text-sm text-muted-foreground">{group.description}</p></div>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-4 relative z-10">Não encontras o que procuras?</h2>
-            <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8 relative z-10">
-              A nossa plataforma está em constante expansão. Diz-nos qual é a modalidade que gostarias de ver aqui.
-            </p>
-            <SuggestModalityModal />
-          </div>
-        </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {group.sports.map((cat: any) => (
+                <article key={cat.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md">
+                  <Link href={`/pesquisa?category=${encodeURIComponent(cat.slug || cat.name)}`} className="flex min-h-24 items-center gap-4 p-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted text-3xl transition group-hover:bg-primary/10">{cat.emoji || group.emoji}</div>
+                    <div className="min-w-0 flex-1"><h3 className="truncate font-semibold text-foreground group-hover:text-primary">{cat.name}</h3><p className="mt-1 text-xs text-muted-foreground">Ver tudo nesta modalidade</p></div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                  <div className="grid grid-cols-3 border-t border-border bg-muted/15 text-[11px] font-semibold">
+                    <Link href={`/profissionais?category=${encodeURIComponent(cat.slug || cat.name)}`} className="min-h-10 px-2 py-3 text-center hover:bg-muted hover:text-primary">Profissionais</Link>
+                    <Link href={`/espacos?category=${encodeURIComponent(cat.slug || cat.name)}`} className="min-h-10 border-x border-border px-2 py-3 text-center hover:bg-muted hover:text-primary">Espaços</Link>
+                    <Link href={`/eventos?category=${encodeURIComponent(cat.slug || cat.name)}`} className="min-h-10 px-2 py-3 text-center hover:bg-muted hover:text-primary">Eventos</Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <section className="rounded-3xl border border-border bg-muted/25 p-6 text-center sm:p-10">
+          <Activity className="mx-auto h-8 w-8 text-primary" />
+          <h2 className="mt-3 text-2xl font-bold">Não encontras a tua modalidade?</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Sugere-a. A estrutura por famílias permite adicioná-la depois no local certo sem transformar a plataforma numa lista desorganizada.</p>
+          <div className="mt-5"><SuggestModalityModal /></div>
+        </section>
       </section>
-    </div>
+    </main>
   )
 }
