@@ -1,11 +1,41 @@
+'use client'
+
 import { groupSports } from '@/lib/sports-taxonomy'
 
 type Category = { id: string; name: string; emoji?: string | null; slug?: string | null }
 
-export function GroupedSportSelect({ categories, name, id, defaultValue = '', required = false, className = '', placeholder = 'Selecionar modalidade' }: { categories: Category[]; name: string; id?: string; defaultValue?: string; required?: boolean; className?: string; placeholder?: string }) {
+export function GroupedSportSelect({
+  categories,
+  name,
+  id,
+  defaultValue = '',
+  value,
+  onChange,
+  required = false,
+  className = '',
+  placeholder = 'Selecionar modalidade',
+}: {
+  categories: Category[]
+  name: string
+  id?: string
+  defaultValue?: string
+  value?: string
+  onChange?: (value: string) => void
+  required?: boolean
+  className?: string
+  placeholder?: string
+}) {
   const groups = groupSports(categories)
+  const controlled = value !== undefined
   return (
-    <select id={id} name={name} defaultValue={defaultValue} required={required} className={`min-h-11 w-full rounded-xl border border-input bg-background px-3 text-base ${className}`}>
+    <select
+      id={id}
+      name={name}
+      {...(controlled ? { value } : { defaultValue })}
+      onChange={event => onChange?.(event.target.value)}
+      required={required}
+      className={`min-h-11 w-full rounded-xl border border-input bg-background px-3 text-base ${className}`}
+    >
       <option value="" disabled={required}>{placeholder}</option>
       {groups.map(group => (
         <optgroup key={group.id} label={`${group.emoji} ${group.name}`}>
