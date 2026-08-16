@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ role, professional, space, user, notificationCount = 0 }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
   const basePath = '/dashboard'
 
   let navItems = []
@@ -84,64 +86,64 @@ export function DashboardSidebar({ role, professional, space, user, notification
     ]
   }
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b">
-        <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
+  const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
+    <div className="flex h-full flex-col bg-card">
+      <div className="border-b p-5">
+        <Link href="/" onClick={() => mobile && setMobileOpen(false)} className="flex min-h-11 items-center gap-2.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
             <span className="text-lg font-bold text-white">F4S</span>
           </div>
-          <span className="hidden text-xl font-bold tracking-tight text-foreground sm:block">
+          <span className="text-xl font-bold tracking-tight text-foreground">
             FIND<span className="text-primary">4</span>SPORT
           </span>
         </Link>
       </div>
 
-      <div className="p-4 border-b">
+      <div className="border-b p-4">
         {role === 'venue_manager' ? (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+          <div className="flex min-h-12 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
               {space?.name?.charAt(0) || 'E'}
             </div>
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{space?.name || 'Espaço'}</p>
-              <p className="text-xs text-muted-foreground truncate">Gestor de Espaço</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{space?.name || 'Espaço'}</p>
+              <p className="truncate text-xs text-muted-foreground">Gestor de Espaço</p>
             </div>
           </div>
         ) : role === 'professional' ? (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 overflow-hidden">
+          <div className="flex min-h-12 items-center gap-3">
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-primary/10">
               {professional?.avatar_url ? (
-                <img src={professional.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                <img src={professional.avatar_url} alt="Perfil" className="h-full w-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-primary font-bold">
+                <div className="flex h-full w-full items-center justify-center font-bold text-primary">
                   {professional?.full_name?.charAt(0) || 'P'}
                 </div>
               )}
             </div>
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{professional?.full_name || 'Profissional'}</p>
-              <p className="text-xs text-muted-foreground truncate">Profissional</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{professional?.full_name || 'Profissional'}</p>
+              <p className="truncate text-xs text-muted-foreground">Profissional</p>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-secondary/10 overflow-hidden flex items-center justify-center text-secondary font-bold">
+          <div className="flex min-h-12 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary/10 font-bold text-secondary">
               {user?.user_metadata?.avatar_url ? (
-                <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                <img src={user.user_metadata.avatar_url} alt="Perfil" className="h-full w-full object-cover" />
               ) : (
                 user?.user_metadata?.full_name?.charAt(0) || 'A'
               )}
             </div>
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">{user?.user_metadata?.full_name || 'Atleta'}</p>
-              <p className="text-xs text-muted-foreground truncate">Atleta</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{user?.user_metadata?.full_name || 'Atleta'}</p>
+              <p className="truncate text-xs text-muted-foreground">Atleta</p>
             </div>
           </div>
         )}
       </div>
 
-      <ScrollArea className="flex-1 py-4">
+      <ScrollArea className="flex-1 py-3">
         <nav className="space-y-1 px-2">
           {navItems.map((item: any) => {
             const isActive = pathname === item.href
@@ -149,19 +151,17 @@ export function DashboardSidebar({ role, professional, space, user, notification
               <Link
                 key={item.href}
                 href={item.href}
-                className={`
-                  flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
-                  ${
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }
-                `}
+                onClick={() => mobile && setMobileOpen(false)}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                  isActive
+                    ? 'bg-primary/10 font-medium text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted'
+                }`}
               >
-                <item.icon className="h-4 w-4" />
-                {item.name || item.title}
-                {(item.name === 'Notificações' && notificationCount > 0) && (
-                  <span className="ml-auto bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{item.name || item.title}</span>
+                {item.name === 'Notificações' && notificationCount > 0 && (
+                  <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
@@ -171,16 +171,14 @@ export function DashboardSidebar({ role, professional, space, user, notification
         </nav>
       </ScrollArea>
 
-      <div className="p-4 border-t space-y-2">
-        <Link href="/" className="block">
-          <Button variant="outline" className="w-full justify-start gap-3">
-            Ver site
-          </Button>
-        </Link>
+      <div className="space-y-2 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <Button asChild variant="outline" className="min-h-11 w-full justify-start rounded-xl">
+          <Link href="/" onClick={() => mobile && setMobileOpen(false)}>Ver site</Link>
+        </Button>
         <form action="/auth/logout" method="POST">
-          <Button variant="ghost" className="w-full justify-start gap-3" type="submit">
-            <LogOut className="h-4 w-4" />
-            Terminar sessao
+          <Button variant="ghost" className="min-h-11 w-full justify-start gap-3 rounded-xl" type="submit">
+            <LogOut className="h-5 w-5" />
+            Terminar sessão
           </Button>
         </form>
       </div>
@@ -189,22 +187,31 @@ export function DashboardSidebar({ role, professional, space, user, notification
 
   return (
     <>
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Sheet>
+      <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border/80 bg-background/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
+        <Link href="/dashboard" className="flex min-h-11 items-center gap-2 rounded-xl px-1" aria-label="Painel Find4Sport">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-teal-400 shadow-sm">
+            <span className="text-sm font-bold text-white">F4S</span>
+          </div>
+          <span className="text-sm font-bold tracking-tight text-foreground sm:text-base">
+            FIND<span className="text-primary">4</span>SPORT
+          </span>
+        </Link>
+
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger
             render={
-              <Button variant="outline" size="icon">
-                <Menu className="h-4 w-4" />
+              <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl" aria-label="Abrir menu">
+                <Menu className="h-5 w-5" />
               </Button>
             }
           />
-          <SheetContent side="left" className="p-0 w-64">
-            <SidebarContent />
+          <SheetContent side="left" className="w-[min(88vw,320px)] p-0 pt-[env(safe-area-inset-top)]">
+            <SidebarContent mobile />
           </SheetContent>
         </Sheet>
       </div>
 
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 border-r bg-card">
+      <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r bg-card lg:flex">
         <SidebarContent />
       </aside>
     </>
