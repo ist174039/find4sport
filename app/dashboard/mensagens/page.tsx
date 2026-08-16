@@ -72,11 +72,14 @@ export default async function MensagensPage() {
   contacts.sort((a, b) => new Date(b.lastMsgDate).getTime() - new Date(a.lastMsgDate).getTime())
 
   return (
-    <div className="relative h-full overflow-hidden bg-background lg:rounded-2xl lg:border lg:border-border/70">
-      <Link href="/dashboard" aria-label="Voltar ao painel" className="absolute left-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background/95 text-foreground shadow-sm backdrop-blur md:hidden">
-        <ArrowLeft className="h-5 w-5" />
-      </Link>
-      <div className="h-full [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!border-0 md:[&>div]:!rounded-xl">
+    <div className="flex h-full flex-col overflow-hidden bg-background lg:rounded-2xl lg:border lg:border-border/70">
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-2 md:hidden">
+        <Link href="/dashboard" aria-label="Voltar ao painel" className="flex h-11 w-11 items-center justify-center rounded-xl text-foreground hover:bg-muted">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div><p className="text-sm font-bold">Mensagens</p><p className="text-[11px] text-muted-foreground">Conversas da FIND4SPORT</p></div>
+      </div>
+      <div className="min-h-0 flex-1 [&>div]:!h-full [&>div]:!min-h-0 [&>div]:!max-w-none [&>div]:!rounded-none [&>div]:!border-0 md:[&>div]:!rounded-xl">
         <ChatInterface initialContacts={contacts} initialMessages={messages} currentUserId={user.id} />
       </div>
     </div>
