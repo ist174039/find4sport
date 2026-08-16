@@ -1,15 +1,14 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import { isProviderRole } from '@/lib/auth/roles'
 import { ReservationsClient } from './reservations-client'
 import type { AvailabilityRow, ReservationListItem } from '@/lib/reservations/view-model'
 
 const PAGE_SIZE = 20
 const ALLOWED_STATUS = new Set(['all', 'pending', 'paid', 'confirmed', 'cancelled', 'completed'])
 
-function firstParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] || '' : value || ''
-}
+function firstParam(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] || '' : value || '' }
 
 async function resolveSearchIds(supabase: Awaited<ReturnType<typeof createClient>>, query: string) {
   if (!query) return { userIds: [] as string[], serviceIds: [] as string[], roomIds: [] as string[] }
@@ -19,11 +18,7 @@ async function resolveSearchIds(supabase: Awaited<ReturnType<typeof createClient
     supabase.from('services').select('id').ilike('name', pattern).limit(100),
     supabase.from('space_rooms').select('id').ilike('name', pattern).limit(100),
   ])
-  return {
-    userIds: (users || []).map(row => row.id),
-    serviceIds: (services || []).map(row => row.id),
-    roomIds: (rooms || []).map(row => row.id),
-  }
+  return { userIds: (users || []).map(row => row.id), serviceIds: (services || []).map(row => row.id), roomIds: (rooms || []).map(row => row.id) }
 }
 
 export default async function ReservasPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -32,7 +27,7 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
   if (!user) redirect('/auth/login?redirect=/dashboard/reservas')
 
   const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role)) redirect('/dashboard')
+  if (!access || !isProviderRole(access.role)) redirect('/dashboard')
 
   const params = await searchParams
   const requestedPage = Math.max(1, Number(firstParam(params.page)) || 1)
@@ -50,7 +45,6 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
   let professionalId: string | null = null
   let spaceIds: string[] = []
   let availability: AvailabilityRow[] = []
-
   if (access.role === 'professional') {
     const { data: professional } = await supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
     if (!professional) redirect('/auth/registar/profissional')
@@ -65,27 +59,12 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
 
   let countQuery = supabase.from('reservations').select('id', { count: 'exact', head: true })
   let dataQuery = supabase.from('reservations').select('id,date,start_time,end_time,status,payment_status,amount,service:services(name),room:space_rooms(name),user:platform_users(id,full_name,avatar_url,type)')
-
-  if (professionalId) {
-    countQuery = countQuery.eq('professional_id', professionalId)
-    dataQuery = dataQuery.eq('professional_id', professionalId)
-  } else {
-    countQuery = countQuery.in('space_id', spaceIds)
-    dataQuery = dataQuery.in('space_id', spaceIds)
-  }
-  if (status !== 'all') {
-    countQuery = countQuery.eq('status', status)
-    dataQuery = dataQuery.eq('status', status)
-  }
+  if (professionalId) { countQuery = countQuery.eq('professional_id', professionalId); dataQuery = dataQuery.eq('professional_id', professionalId) }
+  else { countQuery = countQuery.in('space_id', spaceIds); dataQuery = dataQuery.in('space_id', spaceIds) }
+  if (status !== 'all') { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status) }
   if (query) {
-    if (!orParts.length) {
-      countQuery = countQuery.eq('id', '00000000-0000-0000-0000-000000000000')
-      dataQuery = dataQuery.eq('id', '00000000-0000-0000-0000-000000000000')
-    } else {
-      const expression = orParts.join(',')
-      countQuery = countQuery.or(expression)
-      dataQuery = dataQuery.or(expression)
-    }
+    if (!orParts.length) { countQuery = countQuery.eq('id', '00000000-0000-0000-0000-000000000000'); dataQuery = dataQuery.eq('id', '00000000-0000-0000-0000-000000000000') }
+    else { const expression = orParts.join(','); countQuery = countQuery.or(expression); dataQuery = dataQuery.or(expression) }
   }
 
   const { count, error: countError } = await countQuery
@@ -94,8 +73,7 @@ export default async function ReservasPage({ searchParams }: { searchParams: Pro
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const page = Math.min(requestedPage, totalPages)
   const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-  const { data: reservationRows, error } = await dataQuery.order('date', { ascending: false }).order('start_time', { ascending: false }).range(from, to)
+  const { data: reservationRows, error } = await dataQuery.order('date', { ascending: false }).order('start_time', { ascending: false }).range(from, from + PAGE_SIZE - 1)
   if (error) throw new Error(`Não foi possível carregar reservas: ${error.message}`)
 
   const items = (reservationRows || []).map(row => row as unknown as ReservationListItem)
