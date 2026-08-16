@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { X, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 
 type ModalType = 'success' | 'error' | 'info'
@@ -13,24 +13,29 @@ const ModalContext = createContext<ModalContextType | undefined>(undefined)
 
 export function useModal() {
   const context = useContext(ModalContext)
-  if (!context) {
-    throw new Error('useModal must be used within a ModalProvider')
-  }
+  if (!context) throw new Error('useModal must be used within a ModalProvider')
   return context
 }
 
 export function ModalProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
-  const [modalContent, setModalContent] = useState<{ title: string; message: string; type: ModalType }>({
-    title: '',
-    message: '',
-    type: 'info'
-  })
+  const [modalContent, setModalContent] = useState<{ title: string; message: string; type: ModalType }>({ title: '', message: '', type: 'info' })
 
-  const showAlert = (title: string, message: string, type: ModalType = 'info') => {
+  const showAlert = useCallback((title: string, message: string, type: ModalType = 'info') => {
     setModalContent({ title, message, type })
     setOpen(true)
-  }
+  }, [])
+
+  useEffect(() => {
+    const originalAlert = window.alert
+    window.alert = (message?: unknown) => {
+      const text = typeof message === 'string' ? message : String(message ?? '')
+      const lower = text.toLowerCase()
+      const type: ModalType = lower.includes('erro') || lower.includes('falh') || lower.includes('inválid') ? 'error' : 'info'
+      showAlert(type === 'error' ? 'Ocorreu um problema' : 'Aviso', text, type)
+    }
+    return () => { window.alert = originalAlert }
+  }, [showAlert])
 
   const close = () => setOpen(false)
 
@@ -38,42 +43,19 @@ export function ModalProvider({ children }: { children: React.ReactNode }) {
     <ModalContext.Provider value={{ showAlert }}>
       {children}
       {open && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card border border-border w-full max-w-sm rounded-3xl p-6 shadow-xl relative animate-in zoom-in-95 duration-200 text-center">
-            <button 
-              onClick={close}
-              className="absolute top-4 right-4 p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-labelledby="global-modal-title">
+          <div className="relative w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-xl animate-in zoom-in-95 duration-200">
+            <button onClick={close} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted" aria-label="Fechar">
+              <X className="h-5 w-5" />
             </button>
-            
-            <div className="flex justify-center mb-4">
-              {modalContent.type === 'success' && (
-                <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-              )}
-              {modalContent.type === 'error' && (
-                <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center">
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-              )}
-              {modalContent.type === 'info' && (
-                <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-                  <Info className="w-8 h-8" />
-                </div>
-              )}
+            <div className="mb-4 flex justify-center">
+              {modalContent.type === 'success' && <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"><CheckCircle2 className="h-8 w-8" /></div>}
+              {modalContent.type === 'error' && <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive"><AlertTriangle className="h-8 w-8" /></div>}
+              {modalContent.type === 'info' && <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary"><Info className="h-8 w-8" /></div>}
             </div>
-
-            <h3 className="text-xl font-bold text-foreground mb-2">{modalContent.title}</h3>
-            <p className="text-muted-foreground text-sm mb-6">{modalContent.message}</p>
-            
-            <button 
-              onClick={close}
-              className="w-full py-3 rounded-xl font-bold transition-all bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Ok, entendi
-            </button>
+            <h3 id="global-modal-title" className="mb-2 text-xl font-bold text-foreground">{modalContent.title}</h3>
+            <p className="mb-6 whitespace-pre-wrap text-sm text-muted-foreground">{modalContent.message}</p>
+            <button onClick={close} className="w-full rounded-xl bg-primary py-3 font-bold text-primary-foreground transition-all hover:bg-primary/90">OK</button>
           </div>
         </div>
       )}
