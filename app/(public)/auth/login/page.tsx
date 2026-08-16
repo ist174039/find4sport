@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { User, Trophy, Building2, ArrowRight, Eye, EyeOff } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
@@ -14,49 +13,42 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
 
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
+    setError(null)
     const supabase = createClient()
-    
-    await supabase.auth.signInWithOAuth({
+
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`,
-      }
+      },
     })
+
+    if (oauthError) {
+      setError(oauthError.message || 'Não foi possível iniciar sessão com o fornecedor selecionado.')
+    }
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const supabase = createClient()
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       })
-      
-      if (signInError) throw signInError
-      
-      const { data: profile } = await supabase
-        .from('platform_users')
-        .select('type')
-        .eq('id', data.user.id)
-        .maybeSingle()
 
-      if (!profile) {
-        await supabase.from('platform_users').upsert({
-          id: data.user.id,
-          full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
-          type: 'user',
-        })
-      }
-      
-      window.location.href = '/dashboard'
-    } catch (err: any) {
+      if (signInError) throw signInError
+
+      // Login only authenticates. Profile/role resolution is performed server-side
+      // so email/password and OAuth follow exactly the same access rules.
+      window.location.href = '/auth/resolve?next=/dashboard'
+    } catch (err: unknown) {
       console.error(err)
-      setError(err.message || 'Credenciais inválidas. Por favor, tente novamente.')
+      setError(err instanceof Error ? err.message : 'Credenciais inválidas. Por favor, tente novamente.')
     } finally {
       setIsLoading(false)
     }
@@ -65,8 +57,6 @@ export default function LoginPage() {
   return (
     <>
       <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
-
-        {/* ── Left Panel: Brand & Value Prop ── */}
         <section className="hidden md:flex md:w-1/2 relative flex-col justify-center px-12 bg-primary overflow-hidden">
           <div className="absolute inset-0 z-0">
             <img
@@ -107,7 +97,6 @@ export default function LoginPage() {
           </div>
         </section>
 
-        {/* ── Right Panel: Auth Form ── */}
         <section className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 py-12 bg-background">
           <div className="w-full max-w-md">
             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -116,7 +105,6 @@ export default function LoginPage() {
                 <p className="text-muted-foreground text-sm">Insira as suas credenciais para entrar na plataforma</p>
               </div>
 
-              {/* Toggle Login/Signup */}
               <div className="flex p-1 bg-muted rounded-xl mb-6">
                 <button className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 bg-background text-foreground shadow-sm">
                   Entrar
@@ -126,7 +114,6 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              {/* Email & Password form */}
               <form className="space-y-4" onSubmit={handleLogin} id="login-form">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground block" htmlFor="email">
@@ -194,14 +181,12 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Divider */}
               <div className="relative flex items-center py-5">
                 <div className="flex-grow border-t border-border" />
                 <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">ou</span>
                 <div className="flex-grow border-t border-border" />
               </div>
 
-              {/* Social Login */}
               <div className="flex flex-col gap-3">
                 <button
                   type="button"
