@@ -1,6 +1,6 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { parsePersistedPlatformRole, type AccessRole } from '@/lib/auth/roles'
+import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
 
 export type SessionAccess = {
   role: AccessRole
@@ -76,7 +76,7 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
     return null
   }
 
-  const role = parsePersistedPlatformRole(platformUser.type)
+  const role = parsePlatformRole(platformUser.type)
   if (!role) {
     return null
   }
