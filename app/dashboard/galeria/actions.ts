@@ -35,16 +35,42 @@ function revalidateGallery() {
   revalidatePath('/dashboard/espaco')
 }
 
-export async function uploadGalleryPhotosAction(expected: GalleryEntity, formData: FormData) {
+export async function registerGalleryUploadsAction(expected: GalleryEntity, paths: string[]) {
   const { user, admin, table, entity } = await requireGalleryEntity(expected)
-  const files = formData.getAll('files').filter((value): value is File => value instanceof File && value.size > 0)
-  if (!files.length) throw new Error('Selecione pelo menos uma imagem.')
+  const uniquePaths = [...new Set(paths.map(path => String(path || '').trim()).filter(Boolean))]
+  if (!uniquePaths.length) throw new Error('Nenhuma fotografia foi recebida.')
+  if (uniquePaths.length > 10) throw new Error('Carregue no máximo 10 fotografias de cada vez.')
+  if (uniquePaths.some(path => !path.startsWith(`${user.id}/gallery/`))) throw new Error('Caminho de fotografia inválido.')
 
   const currentPublic = Array.isArray(entity.gallery_urls) ? entity.gallery_urls : []
   const currentPrivate = Array.isArray(entity.private_gallery_urls) ? entity.private_gallery_urls : []
   const limit = await getLimit(user.id, 'profile.photos.max')
-  if (limit !== null && currentPublic.length + currentPrivate.length + files.length > limit) throw new Error(`O seu plano permite no máximo ${limit} fotografias.`)
+  if (limit !== null && currentPublic.length + currentPrivate.length + uniquePaths.length > limit) throw new Error(`O seu plano permite no máximo ${limit} fotografias.`)
 
+  for (const path of uniquePaths) {
+    const parts = path.split('/')
+    const fileName = parts.pop()!
+    const directory = parts.join('/')
+    const { data, error } = await admin.storage.from('avatars').list(directory, { search: fileName, limit: 10 })
+    if (error || !(data || []).some(item => item.name === fileName)) throw new Error('Uma das fotografias carregadas não foi encontrada no Storage.')
+  }
+
+  const urls = uniquePaths.map(path => admin.storage.from('avatars').getPublicUrl(path).data.publicUrl)
+  const nextPublic = [...new Set([...currentPublic, ...urls])]
+  const { error } = await admin.from(table).update({ gallery_urls: nextPublic }).eq('id', expected.id)
+  if (error) throw error
+  revalidateGallery()
+  return { publicGallery: nextPublic, privateGallery: currentPrivate }
+}
+
+export async function uploadGalleryPhotosAction(expected: GalleryEntity, formData: FormData) {
+  const { user, admin, table, entity } = await requireGalleryEntity(expected)
+  const files = formData.getAll('files').filter((value): value is File => value instanceof File && value.size > 0)
+  if (!files.length) throw new Error('Selecione pelo menos uma imagem.')
+  const currentPublic = Array.isArray(entity.gallery_urls) ? entity.gallery_urls : []
+  const currentPrivate = Array.isArray(entity.private_gallery_urls) ? entity.private_gallery_urls : []
+  const limit = await getLimit(user.id, 'profile.photos.max')
+  if (limit !== null && currentPublic.length + currentPrivate.length + files.length > limit) throw new Error(`O seu plano permite no máximo ${limit} fotografias.`)
   const uploaded: Array<{ path: string; url: string }> = []
   try {
     for (const file of files) {
@@ -56,7 +82,6 @@ export async function uploadGalleryPhotosAction(expected: GalleryEntity, formDat
       if (uploadError) throw uploadError
       uploaded.push({ path, url: admin.storage.from('avatars').getPublicUrl(path).data.publicUrl })
     }
-
     const nextPublic = [...currentPublic, ...uploaded.map(item => item.url)]
     const { error } = await admin.from(table).update({ gallery_urls: nextPublic }).eq('id', expected.id)
     if (error) throw error
@@ -86,9 +111,7 @@ export async function setGalleryFeaturedImageAction(expected: GalleryEntity, url
   const { user, admin, table, entity } = await requireGalleryEntity(expected)
   const all = new Set([...(entity.gallery_urls || []), ...(entity.private_gallery_urls || [])])
   if (url && !all.has(url)) throw new Error('Fotografia não encontrada.')
-  const patch: Record<string, any> = target === 'cover'
-    ? { cover_url: url || null }
-    : expected.type === 'professional' ? { avatar_url: url || null } : { logo_url: url || null }
+  const patch: Record<string, any> = target === 'cover' ? { cover_url: url || null } : expected.type === 'professional' ? { avatar_url: url || null } : { logo_url: url || null }
   const { error } = await admin.from(table).update(patch).eq('id', expected.id)
   if (error) throw error
   if (target === 'avatar' && expected.type === 'professional') await admin.from('platform_users').update({ avatar_url: url || null }).eq('id', user.id)
@@ -101,23 +124,16 @@ export async function deleteGalleryPhotoAction(expected: GalleryEntity, url: str
   const currentPublic = Array.isArray(entity.gallery_urls) ? entity.gallery_urls : []
   const currentPrivate = Array.isArray(entity.private_gallery_urls) ? entity.private_gallery_urls : []
   if (![...currentPublic, ...currentPrivate].includes(url)) throw new Error('Fotografia não encontrada.')
-
   const publicGallery = currentPublic.filter((item: string) => item !== url)
   const privateGallery = currentPrivate.filter((item: string) => item !== url)
   const currentCover = entity.cover_url || ''
   const currentAvatar = expected.type === 'professional' ? entity.avatar_url || '' : entity.logo_url || ''
-  const patch: Record<string, any> = {
-    gallery_urls: publicGallery,
-    private_gallery_urls: privateGallery,
-    cover_url: currentCover === url ? null : currentCover || null,
-  }
+  const patch: Record<string, any> = { gallery_urls: publicGallery, private_gallery_urls: privateGallery, cover_url: currentCover === url ? null : currentCover || null }
   if (expected.type === 'professional') patch.avatar_url = currentAvatar === url ? null : currentAvatar || null
   else patch.logo_url = currentAvatar === url ? null : currentAvatar || null
-
   const { error } = await admin.from(table).update(patch).eq('id', expected.id)
   if (error) throw error
   if (expected.type === 'professional' && currentAvatar === url) await admin.from('platform_users').update({ avatar_url: null }).eq('id', user.id)
-
   const path = storagePathFromUrl(url)
   if (path?.startsWith(`${user.id}/`)) await admin.storage.from('avatars').remove([path])
   revalidateGallery()
