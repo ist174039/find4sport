@@ -52,7 +52,7 @@ export function InitiateConversationButton({ targetUserId, targetName, icon: Ico
     }
   }
 
-  return <Button onClick={handleStartConversation} disabled={loading} className="min-h-11 w-full rounded-xl px-5 font-semibold shadow-sm sm:w-auto">
+  return <Button onClick={handleStartConversation} disabled={loading} className="min-h-11 w-auto rounded-xl px-4 font-semibold shadow-sm">
     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Icon className="mr-2 h-4 w-4" />}
     {label}
   </Button>
