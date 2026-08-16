@@ -1,6 +1,7 @@
 import { Fragment, isValidElement, type ReactNode } from 'react'
 import { PageContainer } from '@/components/patterns/page-shell'
 import { EntityMobileTabs } from '@/components/patterns/entity-mobile-tabs'
+import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions'
 import { cn } from '@/lib/utils'
 
 export function EntityHero({
@@ -26,25 +27,21 @@ export function EntityHero({
     <section className="relative border-b border-border bg-card">
       <div className="relative h-48 overflow-hidden bg-muted sm:h-64 lg:h-72">
         {coverUrl ? <img src={coverUrl} alt={coverAlt} className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-primary/35 via-slate-700/35 to-slate-950/70" />}
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-black/10" />
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/15" />
       </div>
       <PageContainer className="relative -mt-20 pb-5 sm:-mt-24 sm:pb-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex min-w-0 items-end gap-3 sm:gap-4">
             {avatar && <div className="shrink-0">{avatar}</div>}
-            <div className="min-w-0 rounded-xl bg-black/45 px-3 py-2 text-white shadow-sm backdrop-blur-[2px] sm:px-4 sm:py-3">
+            <div className="min-w-0 rounded-xl bg-black/55 px-3 py-2 text-white shadow-sm backdrop-blur-[2px] sm:px-4 sm:py-3">
               <div className="flex flex-wrap items-center gap-2">{badges}</div>
               <h1 className="mt-1 line-clamp-2 text-2xl font-bold tracking-tight text-white drop-shadow-md sm:text-3xl lg:text-4xl">{title}</h1>
               {subtitle && <div className="mt-1 text-sm text-white/95 drop-shadow sm:text-base">{subtitle}</div>}
               {meta && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/90 drop-shadow">{meta}</div>}
             </div>
           </div>
-          {actions && (
-            <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 sm:shrink-0 sm:overflow-visible sm:pb-2 [&>*]:min-h-11 [&>*]:shrink-0">
-              {actions}
-            </div>
-          )}
+          {actions && <div className="hidden shrink-0 gap-2 pb-2 sm:flex [&>*]:min-h-11 [&>*]:shrink-0">{actions}</div>}
         </div>
       </PageContainer>
     </section>
@@ -93,7 +90,7 @@ export function DetailSection({ title, icon, description, children, className }:
 }
 
 export function MobileActionBar({ children }: { children: ReactNode }) {
-  return <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 backdrop-blur sm:hidden"><div className="mx-auto flex max-w-lg gap-2 overflow-x-auto [&>*]:min-h-11 [&>*]:min-w-0 [&>*]:flex-1">{children}</div></div>
+  return <MobileEntityActions>{children}</MobileEntityActions>
 }
 
 export function DetailStat({ label, value }: { label: string; value: ReactNode }) {
