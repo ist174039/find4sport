@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     if (!packageId) return NextResponse.json({ error: 'Pacote inválido.' }, { status: 400 })
 
     const admin = createAdminClient()
-    const { data: pack, error } = await (admin as any).from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium)').eq('id', String(packageId)).maybeSingle()
+    const db = admin as any
+    const { data: pack, error } = await db.from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium)').eq('id', String(packageId)).maybeSingle()
     if (error || !pack || !pack.is_active || pack.service?.is_active === false || pack.professional?.status !== 'active') return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 404 })
     if (pack.professional?.user_id === user.id) return NextResponse.json({ error: 'Não podes comprar o teu próprio pacote.' }, { status: 400 })
 
@@ -35,8 +36,21 @@ export async function POST(request: Request) {
     const amount = Number(pack.price || 0)
     if (!(amount > 0)) return NextResponse.json({ error: 'O preço do pacote é inválido.' }, { status: 400 })
 
+    const recentCutoff = new Date(Date.now() - 45 * 60 * 1000).toISOString()
+    const { data: recentPending } = await db.from('service_package_purchases').select('id,stripe_session_id,created_at').eq('user_id', user.id).eq('package_id', pack.id).eq('status', 'pending').gte('created_at', recentCutoff).order('created_at', { ascending: false }).limit(3)
+    for (const pending of recentPending || []) {
+      if (!pending.stripe_session_id) continue
+      try {
+        const existingSession = await stripe.checkout.sessions.retrieve(pending.stripe_session_id)
+        if (existingSession.status === 'open' && existingSession.url) return NextResponse.json({ url: existingSession.url, reused: true })
+        if (existingSession.status === 'expired') await db.from('service_package_purchases').delete().eq('id', pending.id).eq('status', 'pending')
+      } catch {
+        await db.from('service_package_purchases').delete().eq('id', pending.id).eq('status', 'pending')
+      }
+    }
+
     const expiresAt = pack.validity_days ? new Date(Date.now() + Number(pack.validity_days) * 86400000).toISOString() : null
-    const { data: purchase, error: purchaseError } = await (admin as any).from('service_package_purchases').insert({
+    const { data: purchase, error: purchaseError } = await db.from('service_package_purchases').insert({
       user_id: user.id,
       package_id: pack.id,
       professional_id: pack.professional_id,
@@ -61,11 +75,14 @@ export async function POST(request: Request) {
         metadata: { service_package_purchase_id: purchase.id, package_id: pack.id, transaction_type: 'service_package' },
       }, { idempotencyKey: `service-package:${purchase.id}` })
       if (!session.url) throw new Error('Stripe não devolveu URL de checkout.')
-      const { error: linkError } = await (admin as any).from('service_package_purchases').update({ stripe_session_id: session.id }).eq('id', purchase.id)
-      if (linkError) throw linkError
+      const { error: linkError } = await db.from('service_package_purchases').update({ stripe_session_id: session.id }).eq('id', purchase.id)
+      if (linkError) {
+        if (session.status === 'open') await stripe.checkout.sessions.expire(session.id).catch(() => undefined)
+        throw linkError
+      }
       return NextResponse.json({ url: session.url })
     } catch (checkoutError) {
-      await (admin as any).from('service_package_purchases').delete().eq('id', purchase.id).eq('status', 'pending')
+      await db.from('service_package_purchases').delete().eq('id', purchase.id).eq('status', 'pending')
       throw checkoutError
     }
   } catch (error) {
