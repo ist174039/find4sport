@@ -1,349 +1,97 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Building2, Check, Loader2, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { registerSpaceInitial } from '@/app/actions/register'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, Loader2, ArrowLeft, Check, ArrowRight } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
 
-type Step = 'dados' | 'detalhes' | 'confirmar'
-
-const STEPS: { id: Step; label: string; icon: string }[] = [
-  { id: 'dados', label: 'Dados Básicos', icon: '1' },
-  { id: 'detalhes', label: 'Contactos', icon: '2' },
-  { id: 'confirmar', label: 'Confirmar', icon: '3' },
-]
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
+  return value
+}
 
 export default function RegisterSpacePage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('dados')
-  const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    address: '',
-    phone: '',
-    email: '',
-    password: '',
-    website: '',
-    amenities: '',
-    capacity: '',
-  })
+  const [userId, setUserId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ name: '', description: '', address: '', phone: '', email: '', website: '', amenities: '' })
 
-  const stepIndex = STEPS.findIndex(s => s.id === step)
-  const isLastStep = step === 'confirmar'
-  const isFirstStep = step === 'dados'
-
-  function validateStep(): string | null {
-    switch (step) {
-      case 'dados':
-        if (!formData.name.trim()) return 'Nome do Espaço é obrigatório'
-        return null
-      case 'detalhes':
-        if (!formData.email.trim()) return 'Email é obrigatório'
-        if (!formData.password.trim() || formData.password.length < 6) return 'Password é obrigatória (mín. 6 caracteres)'
-        return null
-      default:
-        return null
-    }
-  }
-
-  function handleNext() {
-    const validationError = validateStep()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-    setError(null)
-    const nextIndex = Math.min(stepIndex + 1, STEPS.length - 1)
-    setStep(STEPS[nextIndex].id)
-  }
-
-  function handlePrev() {
-    setError(null)
-    const prevIndex = Math.max(stepIndex - 1, 0)
-    setStep(STEPS[prevIndex].id)
-  }
-
-  async function handleSubmit() {
-    setSaving(true)
-    setError(null)
-    try {
+  useEffect(() => {
+    void (async () => {
       const supabase = createClient()
-      let { data: { user } } = await supabase.auth.getUser()
-      
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        if (!formData.password || formData.password.length < 6) {
-          throw new Error('Password é obrigatória e deve ter pelo menos 6 caracteres')
-        }
-        if (!formData.email) {
-          throw new Error('Email é obrigatório')
-        }
-
-        // STEP 1: Try signing in first to detect existing accounts with same email
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        })
-
-        if (signInData?.user) {
-          // Email + password match an existing account — reuse it
-          user = signInData.user
-        } else if (signInError && signInError.message.toLowerCase().includes('invalid login credentials')) {
-          // Email might not exist yet — proceed to signUp
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                full_name: formData.name,
-                type: 'espaco',
-              },
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
-          })
-
-          if (signUpError) {
-            if (signUpError.message.toLowerCase().includes('rate limit')) {
-              throw new Error('Muitas tentativas de registo. Tenta novamente dentro de alguns minutos.')
-            } else {
-              throw signUpError
-            }
-          } else {
-            // Check if Supabase silently accepted but email already exists (identities empty)
-            if (signUpData?.user?.identities?.length === 0) {
-              throw new Error('Este email já está registado. Inicia sessão e associa o teu espaço a partir do dashboard.')
-            }
-            if (!signUpData.user) throw new Error('Falha ao criar utilizador')
-            user = signUpData.user
-          }
-        } else if (signInError) {
-          // Some other sign-in error (e.g. email not confirmed) — check if it's about email confirmation
-          if (signInError.message.toLowerCase().includes('email not confirmed')) {
-            throw new Error('Já tens uma conta com este email mas ainda não foi confirmada. Verifica o teu email.')
-          }
-          // Otherwise try signUp as normal
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: { full_name: formData.name, type: 'espaco' },
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
-          })
-          if (signUpError) throw signUpError
-          if (!signUpData.user) throw new Error('Falha ao criar utilizador')
-          user = signUpData.user
-        }
+        router.replace(`/auth/registar?type=venue_manager&next=${encodeURIComponent(next)}`)
+        return
       }
-
-      if (!user) {
-        throw new Error('Não foi possível autenticar o utilizador')
+      const { data: existing } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id).limit(1).maybeSingle()
+      if (existing) {
+        router.replace('/dashboard/espaco')
+        return
       }
+      setUserId(user.id)
+      setFormData(prev => ({ ...prev, email: user.email || '' }))
+      setLoading(false)
+    })()
+  }, [next, router])
 
-      const spacePayload = {
-        name: formData.name,
-        description: formData.description || null,
-        address: formData.address || null,
-        phone: formData.phone || null,
-        email: formData.email || null,
-        website: formData.website || null,
-        amenities: formData.amenities ? formData.amenities.split(',').map((a) => a.trim()) : [],
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    if (!userId || saving) return
+    setError(null)
+    if (formData.name.trim().length < 2) return setError('Indica o nome do espaço.')
+    if (formData.address.trim().length < 5) return setError('Indica uma morada válida.')
+
+    setSaving(true)
+    try {
+      const result = await registerSpaceInitial(userId, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        address: formData.address.trim(),
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        website: formData.website.trim() || null,
+        amenities: formData.amenities ? formData.amenities.split(',').map(item => item.trim()).filter(Boolean) : [],
         status: 'pending',
-        created_by: user.id,
-        owner_user_id: user.id,
-      }
-
-      const result = await registerSpaceInitial(user.id, spacePayload, formData.name)
-
-      if (result.error) {
-        throw new Error(`Erro ao registar espaço: ${result.error}`)
-      }
-
-      router.push('/auth/confirmar-email')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao registar espaço')
+      }, formData.name.trim())
+      if (result.error) throw new Error(result.error)
+      const supabase = createClient()
+      await supabase.auth.updateUser({ data: { type: 'venue_manager' } })
+      router.replace(next === '/dashboard' ? '/dashboard' : next)
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível registar o espaço.')
     } finally {
       setSaving(false)
     }
   }
 
+  if (loading) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Registo de Espaço Desportivo</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Adiciona o teu espaço à plataforma find4sport
-        </p>
+    <main className="min-h-[calc(100dvh-4rem)] bg-muted/15 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Onboarding · Espaço</p><h1 className="mt-2 text-3xl font-black tracking-tight">Configura o teu espaço</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">A conta já está criada. Agora só precisamos da informação necessária para publicar e validar o espaço.</p></div>
+        <Card className="overflow-hidden rounded-3xl"><CardHeader className="border-b border-border bg-primary/5"><div className="flex items-start gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Building2 className="h-5 w-5" /></div><div><CardTitle>Informação do espaço</CardTitle><CardDescription className="mt-1">Podes gerir salas, horários, imagens e reservas depois no dashboard.</CardDescription></div></div></CardHeader><CardContent className="p-5 sm:p-7"><form onSubmit={submit} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Nome do espaço *</Label><Input value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} placeholder="Ex.: Clube Padel Lisboa" className="min-h-11" /></label><label className="space-y-2"><Label>E-mail da conta</Label><Input value={formData.email} readOnly className="min-h-11 bg-muted/40" /></label></div>
+          <label className="block space-y-2"><Label>Descrição</Label><Textarea rows={4} value={formData.description} onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))} placeholder="O que distingue este espaço? Modalidades, instalações e público." /></label>
+          <label className="block space-y-2"><Label>Morada *</Label><div className="relative"><MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" /><Input value={formData.address} onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))} placeholder="Rua, número, localidade" className="min-h-11 pl-9" /></div></label>
+          <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2"><Label>Telefone</Label><Input value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} inputMode="tel" className="min-h-11" /></label><label className="space-y-2"><Label>Website</Label><Input value={formData.website} onChange={e => setFormData(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." className="min-h-11" /></label></div>
+          <label className="block space-y-2"><Label>Comodidades</Label><Input value={formData.amenities} onChange={e => setFormData(prev => ({ ...prev, amenities: e.target.value }))} placeholder="Balneários, estacionamento, cafetaria…" className="min-h-11" /><p className="text-xs text-muted-foreground">Separa por vírgulas. Isto será convertido numa lista estruturada.</p></label>
+          {error && <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          <div className="rounded-2xl border border-border bg-muted/20 p-4 text-sm"><p className="flex items-center gap-2 font-semibold"><Check className="h-4 w-4 text-primary" />Depois deste passo</p><p className="mt-1 text-muted-foreground">O espaço fica pendente/ativo conforme a política de aprovação. Fotografias, campos/salas, preços e disponibilidade são geridos no dashboard.</p></div>
+          <Button type="submit" disabled={saving} className="min-h-12 w-full rounded-xl text-sm font-bold">{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />A guardar…</> : 'Concluir configuração'}</Button>
+        </form></CardContent></Card>
       </div>
-
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex items-center justify-center gap-0">
-          {STEPS.map((s, i) => (
-            <div key={s.id} className="flex items-center">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                    stepIndex >= i
-                      ? 'bg-teal-600 text-white'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  {stepIndex > i ? '✓' : s.icon}
-                </div>
-                <span
-                  className={`hidden text-xs font-medium sm:inline ${
-                    stepIndex >= i ? 'text-teal-600' : 'text-gray-400'
-                  }`}
-                >
-                  {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={`mx-2 h-0.5 w-8 sm:w-12 ${
-                    stepIndex > i ? 'bg-teal-600' : 'bg-gray-200'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {step === 'dados' && 'Informação Básica'}
-            {step === 'detalhes' && 'Contactos e Detalhes'}
-            {step === 'confirmar' && 'Confirma os teus dados'}
-          </CardTitle>
-          <CardDescription>
-            {step === 'dados' && 'Informação básica do espaço'}
-            {step === 'detalhes' && 'Contactos e detalhes de acesso'}
-            {step === 'confirmar' && 'Revisa toda a informação antes de submeter'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          {step === 'dados' && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome do Espaço *</Label>
-                <Input id="name" value={formData.name} onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))} placeholder="Ex: Ginásio FitPlus" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="desc">Descrição</Label>
-                <Textarea id="desc" value={formData.description} onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))} placeholder="Descreva o espaço..." rows={4} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Morada</Label>
-                <Input id="address" value={formData.address} onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))} placeholder="Rua, número, cidade" />
-              </div>
-            </div>
-          )}
-
-          {step === 'detalhes' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input id="phone" value={formData.phone} onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))} placeholder="91x xxx xxx" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input id="website" value={formData.website} onChange={(e) => setFormData((p) => ({ ...p, website: e.target.value }))} placeholder="https://..." />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))} placeholder="contacto@espaco.pt" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password * (para nova conta)</Label>
-                  <Input id="password" type="password" value={formData.password} onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))} placeholder="Mínimo 6 caracteres" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amenities">Comodidades (separadas por vírgula)</Label>
-                <Input id="amenities" value={formData.amenities} onChange={(e) => setFormData((p) => ({ ...p, amenities: e.target.value }))} placeholder="Estacionamento, Balneários, Bar" />
-              </div>
-            </div>
-          )}
-
-          {step === 'confirmar' && (
-            <div className="space-y-6">
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <h4 className="mb-3 text-sm font-semibold text-gray-900">Dados Básicos</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-gray-500">Nome:</span> <span className="font-medium">{formData.name}</span></div>
-                  {formData.address && <div><span className="text-gray-500">Morada:</span> <span className="font-medium">{formData.address}</span></div>}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                <h4 className="mb-3 text-sm font-semibold text-gray-900">Contactos</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="text-gray-500">Email:</span> <span className="font-medium">{formData.email}</span></div>
-                  <div><span className="text-gray-500">Telefone:</span> <span className="font-medium">{formData.phone}</span></div>
-                  {formData.website && <div className="col-span-2"><span className="text-gray-500">Website:</span> <span className="font-medium">{formData.website}</span></div>}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-amber-100 bg-amber-50 p-4 text-sm text-amber-700">
-                <p className="font-medium">📋 Ao submeter, o teu espaço será analisado pela nossa equipa.</p>
-                <p className="mt-1">Receberás um email assim que o processo estiver concluído (estimativa: 24-48h).</p>
-              </div>
-            </div>
-          )}
-
-          <Separator className="my-6" />
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between">
-            <div>
-              {!isFirstStep && (
-                <Button variant="outline" onClick={handlePrev}>
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-                </Button>
-              )}
-            </div>
-            <div>
-              {isLastStep ? (
-                <Button onClick={handleSubmit} disabled={saving} className="bg-teal-600 hover:bg-teal-700">
-                  {saving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="mr-2 h-4 w-4" />
-                  )}
-                  Submeter Registo
-                </Button>
-              ) : (
-                <Button onClick={handleNext} className="bg-teal-600 hover:bg-teal-700">
-                  Próximo <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </main>
   )
 }
