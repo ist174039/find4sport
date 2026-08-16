@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Award, BadgeCheck, Building2, Dumbbell, ExternalLink, Globe2, Instagram, MapPin, MessageSquare, Star, Users } from 'lucide-react'
+import { Award, BadgeCheck, Building2, Dumbbell, ExternalLink, Globe2, MapPin, MessageSquare, Star, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
@@ -21,12 +21,10 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
   const admin = createAdminClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
-
   let professional: any = null
   if (isUuid) professional = (await admin.from('professionals').select('*').eq('id', rawId).maybeSingle()).data
   if (!professional) professional = (await admin.from('professionals').select('*').eq('public_slug', rawId).maybeSingle()).data
   if (!professional || professional.status !== 'active') notFound()
-
   void supabase.rpc('increment_professional_views', { prof_id: professional.id })
 
   const [{ data: catData }, { data: qualifications }, { data: memberData }, { data: services }, { data: associationRows }, { count: followersCount }, { data: subscription }, { data: { user } }] = await Promise.all([
@@ -64,7 +62,6 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
   const followAction = user && user.id !== professional.user_id ? <FollowButton targetUserId={professional.user_id} initialIsFollowing={isFollowing} className="min-h-11 rounded-xl px-4" /> : null
   const messageAction = hasActiveReservation ? <ContactarProfissionalBtn profName={displayName} userId={professional.user_id} /> : null
   const bookingAction = <Link href="#servicos" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"><Dumbbell className="mr-2 h-4 w-4" />Ver serviços</Link>
-
   const social = professional.social_links && typeof professional.social_links === 'object' ? professional.social_links as Record<string, unknown> : {}
   const website = safeExternalUrl(professional.website)
   const instagramRaw = typeof social.instagram === 'string' ? social.instagram : null
@@ -87,9 +84,8 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
       <DetailSection title="Resumo"><div className="grid grid-cols-2 gap-4 lg:grid-cols-1"><DetailStat label="Avaliação" value={professional.rating_avg > 0 ? `${Number(professional.rating_avg).toFixed(1)} / 5` : 'Sem avaliações'} /><DetailStat label="Seguidores" value={followersCount || 0} /><DetailStat label="Serviços ativos" value={(services || []).length} />{professional.address && <DetailStat label="Localização" value={professional.address} />}</div>{professional.address && <div className="mt-4"><ObterDirecoesBtn address={professional.address} name={displayName} latitude={professional.latitude} longitude={professional.longitude} /></div>}</DetailSection>
       {associatedSpaces.length > 0 && <DetailSection title={associatedSpaces.length === 1 ? 'Espaço associado' : 'Espaços associados'} icon={<Building2 className="h-5 w-5 text-primary" />}><div className="space-y-2">{associatedSpaces.map((space: any) => <Link key={space.id} href={`/espacos/${space.slug || space.id}`} className="flex min-h-14 items-center gap-3 rounded-xl border border-border p-3 transition hover:border-primary/40">{space.logo_url ? <img src={space.logo_url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10"><Building2 className="h-5 w-5 text-primary" /></div>}<div className="min-w-0"><p className="truncate font-semibold text-foreground">{space.name}</p><p className="truncate text-sm text-muted-foreground">{space.address || 'Ver espaço'}</p></div></Link>)}</div></DetailSection>}
       {communities.length > 0 && <DetailSection title="Comunidades"><div className="space-y-2">{communities.slice(0, 5).map((community: any) => <Link key={community.id} href={`/comunidades/${community.slug || community.id}`} className="flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40">{community.name}</Link>)}</div></DetailSection>}
-      {(messageAction || hasPremiumContacts) && <DetailSection title="Contacto">{messageAction && <div className="mb-3"><p className="mb-2 text-sm text-muted-foreground">Chat disponível porque existe uma reserva ativa.</p>{messageAction}</div>}{hasPremiumContacts && <div className="space-y-2 border-t border-border pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contactos externos · Premium</p>{website&&<a href={website} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><Globe2 className="h-4 w-4 text-primary"/>Website<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}{instagram&&<a href={instagram} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><Instagram className="h-4 w-4 text-primary"/>Instagram<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}{whatsapp&&<a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><MessageSquare className="h-4 w-4 text-primary"/>WhatsApp<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}</div>}</DetailSection>}
+      {(messageAction || hasPremiumContacts) && <DetailSection title="Contacto">{messageAction && <div className="mb-3"><p className="mb-2 text-sm text-muted-foreground">Chat disponível porque existe uma reserva ativa.</p>{messageAction}</div>}{hasPremiumContacts && <div className="space-y-2 border-t border-border pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contactos externos · Premium</p>{website&&<a href={website} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><Globe2 className="h-4 w-4 text-primary"/>Website<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}{instagram&&<a href={instagram} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><Globe2 className="h-4 w-4 text-primary"/>Instagram<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}{whatsapp&&<a href={whatsapp} target="_blank" rel="noreferrer" className="flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium hover:border-primary/40"><MessageSquare className="h-4 w-4 text-primary"/>WhatsApp<ExternalLink className="ml-auto h-3.5 w-3.5"/></a>}</div>}</DetailSection>}
     </>} />
-
     <MobileActionBar>{messageAction || bookingAction}{followAction || <Link href="/profissionais" className="inline-flex items-center justify-center rounded-xl border border-border px-4 text-sm font-medium">Ver profissionais</Link>}</MobileActionBar>
   </main>
 }
