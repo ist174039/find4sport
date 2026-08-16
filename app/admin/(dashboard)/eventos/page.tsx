@@ -1,585 +1,144 @@
-'use client';
-import { AlertTriangle, Calendar, CheckCircle, CheckSquare, Edit, Filter, MapPin, Plus, Search, Trash2, XCircle, Loader2, Eye } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { getAdminEvents, approveEventAction, rejectEventAction, deleteEventAction, createAdminEventAction } from './actions'
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { Calendar, CheckCircle2, Eye, Loader2, Plus, Search, Trash2, XCircle } from 'lucide-react'
+import { approveEventAction, createAdminEventAction, deleteEventAction, getAdminEvents, rejectEventAction } from './actions'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { TablePagination } from '@/components/ui/table-pagination'
-import Link from 'next/link'
+import { useModal } from '@/components/providers/modal-provider'
+import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
-export default function Page() {
+const FILTERS = [
+  { id: 'all', label: 'Todos' },
+  { id: 'upcoming', label: 'Próximos' },
+  { id: 'past', label: 'Passados' },
+  { id: 'pending', label: 'Pendentes' },
+  { id: 'draft', label: 'Rascunhos' },
+] as const
+
+type Filter = typeof FILTERS[number]['id']
+
+export default function AdminEventsPage() {
+  const { showAlert, showConfirm } = useModal()
   const [events, setEvents] = useState<any[]>([])
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  
-  const [activeFilter, setActiveFilter] = useState<'all' | 'upcoming' | 'past' | 'draft' | 'pending'>('all')
-  const [stats, setStats] = useState({ totalMonth: 0, next7Days: 0, pending: 0, cancelled: 0 })
-  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<Filter>('all')
+  const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  
-  const [reviewEvent, setReviewEvent] = useState<any | null>(null)
+  const [form, setForm] = useState({ title: '', address: '', startDate: '', startTime: '', price: '', capacity: '', description: '' })
 
-  const [createForm, setCreateForm] = useState({
-    title: '',
-    address: '',
-    start_date: new Date().toISOString().split('T')[0],
-    price: '0',
-    capacity: '50',
-    description: ''
-  })
+  async function reload() {
+    setLoading(true)
+    try {
+      setEvents(await getAdminEvents())
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os eventos.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
-  const paginatedData = filteredEvents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-  const totalPages = Math.ceil(filteredEvents.length / ITEMS_PER_PAGE)
+  useEffect(() => { void reload() }, [])
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filteredEvents.length])
-
-  const loadEvents = async () => {
-    const loadedEvents = await getAdminEvents()
-    setEvents(loadedEvents)
-    setFilteredEvents(loadedEvents)
-
+  const filtered = useMemo(() => {
     const now = new Date()
-    const nextWeek = new Date()
-    nextWeek.setDate(now.getDate() + 7)
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    
-    const totalMonth = loadedEvents.filter((e: any) => new Date(e.start_date) >= thisMonthStart).length
-    const next7Days = loadedEvents.filter((e: any) => {
-      const d = new Date(e.start_date)
-      return d >= now && d <= nextWeek
-    }).length
-    const pending = loadedEvents.filter((e: any) => e.status === 'pending').length
-    const cancelled = loadedEvents.filter((e: any) => e.status === 'cancelled').length
+    const q = search.trim().toLowerCase()
+    return events.filter(event => {
+      const haystack = `${event.title || ''} ${event.address || ''} ${event.description || ''}`.toLowerCase()
+      if (q && !haystack.includes(q)) return false
+      const date = event.start_date ? new Date(event.start_date) : null
+      if (filter === 'upcoming' && (!date || date < now)) return false
+      if (filter === 'past' && (!date || date >= now)) return false
+      if (filter === 'pending' && event.status !== 'pending') return false
+      if (filter === 'draft' && event.status !== 'draft') return false
+      return true
+    })
+  }, [events, filter, search])
 
-    setStats({ totalMonth, next7Days, pending, cancelled })
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    loadEvents()
-  }, [])
-
-  useEffect(() => {
+  const stats = useMemo(() => {
     const now = new Date()
-    let list = [...events]
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter(e => 
-        (e.title && e.title.toLowerCase().includes(q)) || 
-        (e.address && e.address.toLowerCase().includes(q)) ||
-        (e.description && e.description.toLowerCase().includes(q))
-      )
+    const next7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    return {
+      total: events.length,
+      upcoming: events.filter(event => event.start_date && new Date(event.start_date) >= now).length,
+      next7: events.filter(event => event.start_date && new Date(event.start_date) >= now && new Date(event.start_date) <= next7).length,
+      pending: events.filter(event => event.status === 'pending').length,
     }
+  }, [events])
 
-    if (activeFilter === 'upcoming') {
-      list = list.filter(e => new Date(e.start_date) >= now)
-    } else if (activeFilter === 'past') {
-      list = list.filter(e => new Date(e.start_date) < now)
-    } else if (activeFilter === 'draft') {
-      list = list.filter(e => e.status === 'draft')
-    } else if (activeFilter === 'pending') {
-      list = list.filter(e => e.status === 'pending')
-    }
-
-    setFilteredEvents(list)
-  }, [activeFilter, events, searchQuery])
-
-  const handleApprove = async (id: string) => {
-    const { error } = await approveEventAction(id)
-    if (!error) {
-      setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'published' } : e))
-      showToast('Evento aprovado e publicado com sucesso!')
-    }
+  async function changeStatus(id: string, action: 'approve' | 'reject') {
+    const result = action === 'approve' ? await approveEventAction(id) : await rejectEventAction(id)
+    if (result.error) return showAlert('Erro', result.error.message || 'Não foi possível atualizar o evento.', 'error')
+    setEvents(current => current.map(event => event.id === id ? { ...event, status: action === 'approve' ? 'published' : 'cancelled' } : event))
+    showAlert('Atualizado', action === 'approve' ? 'Evento publicado.' : 'Evento cancelado.', 'success')
   }
 
-  const handleReject = async (id: string) => {
-    const { error } = await rejectEventAction(id)
-    if (!error) {
-      setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'cancelled' } : e))
-      showToast('Evento rejeitado / cancelado com sucesso!')
-    }
+  async function removeEvent(id: string, title: string) {
+    const confirmed = await showConfirm('Eliminar evento', `Eliminar definitivamente “${title}”?`, { confirmLabel: 'Eliminar', destructive: true })
+    if (!confirmed) return
+    const result = await deleteEventAction(id)
+    if (result.error) return showAlert('Erro', result.error.message || 'Não foi possível eliminar o evento.', 'error')
+    setEvents(current => current.filter(event => event.id !== id))
+    showAlert('Eliminado', 'Evento eliminado com sucesso.', 'success')
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja remover este evento?')) return
-    const { error } = await deleteEventAction(id)
-    if (!error) {
-      setEvents(prev => prev.filter(e => e.id !== id))
-      showToast('Evento removido com sucesso.')
-    }
-  }
-
-  const handleReviewAction = async (action: 'approve' | 'reject') => {
-    if (!reviewEvent) return
-    if (action === 'approve') {
-      await handleApprove(reviewEvent.id)
-    } else {
-      await handleReject(reviewEvent.id)
-    }
-    setReviewEvent(null)
-  }
-
-  const handleCreateEvent = async () => {
-    if (!createForm.title || !createForm.address) return
+  async function createEvent() {
+    if (!form.title.trim() || !form.startDate) return showAlert('Dados em falta', 'Título e data são obrigatórios.', 'error')
     setCreating(true)
-
-    const newEvent = {
-      title: createForm.title,
-      address: createForm.address,
-      start_date: new Date(createForm.start_date).toISOString(),
-      price_min: parseFloat(createForm.price) || 0,
-      price_max: parseFloat(createForm.price) || 0,
-      capacity: parseInt(createForm.capacity) || 50,
-      description: createForm.description || null,
-      status: 'published', // Published directly by Admin
-      organizer_name: 'Administração Find4Sport',
-      image_url: 'https://images.unsplash.com/photo-1517649763962-0c623266010b?q=80&w=600'
-    }
-
-    const { data, error } = await createAdminEventAction(newEvent)
-
-    if (!error && data) {
-      setEvents(prev => [data[0], ...prev])
-      showToast('Evento criado e publicado com sucesso!')
-      setIsCreateOpen(false)
-      setCreateForm({
-        title: '',
-        address: '',
-        start_date: new Date().toISOString().split('T')[0],
-        price: '0',
-        capacity: '50',
-        description: ''
-      })
-    } else if (error) {
-      console.error('Error creating event:', error)
-    }
-
-    setCreating(false)
-  }
-
-  const showToast = (message: string) => {
-    const toast = document.getElementById('toast')
-    const toastText = document.getElementById('toast-text')
-    if (toast) {
-      if (toastText) toastText.innerText = message
-      toast.classList.remove('translate-y-full', 'opacity-0')
-      setTimeout(() => {
-        toast.classList.add('translate-y-full', 'opacity-0')
-      }, 3000)
+    try {
+      const startDate = new Date(`${form.startDate}T${form.startTime || '00:00'}:00`)
+      const payload = {
+        title: form.title.trim(),
+        address: form.address.trim() || null,
+        start_date: startDate.toISOString(),
+        price_min: form.price ? Number(form.price) : 0,
+        price_max: form.price ? Number(form.price) : 0,
+        capacity: form.capacity ? Number(form.capacity) : null,
+        description: form.description.trim() || null,
+        status: 'published',
+      }
+      const { data, error } = await createAdminEventAction(payload)
+      if (error) throw error
+      if (data?.[0]) setEvents(current => [data[0], ...current])
+      setCreateOpen(false)
+      setForm({ title: '', address: '', startDate: '', startTime: '', price: '', capacity: '', description: '' })
+      showAlert('Criado', 'Evento criado e publicado com os dados fornecidos.', 'success')
+    } catch (error) {
+      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar o evento.', 'error')
+    } finally {
+      setCreating(false)
     }
   }
 
   return (
-    <div className="space-y-6">
-      {/* Toast Notification */}
-      <div id="toast" className="fixed bottom-4 right-4 bg-foreground text-background px-6 py-3 rounded-lg shadow-xl font-medium text-sm transition-all duration-300 translate-y-full opacity-0 z-50 flex items-center gap-2">
-        <CheckCircle className="text-emerald-500 h-5 w-5" />
-        <span id="toast-text">Ação concluída com sucesso.</span>
-      </div>
+    <DashboardPage>
+      <DashboardPageHeader
+        title="Eventos"
+        description="Aprovação, publicação e manutenção dos eventos registados na plataforma."
+        action={<Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger render={<Button className="min-h-11"><Plus className="mr-2 h-4 w-4" />Criar evento</Button>} /><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Criar evento</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>Título *</Label><Input className="min-h-11 text-base" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} /></div><div className="space-y-2"><Label>Localização</Label><Input className="min-h-11 text-base" value={form.address} onChange={e => setForm(v => ({ ...v, address: e.target.value }))} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Data *</Label><Input type="date" className="min-h-11 text-base" value={form.startDate} onChange={e => setForm(v => ({ ...v, startDate: e.target.value }))} /></div><div className="space-y-2"><Label>Hora</Label><Input type="time" className="min-h-11 text-base" value={form.startTime} onChange={e => setForm(v => ({ ...v, startTime: e.target.value }))} /></div></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Preço (€)</Label><Input type="number" min="0" step="0.01" className="min-h-11 text-base" value={form.price} onChange={e => setForm(v => ({ ...v, price: e.target.value }))} /></div><div className="space-y-2"><Label>Capacidade</Label><Input type="number" min="1" className="min-h-11 text-base" value={form.capacity} onChange={e => setForm(v => ({ ...v, capacity: e.target.value }))} /></div></div><div className="space-y-2"><Label>Descrição</Label><Textarea className="min-h-28 text-base" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} /></div><Button onClick={createEvent} disabled={creating} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Publicar evento</Button></div></DialogContent></Dialog>}
+      />
 
-      {/* Page Header */}
-      <section className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 pb-6 border-b border-border">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl lg:text-4xl tracking-tight">Gestão de Eventos</h1>
-          <p className="text-base text-muted-foreground mt-1">Aprove torneios reais, crie novos eventos e gira os registos da plataforma.</p>
+      <DashboardStatGrid>
+        <DashboardStat label="Total" value={stats.total} icon={<Calendar className="h-5 w-5" />} />
+        <DashboardStat label="Próximos" value={stats.upcoming} icon={<Calendar className="h-5 w-5" />} />
+        <DashboardStat label="Próximos 7 dias" value={stats.next7} icon={<CheckCircle2 className="h-5 w-5" />} />
+        <DashboardStat label="Pendentes" value={stats.pending} icon={<XCircle className="h-5 w-5" />} />
+      </DashboardStatGrid>
+
+      <DashboardSection title="Lista de eventos" description="Os filtros abaixo são funcionais; não existem controlos decorativos.">
+        <div className="mb-4 space-y-3">
+          <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar por título, local ou descrição" className="min-h-11 pl-9 text-base" /></div>
+          <div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} type="button" variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => setFilter(item.id)}>{item.label}</Button>)}</div>
         </div>
 
-        <div className="flex gap-3">
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors">
-              <Plus className="h-4 w-4" />
-              Criar Novo Evento
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Evento Desportivo</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Nome / Título do Evento</Label>
-                  <Input 
-                    value={createForm.title} 
-                    onChange={e => setCreateForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Ex: Torneio Aberto de Padel de Lisboa" 
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Localização / Endereço</Label>
-                  <Input 
-                    value={createForm.address} 
-                    onChange={e => setCreateForm(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Ex: Pavilhão Desportivo de Almada" 
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>Data do Evento</Label>
-                    <Input 
-                      type="date"
-                      value={createForm.start_date} 
-                      onChange={e => setCreateForm(prev => ({ ...prev, start_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Preço (€)</Label>
-                    <Input 
-                      type="number"
-                      value={createForm.price} 
-                      onChange={e => setCreateForm(prev => ({ ...prev, price: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Lotação</Label>
-                    <Input 
-                      type="number"
-                      value={createForm.capacity} 
-                      onChange={e => setCreateForm(prev => ({ ...prev, capacity: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Descrição</Label>
-                  <Textarea 
-                    value={createForm.description}
-                    onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Detalhes sobre modalidades, categorias e inscrições..."
-                    rows={3}
-                  />
-                </div>
-
-                <Button className="w-full" onClick={handleCreateEvent} disabled={creating}>
-                  {creating ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-                  Publicar Evento
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={isAdvancedFiltersOpen} onOpenChange={setIsAdvancedFiltersOpen}>
-            <DialogTrigger className="inline-flex items-center justify-center gap-2 rounded-lg bg-muted border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/80 transition-colors">
-              <Filter className="h-4 w-4" />
-              Filtros
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Filtros Avançados de Eventos</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Intervalo de Datas</Label>
-                  <div className="flex gap-2">
-                    <Input type="date" className="flex-1" />
-                    <Input type="date" className="flex-1" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Localidade</Label>
-                  <Input placeholder="Ex: Lisboa, Porto, Almada..." />
-                </div>
-                <Button className="w-full mt-4" onClick={() => setIsAdvancedFiltersOpen(false)}>
-                  Aplicar Filtros
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </section>
-
-      {/* Stats Overview */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-primary">
-            <Calendar className="h-16 w-16" />
-          </div>
-          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Eventos este Mês</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.totalMonth}</h3>
-            <span className="text-primary font-semibold text-xs bg-primary/10 px-2 py-0.5 rounded-full mb-1">Total</span>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-emerald-500">
-            <Calendar className="h-16 w-16" />
-          </div>
-          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Próximos 7 Dias</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.next7Days}</h3>
-            <span className="text-emerald-600 font-semibold text-xs bg-emerald-500/10 px-2 py-0.5 rounded-full mb-1">Brevemente</span>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-amber-500">
-            <CheckSquare className="h-16 w-16" />
-          </div>
-          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Aguardando Moderação</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-bold text-amber-600 dark:text-amber-400">{loading ? '...' : stats.pending}</h3>
-            <span className="text-amber-600 font-semibold text-xs bg-amber-500/10 px-2 py-0.5 rounded-full mb-1">Pendentes</span>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-xl border border-border relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-destructive">
-            <XCircle className="h-16 w-16" />
-          </div>
-          <p className="text-muted-foreground font-medium text-xs uppercase tracking-wider mb-2">Eventos Cancelados</p>
-          <div className="flex items-end gap-2">
-            <h3 className="text-3xl font-bold text-foreground">{loading ? '...' : stats.cancelled}</h3>
-          </div>
-        </div>
-      </section>
-
-      {/* Main List Section */}
-      <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-muted/20">
-          <div className="flex flex-col sm:flex-row gap-3 w-full">
-            {/* Tab Filters */}
-            <div className="flex bg-muted p-1 rounded-lg w-full sm:w-auto overflow-x-auto">
-              <button 
-                onClick={() => setActiveFilter('all')} 
-                className={`px-3 py-1 font-medium text-xs rounded-md transition-all whitespace-nowrap ${activeFilter === 'all' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Todos ({events.length})
-              </button>
-              <button 
-                onClick={() => setActiveFilter('upcoming')} 
-                className={`px-3 py-1 font-medium text-xs rounded-md transition-all whitespace-nowrap ${activeFilter === 'upcoming' ? 'bg-background shadow-sm font-bold text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Próximos
-              </button>
-              <button 
-                onClick={() => setActiveFilter('past')} 
-                className={`px-3 py-1 font-medium text-xs rounded-md transition-all whitespace-nowrap ${activeFilter === 'past' ? 'bg-background shadow-sm font-bold text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Passados
-              </button>
-              <button 
-                onClick={() => setActiveFilter('pending')} 
-                className={`px-3 py-1 font-medium text-xs rounded-md transition-all whitespace-nowrap flex items-center gap-1 ${activeFilter === 'pending' ? 'bg-background shadow-sm font-bold text-amber-600' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Pendentes {stats.pending > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 rounded-full">{stats.pending}</span>}
-              </button>
-            </div>
-            
-            {/* Quick Search */}
-            <div className="relative flex-1 sm:max-w-xs ml-auto">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <input 
-                type="text" 
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Pesquisar por título ou morada..." 
-                className="w-full pl-9 pr-4 py-1.5 bg-background border border-border rounded-lg text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Evento / Data</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden md:table-cell">Localização</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Lotação</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider">Estado</th>
-                <th className="px-6 py-3.5 font-semibold text-xs text-muted-foreground uppercase tracking-wider text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                    <p className="text-sm">A carregar eventos da base de dados...</p>
-                  </td>
-                </tr>
-              ) : filteredEvents.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                    <Calendar className="h-10 w-10 mx-auto mb-2 opacity-40 text-primary" />
-                    <p className="text-sm font-medium">Nenhum evento encontrado na base de dados para o filtro selecionado.</p>
-                  </td>
-                </tr>
-              ) : (
-                paginatedData.map((event) => (
-                  <tr key={event.id} className={`hover:bg-muted/30 transition-colors ${event.status === 'pending' ? 'bg-amber-500/5' : ''}`}>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-3 items-center">
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl overflow-hidden shrink-0 border border-border relative flex items-center justify-center">
-                          {event.image_url ? (
-                            <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <Calendar className="text-primary h-6 w-6" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm text-foreground leading-tight mb-1 max-w-[240px] truncate" title={event.title}>
-                            {event.title}
-                          </p>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3 text-primary" />
-                            <span>
-                              {new Date(event.start_date).toLocaleDateString('pt-PT')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 hidden md:table-cell">
-                      <p className="text-xs text-muted-foreground max-w-[200px] truncate" title={event.address}>
-                        <MapPin className="h-3.5 w-3.5 inline mr-1 text-primary" />
-                        {event.address || 'Localização não definida'}
-                      </p>
-                    </td>
-
-                    <td className="px-6 py-4 hidden lg:table-cell">
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 bg-muted rounded-full h-2">
-                          <div 
-                            className="bg-primary h-2 rounded-full transition-all" 
-                            style={{ width: `${Math.min(100, Math.round(((event.current_participants || 0) / (event.capacity || 50)) * 100))}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs font-bold text-foreground">
-                          {event.current_participants || 0}/{event.capacity || 50}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {event.status === 'pending' && (
-                        <Badge variant="warning" className="gap-1 font-semibold text-xs">
-                          <AlertTriangle className="h-3 w-3" /> Aguardando
-                        </Badge>
-                      )}
-                      {(event.status === 'published' || event.status === 'active' || event.status === 'approved') && (
-                        <Badge variant="success" className="gap-1 font-semibold text-xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Publicado
-                        </Badge>
-                      )}
-                      {event.status === 'draft' && (
-                        <Badge variant="secondary" className="text-xs">
-                          Rascunho
-                        </Badge>
-                      )}
-                      {event.status === 'cancelled' && (
-                        <Badge variant="destructive" className="text-xs">
-                          Cancelado
-                        </Badge>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-right">
-                      {event.status === 'pending' ? (
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            size="sm" 
-                            className="bg-amber-500 hover:bg-amber-600 text-white" 
-                            onClick={() => setReviewEvent(event)}
-                          >
-                            <Eye className="h-3.5 w-3.5 mr-1" /> Analisar
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-end items-center gap-1">
-                          <Link href={`/eventos/${event.id}`} target="_blank">
-                            <Button variant="ghost" size="icon" title="Ver Evento">
-                              <Calendar className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleDelete(event.id)}
-                            className="text-muted-foreground hover:text-destructive"
-                            title="Remover Evento"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <TablePagination 
-          currentPage={currentPage} 
-          totalPages={totalPages} 
-          totalItems={filteredEvents.length} 
-          itemsPerPage={ITEMS_PER_PAGE} 
-          onPageChange={setCurrentPage} 
-        />
-      </section>
-
-      {/* Review Event Modal */}
-      <Dialog open={!!reviewEvent} onOpenChange={(o) => !o && setReviewEvent(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Analisar Evento</DialogTitle>
-          </DialogHeader>
-          {reviewEvent && (
-            <div className="space-y-6 pt-4">
-              <div className="flex gap-4 items-start">
-                <div className="w-20 h-20 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                  {reviewEvent.image_url ? (
-                    <img src={reviewEvent.image_url} alt={reviewEvent.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <Calendar className="h-8 w-8 text-primary" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">{reviewEvent.title}</h2>
-                  <p className="text-muted-foreground text-sm">{reviewEvent.address || 'Sem morada'}</p>
-                  <p className="text-sm font-semibold mt-1 text-primary">
-                    {new Date(reviewEvent.start_date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Preço</Label>
-                  <p className="font-medium">{(reviewEvent.price_min || 0) === 0 ? 'Gratuito' : `€${reviewEvent.price_min}`}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Lotação</Label>
-                  <p className="font-medium">{reviewEvent.capacity ? `${reviewEvent.capacity} vagas` : 'Ilimitada'}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-muted-foreground">Descrição</Label>
-                  <p className="bg-muted/50 p-3 rounded-lg text-sm whitespace-pre-wrap mt-1">{reviewEvent.description || 'Sem descrição fornecida...'}</p>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button variant="outline" onClick={() => setReviewEvent(null)}>Cancelar</Button>
-                <Button variant="destructive" onClick={() => handleReviewAction('reject')}>Rejeitar Evento</Button>
-                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleReviewAction('approve')}>Aprovar Evento</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+        {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : filtered.length === 0 ? <DashboardEmptyState icon={<Calendar className="h-10 w-10" />} title="Sem eventos" description="Não existem eventos para os critérios selecionados." /> : <div className="grid gap-3">{filtered.map(event => <article key={event.id} className="flex flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{event.title}</h3><Badge variant="outline">{event.status || 'sem estado'}</Badge></div><p className="mt-1 text-sm text-muted-foreground">{event.start_date ? new Date(event.start_date).toLocaleString('pt-PT') : 'Data não indicada'}{event.address ? ` · ${event.address}` : ''}</p></div><div className="grid grid-cols-2 gap-2 sm:flex">{event.status === 'pending' && <><Button variant="outline" className="min-h-11" onClick={() => changeStatus(event.id, 'reject')}>Rejeitar</Button><Button className="min-h-11" onClick={() => changeStatus(event.id, 'approve')}>Aprovar</Button></>}<Button asChild variant="outline" size="icon" className="h-11 w-full sm:w-11"><Link href={`/eventos/${event.slug || event.id}`} target="_blank" aria-label="Ver evento"><Eye className="h-4 w-4" /></Link></Button><Button variant="ghost" size="icon" className="h-11 w-full text-destructive sm:w-11" onClick={() => removeEvent(event.id, event.title)} aria-label="Eliminar evento"><Trash2 className="h-4 w-4" /></Button></div></article>)}</div>}
+      </DashboardSection>
+    </DashboardPage>
   )
 }
