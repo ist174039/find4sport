@@ -49,7 +49,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const expiresAt = pack.validity_days ? new Date(Date.now() + Number(pack.validity_days) * 86400000).toISOString() : null
     const { data: purchase, error: purchaseError } = await db.from('service_package_purchases').insert({
       user_id: user.id,
       package_id: pack.id,
@@ -60,7 +59,7 @@ export async function POST(request: Request) {
       price_paid: amount,
       currency: 'eur',
       status: 'pending',
-      expires_at: expiresAt,
+      expires_at: null,
     }).select('id').single()
     if (purchaseError || !purchase) return NextResponse.json({ error: 'Não foi possível iniciar a compra do pacote. A migration de pacotes pode ainda não estar aplicada.' }, { status: 500 })
 
