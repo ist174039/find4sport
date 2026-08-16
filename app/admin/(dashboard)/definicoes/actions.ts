@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import { writeAdminAudit } from '@/lib/admin/audit'
 
 async function requireGeneralAdmin() {
   const supabase = await createClient()
@@ -35,7 +36,11 @@ export async function saveRegistrationApprovalAction(enabled: boolean) {
   const settings = { ...(existing?.settings || {}), manual_profile_approval: enabled }
   const { error } = await admin.from('system_config').upsert({ id: 'global', settings, updated_at: new Date().toISOString() })
   if (error) throw error
-  await admin.from('audit_logs').insert({ action: 'system.settings.updated', entity_type: 'system_config', entity_id: 'global', admin_id: user.id, details: { manual_profile_approval: enabled } }).then(() => undefined)
+  await writeAdminAudit(admin as any, {
+    action: 'UPDATE', tableName: 'system_config', userEmail: user.email || 'admin',
+    message: 'Definição de aprovação manual de perfis atualizada',
+    data: { manual_profile_approval: enabled },
+  })
   revalidatePath('/admin/definicoes')
 }
 
@@ -52,16 +57,17 @@ export async function createCarouselSlideAction(input: { imageUrl: string; title
     is_active: true,
   }).select().single()
   if (error) throw error
-  await admin.from('audit_logs').insert({ action: 'carousel.slide.created', entity_type: 'carousel_slide', entity_id: data.id, admin_id: user.id }).then(() => undefined)
+  await writeAdminAudit(admin as any, { action: 'INSERT', tableName: 'carousel_slides', userEmail: user.email || 'admin', message: `Slide ${data.id} criado` })
   revalidatePath('/')
   revalidatePath('/admin/definicoes')
   return data
 }
 
 export async function toggleCarouselSlideAction(id: string, isActive: boolean) {
-  const { admin } = await requireGeneralAdmin()
+  const { user, admin } = await requireGeneralAdmin()
   const { error } = await admin.from('carousel_slides').update({ is_active: isActive }).eq('id', id)
   if (error) throw error
+  await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'carousel_slides', userEmail: user.email || 'admin', message: `Slide ${id} ${isActive ? 'ativado' : 'desativado'}` })
   revalidatePath('/')
   revalidatePath('/admin/definicoes')
 }
@@ -70,7 +76,7 @@ export async function deleteCarouselSlideAction(id: string) {
   const { user, admin } = await requireGeneralAdmin()
   const { error } = await admin.from('carousel_slides').delete().eq('id', id)
   if (error) throw error
-  await admin.from('audit_logs').insert({ action: 'carousel.slide.deleted', entity_type: 'carousel_slide', entity_id: id, admin_id: user.id }).then(() => undefined)
+  await writeAdminAudit(admin as any, { action: 'DELETE', tableName: 'carousel_slides', userEmail: user.email || 'admin', message: `Slide ${id} eliminado` })
   revalidatePath('/')
   revalidatePath('/admin/definicoes')
 }
