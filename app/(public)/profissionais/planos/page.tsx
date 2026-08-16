@@ -1,84 +1,76 @@
-import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PlanosClient from './planos-client'
 
+function formatEntitlement(row: any) {
+  const label = row.description || row.feature_key
+  if (row.value_type === 'boolean') return row.boolean_value ? label : null
+  if (row.is_unlimited) return `${label}: ilimitado`
+  if (row.value_type === 'integer' || row.value_type === 'decimal') return `${label}: ${Number(row.integer_value ?? row.decimal_value ?? 0)}`
+  if (row.value_type === 'text') {
+    const value = String(row.text_value ?? '')
+    if (!value || value === 'normal') return label
+    return `${label}: ${value}`
+  }
+  return label
+}
+
 export default async function PlanosPage() {
-  const supabase = await createClient()
-  
-  // Try to get dynamic plans from CMS
-  const { data } = await supabase
-    .from('cms_pages')
-    .select('content')
-    .eq('slug', 'planos')
-    .single()
+  const admin = createAdminClient()
 
-  const defaultPlans = [
-    {
-      name: 'Grátis',
-      monthlyPrice: 0,
-      description: 'Perfeito para começar',
-      features: [
-        'Perfil profissional básico',
-        'Até 5 fotos na galeria',
-        'Gestão de agenda manual',
-        'Notificações por email',
-        'Avaliações de clientes',
-      ],
-      notIncluded: [
-        'Destaque nas pesquisas',
-        'Estatísticas avançadas',
-        'Suporte prioritário',
-        'API de integração',
-      ],
-      cta: 'Começar Grátis',
-      href: '/profissionais/registar',
-    },
-    {
-      name: 'Pro',
-      monthlyPrice: 9.99,
-      description: 'Para profissionais a sério',
-      features: [
-        'Perfil profissional completo',
-        'Fotos ilimitadas na galeria',
-        'Gestão de agenda automática',
-        'Notificações por email e SMS',
-        'Avaliações de clientes',
-        'Destaque nas pesquisas',
-        'Estatísticas avançadas',
-        'Suporte prioritário',
-      ],
-      notIncluded: [
-        'API de integração',
-        'Remoção da marca FIND4SPORT',
-      ],
-      cta: 'Assinar Pro',
-      href: '/profissionais/registar',
-      basePopular: true,
-    },
-    {
-      name: 'Premium',
-      monthlyPrice: 19.99,
-      description: 'Para profissionais de topo',
-      features: [
-        'Tudo do plano Pro',
-        'API de integração',
-        'Remoção da marca FIND4SPORT',
-        'Perfil verificado com selo',
-        'Prioridade máxima nas pesquisas',
-        'Gestor de conta dedicado',
-        'Relatórios mensais personalizados',
-      ],
-      notIncluded: [],
-      cta: 'Assinar Premium',
-      href: '/profissionais/registar',
-      basePopular: false,
-    },
-  ]
+  const { data: plans, error } = await admin
+    .from('subscription_plans')
+    .select(`
+      id, code, name, description, monthly_price, annual_price,
+      commission_rate, customer_service_fee_rate, sort_order,
+      plan_entitlements (
+        feature_key, value_type, boolean_value, integer_value,
+        decimal_value, text_value, is_unlimited, description
+      )
+    `)
+    .eq('audience', 'professional')
+    .eq('is_active', true)
+    .eq('is_public', true)
+    .order('sort_order', { ascending: true })
 
-  // If no CMS data, fallback to default plans
-  const cmsPlans = data?.content?.plans || defaultPlans
-  const header = data?.content?.header || "Planos e Preços"
-  const subheader = data?.content?.subheader || "Escolha o plano ideal para o seu negócio. Transparente, escalável e sem fidelização."
+  if (error) throw new Error('Não foi possível carregar os planos.')
 
-  return <PlanosClient initialPlans={cmsPlans} header={header} subheader={subheader} />
+  const initialPlans = (plans || []).map((plan: any) => {
+    const included: string[] = []
+    const excluded: string[] = []
+
+    for (const entitlement of plan.plan_entitlements || []) {
+      const formatted = formatEntitlement(entitlement)
+      if (entitlement.value_type === 'boolean' && entitlement.boolean_value === false) {
+        excluded.push(entitlement.description || entitlement.feature_key)
+      } else if (formatted) {
+        included.push(formatted)
+      }
+    }
+
+    included.push(`Comissão da plataforma: ${Number(plan.commission_rate).toFixed(2)}%`)
+    if (Number(plan.customer_service_fee_rate) > 0) {
+      included.push(`Service fee ao cliente: ${Number(plan.customer_service_fee_rate).toFixed(2)}%`)
+    }
+
+    return {
+      code: plan.code,
+      name: plan.name,
+      monthlyPrice: Number(plan.monthly_price),
+      annualPrice: Number(plan.annual_price),
+      description: plan.description || '',
+      features: included,
+      notIncluded: excluded,
+      cta: plan.code === 'free' ? 'Começar Grátis' : `Assinar ${plan.name}`,
+      href: '/profissionais/registar',
+      basePopular: plan.code === 'pro',
+    }
+  })
+
+  return (
+    <PlanosClient
+      initialPlans={initialPlans}
+      header="Planos e Preços"
+      subheader="Escolha o plano ideal para o seu negócio. Os preços, comissões e limites são geridos centralmente pela FIND4SPORT."
+    />
+  )
 }
