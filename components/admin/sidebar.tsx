@@ -24,85 +24,29 @@ import {
   Tags,
   CreditCard,
   FileEdit,
+  Layers3,
 } from 'lucide-react'
 
 const navigationItems = [
-  {
-    title: 'Dashboard',
-    href: '/admin',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Profissionais',
-    href: '/admin/profissionais',
-    icon: Users,
-  },
-  {
-    title: 'Espacos',
-    href: '/admin/espacos',
-    icon: Building2,
-  },
-  {
-    title: 'Eventos',
-    href: '/admin/eventos',
-    icon: Calendar,
-  },
-  {
-    title: 'Avaliacoes',
-    href: '/admin/avaliacoes',
-    icon: Star,
-  },
-  {
-    title: 'Moderacao',
-    href: '/admin/moderacao',
-    icon: Flag,
-  },
-  {
-    title: 'Utilizadores',
-    href: '/admin/utilizadores',
-    icon: Shield,
-  },
-  {
-    title: 'Importacao',
-    href: '/admin/importacao',
-    icon: Database,
-  },
-  {
-    title: 'Categorias',
-    href: '/admin/categorias',
-    icon: Tags,
-  },
-  {
-    title: 'Relatorios',
-    href: '/admin/relatorios',
-    icon: BarChart,
-  },
-  {
-    title: 'Faturação',
-    href: '/admin/faturacao',
-    icon: CreditCard,
-  },
-  {
-    title: 'Páginas (CMS)',
-    href: '/admin/paginas',
-    icon: FileEdit,
-  },
-  {
-    title: 'Audit Log',
-    href: '/admin/audit',
-    icon: FileText,
-  },
-  {
-    title: 'Definicoes',
-    href: '/admin/definicoes',
-    icon: Settings,
-  },
+  { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { title: 'Profissionais', href: '/admin/profissionais', icon: Users },
+  { title: 'Espacos', href: '/admin/espacos', icon: Building2 },
+  { title: 'Eventos', href: '/admin/eventos', icon: Calendar },
+  { title: 'Avaliacoes', href: '/admin/avaliacoes', icon: Star },
+  { title: 'Moderacao', href: '/admin/moderacao', icon: Flag },
+  { title: 'Utilizadores', href: '/admin/utilizadores', icon: Shield },
+  { title: 'Importacao', href: '/admin/importacao', icon: Database },
+  { title: 'Categorias', href: '/admin/categorias', icon: Tags },
+  { title: 'Relatorios', href: '/admin/relatorios', icon: BarChart },
+  { title: 'Faturação', href: '/admin/faturacao', icon: CreditCard },
+  { title: 'Planos', href: '/admin/planos', icon: Layers3 },
+  { title: 'Páginas (CMS)', href: '/admin/paginas', icon: FileEdit },
+  { title: 'Audit Log', href: '/admin/audit', icon: FileText },
+  { title: 'Definicoes', href: '/admin/definicoes', icon: Settings },
 ]
 
 interface AdminSidebarProps {
-  adminUser: {
-    role: string
-  }
+  adminUser: { role: string }
 }
 
 export function AdminSidebar({ adminUser }: AdminSidebarProps) {
@@ -119,9 +63,7 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
             <span className="text-xl font-bold tracking-tight text-foreground">
               FIND<span className="text-primary">4</span>SPORT
             </span>
-            <Badge variant="secondary" className="ml-2 text-[10px] py-0 px-1.5 uppercase font-bold tracking-wider">
-              Admin
-            </Badge>
+            <Badge variant="secondary" className="ml-2 text-[10px] py-0 px-1.5 uppercase font-bold tracking-wider">Admin</Badge>
           </div>
         </Link>
       </div>
@@ -148,9 +90,7 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -163,9 +103,7 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
 
       <div className="p-4 border-t space-y-2">
         <Link href="/" className="block">
-          <Button variant="outline" className="w-full justify-start gap-3">
-            Ver site
-          </Button>
+          <Button variant="outline" className="w-full justify-start gap-3">Ver site</Button>
         </Link>
         <form action="/auth/logout" method="POST">
           <Button variant="ghost" className="w-full justify-start gap-3" type="submit">
@@ -181,22 +119,11 @@ export function AdminSidebar({ adminUser }: AdminSidebarProps) {
     <>
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Sheet>
-          <SheetTrigger
-            render={
-              <Button variant="outline" size="icon">
-                <Menu className="h-4 w-4" />
-              </Button>
-            }
-          />
-          <SheetContent side="left" className="p-0 w-64">
-            <SidebarContent />
-          </SheetContent>
+          <SheetTrigger render={<Button variant="outline" size="icon"><Menu className="h-4 w-4" /></Button>} />
+          <SheetContent side="left" className="p-0 w-64"><SidebarContent /></SheetContent>
         </Sheet>
       </div>
-
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 border-r bg-card">
-        <SidebarContent />
-      </aside>
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-64 border-r bg-card"><SidebarContent /></aside>
     </>
   )
 }
