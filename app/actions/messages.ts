@@ -19,6 +19,25 @@ function missingThreadSchema(error: any) {
   return ['42P01','42703','PGRST204','PGRST205'].includes(code) || message.includes('message_threads') || message.includes('thread_id')
 }
 
+function lisbonNowKey() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Lisbon',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' }).formatToParts(new Date())
+  const get=(type:Intl.DateTimeFormatPartTypes)=>parts.find(part=>part.type===type)?.value||''
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`
+}
+
+function bookingEndKey(date: string, endTime: string) {
+  const raw=String(endTime||'').slice(0,8)
+  const time=raw.length>=8?raw:`${raw.slice(0,5)}:00`
+  return `${date}T${time}`
+}
+
+function eventStillActive(event: { start_date?: string|null; end_date?: string|null }) {
+  const start=Date.parse(String(event.start_date||''))
+  if(!Number.isFinite(start))return false
+  const end=event.end_date?Date.parse(event.end_date):start+24*60*60*1000
+  return Number.isFinite(end)&&end>Date.now()
+}
+
 async function resolveMessagingContext(userA: string, userB: string): Promise<MessagingContext> {
   const admin = createAdminClient()
   const { data: profiles } = await admin.from('platform_users').select('id,type').in('id', [userA, userB])
@@ -33,17 +52,17 @@ async function resolveMessagingContext(userA: string, userB: string): Promise<Me
     if (professional?.id) clauses.push(`professional_id.eq.${professional.id}`)
     if (spaces?.length) clauses.push(`space_id.in.(${spaces.map(space => space.id).join(',')})`)
     if (clauses.length) {
-      const { data: reservations } = await admin.from('reservations').select('id,status,payment_status,date,start_time,end_time,created_at').eq('user_id', athleteId).in('status', ['paid','confirmed']).or(clauses.join(',')).order('date', { ascending: true }).order('start_time', { ascending: true }).limit(10)
-      const reservation = (reservations || []).find(row => !['completed','cancelled'].includes(String(row.status || '')))
-      if (reservation && (reservation.payment_status === 'paid' || reservation.status === 'confirmed')) return { allowed:true,label:'Reserva ativa',athleteId,providerUserId:providerId,contextType:'reservation',contextId:reservation.id }
+      const { data: reservations } = await admin.from('reservations').select('id,status,payment_status,date,start_time,end_time,created_at').eq('user_id', athleteId).in('status', ['paid','confirmed']).or(clauses.join(',')).order('date', { ascending: true }).order('start_time', { ascending: true }).limit(20)
+      const nowKey=lisbonNowKey()
+      const reservation=(reservations||[]).find(row=>(row.payment_status==='paid'||row.status==='confirmed')&&bookingEndKey(row.date,String(row.end_time))>nowKey)
+      if (reservation) return { allowed:true,label:'Reserva ativa',athleteId,providerUserId:providerId,contextType:'reservation',contextId:reservation.id }
     }
 
     const { data: participantRows } = await admin.from('event_participants').select('id,event_id,status,payment_status').eq('user_id', athleteId).eq('payment_status', 'paid').in('status', ['confirmed','paid'])
     const eventIds = (participantRows || []).map(row => row.event_id)
     if (eventIds.length) {
-      const now = new Date().toISOString()
-      const { data: events } = await admin.from('events').select('id,created_by,start_date,end_date').in('id', eventIds).eq('created_by', providerId).or(`end_date.is.null,end_date.gte.${now}`).order('start_date', { ascending:true })
-      const event = events?.[0]
+      const { data: events } = await admin.from('events').select('id,created_by,start_date,end_date').in('id', eventIds).eq('created_by', providerId).order('start_date', { ascending:true })
+      const event=(events||[]).find(eventStillActive)
       if (event) {
         const participant = (participantRows || []).find(row => row.event_id === event.id)
         if (participant) return { allowed:true,label:'Evento pago ativo',athleteId,providerUserId:providerId,contextType:'event_participant',contextId:participant.id }
@@ -98,10 +117,12 @@ export async function sendMessage(receiverId: string, content: string) {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Não autenticado')
   const trimmedContent = content.trim(); if (!receiverId || receiverId === user.id) throw new Error('Destinatário inválido'); if (!trimmedContent) throw new Error('A mensagem não pode estar vazia'); if (trimmedContent.length > 4000) throw new Error('A mensagem excede o limite de 4000 caracteres')
   const admin = createAdminClient(); const { data: receiver } = await admin.from('platform_users').select('id').eq('id', receiverId).maybeSingle(); if (!receiver) throw new Error('O destinatário já não está disponível.')
-  const context = await resolveMessagingContext(user.id, receiverId); if (!context.allowed) { await archivePairThreads(context.athleteId, context.providerUserId); throw new Error('Esta conversa está arquivada. Só podes enviar mensagens enquanto existir uma reserva confirmada/paga ou um evento pago ativo entre as duas partes.') }
+  const context = await resolveMessagingContext(user.id, receiverId); if (!context.allowed) { await archivePairThreads(context.athleteId, context.providerUserId); throw new Error('Esta conversa está arquivada. Só podes enviar mensagens enquanto a reserva ou evento pago associado estiver ativo.') }
   const threadId = await ensureThread(context)
   const payload:any = { sender_id:user.id, receiver_id:receiverId, content:trimmedContent }; if (threadId) payload.thread_id = threadId
-  let result = await (admin as any).from('messages').insert(payload).select('id,created_at').single()
+  let result = threadId
+    ? await (admin as any).from('messages').insert(payload).select('id,created_at,thread_id').single()
+    : await (admin as any).from('messages').insert(payload).select('id,created_at').single()
   if (result.error && threadId && missingThreadSchema(result.error)) result = await (admin as any).from('messages').insert({ sender_id:user.id, receiver_id:receiverId, content:trimmedContent }).select('id,created_at').single()
   if (result.error || !result.data) throw new Error('Erro ao enviar a mensagem')
   revalidatePath('/dashboard/mensagens'); return result.data
