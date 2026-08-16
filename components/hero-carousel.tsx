@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { HomeSearchForm } from '@/components/home-search-form'
+import { Button } from '@/components/ui/button'
 
 interface Slide {
   id: string
@@ -26,128 +27,61 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
 
   useEffect(() => {
     if (slides.length <= 1) return
-    const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % slides.length)
-    }, 6000)
-    return () => clearInterval(timer)
+    const timer = window.setInterval(() => setCurrent(prev => (prev + 1) % slides.length), 6000)
+    return () => window.clearInterval(timer)
   }, [slides.length])
 
-  const handlePrev = () => {
-    setCurrent((prev) => (prev - 1 + slides.length) % slides.length)
-  }
-
-  const handleNext = () => {
-    setCurrent((prev) => (prev + 1) % slides.length)
-  }
+  const discovery = (
+    <div className="mx-auto w-full max-w-4xl">
+      <div className="mb-4 flex gap-2 overflow-x-auto px-1 pb-1 sm:justify-center">
+        <Button asChild size="sm" className="min-h-10 shrink-0 rounded-full"><Link href="/espacos">Espaços</Link></Button>
+        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/profissionais">Profissionais</Link></Button>
+        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/eventos">Eventos</Link></Button>
+        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/comunidades">Comunidades</Link></Button>
+      </div>
+      <HomeSearchForm />
+      <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs font-medium text-white/85 sm:mx-auto sm:max-w-lg">
+        <span><strong className="block text-lg text-white">{spacesCount}</strong>Espaços</span>
+        <span><strong className="block text-lg text-white">{profsCount}</strong>Profissionais</span>
+        <span><strong className="block text-lg text-white">{eventsCount}</strong>Eventos</span>
+      </div>
+    </div>
+  )
 
   if (slides.length === 0) {
     return (
-      <section className="relative h-[600px] flex items-center justify-center overflow-hidden border-b border-border bg-muted">
-        <div className="text-center">A carregar...</div>
+      <section className="relative flex min-h-[520px] items-center overflow-hidden border-b border-border bg-gradient-to-br from-primary via-primary/80 to-teal-700 px-4 py-16 sm:min-h-[580px]">
+        <div className="mx-auto w-full max-w-7xl text-center text-primary-foreground">
+          <h1 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">Encontre desporto, profissionais e espaços perto de si</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base text-white/85 sm:text-lg">Pesquise, compare, participe e ligue-se à comunidade desportiva.</p>
+          <div className="mt-8">{discovery}</div>
+        </div>
       </section>
     )
   }
 
   return (
-    <section className="relative h-[620px] flex items-center justify-center overflow-hidden border-b border-border">
-      {/* Slides images with crossfade */}
-      <div className="absolute inset-0 z-0">
-        {slides.map((slide, idx) => (
-          <div
-            key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              idx === current ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
-          >
-            <img 
-              className="w-full h-full object-cover" 
-              alt={slide.title || 'Slide'} 
-              src={slide.image_url} 
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
-          </div>
-        ))}
+    <section className="relative flex min-h-[540px] items-center justify-center overflow-hidden border-b border-border sm:min-h-[620px]">
+      <div className="absolute inset-0">
+        {slides.map((slide, index) => <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${index === current ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><img src={slide.image_url} alt={slide.title || ''} className="h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/30 to-black/70" /></div>)}
       </div>
 
-      {/* Hero Content (Dynamic text + Static Search Hub & Stats) */}
-      <div className="relative z-10 w-full max-w-7xl px-4 sm:px-6 lg:px-8 mx-auto text-center mt-12">
-        {/* Dynamic Title / Subtitle */}
-        <div className="h-44 flex flex-col justify-center mb-6">
-          {slides.map((slide, idx) => (
-            <div
-              key={slide.id}
-              className={`transition-all duration-700 ease-in-out absolute left-0 right-0 px-4 ${
-                idx === current 
-                  ? 'opacity-100 transform translate-y-0 scale-100' 
-                  : 'opacity-0 pointer-events-none transform -translate-y-4 scale-95'
-              }`}
-            >
-              <h1 className="text-4xl font-extrabold text-white sm:text-5xl lg:text-6xl mb-4 tracking-tight [text-shadow:_0_2px_4px_rgb(0_0_0_/_80%),_0_0_10px_rgb(0_0_0_/_50%)] [-webkit-text-stroke:1px_rgba(0,0,0,0.5)]">
-                {slide.title?.includes('Encontra a') ? (
-                  <>
-                    Onde a Performance <br className="hidden sm:block" />
-                    <span className="text-primary [text-shadow:_0_2px_4px_rgb(0_0_0_/_80%),_0_0_10px_rgb(0_0_0_/_50%)] [-webkit-text-stroke:1px_rgba(0,0,0,0.5)]">Encontra a Reputação</span>
-                  </>
-                ) : (
-                  slide.title
-                )}
-              </h1>
-              <p className="text-base text-white/90 sm:text-lg max-w-2xl mx-auto font-medium [text-shadow:_0_1px_2px_rgb(0_0_0_/_80%)]">
-                {slide.subtitle}
-              </p>
-            </div>
-          ))}
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 text-center sm:px-6">
+        <div className="mx-auto min-h-44 max-w-4xl">
+          {slides.map((slide, index) => <div key={slide.id} className={index === current ? 'animate-in fade-in duration-500' : 'hidden'}>
+            {slide.title && <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow sm:text-5xl lg:text-6xl">{slide.title}</h1>}
+            {slide.subtitle && <p className="mx-auto mt-4 max-w-2xl text-base font-medium text-white/90 sm:text-lg">{slide.subtitle}</p>}
+            {slide.button_text && slide.button_link && <Button asChild size="lg" className="mt-6 min-h-11"><Link href={slide.button_link}>{slide.button_text}</Link></Button>}
+          </div>)}
         </div>
-
-        {/* Search Hub & Stats (Static over cycling slides) */}
-        <div className="max-w-4xl mx-auto mt-6">
-          <div className="flex gap-2 justify-center mb-4">
-            <Link href="/pesquisa?type=spaces" className="px-5 py-2 rounded-full bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary/95 transition-all shadow-sm">Espaços</Link>
-            <Link href="/pesquisa?type=events" className="px-5 py-2 rounded-full bg-secondary text-secondary-foreground font-semibold text-xs hover:bg-secondary/80 transition-all border border-border">Eventos</Link>
-            <Link href="/pesquisa" className="px-5 py-2 rounded-full bg-secondary text-secondary-foreground font-semibold text-xs hover:bg-secondary/80 transition-all border border-border">Profissionais</Link>
-          </div>
-          
-          <HomeSearchForm />
-
-          <div className="mt-8 flex flex-wrap justify-center gap-6 sm:gap-10 text-muted-foreground text-xs font-semibold">
-            <span className="flex flex-col sm:flex-row items-center gap-1"><strong className="text-foreground text-lg sm:text-sm">{spacesCount}+</strong> Espaços</span>
-            <span className="flex flex-col sm:flex-row items-center gap-1"><strong className="text-foreground text-lg sm:text-sm">{profsCount}+</strong> Profissionais</span>
-            <span className="flex flex-col sm:flex-row items-center gap-1"><strong className="text-foreground text-lg sm:text-sm">{eventsCount}+</strong> Eventos</span>
-          </div>
-        </div>
+        <div className="mt-4">{discovery}</div>
       </div>
 
-      {/* Manual Slide Controls - Minimalist standard style */}
-      {slides.length > 1 && (
-        <>
-          <button 
-            onClick={handlePrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/50 hover:bg-background border border-border text-foreground transition-all z-20"
-            aria-label="Slide anterior"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <button 
-            onClick={handleNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/50 hover:bg-background border border-border text-foreground transition-all z-20"
-            aria-label="Próximo slide"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-
-          {/* Indicators */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
-            {slides.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrent(idx)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${idx === current ? 'w-5 bg-primary' : 'w-1.5 bg-muted-foreground/30'}`}
-                aria-label={`Ir para slide ${idx + 1}`}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {slides.length > 1 && <>
+        <button onClick={() => setCurrent(prev => (prev - 1 + slides.length) % slides.length)} className="absolute left-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur sm:flex" aria-label="Slide anterior"><ChevronLeft className="h-5 w-5" /></button>
+        <button onClick={() => setCurrent(prev => (prev + 1) % slides.length)} className="absolute right-2 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/30 text-white backdrop-blur sm:flex" aria-label="Próximo slide"><ChevronRight className="h-5 w-5" /></button>
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">{slides.map((_, index) => <button key={index} onClick={() => setCurrent(index)} className={`h-2 rounded-full transition-all ${index === current ? 'w-6 bg-white' : 'w-2 bg-white/50'}`} aria-label={`Ir para slide ${index + 1}`} />)}</div>
+      </>}
     </section>
   )
 }
