@@ -1,46 +1,23 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
-export default async function ReviewsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login?redirect=/dashboard/avaliacoes')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role || '')) redirect('/dashboard')
+const PAGE_SIZE=20
+function href(page:number,rating:string){const p=new URLSearchParams();if(page>1)p.set('page',String(page));if(rating!=='all')p.set('rating',rating);return `/dashboard/avaliacoes${p.toString()?`?${p}`:''}`}
 
-  let reviews: any[] = []
-  if (access.role === 'professional') {
-    const { data: professional } = await supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
-    if (professional) reviews = (await supabase.from('reviews').select('id, rating, title, comment, created_at, user:user_id(full_name, avatar_url)').eq('professional_id', professional.id).order('created_at', { ascending: false }).limit(100)).data || []
-  } else {
-    const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
-    const ids = (spaces || []).map(space => space.id)
-    if (ids.length) reviews = (await supabase.from('reviews').select('id, rating, title, comment, created_at, space_id, user:user_id(full_name, avatar_url)').in('space_id', ids).order('created_at', { ascending: false }).limit(100)).data || []
-  }
-
-  const average = reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length : null
-  const fiveStars = reviews.filter(review => Number(review.rating) === 5).length
-  const critical = reviews.filter(review => Number(review.rating) <= 2).length
-
-  return (
-    <DashboardPage>
-      <DashboardPageHeader title="Avaliações" description="Feedback real recebido no perfil. Esta página não contém ações de moderação fictícias." />
-
-      <DashboardStatGrid>
-        <DashboardStat label="Avaliações" value={reviews.length} icon={<Star className="h-5 w-5" />} />
-        <DashboardStat label="Média" value={average === null ? '—' : average.toFixed(1)} icon={<Star className="h-5 w-5" />} />
-        <DashboardStat label="5 estrelas" value={fiveStars} icon={<Star className="h-5 w-5" />} />
-        <DashboardStat label="≤ 2 estrelas" value={critical} hint="Indicador de reputação" icon={<Star className="h-5 w-5" />} />
-      </DashboardStatGrid>
-
-      <DashboardSection title="Últimas avaliações" description="Até 100 avaliações mais recentes, ordenadas por data.">
-        {reviews.length === 0 ? <DashboardEmptyState icon={<Star className="h-10 w-10" />} title="Sem avaliações" description="As avaliações recebidas aparecerão aqui." /> : <div className="space-y-3">{reviews.map(review => <article key={review.id} className="rounded-2xl border border-border p-4"><div className="flex items-start gap-3"><Avatar className="h-11 w-11 shrink-0"><AvatarImage src={review.user?.avatar_url || undefined} /><AvatarFallback>{review.user?.full_name?.charAt(0) || 'U'}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="truncate text-sm font-semibold">{review.user?.full_name || 'Utilizador'}</p><time className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString('pt-PT')}</time></div><div className="mt-1 flex items-center gap-1">{Array.from({ length: 5 }).map((_, index) => <Star key={index} className={`h-4 w-4 ${index < Number(review.rating) ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/30'}`} />)}<Badge variant="outline" className="ml-2">{review.rating}/5</Badge></div>{review.title && <p className="mt-2 text-sm font-semibold">{review.title}</p>}{review.comment && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{review.comment}</p>}</div></div></article>)}</div>}
-      </DashboardSection>
-    </DashboardPage>
-  )
+export default async function ReviewsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
+  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect('/auth/login?redirect=/dashboard/avaliacoes');const access=await resolveSessionAccess(supabase,user);if(!access||!['professional','venue_manager'].includes(access.role||''))redirect('/dashboard')
+  const params=await searchParams;const page=Math.max(1,Number(Array.isArray(params.page)?params.page[0]:params.page)||1);const rawRating=String(Array.isArray(params.rating)?params.rating[0]:params.rating||'all');const rating=['5','4','3','2','1','low','high'].includes(rawRating)?rawRating:'all'
+  let professionalId:string|null=null;let spaceIds:string[]=[]
+  if(access.role==='professional'){professionalId=(await supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle()).data?.id||null}else{spaceIds=((await supabase.from('sport_spaces').select('id').eq('owner_user_id',user.id)).data||[]).map(s=>s.id)}
+  const base=(select:string,opts?:any)=>{let q:any=supabase.from('reviews').select(select,opts);q=professionalId?q.eq('professional_id',professionalId):spaceIds.length?q.in('space_id',spaceIds):q.eq('id','00000000-0000-0000-0000-000000000000');return q}
+  const {data:allRatings}=await base('rating');const ratingRows=allRatings||[];const average=ratingRows.length?ratingRows.reduce((sum:any,r:any)=>sum+Number(r.rating||0),0)/ratingRows.length:null;const fiveStars=ratingRows.filter((r:any)=>Number(r.rating)===5).length;const critical=ratingRows.filter((r:any)=>Number(r.rating)<=2).length
+  let query:any=base('id,rating,title,comment,created_at,space_id,user:user_id(full_name,avatar_url)',{count:'exact'}).order('created_at',{ascending:false});if(/^[1-5]$/.test(rating))query=query.eq('rating',Number(rating));if(rating==='low')query=query.lte('rating',2);if(rating==='high')query=query.gte('rating',4);const from=(page-1)*PAGE_SIZE;const {data,count,error}=await query.range(from,from+PAGE_SIZE-1);if(error)throw new Error(`Não foi possível carregar avaliações: ${error.message}`);const reviews=data||[];const total=count||0;const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE))
+  return <DashboardPage><DashboardPageHeader title="Avaliações" description="Feedback real recebido no perfil, com filtro por rating e paginação."/><DashboardStatGrid><DashboardStat label="Avaliações" value={ratingRows.length} icon={<Star className="h-5 w-5"/>}/><DashboardStat label="Média" value={average===null?'—':average.toFixed(1)} icon={<Star className="h-5 w-5"/>}/><DashboardStat label="5 estrelas" value={fiveStars} icon={<Star className="h-5 w-5"/>}/><DashboardStat label="≤ 2 estrelas" value={critical} hint="Indicador de reputação" icon={<Star className="h-5 w-5"/>}/></DashboardStatGrid><DashboardSection title="Avaliações" description="Filtra por classificação sem misturar feedback negativo com denúncias."><form method="get" className="mb-4 flex flex-col gap-2 sm:flex-row"><select name="rating" defaultValue={rating} className="min-h-11 flex-1 rounded-lg border border-input bg-background px-3"><option value="all">Todas as classificações</option><option value="high">4–5 estrelas</option><option value="low">1–2 estrelas</option>{[5,4,3,2,1].map(v=><option key={v} value={v}>{v} estrelas</option>)}</select><Button type="submit" variant="outline">Filtrar</Button></form>{reviews.length===0?<DashboardEmptyState icon={<Star className="h-10 w-10"/>} title="Sem avaliações" description="Não existem resultados para este filtro."/>:<div className="space-y-3">{reviews.map((review:any)=><article key={review.id} className="min-w-0 rounded-2xl border p-4"><div className="flex min-w-0 items-start gap-3"><Avatar className="h-11 w-11 shrink-0"><AvatarImage src={review.user?.avatar_url||undefined}/><AvatarFallback>{review.user?.full_name?.charAt(0)||'U'}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="truncate text-sm font-semibold">{review.user?.full_name||'Utilizador'}</p><time className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString('pt-PT')}</time></div><div className="mt-1 flex items-center gap-1">{Array.from({length:5}).map((_,index)=><Star key={index} className={`h-4 w-4 ${index<Number(review.rating)?'fill-amber-500 text-amber-500':'text-muted-foreground/30'}`}/>) }<Badge variant="outline" className="ml-2">{review.rating}/5</Badge></div>{review.title&&<p className="mt-2 break-words text-sm font-semibold">{review.title}</p>}{review.comment&&<p className="mt-1 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">{review.comment}</p>}</div></div></article>)}</div>}{total>0&&<div className="mt-5 flex items-center justify-between border-t pt-4"><span className="text-sm text-muted-foreground">{from+1}–{Math.min(from+PAGE_SIZE,total)} de {total}</span><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm" className={page<=1?'pointer-events-none opacity-50':''}><Link href={href(page-1,rating)}><ChevronLeft className="h-4 w-4"/>Anterior</Link></Button><span className="text-sm">{page}/{totalPages}</span><Button asChild variant="outline" size="sm" className={page>=totalPages?'pointer-events-none opacity-50':''}><Link href={href(page+1,rating)}>Seguinte<ChevronRight className="h-4 w-4"/></Link></Button></div></div>}</DashboardSection></DashboardPage>
 }
