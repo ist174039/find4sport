@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 function toMinutes(value: string) {
   const [h, m] = value.split(':').map(Number)
@@ -8,130 +9,171 @@ function toMinutes(value: string) {
   return h * 60 + m
 }
 
+function addMinutes(value: string, durationMinutes: number) {
+  const start = toMinutes(value)
+  const total = start + durationMinutes
+  if (!Number.isFinite(start) || total >= 24 * 60) return null
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`
+}
+
+function getBaseUrl(req: Request) {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (configured) {
+    try {
+      return new URL(/^https?:\/\//i.test(configured) ? configured : `https://${configured}`).origin
+    } catch {}
+  }
+  return new URL(req.url).origin
+}
+
 export async function POST(req: Request) {
   try {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY
-    if (!stripeSecretKey) {
-      return NextResponse.json({ error: 'Stripe configuration missing' }, { status: 500 })
-    }
+    if (!stripeSecretKey) return NextResponse.json({ error: 'Stripe não está configurado.' }, { status: 503 })
 
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2026-07-29.dahlia' as any,
-    })
-
+    const stripe = new Stripe(stripeSecretKey)
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 })
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const admin = createAdminClient()
+    const body = await req.json()
+    const serviceId = body.serviceId ? String(body.serviceId) : null
+    const professionalId = body.professionalId ? String(body.professionalId) : null
+    const spaceId = body.spaceId ? String(body.spaceId) : null
+    const spaceRoomId = body.spaceRoomId ? String(body.spaceRoomId) : null
+    const date = String(body.date || '')
+    const startTime = String(body.startTime || '').slice(0, 5)
+
+    if (!date || !startTime || (!serviceId && !spaceRoomId)) {
+      return NextResponse.json({ error: 'Dados da reserva incompletos.' }, { status: 400 })
     }
 
-    const { serviceId, professionalId, date, startTime, endTime } = await req.json()
-
-    if (!serviceId || !professionalId || !date || !startTime || !endTime) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    const bookingDate = new Date(`${date}T00:00:00`)
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    if (Number.isNaN(bookingDate.getTime()) || bookingDate < now) {
-      return NextResponse.json({ error: 'Invalid booking date' }, { status: 400 })
+    const bookingDate = new Date(`${date}T12:00:00`)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    if (Number.isNaN(bookingDate.getTime()) || bookingDate < today) {
+      return NextResponse.json({ error: 'Data da reserva inválida.' }, { status: 400 })
     }
 
     const startMinutes = toMinutes(startTime)
-    const endMinutes = toMinutes(endTime)
-    if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
-      return NextResponse.json({ error: 'Invalid time range' }, { status: 400 })
+    if (!Number.isFinite(startMinutes)) return NextResponse.json({ error: 'Hora de início inválida.' }, { status: 400 })
+
+    let amount = 0
+    let title = 'Reserva'
+    let durationMinutes = 60
+    let resolvedProfessionalId: string | null = null
+    let resolvedSpaceId: string | null = null
+    let resolvedRoomId: string | null = null
+    let successReturn = '/dashboard'
+    let cancelReturn = '/'
+
+    if (serviceId) {
+      const { data: service, error } = await admin
+        .from('services')
+        .select('id, name, price, professional_id, duration_minutes, is_active')
+        .eq('id', serviceId)
+        .maybeSingle()
+      if (error || !service || !service.is_active) return NextResponse.json({ error: 'Serviço indisponível.' }, { status: 404 })
+      if (professionalId && service.professional_id !== professionalId) return NextResponse.json({ error: 'Serviço inválido para este profissional.' }, { status: 400 })
+      amount = Number(service.price || 0)
+      title = service.name || 'Serviço'
+      durationMinutes = Math.max(1, Number(service.duration_minutes || 60))
+      resolvedProfessionalId = service.professional_id
+      cancelReturn = `/profissionais/${service.professional_id}`
+    } else if (spaceRoomId) {
+      const { data: room, error } = await admin
+        .from('space_rooms')
+        .select('id, name, space_id, price_per_hour, is_active')
+        .eq('id', spaceRoomId)
+        .maybeSingle()
+      if (error || !room || !room.is_active) return NextResponse.json({ error: 'Sala/campo indisponível.' }, { status: 404 })
+      if (spaceId && room.space_id !== spaceId) return NextResponse.json({ error: 'Sala/campo inválido para este espaço.' }, { status: 400 })
+      amount = Number(room.price_per_hour || 0)
+      title = room.name || 'Sala/Campo'
+      durationMinutes = 60
+      resolvedSpaceId = room.space_id
+      resolvedRoomId = room.id
+      cancelReturn = `/espacos/${room.space_id}`
     }
 
-    // Fetch service to get the price and duration
-    const { data: service } = await supabase
-      .from('services')
-      .select('id, name, price, professional_id, duration_minutes')
-      .eq('id', serviceId)
-      .eq('professional_id', professionalId)
-      .single()
+    if (!(amount > 0)) return NextResponse.json({ error: 'Esta reserva não requer pagamento online.' }, { status: 400 })
 
-    if (!service || !service.price) {
-      return NextResponse.json({ error: 'Service not found or has no price' }, { status: 400 })
+    const endTime = addMinutes(startTime, durationMinutes)
+    if (!endTime) return NextResponse.json({ error: 'Intervalo horário inválido.' }, { status: 400 })
+    const dayOfWeek = bookingDate.getDay()
+
+    if (resolvedProfessionalId) {
+      const { data: availability } = await admin
+        .from('professional_availability')
+        .select('start_time, end_time')
+        .eq('professional_id', resolvedProfessionalId)
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (!availability || startTime < String(availability.start_time).slice(0, 5) || endTime > String(availability.end_time).slice(0, 5)) {
+        return NextResponse.json({ error: 'O horário escolhido está fora da disponibilidade do profissional.' }, { status: 409 })
+      }
     }
 
-    // Compute actual end time based on service duration (default to 60 mins if undefined)
-    const durationMins = service.duration_minutes || 60
-    const totalEndMinutes = startMinutes + durationMins
-    const endH = Math.floor(totalEndMinutes / 60).toString().padStart(2, '0')
-    const endM = (totalEndMinutes % 60).toString().padStart(2, '0')
-    const computedEndTime = `${endH}:${endM}`
-
-    const { data: overlappingReservation } = await supabase
-      .from('reservations')
-      .select('id')
-      .eq('professional_id', professionalId)
-      .eq('date', date)
-      .in('status', ['pending', 'paid', 'confirmed'])
-      .lt('start_time', computedEndTime)
-      .gt('end_time', startTime)
-      .limit(1)
-      .maybeSingle()
-
-    if (overlappingReservation) {
-      return NextResponse.json({ error: 'Time slot not available' }, { status: 409 })
+    if (resolvedRoomId) {
+      const { data: availability } = await admin
+        .from('space_room_availability')
+        .select('start_time, end_time')
+        .eq('room_id', resolvedRoomId)
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (!availability || startTime < String(availability.start_time).slice(0, 5) || endTime > String(availability.end_time).slice(0, 5)) {
+        return NextResponse.json({ error: 'O horário escolhido está fora da disponibilidade da sala/campo.' }, { status: 409 })
+      }
     }
 
-    // Create a pending reservation
-    const { data: reservation, error: resError } = await supabase
+    let overlapQuery = admin.from('reservations').select('id').eq('date', date).in('status', ['pending', 'paid', 'confirmed']).lt('start_time', endTime).gt('end_time', startTime)
+    if (resolvedProfessionalId) overlapQuery = overlapQuery.eq('professional_id', resolvedProfessionalId)
+    if (resolvedRoomId) overlapQuery = overlapQuery.eq('space_room_id', resolvedRoomId)
+    const { data: overlapping } = await overlapQuery.limit(1).maybeSingle()
+    if (overlapping) return NextResponse.json({ error: 'Este horário já não está disponível.' }, { status: 409 })
+
+    const { data: reservation, error: reservationError } = await admin
       .from('reservations')
       .insert({
         user_id: user.id,
-        professional_id: professionalId,
+        professional_id: resolvedProfessionalId,
         service_id: serviceId,
+        space_id: resolvedSpaceId,
+        space_room_id: resolvedRoomId,
         date,
         start_time: startTime,
-        end_time: computedEndTime,
-        amount: service.price,
+        end_time: endTime,
+        amount,
         status: 'pending',
-        payment_status: 'pending'
+        payment_status: 'pending',
       })
-      .select()
+      .select('id')
       .single()
+    if (reservationError || !reservation) return NextResponse.json({ error: 'Não foi possível criar a reserva.' }, { status: 500 })
 
-    if (resError) {
-      console.error(resError)
-      return NextResponse.json({ error: 'Could not create reservation' }, { status: 500 })
-    }
-
-    // Create Stripe checkout session
+    const baseUrl = getBaseUrl(req)
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'mbway', 'multibanco'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: `Reserva: ${service.name}`,
-              description: `Data: ${new Date(date).toLocaleDateString('pt-PT')} às ${startTime}`,
-            },
-            unit_amount: Math.round(service.price * 100), // Stripe expects cents
-          },
-          quantity: 1,
-        },
-      ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL || req.headers.get('origin')}/reservas/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL || req.headers.get('origin')}/profissionais/${professionalId}`,
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: { name: `Reserva: ${title}`, description: `Data: ${bookingDate.toLocaleDateString('pt-PT')} · ${startTime}–${endTime}` },
+          unit_amount: Math.round(amount * 100),
+        },
+        quantity: 1,
+      }],
+      success_url: `${baseUrl}${successReturn}?booking=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}${cancelReturn}?booking=cancelled`,
       client_reference_id: reservation.id,
-      metadata: {
-        reservation_id: reservation.id,
-      }
+      metadata: { reservation_id: reservation.id },
     })
 
-    // Update reservation with stripe session id
-    await supabase.from('reservations').update({ stripe_session_id: session.id }).eq('id', reservation.id)
-
+    await admin.from('reservations').update({ stripe_session_id: session.id }).eq('id', reservation.id)
     return NextResponse.json({ sessionId: session.id })
   } catch (err: any) {
-    console.error('Stripe Error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Booking checkout error:', err)
+    return NextResponse.json({ error: err?.message || 'Erro ao iniciar pagamento.' }, { status: 500 })
   }
 }
