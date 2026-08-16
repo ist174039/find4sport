@@ -11,16 +11,105 @@ export async function joinCommunityAction(communityId: string) {
   if (!user) throw new Error('Acesso negado. Sessão não encontrada.')
 
   const admin = createAdminClient()
-  const { data: community } = await admin.from('communities').select('id').eq('id', communityId).maybeSingle()
+  const { data: community } = await admin
+    .from('communities')
+    .select('id, is_private')
+    .eq('id', communityId)
+    .maybeSingle()
   if (!community) throw new Error('Comunidade não encontrada.')
+
+  const { data: existingMember } = await admin
+    .from('community_members')
+    .select('id')
+    .eq('community_id', communityId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (existingMember) return { success: true, status: 'member' as const, message: 'Já era membro desta comunidade.' }
+
+  if (community.is_private) {
+    const { data: existingRequest } = await admin
+      .from('community_join_requests')
+      .select('id, status')
+      .eq('community_id', communityId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (existingRequest?.status === 'pending') {
+      return { success: true, status: 'pending' as const, message: 'O pedido de adesão já está pendente.' }
+    }
+
+    if (existingRequest) {
+      const { error } = await admin
+        .from('community_join_requests')
+        .update({ status: 'pending', reviewed_by: null, reviewed_at: null, updated_at: new Date().toISOString() })
+        .eq('id', existingRequest.id)
+      if (error) throw new Error('Não foi possível renovar o pedido de adesão.')
+    } else {
+      const { error } = await admin.from('community_join_requests').insert({
+        community_id: communityId,
+        user_id: user.id,
+        status: 'pending',
+      })
+      if (error) throw new Error('Não foi possível enviar o pedido de adesão.')
+    }
+
+    revalidatePath(`/comunidades/${communityId}`)
+    return { success: true, status: 'pending' as const, message: 'Pedido de adesão enviado para aprovação.' }
+  }
 
   const { error } = await admin.from('community_members').insert({ community_id: communityId, user_id: user.id, role: 'member' })
   if (error) {
-    if (error.code === '23505') return { success: true, message: 'Já era membro desta comunidade.' }
+    if (error.code === '23505') return { success: true, status: 'member' as const, message: 'Já era membro desta comunidade.' }
     throw new Error(error.message || 'Erro ao aderir à comunidade.')
   }
 
   revalidatePath(`/comunidades/${communityId}`)
+  return { success: true, status: 'member' as const }
+}
+
+export async function reviewCommunityJoinRequestAction(requestId: string, decision: 'approve' | 'reject') {
+  const supabase = await createClientServer()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Acesso negado. Sessão não encontrada.')
+
+  const admin = createAdminClient()
+  const { data: request } = await admin
+    .from('community_join_requests')
+    .select('id, community_id, user_id, status')
+    .eq('id', requestId)
+    .maybeSingle()
+  if (!request) throw new Error('Pedido não encontrado.')
+
+  const { data: membership } = await admin
+    .from('community_members')
+    .select('id')
+    .eq('community_id', request.community_id)
+    .eq('user_id', user.id)
+    .eq('role', 'admin')
+    .maybeSingle()
+  if (!membership) throw new Error('Sem permissões para gerir esta comunidade.')
+
+  if (decision === 'approve') {
+    const { error: memberError } = await admin.from('community_members').upsert({
+      community_id: request.community_id,
+      user_id: request.user_id,
+      role: 'member',
+    }, { onConflict: 'community_id,user_id' })
+    if (memberError) throw new Error('Não foi possível adicionar o membro.')
+  }
+
+  const { error } = await admin
+    .from('community_join_requests')
+    .update({
+      status: decision === 'approve' ? 'approved' : 'rejected',
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', request.id)
+  if (error) throw new Error('Não foi possível concluir a decisão.')
+
+  revalidatePath(`/comunidades/${request.community_id}`)
   return { success: true }
 }
 
