@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
+import { canCreatePostForRole, parsePersistedPlatformRole } from '@/lib/auth/roles'
 import { revalidatePath } from 'next/cache'
 
 export async function createPostAction(content: string, media_url?: string | null, media_type?: string | null) {
@@ -19,9 +19,9 @@ export async function createPostAction(content: string, media_url?: string | nul
       .eq('id', user.id)
       .maybeSingle()
 
-    const role = normalizePlatformRole(profile?.type ?? user.user_metadata?.type)
-    if (!canCreatePostForRole(role)) {
-      throw new Error('Atletas não podem publicar no feed.')
+    const role = parsePersistedPlatformRole(profile?.type)
+    if (!role || !canCreatePostForRole(role)) {
+      throw new Error('Apenas profissionais e gestores de espaço podem publicar no feed.')
     }
 
     const trimmedContent = content.trim()
