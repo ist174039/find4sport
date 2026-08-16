@@ -1,114 +1,46 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { redirect } from 'next/navigation'
+import { Star } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { resolveSessionAccess } from '@/lib/auth/access'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Star, ThumbsUp, Flag } from 'lucide-react'
-import type { Review } from '@/lib/types'
+import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
-export default function ProfessionalReviewsPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [reviews, setReviews] = useState<(Review & { user?: { full_name: string; avatar_url?: string } })[]>([])
+export default async function ReviewsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login?redirect=/dashboard/avaliacoes')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access || !['professional', 'venue_manager'].includes(access.role || '')) redirect('/dashboard')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { router.push('/auth/login'); return }
+  let reviews: any[] = []
+  if (access.role === 'professional') {
+    const { data: professional } = await supabase.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+    if (professional) reviews = (await supabase.from('reviews').select('id, rating, title, comment, created_at, user:user_id(full_name, avatar_url)').eq('professional_id', professional.id).order('created_at', { ascending: false }).limit(100)).data || []
+  } else {
+    const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
+    const ids = (spaces || []).map(space => space.id)
+    if (ids.length) reviews = (await supabase.from('reviews').select('id, rating, title, comment, created_at, space_id, user:user_id(full_name, avatar_url)').in('space_id', ids).order('created_at', { ascending: false }).limit(100)).data || []
+  }
 
-        const { data: prof } = await supabase.from('professionals').select('id').eq('user_id', user.id).single()
-        const { data: spaces } = await supabase.from('sport_spaces').select('id').eq('owner_user_id', user.id)
-
-        let allReviews: any[] = []
-
-        if (prof) {
-          const { data } = await supabase.from('reviews').select('*, user:user_id(full_name, avatar_url)').eq('professional_id', prof.id).order('created_at', { ascending: false }).limit(50)
-          if (data) allReviews = [...allReviews, ...data]
-        }
-
-        if (spaces && spaces.length > 0) {
-          const spaceIds = spaces.map(s => s.id)
-          const { data } = await supabase.from('reviews').select('*, user:user_id(full_name, avatar_url)').in('space_id', spaceIds).order('created_at', { ascending: false }).limit(50)
-          if (data) allReviews = [...allReviews, ...data]
-        }
-
-        // Sort combined reviews
-        allReviews.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        setReviews(allReviews)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [router])
-
-  if (loading) return <div className="mx-auto max-w-3xl px-4 py-8"><Skeleton className="h-96 w-full" /></div>
+  const average = reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length : null
+  const fiveStars = reviews.filter(review => Number(review.rating) === 5).length
+  const critical = reviews.filter(review => Number(review.rating) <= 2).length
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <Button variant="ghost" asChild className="mb-4">
-        <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Link>
-      </Button>
+    <DashboardPage>
+      <DashboardPageHeader title="Avaliações" description="Feedback real recebido no perfil. Esta página não contém ações de moderação fictícias." />
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Avaliações</h1>
-        <p className="text-muted-foreground">Todas as reviews recebidas</p>
-      </div>
+      <DashboardStatGrid>
+        <DashboardStat label="Avaliações" value={reviews.length} icon={<Star className="h-5 w-5" />} />
+        <DashboardStat label="Média" value={average === null ? '—' : average.toFixed(1)} icon={<Star className="h-5 w-5" />} />
+        <DashboardStat label="5 estrelas" value={fiveStars} icon={<Star className="h-5 w-5" />} />
+        <DashboardStat label="≤ 2 estrelas" value={critical} hint="Indicador de reputação" icon={<Star className="h-5 w-5" />} />
+      </DashboardStatGrid>
 
-      {reviews.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center py-12">
-            <Star className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="text-muted-foreground">Nenhuma avaliação recebida ainda.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {reviews.map((review) => (
-            <Card key={review.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={review.user?.avatar_url} />
-                    <AvatarFallback>{review.user?.full_name?.charAt(0) || 'U'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{review.user?.full_name || 'Anónimo'}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(review.created_at).toLocaleDateString('pt-PT')}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'fill-yellow-500 text-yellow-500' : 'text-muted'}`} />
-                      ))}
-                    </div>
-                    {review.title && <p className="mt-1 text-sm font-medium">{review.title}</p>}
-                    {review.comment && <p className="mt-1 text-sm text-muted-foreground">{review.comment}</p>}
-                    <div className="mt-2 flex items-center gap-2">
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
-                        <ThumbsUp className="mr-1 h-3 w-3" /> Útil
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive">
-                        <Flag className="mr-1 h-3 w-3" /> Denunciar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+      <DashboardSection title="Últimas avaliações" description="Até 100 avaliações mais recentes, ordenadas por data.">
+        {reviews.length === 0 ? <DashboardEmptyState icon={<Star className="h-10 w-10" />} title="Sem avaliações" description="As avaliações recebidas aparecerão aqui." /> : <div className="space-y-3">{reviews.map(review => <article key={review.id} className="rounded-2xl border border-border p-4"><div className="flex items-start gap-3"><Avatar className="h-11 w-11 shrink-0"><AvatarImage src={review.user?.avatar_url || undefined} /><AvatarFallback>{review.user?.full_name?.charAt(0) || 'U'}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><p className="truncate text-sm font-semibold">{review.user?.full_name || 'Utilizador'}</p><time className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString('pt-PT')}</time></div><div className="mt-1 flex items-center gap-1">{Array.from({ length: 5 }).map((_, index) => <Star key={index} className={`h-4 w-4 ${index < Number(review.rating) ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/30'}`} />)}<Badge variant="outline" className="ml-2">{review.rating}/5</Badge></div>{review.title && <p className="mt-2 text-sm font-semibold">{review.title}</p>}{review.comment && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{review.comment}</p>}</div></div></article>)}</div>}
+      </DashboardSection>
+    </DashboardPage>
   )
 }
