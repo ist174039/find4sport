@@ -18,6 +18,8 @@ async function requireAuthenticatedUser() {
 }
 
 export async function registerProfessionalInitial(
+  _email: string,
+  _userIdFromClient: string,
   profPayload: any,
   categories: string[],
   qualifications: any[]
@@ -32,7 +34,6 @@ export async function registerProfessionalInitial(
       email: user.email ?? profPayload.email ?? null,
     }
 
-    // Get system config for auto-approval
     const { data: configData } = await supabaseAdmin.from('system_config').select('settings').single()
     const manualProfileApproval = configData?.settings?.manual_profile_approval ?? true
 
@@ -41,7 +42,6 @@ export async function registerProfessionalInitial(
       safeProfessionalPayload.is_verified = true
     }
 
-    // Keep the platform identity bound to the authenticated Supabase user.
     const { error: profileError } = await supabaseAdmin
       .from('platform_users')
       .upsert({
@@ -108,6 +108,7 @@ export async function registerProfessionalInitial(
 }
 
 export async function registerSpaceInitial(
+  _userIdFromClient: string,
   spacePayload: any,
   name: string
 ) {
@@ -122,7 +123,6 @@ export async function registerSpaceInitial(
       email: spacePayload.email ?? user.email ?? null,
     }
 
-    // Get system config for auto-approval
     const { data: configData } = await supabaseAdmin.from('system_config').select('settings').single()
     const manualProfileApproval = configData?.settings?.manual_profile_approval ?? true
 
