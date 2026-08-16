@@ -12,14 +12,14 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { normalizePlatformRole } from '@/lib/auth/roles'
+import { isPlatformRole } from '@/lib/auth/roles'
 
 export type TargetType = 'space' | 'professional' | 'event'
 
-function reviewerHref(user: any, fallbackId: string) {
-  const role = normalizePlatformRole(user?.type)
-  if (role === 'professional') return `/profissionais/${user?.professionals?.[0]?.public_slug || fallbackId}`
-  if (role === 'venue_manager') return `/espacos/${user?.sport_spaces?.[0]?.slug || fallbackId}`
+type ReviewerProfile = { id: string; full_name: string | null; avatar_url: string | null; type: string | null }
+
+function reviewerHref(user: ReviewerProfile | null | undefined, fallbackId: string) {
+  if (!user || !isPlatformRole(user.type)) return `/utilizadores/${fallbackId}`
   return `/utilizadores/${fallbackId}`
 }
 
@@ -43,13 +43,18 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
       const { data: { user } } = await supabase.auth.getUser()
       setUserId(user?.id || null)
       const typeColumn = targetType === 'space' ? 'space_id' : 'professional_id'
-      const { data, error } = await supabase
-        .from('reviews')
-        .select('*, platform_users(id, full_name, avatar_url, type, professionals(public_slug), sport_spaces(slug))')
-        .eq(typeColumn, targetId)
-        .order('created_at', { ascending: false })
+      const { data: reviewRows, error } = await supabase.from('reviews').select('*').eq(typeColumn, targetId).order('created_at', { ascending: false })
       if (error) throw error
-      const nextReviews = data || []
+
+      const rows = reviewRows || []
+      const reviewerIds = [...new Set(rows.map((review: any) => review.user_id).filter(Boolean))]
+      const profileMap = new Map<string, ReviewerProfile>()
+      if (reviewerIds.length) {
+        const { data: profiles, error: profileError } = await supabase.from('platform_users').select('id,full_name,avatar_url,type').in('id', reviewerIds)
+        if (!profileError) for (const profile of profiles || []) profileMap.set(profile.id, profile as ReviewerProfile)
+      }
+
+      const nextReviews = rows.map((review: any) => ({ ...review, platform_users: profileMap.get(review.user_id) || null }))
       setReviews(nextReviews)
       setHasReviewed(Boolean(user && nextReviews.some((review: any) => review.user_id === user.id)))
     } catch (error) {
@@ -67,9 +72,7 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
 
   if (targetType === 'event') return null
 
-  const averageRating = reviews.length
-    ? (reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1)
-    : '0.0'
+  const averageRating = reviews.length ? (reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1) : '0.0'
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
