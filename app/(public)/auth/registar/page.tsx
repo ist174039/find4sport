@@ -2,68 +2,28 @@
 
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState, Suspense, useEffect } from 'react'
-import { User, Trophy, Building2, ArrowRight, ArrowLeft, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Trophy, User } from 'lucide-react'
 import type { PlatformRole } from '@/lib/auth/roles'
 
-type AccountType = PlatformRole
-
-const accountTypes = [
-  {
-    id: 'athlete' as AccountType,
-    label: 'Utilizador',
-    subtitle: 'Para quem quer explorar',
-    description: 'Explore espaços desportivos, descubra profissionais e inscreva-se em eventos perto de si.',
-    features: ['Pesquisa e filtragem avançada', 'Favoritos e listas', 'Acesso gratuito'],
-    icon: User,
-    accentColor: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    gradientFrom: 'from-blue-500',
-    gradientTo: 'to-blue-600',
-    borderActive: 'border-blue-500 ring-2 ring-blue-100',
-    badgeText: 'Grátis',
-    badgeColor: 'bg-blue-100 text-blue-700',
-  },
-  {
-    id: 'professional' as AccountType,
-    label: 'Profissional',
-    subtitle: 'Para PT, fisio, nutrição e mais',
-    description: 'Crie o seu perfil verificado, gira a sua agenda e atraia novos clientes.',
-    features: ['Perfil verificado', 'Gestão de agenda', 'Analytics de perfil'],
-    icon: Trophy,
-    accentColor: 'text-emerald-600',
-    bgColor: 'bg-emerald-50',
-    gradientFrom: 'from-emerald-500',
-    gradientTo: 'to-teal-600',
-    borderActive: 'border-emerald-500 ring-2 ring-emerald-100',
-    badgeText: 'Mais popular',
-    badgeColor: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    id: 'venue_manager' as AccountType,
-    label: 'Espaço',
-    subtitle: 'Para ginásios e instalações',
-    description: 'Registe o seu espaço, gira reservas online e aumente a sua visibilidade.',
-    features: ['Reservas online', 'Gestão de horários', 'Dashboard completo'],
-    icon: Building2,
-    accentColor: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    gradientFrom: 'from-purple-500',
-    gradientTo: 'to-violet-600',
-    borderActive: 'border-purple-500 ring-2 ring-purple-100',
-    badgeText: 'Para negócios',
-    badgeColor: 'bg-purple-100 text-purple-700',
-  },
+const ACCOUNT_TYPES: Array<{ id: PlatformRole; label: string; description: string; detail: string; icon: any }> = [
+  { id: 'athlete', label: 'Utilizador', description: 'Descobrir, reservar e participar.', detail: 'Pesquisa, favoritos, eventos, comunidades e mensagens.', icon: User },
+  { id: 'professional', label: 'Profissional', description: 'Promover serviços e gerir clientes.', detail: 'Perfil profissional, serviços, agenda, eventos e comunidades.', icon: Trophy },
+  { id: 'venue_manager', label: 'Espaço', description: 'Gerir instalações e reservas.', detail: 'Espaço público, salas/campos, horários, reservas e equipa.', icon: Building2 },
 ]
 
-type Step = 'tipo' | 'formulario'
+function safeNext(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
+  return value
+}
 
 function RegisterForm() {
-  const [step, setStep] = useState<Step>('tipo')
-  const [selectedType, setSelectedType] = useState<AccountType | null>(null)
-
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const destination = safeNext(searchParams.get('next') || searchParams.get('redirect'))
+  const [selectedType, setSelectedType] = useState<PlatformRole | null>(null)
+  const [step, setStep] = useState<'type' | 'credentials'>('type')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -72,261 +32,129 @@ function RegisterForm() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
-
-  const router = useRouter()
-  const selectedTypeData = accountTypes.find((t) => t.id === selectedType)
+  const [existingUser, setExistingUser] = useState<any>(null)
 
   useEffect(() => {
-    const checkUser = async () => {
+    const requestedType = searchParams.get('type') as PlatformRole | null
+    if (ACCOUNT_TYPES.some(item => item.id === requestedType)) setSelectedType(requestedType)
+    void (async () => {
       const supabase = createClient()
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (currentUser) setUser(currentUser)
-    }
-    checkUser()
-  }, [])
+      const { data: { user } } = await supabase.auth.getUser()
+      setExistingUser(user || null)
+    })()
+  }, [searchParams])
 
-  const handleTypeSelect = (type: AccountType) => setSelectedType(type)
-
-  const handleContinueFromType = async () => {
-    if (!selectedType) return
-    if (selectedType === 'professional') {
-      router.push('/auth/registar/profissional')
-      return
-    }
-    if (selectedType === 'venue_manager') {
-      router.push('/auth/registar/espaco')
-      return
-    }
-
-    if (user) {
-      setIsLoading(true)
-      const supabase = createClient()
-      const { error: upsertError } = await supabase.from('platform_users').upsert({
-        id: user.id,
-        type: 'athlete',
-        email: user.email,
-        full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-      })
-      if (!upsertError) {
-        window.location.href = '/dashboard'
-      } else {
-        setError('Ocorreu um erro ao atualizar o perfil. ' + upsertError.message)
-        setIsLoading(false)
-      }
-      return
-    }
-
-    setStep('formulario')
+  const routeToProfileSetup = (type: PlatformRole) => {
+    if (type === 'professional') router.push(`/auth/registar/profissional?next=${encodeURIComponent(destination)}`)
+    else if (type === 'venue_manager') router.push(`/auth/registar/espaco?next=${encodeURIComponent(destination)}`)
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const supabase = createClient()
-    setIsLoading(true)
+  const continueWithType = async () => {
+    if (!selectedType || isLoading) return
     setError(null)
+    if (selectedType !== 'athlete') { routeToProfileSetup(selectedType); return }
+    if (!existingUser) { setStep('credentials'); return }
 
-    if (password !== repeatPassword) {
-      setError('As palavras-passe não coincidem')
-      setIsLoading(false)
-      return
-    }
-    if (password.length < 6) {
-      setError('A palavra-passe deve ter pelo menos 6 caracteres')
-      setIsLoading(false)
-      return
-    }
-
+    setIsLoading(true)
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-            `${window.location.origin}/auth/callback`,
-          data: {
-            full_name: fullName,
-            type: selectedType ?? 'athlete',
-          },
-        },
+      const supabase = createClient()
+      const { error: upsertError } = await supabase.from('platform_users').upsert({
+        id: existingUser.id,
+        type: 'athlete',
+        full_name: existingUser.user_metadata?.full_name || existingUser.email?.split('@')[0] || 'Utilizador',
       })
-      if (error) throw error
+      if (upsertError) throw upsertError
+      window.location.assign(destination)
+    } catch (err: any) {
+      setError(err?.message || 'Não foi possível concluir o perfil.')
+      setIsLoading(false)
+    }
+  }
+
+  const handleSignUp = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (isLoading) return
+    setError(null)
+    if (fullName.trim().length < 2) return setError('Indica o teu nome.')
+    if (password.length < 8) return setError('Usa uma palavra-passe com pelo menos 8 caracteres.')
+    if (password !== repeatPassword) return setError('As palavras-passe não coincidem.')
+
+    setIsLoading(true)
+    try {
+      const supabase = createClient()
+      const callback = new URL('/auth/callback', window.location.origin)
+      callback.searchParams.set('next', destination)
+      callback.searchParams.set('type', 'athlete')
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: callback.toString(), data: { full_name: fullName.trim(), type: 'athlete' } },
+      })
+      if (signUpError) throw signUpError
       router.push('/auth/confirmar-email')
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setError(error.message.includes('already registered') ? 'Este email já está registado' : error.message)
-      } else {
-        setError('Ocorreu um erro. Tente novamente.')
-      }
+    } catch (err: any) {
+      const message = String(err?.message || '')
+      setError(message.toLowerCase().includes('already registered') ? 'Este e-mail já está registado. Inicia sessão.' : message || 'Não foi possível criar a conta.')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleOAuthSignUp = async (provider: 'google' | 'facebook') => {
-    const supabase = createClient()
+    if (!selectedType) { setError('Escolhe primeiro o tipo de conta.'); return }
+    setIsLoading(true)
     setError(null)
     try {
-      let nextParam = ''
-      if (selectedType === 'professional') nextParam = '?next=/auth/registar/profissional&type=professional'
-      else if (selectedType === 'venue_manager') nextParam = '?next=/auth/registar/espaco&type=venue_manager'
-      else if (selectedType === 'athlete') nextParam = '?next=/dashboard&type=athlete'
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/auth/callback${nextParam}` },
-      })
-      if (error) throw error
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : `Erro ao autenticar com o ${provider}.`)
+      const supabase = createClient()
+      const callback = new URL('/auth/callback', window.location.origin)
+      callback.searchParams.set('type', selectedType)
+      callback.searchParams.set('next', selectedType === 'professional' ? '/auth/registar/profissional' : selectedType === 'venue_manager' ? '/auth/registar/espaco' : destination)
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: callback.toString() } })
+      if (oauthError) throw oauthError
+    } catch (err: any) {
+      setError(err?.message || `Não foi possível continuar com ${provider}.`)
+      setIsLoading(false)
     }
   }
 
   return (
-    <>
-      <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
-        <section className="hidden md:flex md:w-[420px] xl:w-[480px] relative flex-col justify-center px-12 bg-gradient-to-br from-slate-900 to-slate-800 overflow-hidden shrink-0">
-          <div className="absolute inset-0 z-0 opacity-20">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-primary rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl" />
-            <div className="absolute bottom-0 right-0 w-64 h-64 bg-teal-400 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl" />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-12">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
-                <span className="text-white font-extrabold text-lg">F4</span>
-              </div>
-              <span className="font-extrabold text-2xl text-white tracking-tight">FIND4SPORT</span>
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-3 leading-tight">A plataforma do desporto português</h2>
-            <p className="text-white/60 text-sm leading-relaxed mb-10">Escolha o tipo de conta certo para si e comece a usar a maior rede desportiva de Portugal.</p>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { value: '500+', label: 'Espaços' },
-                { value: '200+', label: 'Profissionais' },
-                { value: '150+', label: 'Eventos' },
-                { value: '50k+', label: 'Utilizadores' },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-2xl font-bold text-white">{stat.value}</p>
-                  <p className="text-white/50 text-xs mt-0.5">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+    <main className="min-h-[calc(100dvh-4rem)] bg-muted/15 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+        <div className="grid lg:grid-cols-[0.8fr_1.2fr]">
+          <aside className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-teal-500/10 p-6 lg:border-b-0 lg:border-r lg:p-10">
+            <Link href="/" className="inline-flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-xs font-black text-primary-foreground">F4S</div><span className="font-black tracking-tight">FIND4SPORT</span></Link>
+            <div className="mt-8 lg:mt-14"><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Criar conta</p><h1 className="mt-3 text-3xl font-black tracking-tight">Começa com o perfil certo.</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">A escolha define o dashboard e as funcionalidades disponíveis. Podes usar e-mail, Google ou Facebook.</p></div>
+            <div className="mt-7 space-y-3 text-sm"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span>Sem números ou promessas artificiais: mostramos apenas funcionalidades reais.</span></div><div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><span>Profissionais e espaços seguem depois para configuração específica do perfil.</span></div></div>
+          </aside>
 
-        <section className="flex-1 flex flex-col items-center justify-center px-6 md:px-10 lg:px-16 py-12 bg-background overflow-y-auto">
-          <div className="w-full max-w-xl">
-            {step === 'tipo' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="mb-8">
-                  <h1 className="text-2xl font-bold text-foreground mb-1">{user ? 'Falta apenas um passo!' : 'Criar Conta'}</h1>
-                  <p className="text-muted-foreground text-sm">{user ? 'Escolha o tipo de perfil para concluir o seu registo.' : 'Que tipo de conta pretende criar na plataforma?'}</p>
-                </div>
-
-                <div className="grid gap-4 mb-8">
-                  {accountTypes.map((type) => {
-                    const Icon = type.icon
-                    const isSelected = selectedType === type.id
-                    return (
-                      <button
-                        type="button"
-                        key={type.id}
-                        onClick={() => handleTypeSelect(type.id)}
-                        className={cn('w-full p-5 rounded-2xl border-2 transition-all duration-200 text-left group relative overflow-hidden', isSelected ? type.borderActive + ' bg-background shadow-md' : 'border-border hover:border-muted-foreground/40 hover:shadow-sm bg-background')}
-                        id={`register-type-${type.id}`}
-                      >
-                        {isSelected && <div className="absolute top-4 right-4"><CheckCircle className={cn('h-5 w-5', type.accentColor)} /></div>}
-                        <div className="flex items-start gap-4">
-                          <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all', isSelected ? type.bgColor : 'bg-muted group-hover:bg-muted/70')}>
-                            <Icon className={cn('h-6 w-6 transition-colors', isSelected ? type.accentColor : 'text-muted-foreground')} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                              <p className="font-semibold text-sm text-foreground">{type.label}</p>
-                              <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', type.badgeColor)}>{type.badgeText}</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-3">{type.description}</p>
-                            <div className="flex flex-wrap gap-2">{type.features.map((f) => <span key={f} className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground font-medium">{f}</span>)}</div>
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <button
-                  onClick={handleContinueFromType}
-                  disabled={!selectedType}
-                  className={cn('w-full h-12 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 mb-4', selectedType ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] shadow-sm' : 'bg-muted text-muted-foreground cursor-not-allowed')}
-                  id="register-continue-btn"
-                >
-                  {selectedType === 'professional' && 'Continuar como Profissional'}
-                  {selectedType === 'venue_manager' && 'Continuar como Espaço'}
-                  {selectedType === 'athlete' && 'Continuar como Utilizador'}
-                  {!selectedType && 'Selecione um tipo de conta'}
-                  {selectedType && <ArrowRight className="h-4 w-4" />}
-                </button>
-
-                {!user && (
-                  <>
-                    <div className="relative flex items-center py-5">
-                      <div className="flex-grow border-t border-border" />
-                      <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">ou</span>
-                      <div className="flex-grow border-t border-border" />
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <button type="button" className="w-full h-11 border border-border bg-background rounded-xl text-sm font-medium text-foreground flex items-center justify-center gap-3 hover:bg-muted transition-all active:scale-[0.98]" onClick={() => handleOAuthSignUp('google')} id="google-register-btn">Registar com Google</button>
-                      <button type="button" className="w-full h-11 border border-border bg-[#1877F2] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-3 hover:bg-[#1877F2]/90 transition-all active:scale-[0.98]" onClick={() => handleOAuthSignUp('facebook')} id="facebook-register-btn">Registar com Facebook</button>
-                    </div>
-                    <p className="text-center text-sm text-muted-foreground mt-4">Já tem uma conta? <Link href="/auth/login" className="text-primary font-semibold hover:underline">Entrar</Link></p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {step === 'formulario' && selectedTypeData && (
-              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <button onClick={() => setStep('tipo')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors group" id="register-back-btn">
-                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Voltar
-                </button>
-                <div className="flex items-center gap-3 mb-8">
-                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', selectedTypeData.bgColor)}><selectedTypeData.icon className={cn('h-5 w-5', selectedTypeData.accentColor)} /></div>
-                  <div><h2 className="text-xl font-bold text-foreground">Conta de Utilizador</h2><p className="text-xs text-muted-foreground">Preencha os seus dados para começar</p></div>
-                </div>
-
-                <form onSubmit={handleSignUp} className="space-y-4" id="register-form">
-                  <div className="space-y-1.5"><label className="text-sm font-medium text-foreground" htmlFor="fullName">Nome Completo</label><input id="fullName" className="w-full h-11 px-4 rounded-lg bg-muted border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm" type="text" placeholder="João Silva" required value={fullName} onChange={(e) => setFullName(e.target.value)} disabled={isLoading} /></div>
-                  <div className="space-y-1.5"><label className="text-sm font-medium text-foreground" htmlFor="email">E-mail</label><input id="email" className="w-full h-11 px-4 rounded-lg bg-muted border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm" type="email" placeholder="seu@email.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} /></div>
-                  <div className="space-y-1.5"><label className="text-sm font-medium text-foreground" htmlFor="password">Palavra-passe</label><div className="relative"><input id="password" className="w-full h-11 px-4 pr-11 rounded-lg bg-muted border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm" type={showPassword ? 'text' : 'password'} placeholder="Mínimo 6 caracteres" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={isLoading} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" id="toggle-password-btn">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
-                  <div className="space-y-1.5"><label className="text-sm font-medium text-foreground" htmlFor="repeatPassword">Confirmar Palavra-passe</label><div className="relative"><input id="repeatPassword" className="w-full h-11 px-4 pr-11 rounded-lg bg-muted border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm" type={showRepeatPassword ? 'text' : 'password'} placeholder="Repita a palavra-passe" required value={repeatPassword} onChange={(e) => setRepeatPassword(e.target.value)} disabled={isLoading} /><button type="button" onClick={() => setShowRepeatPassword(!showRepeatPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" id="toggle-repeat-password-btn">{showRepeatPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
-                  {error && <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start gap-2"><span className="shrink-0 mt-0.5">⚠</span>{error}</div>}
-                  <button type="submit" className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-all active:scale-[0.98] mt-2 disabled:opacity-60 disabled:cursor-not-allowed" disabled={isLoading} id="register-submit-btn">
-                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />A criar conta...</> : <>Criar Conta Gratuitamente<ArrowRight className="h-4 w-4" /></>}
-                  </button>
-                </form>
-
-                <div className="relative flex items-center py-5"><div className="flex-grow border-t border-border" /><span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-wider font-medium">ou</span><div className="flex-grow border-t border-border" /></div>
-                <div className="flex flex-col gap-3">
-                  <button type="button" className="w-full h-11 border border-border bg-background rounded-xl text-sm font-medium text-foreground flex items-center justify-center gap-3 hover:bg-muted transition-all active:scale-[0.98]" onClick={() => handleOAuthSignUp('google')} id="google-register-btn">Registar com Google</button>
-                  <button type="button" className="w-full h-11 border border-border bg-[#1877F2] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-3 hover:bg-[#1877F2]/90 transition-all active:scale-[0.98]" onClick={() => handleOAuthSignUp('facebook')} id="facebook-register-btn">Registar com Facebook</button>
-                </div>
-                <p className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">Ao criar uma conta, aceita os nossos <Link href="/termos" className="underline hover:text-foreground transition-colors">Termos de Serviço</Link> e <Link href="/privacidade" className="underline hover:text-foreground transition-colors">Política de Privacidade</Link>.</p>
-                <p className="text-center text-sm text-muted-foreground mt-4">Já tem conta? <Link href="/auth/login" className="text-primary font-semibold hover:underline">Entrar</Link></p>
-              </div>
-            )}
-          </div>
-        </section>
+          <section className="p-5 sm:p-8 lg:p-10">
+            {step === 'type' ? <>
+              <div><h2 className="text-2xl font-black">Que conta queres criar?</h2><p className="mt-1 text-sm text-muted-foreground">Escolhe com base no que pretendes fazer, não em nomenclatura técnica.</p></div>
+              <div className="mt-6 grid gap-3">{ACCOUNT_TYPES.map(item => { const Icon = item.icon; const active = selectedType === item.id; return <button key={item.id} type="button" onClick={() => { setSelectedType(item.id); setError(null) }} className={`relative flex w-full items-start gap-4 rounded-2xl border p-4 text-left transition ${active ? 'border-primary bg-primary/5 ring-2 ring-primary/10' : 'border-border bg-background hover:border-primary/40 hover:bg-muted/30'}`}><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="font-bold">{item.label}</span>{active && <Check className="h-5 w-5 text-primary" />}</div><p className="mt-0.5 text-sm font-medium">{item.description}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p></div></button> })}</div>
+              {error && <div role="alert" className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              <button onClick={continueWithType} disabled={!selectedType || isLoading} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-50">{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continuar<ArrowRight className="h-4 w-4" /></>}</button>
+              {!existingUser && <><div className="my-5 flex items-center gap-3"><div className="h-px flex-1 bg-border" /><span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">ou</span><div className="h-px flex-1 bg-border" /></div><div className="grid gap-3 sm:grid-cols-2"><button type="button" disabled={!selectedType || isLoading} onClick={() => handleOAuthSignUp('google')} className="min-h-12 rounded-xl border border-border bg-background text-sm font-semibold hover:bg-muted disabled:opacity-50">Continuar com Google</button><button type="button" disabled={!selectedType || isLoading} onClick={() => handleOAuthSignUp('facebook')} className="min-h-12 rounded-xl border border-border bg-background text-sm font-semibold hover:bg-muted disabled:opacity-50">Continuar com Facebook</button></div></>}
+              <p className="mt-6 text-center text-sm text-muted-foreground">Já tens conta? <Link href={`/auth/login?redirect=${encodeURIComponent(destination)}`} className="font-bold text-primary hover:underline">Iniciar sessão</Link></p>
+            </> : <>
+              <button type="button" onClick={() => setStep('type')} className="mb-5 flex min-h-10 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Alterar tipo de conta</button>
+              <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Conta de utilizador</p><h2 className="mt-2 text-2xl font-black">Dados de acesso</h2><p className="mt-1 text-sm text-muted-foreground">Só pedimos o necessário para criar a conta. O restante perfil pode ser preenchido depois.</p></div>
+              <form onSubmit={handleSignUp} className="mt-6 space-y-4">
+                <label className="block space-y-1.5"><span className="text-sm font-semibold">Nome</span><input className="h-12 w-full rounded-xl border border-border bg-background px-4 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" autoComplete="name" required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Nome completo" /></label>
+                <label className="block space-y-1.5"><span className="text-sm font-semibold">E-mail</span><input className="h-12 w-full rounded-xl border border-border bg-background px-4 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@exemplo.pt" /></label>
+                <label className="block space-y-1.5"><span className="text-sm font-semibold">Palavra-passe</span><span className="relative block"><input className="h-12 w-full rounded-xl border border-border bg-background px-4 pr-12 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" /><button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" aria-label={showPassword ? 'Ocultar palavra-passe' : 'Mostrar palavra-passe'}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span></label>
+                <label className="block space-y-1.5"><span className="text-sm font-semibold">Confirmar palavra-passe</span><span className="relative block"><input className="h-12 w-full rounded-xl border border-border bg-background px-4 pr-12 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" type={showRepeatPassword ? 'text' : 'password'} autoComplete="new-password" minLength={8} required value={repeatPassword} onChange={e => setRepeatPassword(e.target.value)} placeholder="Repete a palavra-passe" /><button type="button" onClick={() => setShowRepeatPassword(v => !v)} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" aria-label={showRepeatPassword ? 'Ocultar confirmação' : 'Mostrar confirmação'}>{showRepeatPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></span></label>
+                {error && <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+                <button type="submit" disabled={isLoading} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-primary-foreground disabled:opacity-50">{isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />A criar…</> : <>Criar conta<ArrowRight className="h-4 w-4" /></>}</button>
+              </form>
+              <p className="mt-5 text-xs leading-5 text-muted-foreground">Ao criar a conta aceitas os <Link href="/termos" className="font-semibold underline">Termos</Link> e a <Link href="/privacidade" className="font-semibold underline">Política de Privacidade</Link>.</p>
+            </>}
+          </section>
+        </div>
       </div>
-    </>
+    </main>
   )
 }
 
 export default function RegisterPage() {
-  return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-      <RegisterForm />
-    </Suspense>
-  )
+  return <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>}><RegisterForm /></Suspense>
 }
