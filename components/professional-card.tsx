@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { MapPin, Star, BadgeCheck, Heart } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { BadgeCheck, Euro, Heart, MapPin, Navigation, Star } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { Professional, Category } from '@/lib/types'
+import type { Category, Professional } from '@/lib/types'
+
+type DiscoveryProfessional = Professional & { categories?: Category[]; distanceKm?: number | null; averagePrice?: number | null }
 
 interface ProfessionalCardProps {
-  professional: Professional & { categories?: Category[] }
+  professional: DiscoveryProfessional
   variant?: 'default' | 'compact' | 'horizontal'
   showFavoriteButton?: boolean
   isFavorited?: boolean
@@ -17,257 +19,28 @@ interface ProfessionalCardProps {
   className?: string
 }
 
-export function ProfessionalCard({
-  professional,
-  variant = 'default',
-  showFavoriteButton = false,
-  isFavorited = false,
-  onFavoriteToggle,
-  className,
-}: ProfessionalCardProps) {
+function distanceLabel(value?: number | null) {
+  if (value == null) return null
+  return value < 1 ? `${Math.round(value * 1000)} m` : `${value.toFixed(1)} km`
+}
+
+export function ProfessionalCard({ professional, variant = 'default', showFavoriteButton = false, isFavorited = false, onFavoriteToggle, className }: ProfessionalCardProps) {
   const displayName = professional.professional_name || professional.full_name
-  const initials = displayName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
+  const initials = displayName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
+  const distance = distanceLabel(professional.distanceKm)
+  const price = professional.averagePrice != null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(professional.averagePrice) : null
 
   if (variant === 'horizontal') {
-    return (
-      <Card className={cn('overflow-hidden transition-shadow hover:shadow-md', className)}>
-        <Link href={`/profissionais/${professional.public_slug || professional.id}`}>
-          <CardContent className="flex gap-4 p-4">
-            <Avatar className="h-20 w-20 shrink-0">
-              <AvatarImage src={professional.avatar_url || undefined} alt={displayName} />
-              <AvatarFallback className="bg-primary text-lg text-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="flex items-center gap-1.5 font-semibold text-foreground">
-                    {displayName}
-                    {professional.is_verified && (
-                      <BadgeCheck className="h-4 w-4 text-primary" />
-                    )}
-                  </h3>
-                  {professional.address && (
-                    <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {professional.address}
-                    </p>
-                  )}
-                </div>
-                {showFavoriteButton && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      onFavoriteToggle?.(professional.id)
-                    }}
-                  >
-                    <Heart
-                      className={cn(
-                        'h-5 w-5',
-                        isFavorited && 'fill-destructive text-destructive'
-                      )}
-                    />
-                  </Button>
-                )}
-              </div>
-              {professional.categories && professional.categories.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {professional.categories.slice(0, 3).map((cat) => (
-                    <Badge key={cat.id} variant="secondary" className="text-xs">
-                      {cat.emoji} {cat.name}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {professional.rating_avg != null && (
-              <div className="mt-2 flex items-center gap-3 text-sm">
-                <span className="flex items-center gap-1 text-amber-500">
-                  <Star className="h-4 w-4 fill-current" />
-                  {professional.rating_avg.toFixed(1)}
-                </span>
-                <span className="text-muted-foreground">
-                  ({professional.review_count ?? 0} avaliações)
-                </span>
-              </div>
-              )}
-            </div>
-          </CardContent>
-        </Link>
-      </Card>
-    )
+    return <Card className={cn('overflow-hidden transition-shadow hover:shadow-md', className)}><Link href={`/profissionais/${professional.public_slug || professional.id}`}><CardContent className="flex gap-3 p-3"><Avatar className="h-16 w-16 shrink-0"><AvatarImage src={professional.avatar_url || undefined} alt={displayName}/><AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback></Avatar><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><h3 className="flex min-w-0 items-center gap-1 truncate font-semibold">{displayName}{professional.is_verified&&<BadgeCheck className="h-4 w-4 shrink-0 text-primary"/>}</h3>{professional.rating_avg!=null&&<span className="flex items-center gap-1 text-xs font-semibold"><Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500"/>{professional.rating_avg.toFixed(1)}</span>}</div><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">{distance&&<span className="flex items-center gap-1"><Navigation className="h-3.5 w-3.5 text-primary"/>{distance}</span>}{price&&<span className="flex items-center gap-1 font-semibold text-foreground"><Euro className="h-3.5 w-3.5"/>Média {price}</span>}</div></div></CardContent></Link></Card>
   }
 
-  return (
-    <Card
-      className={cn(
-        'group overflow-hidden border-border/60 transition-all duration-300 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5',
-        variant === 'compact' && 'hover:shadow-lg',
-        className
-      )}
-    >
-      <Link href={`/profissionais/${professional.public_slug || professional.id}`}>
-        {/* Image/Avatar Section */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          {professional.gallery_urls && professional.gallery_urls[0] ? (
-            <Image
-              src={professional.gallery_urls[0]}
-              alt={displayName}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={professional.avatar_url || undefined} alt={displayName} />
-                <AvatarFallback className="bg-primary text-2xl text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          )}
-          {showFavoriteButton && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute right-2 top-2 h-8 w-8 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-              onClick={(e) => {
-                e.preventDefault()
-                onFavoriteToggle?.(professional.id)
-              }}
-            >
-              <Heart
-                className={cn(
-                  'h-4 w-4',
-                  isFavorited && 'fill-destructive text-destructive'
-                )}
-              />
-            </Button>
-          )}
-          {professional.is_premium && (
-            <Badge className="absolute left-2 top-2 bg-amber-500 hover:bg-amber-600">
-              Premium
-            </Badge>
-          )}
-        </div>
-
-        {/* Content */}
-        <CardContent className={cn('p-4', variant === 'compact' && 'p-3')}>
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                'flex items-center gap-1.5 font-semibold text-foreground',
-                variant === 'compact' && 'text-sm'
-              )}
-            >
-              {displayName}
-              {professional.is_verified && (
-                <BadgeCheck className="h-4 w-4 text-primary" />
-              )}
-            </h3>
-            {professional.rating_avg != null && (
-            <div className="flex items-center gap-1 text-amber-500">
-              <Star className="h-4 w-4 fill-current" />
-              <span className="text-sm font-medium">
-                {professional.rating_avg.toFixed(1)}
-              </span>
-            </div>
-            )}
-          </div>
-
-          {professional.address && (
-            <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{professional.address}</span>
-            </p>
-          )}
-
-          {professional.categories && professional.categories.length > 0 && variant !== 'compact' && (
-            <div className="mt-3 flex flex-wrap gap-1">
-              {professional.categories.slice(0, 2).map((cat) => (
-                <Badge key={cat.id} variant="secondary" className="text-xs">
-                  {cat.emoji} {cat.name}
-                </Badge>
-              ))}
-              {professional.categories.length > 2 && (
-                <Badge variant="outline" className="text-xs">
-                  +{professional.categories.length - 2}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          <p className="mt-2 text-xs text-muted-foreground">
-            {professional.review_count ?? 0} avaliações
-          </p>
-        </CardContent>
-      </Link>
-    </Card>
-  )
+  return <Card className={cn('group overflow-hidden border-border/70 transition hover:border-primary/35 hover:shadow-md', className)}><Link href={`/profissionais/${professional.public_slug || professional.id}`} className="block h-full"><div className="relative aspect-[16/10] overflow-hidden bg-muted">{professional.gallery_urls?.[0]?<Image src={professional.gallery_urls[0]} alt={displayName} fill className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"/>:<div className="flex h-full items-center justify-center"><Avatar className="h-16 w-16 sm:h-20 sm:w-20"><AvatarImage src={professional.avatar_url || undefined} alt={displayName}/><AvatarFallback className="bg-primary text-xl text-primary-foreground">{initials}</AvatarFallback></Avatar></div>}{professional.is_premium&&<Badge className="absolute left-2 top-2 bg-amber-500 px-2 py-0.5 text-[10px]">Premium</Badge>}{distance&&<span className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-1 text-[10px] font-semibold shadow-sm"><Navigation className="mr-1 inline h-3 w-3 text-primary"/>{distance}</span>}{showFavoriteButton&&<Button variant="secondary" size="icon" className="absolute right-2 top-2 h-8 w-8 rounded-full" onClick={e=>{e.preventDefault();onFavoriteToggle?.(professional.id)}}><Heart className={cn('h-4 w-4',isFavorited&&'fill-destructive text-destructive')}/></Button>}</div><CardContent className="p-3"><div className="flex items-start justify-between gap-2"><h3 className="line-clamp-1 flex min-w-0 items-center gap-1 text-sm font-semibold sm:text-base">{displayName}{professional.is_verified&&<BadgeCheck className="h-4 w-4 shrink-0 text-primary"/>}</h3>{professional.rating_avg!=null&&<span className="flex shrink-0 items-center gap-1 text-xs font-semibold"><Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500"/>{professional.rating_avg.toFixed(1)}</span>}</div>{professional.address&&<p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0"/><span className="truncate">{professional.address}</span></p>}<div className="mt-2 flex min-h-6 flex-wrap items-center justify-between gap-2">{professional.categories?.[0]?<Badge variant="secondary" className="max-w-[65%] truncate text-[10px]">{professional.categories[0].emoji} {professional.categories[0].name}</Badge>:<span/>}{price&&<span className="shrink-0 text-xs font-bold text-primary">Média {price}</span>}</div><p className="mt-1 text-[10px] text-muted-foreground">{professional.review_count ?? 0} avaliações</p></CardContent></Link></Card>
 }
 
-interface ProfessionalGridProps {
-  professionals: (Professional & { categories?: Category[] })[]
-  variant?: 'default' | 'compact' | 'horizontal'
-  columns?: 2 | 3 | 4
-  showFavoriteButton?: boolean
-  favoritedIds?: string[]
-  onFavoriteToggle?: (id: string) => void
-  className?: string
-}
+interface ProfessionalGridProps { professionals: DiscoveryProfessional[]; variant?: 'default'|'compact'|'horizontal'; columns?:2|3|4; showFavoriteButton?:boolean; favoritedIds?:string[]; onFavoriteToggle?:(id:string)=>void; className?:string }
 
-export function ProfessionalGrid({
-  professionals,
-  variant = 'default',
-  columns = 3,
-  showFavoriteButton = false,
-  favoritedIds = [],
-  onFavoriteToggle,
-  className,
-}: ProfessionalGridProps) {
-  const gridCols = {
-    2: 'grid-cols-1 sm:grid-cols-2',
-    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-  }
-
-  if (variant === 'horizontal') {
-    return (
-      <div className={cn('flex flex-col gap-4', className)}>
-        {professionals.map((pro) => (
-          <ProfessionalCard
-            key={pro.id}
-            professional={pro}
-            variant="horizontal"
-            showFavoriteButton={showFavoriteButton}
-            isFavorited={favoritedIds.includes(pro.id)}
-            onFavoriteToggle={onFavoriteToggle}
-          />
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className={cn('grid gap-4 sm:gap-6', gridCols[columns], className)}>
-      {professionals.map((pro) => (
-        <ProfessionalCard
-          key={pro.id}
-          professional={pro}
-          variant={variant}
-          showFavoriteButton={showFavoriteButton}
-          isFavorited={favoritedIds.includes(pro.id)}
-          onFavoriteToggle={onFavoriteToggle}
-        />
-      ))}
-    </div>
-  )
+export function ProfessionalGrid({ professionals, variant='default', columns=3, showFavoriteButton=false, favoritedIds=[], onFavoriteToggle, className }: ProfessionalGridProps) {
+  const gridCols={2:'grid-cols-1 sm:grid-cols-2',3:'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',4:'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'}
+  if(variant==='horizontal')return <div className={cn('flex flex-col gap-3',className)}>{professionals.map(pro=><ProfessionalCard key={pro.id} professional={pro} variant="horizontal" showFavoriteButton={showFavoriteButton} isFavorited={favoritedIds.includes(pro.id)} onFavoriteToggle={onFavoriteToggle}/>)}</div>
+  return <div className={cn('grid gap-3 sm:gap-4',gridCols[columns],className)}>{professionals.map(pro=><ProfessionalCard key={pro.id} professional={pro} variant={variant} showFavoriteButton={showFavoriteButton} isFavorited={favoritedIds.includes(pro.id)} onFavoriteToggle={onFavoriteToggle}/>)}</div>
 }
