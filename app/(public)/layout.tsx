@@ -1,13 +1,10 @@
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { MobileBottomBar } from '@/components/mobile-bottom-bar'
+import { LocationSync } from '@/components/location-sync'
 import { createClient } from '@/lib/supabase/server'
 
-export default async function PublicLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -20,23 +17,15 @@ export default async function PublicLayout({
 
   let notificationCount = 0
   if (user) {
-    const { count } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .is('read_at', null)
-    
+    const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('read_at', null)
     notificationCount = count || 0
   }
 
-  return (
-    <>
-      <Header user={userProfile} notificationCount={notificationCount} />
-      <main className="min-h-screen bg-background text-foreground overflow-hidden flex flex-col pb-16 md:pb-0">
-        {children}
-      </main>
-      <Footer />
-      <MobileBottomBar userProfile={userProfile} />
-    </>
-  )
+  return <>
+    <LocationSync />
+    <Header user={userProfile} notificationCount={notificationCount} />
+    <main className="flex min-h-screen flex-col overflow-hidden bg-background pb-16 text-foreground md:pb-0">{children}</main>
+    <Footer />
+    <MobileBottomBar userProfile={userProfile} />
+  </>
 }
