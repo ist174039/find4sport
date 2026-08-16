@@ -1,4 +1,4 @@
-import { ArrowRight, MapPin, Search, Star } from 'lucide-react'
+import { ArrowRight, Building2, CalendarDays, MapPin, Search, Star, UserRound, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { PesquisaFiltros } from '@/components/pesquisa-filtros'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 
 export interface UnifiedResultItem {
   id: string
-  itemType: 'space' | 'professional' | 'event'
+  itemType: 'space' | 'professional' | 'event' | 'community'
   title: string
   subtitle: string
   address: string
@@ -23,232 +23,86 @@ export interface UnifiedResultItem {
   longitude?: number | null
 }
 
-export default async function PesquisaPage(props: {
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
+const typeAliases: Record<string, string> = { spaces: 'espacos', professionals: 'profissionais', events: 'eventos', communities: 'comunidades', all: 'todos' }
+
+function ResultImage({ item }: { item: UnifiedResultItem }) {
+  const Icon = item.itemType === 'space' ? Building2 : item.itemType === 'professional' ? UserRound : item.itemType === 'event' ? CalendarDays : Users
+  return <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-primary/15 via-muted to-secondary/20 sm:h-32 sm:w-32">{item.image_url ? <img className="h-full w-full object-cover" alt={item.title} src={item.image_url} /> : <div className="flex h-full items-center justify-center"><Icon className="h-10 w-10 text-primary/35" /></div>}</div>
+}
+
+export default async function PesquisaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const supabase = await createClient()
-  
-  const searchParams = props.searchParams ? await props.searchParams : {}
+  const searchParams = searchParamsPromise ? await searchParamsPromise : {}
   const categoryParam = typeof searchParams.category === 'string' ? searchParams.category.trim() : ''
   const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : categoryParam
-  const typeParam = (typeof searchParams.type === 'string' ? searchParams.type : typeof searchParams.tipo === 'string' ? searchParams.tipo : 'todos').toLowerCase()
-  const ratingParam = typeof searchParams.rating === 'string' ? parseFloat(searchParams.rating) : null
+  const rawType = (typeof searchParams.type === 'string' ? searchParams.type : typeof searchParams.tipo === 'string' ? searchParams.tipo : 'todos').toLowerCase()
+  const typeParam = typeAliases[rawType] || rawType
+  const ratingParam = typeof searchParams.rating === 'string' ? Number(searchParams.rating) : null
   const sortParam = typeof searchParams.sort === 'string' ? searchParams.sort : 'relevance'
-
+  const includeAll = typeParam === 'todos'
   let results: UnifiedResultItem[] = []
 
-  // 1. Fetch Sport Spaces if type is 'espacos' or 'todos'
-  if (typeParam === 'espacos' || typeParam === 'todos' || typeParam === 'all') {
-    let spacesQuery = supabase.from('sport_spaces').select('*')
-
-    if (query) {
-      spacesQuery = spacesQuery.or(`name.ilike.%${query}%,address.ilike.%${query}%`)
-    }
-
-    if (ratingParam) {
-      spacesQuery = spacesQuery.gte('rating_avg', ratingParam)
-    }
-
-    const { data: spacesData } = await spacesQuery.limit(30)
-
-    if (spacesData) {
-      const spaceItems: UnifiedResultItem[] = spacesData.map((space) => ({
-        id: `space-${space.id}`,
-        itemType: 'space',
-        title: space.name,
-        subtitle: space.description || 'Espaço Desportivo',
-        address: space.address || 'Localização não definida',
-        rating_avg: space.rating_avg,
-        review_count: space.review_count,
-        is_verified: !!space.is_verified,
-        image_url: space.image_url || 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=300',
-        link: `/espacos/${space.slug || space.id}`,
-        created_at: space.created_at,
-        latitude: space.latitude,
-        longitude: space.longitude,
-      }))
-      results = [...results, ...spaceItems]
-    }
+  if (includeAll || typeParam === 'espacos') {
+    let db = supabase.from('sport_spaces').select('id,name,slug,address,description,rating_avg,review_count,is_verified,gallery_urls,cover_url,created_at,latitude,longitude').eq('is_verified', true)
+    if (query) db = db.or(`name.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`)
+    if (ratingParam) db = db.gte('rating_avg', ratingParam)
+    const { data } = await db.limit(30)
+    results.push(...(data || []).map((space: any) => ({ id: `space-${space.id}`, itemType: 'space' as const, title: space.name, subtitle: space.description || 'Espaço desportivo', address: space.address || '', rating_avg: space.rating_avg, review_count: space.review_count, is_verified: true, image_url: space.cover_url || space.gallery_urls?.[0] || null, link: `/espacos/${space.slug || space.id}`, created_at: space.created_at, latitude: space.latitude, longitude: space.longitude })))
   }
 
-  // 2. Fetch Professionals if type is 'profissionais' or 'todos'
-  if (typeParam === 'profissionais' || typeParam === 'todos' || typeParam === 'all') {
-    let proQuery = supabase.from('professionals').select('*')
-
-    if (query) {
-      proQuery = proQuery.or(`full_name.ilike.%${query}%,address.ilike.%${query}%,professional_name.ilike.%${query}%`)
-    }
-
-    if (ratingParam) {
-      proQuery = proQuery.gte('rating_avg', ratingParam)
-    }
-
-    const { data: prosData } = await proQuery.limit(30)
-
-    if (prosData) {
-      const proItems: UnifiedResultItem[] = prosData.map((prof) => ({
-        id: `pro-${prof.id}`,
-        itemType: 'professional',
-        title: prof.full_name || prof.professional_name || 'Profissional de Desporto',
-        subtitle: prof.bio || 'Personal Trainer / Treinador',
-        address: prof.address || 'Localização não disponível',
-        rating_avg: prof.rating_avg,
-        review_count: prof.review_count,
-        is_verified: !!prof.is_verified,
-        image_url: prof.avatar_url || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=256',
-        link: `/profissionais/${prof.public_slug || prof.id}`,
-        created_at: prof.created_at,
-        latitude: prof.latitude,
-        longitude: prof.longitude,
-      }))
-      results = [...results, ...proItems]
-    }
+  if (includeAll || typeParam === 'profissionais') {
+    let db = supabase.from('professionals').select('id,full_name,professional_name,public_slug,address,location,bio,rating_avg,review_count,is_verified,avatar_url,created_at,latitude,longitude,status').eq('is_verified', true).eq('status', 'active')
+    if (query) db = db.or(`full_name.ilike.%${query}%,professional_name.ilike.%${query}%,address.ilike.%${query}%,location.ilike.%${query}%,bio.ilike.%${query}%`)
+    if (ratingParam) db = db.gte('rating_avg', ratingParam)
+    const { data } = await db.limit(30)
+    results.push(...(data || []).map((prof: any) => ({ id: `pro-${prof.id}`, itemType: 'professional' as const, title: prof.full_name || prof.professional_name || 'Profissional', subtitle: prof.professional_name || prof.bio || 'Profissional de desporto', address: prof.location || prof.address || '', rating_avg: prof.rating_avg, review_count: prof.review_count, is_verified: true, image_url: prof.avatar_url || null, link: `/profissionais/${prof.public_slug || prof.id}`, created_at: prof.created_at, latitude: prof.latitude, longitude: prof.longitude })))
   }
 
-  // 3. Fetch Events if type is 'eventos' or 'todos'
-  if (typeParam === 'eventos' || typeParam === 'todos' || typeParam === 'all') {
-    let eventQuery = supabase.from('events').select('*').eq('status', 'published')
-
-    if (query) {
-      eventQuery = eventQuery.or(`title.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`)
-    }
-
-    const { data: eventsData } = await eventQuery.limit(30)
-
-    if (eventsData) {
-      const eventItems: UnifiedResultItem[] = eventsData.map((evt) => ({
-        id: `event-${evt.id}`,
-        itemType: 'event',
-        title: evt.title,
-        subtitle: evt.description || 'Evento Desportivo',
-        address: evt.address || 'Localização não disponível',
-        rating_avg: null,
-        review_count: null,
-        is_verified: true,
-        image_url: evt.image_url || 'https://images.unsplash.com/photo-1517649763962-0c623266010b?q=80&w=600',
-        link: `/eventos/${evt.id}`,
-        created_at: evt.created_at,
-        start_date: evt.start_date,
-        latitude: evt.latitude || 38.7223,
-        longitude: evt.longitude || -9.1393,
-      }))
-      results = [...results, ...eventItems]
-    }
+  if (includeAll || typeParam === 'eventos') {
+    let db = supabase.from('events').select('id,title,address,description,image_url,created_at,start_date,latitude,longitude,status').eq('status', 'published')
+    if (query) db = db.or(`title.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`)
+    const { data } = await db.limit(30)
+    results.push(...(data || []).map((event: any) => ({ id: `event-${event.id}`, itemType: 'event' as const, title: event.title, subtitle: event.description || 'Evento desportivo', address: event.address || '', rating_avg: null, review_count: null, is_verified: false, image_url: event.image_url || null, link: `/eventos/${event.id}`, created_at: event.created_at, start_date: event.start_date, latitude: event.latitude, longitude: event.longitude })))
   }
 
-  results.sort((a, b) => {
-    if (sortParam === 'rating') {
-      return (b.rating_avg || 0) - (a.rating_avg || 0)
-    }
-    if (sortParam === 'newest') {
-      const aDate = new Date(a.created_at || a.start_date || 0).getTime()
-      const bDate = new Date(b.created_at || b.start_date || 0).getTime()
-      return bDate - aDate
-    }
-    return 0
-  })
+  if (includeAll || typeParam === 'comunidades') {
+    let db = supabase.from('communities').select('id,name,slug,description,sport_category,cover_url,is_private,created_at')
+    if (query) db = db.or(`name.ilike.%${query}%,description.ilike.%${query}%,sport_category.ilike.%${query}%`)
+    const { data } = await db.limit(30)
+    results.push(...(data || []).map((community: any) => ({ id: `community-${community.id}`, itemType: 'community' as const, title: community.name, subtitle: community.description || community.sport_category || 'Comunidade desportiva', address: community.sport_category || '', rating_avg: null, review_count: null, is_verified: false, image_url: community.cover_url || null, link: `/comunidades/${community.slug || community.id}`, created_at: community.created_at, latitude: null, longitude: null })))
+  }
+
+  if (sortParam === 'rating') results.sort((a, b) => Number(b.rating_avg || 0) - Number(a.rating_avg || 0))
+  else if (sortParam === 'newest') results.sort((a, b) => new Date(b.start_date || b.created_at || 0).getTime() - new Date(a.start_date || a.created_at || 0).getTime())
+  else if (query) {
+    const normalized = query.toLowerCase()
+    results.sort((a, b) => Number(b.title.toLowerCase().includes(normalized)) - Number(a.title.toLowerCase().includes(normalized)))
+  }
+
+  const mapItems = results.filter(item => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude)))
+  const typeLabel = (item: UnifiedResultItem) => item.itemType === 'space' ? 'Espaço' : item.itemType === 'professional' ? 'Profissional' : item.itemType === 'event' ? 'Evento' : 'Comunidade'
 
   return (
-    <PesquisaLayout 
-      resultsPane={
-        <>
-          {/* Filters Header */}
-          <PesquisaFiltros initialQuery={query} totalResults={results.length} initialSort={sortParam} />
-          
-          {/* Scrollable Results List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/10">
+    <PesquisaLayout
+      resultsPane={<>
+        <PesquisaFiltros initialQuery={query} totalResults={results.length} initialSort={sortParam} />
+        <div className="flex-1 space-y-3 overflow-y-auto bg-muted/10 p-3 sm:p-4">
           {results.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="p-4 rounded-full bg-primary/10 text-primary mb-4">
-                <Search className="h-8 w-8" />
+            <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary"><Search className="h-6 w-6" /></div><h2 className="text-lg font-semibold">Nenhum resultado encontrado</h2><p className="mt-2 max-w-sm text-sm text-muted-foreground">Experimente remover filtros ou utilizar outro termo de pesquisa.</p>{(query || typeParam !== 'todos' || ratingParam) && <Link href="/pesquisa" className="mt-5 font-medium text-primary hover:underline">Limpar pesquisa</Link>}</div>
+          ) : results.map(item => (
+            <Link href={item.link} key={item.id} className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 transition hover:border-primary/40 hover:shadow-sm sm:flex-row sm:p-4">
+              <ResultImage item={item} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="mb-1 flex flex-wrap gap-1.5"><Badge variant="outline" className="text-[10px]">{typeLabel(item)}</Badge>{item.is_verified && <Badge variant="success" className="text-[10px]">Verificado</Badge>}</div><h2 className="line-clamp-1 font-semibold group-hover:text-primary">{item.title}</h2></div>{item.rating_avg !== null && Number(item.review_count || 0) > 0 && <span className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700"><Star className="h-3 w-3 fill-amber-500 text-amber-500" />{Number(item.rating_avg).toFixed(1)}</span>}</div>
+                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.subtitle}</p>
+                {item.address && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0 text-primary" /><span className="truncate">{item.address}</span></p>}
+                <div className="mt-auto flex items-center justify-end pt-3 text-xs font-semibold text-primary">Ver detalhe <ArrowRight className="ml-1 h-3.5 w-3.5" /></div>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Nenhum resultado encontrado</h3>
-              <p className="text-muted-foreground text-sm max-w-sm">Tente ajustar os seus filtros ou pesquisar por um termo diferente.</p>
-              {query && (
-                <Link href="/pesquisa" className="mt-6 text-primary hover:underline font-medium text-sm">
-                  Limpar pesquisa
-                </Link>
-              )}
-            </div>
-          ) : (
-            <>
-            {(query || categoryParam || typeParam !== 'todos' || ratingParam) && (
-              <div className="flex flex-wrap items-center gap-2">
-                {query && <Badge variant="outline" className="text-[11px]">Pesquisa: {query}</Badge>}
-                {typeParam !== 'todos' && <Badge variant="outline" className="text-[11px]">Tipo: {typeParam}</Badge>}
-                {ratingParam && <Badge variant="outline" className="text-[11px]">Rating minimo: {ratingParam}</Badge>}
-                <Link href="/pesquisa" className="text-xs font-medium text-primary hover:underline">Limpar tudo</Link>
-              </div>
-            )}
-
-            {results.map((item) => (
-              <Link 
-                href={item.link} 
-                key={item.id} 
-                className="group flex flex-col sm:flex-row bg-card border border-border p-4 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer rounded-xl gap-4"
-              >
-                <div className="relative shrink-0">
-                  <img 
-                    className="w-full sm:w-32 h-44 sm:h-32 rounded-lg object-cover" 
-                    alt={item.title} 
-                    src={item.image_url!} 
-                  />
-                  <div className="absolute top-2 left-2 flex flex-col gap-1">
-                    <Badge 
-                      variant={item.itemType === 'space' ? 'default' : item.itemType === 'event' ? 'outline' : 'secondary'} 
-                      className={`text-[10px] shadow-sm ${item.itemType === 'event' ? 'bg-amber-500 text-white border-amber-600 font-bold' : ''}`}
-                    >
-                      {item.itemType === 'space' ? 'Espaço' : item.itemType === 'event' ? 'Evento' : 'Profissional'}
-                    </Badge>
-                    {item.is_verified && (
-                      <Badge variant="success" className="text-[9px] shadow-sm">
-                        Verificado
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start gap-2 mb-1">
-                      <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-1">
-                        {item.title}
-                      </h3>
-                      {item.rating_avg !== null && item.rating_avg > 0 && (
-                        <div className="flex items-center shrink-0 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-200/50 text-xs font-bold">
-                          <Star className="h-3 w-3 fill-amber-500 text-amber-500 mr-1" />
-                          <span>{item.rating_avg.toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <p className="text-muted-foreground text-xs line-clamp-2 mb-2">{item.subtitle}</p>
-                    
-                    <div className="flex items-center text-xs text-muted-foreground font-medium">
-                      <MapPin className="h-3.5 w-3.5 mr-1 text-primary shrink-0" /> 
-                      <span className="truncate">{item.address}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-border flex justify-between items-center">
-                    <span className="font-medium text-primary text-xs flex items-center gap-1 group-hover:gap-2 transition-all">
-                      Ver {item.itemType === 'space' ? 'Espaço' : item.itemType === 'event' ? 'Evento' : 'Perfil'} <ArrowRight className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg font-medium text-xs shrink-0">
-                      {item.itemType === 'space' ? 'Reservar' : item.itemType === 'event' ? 'Inscrever' : 'Contactar'}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-            </>
-          )}
-          </div>
-        </>
-      }
-      mapPane={
-        <PesquisaMapWrapper items={results} />
-      }
+            </Link>
+          ))}
+        </div>
+      </>}
+      mapPane={<PesquisaMapWrapper items={mapItems} />}
     />
   )
 }
