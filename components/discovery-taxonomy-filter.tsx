@@ -21,7 +21,8 @@ export function DiscoveryTaxonomyFilter({
   const router = useRouter()
   const selected = categories.find(item => item.slug === currentCategory || item.id === currentCategory)
 
-  const navigate = (categoryId: string) => {
+  const navigate = (value: string | string[]) => {
+    const categoryId = Array.isArray(value) ? value[0] || '' : value
     const params = new URLSearchParams()
     if (query) params.set('q', query)
     if (location) params.set('location', location)
