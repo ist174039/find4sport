@@ -17,28 +17,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Admin is a separate security domain and must never enter the platform dashboard.
-  const { data: admin } = await supabase
-    .from('admins')
-    .select('id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
-
-  if (admin) {
-    return NextResponse.redirect(new URL('/admin', origin))
+  const accountStatus = String(user.user_metadata?.account_status || '')
+  if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') {
+    return NextResponse.redirect(new URL('/auth/reactivar', origin))
   }
 
-  const { data: profile } = await supabase
-    .from('platform_users')
-    .select('id, type')
-    .eq('id', user.id)
-    .maybeSingle()
+  const { data: admin } = await supabase.from('admins').select('id').eq('auth_user_id', user.id).maybeSingle()
+  if (admin) return NextResponse.redirect(new URL('/admin', origin))
 
-  // Authentication and registration are separate concerns. A successful login
-  // must not silently create or downgrade a platform profile.
-  if (!profile || !profile.type) {
-    return NextResponse.redirect(new URL('/auth/registar', origin))
-  }
+  const { data: profile } = await supabase.from('platform_users').select('id, type').eq('id', user.id).maybeSingle()
+  if (!profile || !profile.type) return NextResponse.redirect(new URL('/auth/registar', origin))
 
   const next = safeInternalPath(request.nextUrl.searchParams.get('next'), '/dashboard')
   return NextResponse.redirect(new URL(next, origin))
