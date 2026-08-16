@@ -28,6 +28,30 @@ function validateDate(value: string, label: string) {
   return date
 }
 
+async function geocodeAddress(address: string) {
+  const value = address.trim()
+  if (value.length < 4) return null
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('q', value)
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('limit', '1')
+    url.searchParams.set('countrycodes', 'pt,es')
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Find4Sport/1.0', 'Accept-Language': 'pt-PT,pt;q=0.9' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) return null
+    const rows = await response.json() as Array<{ lat?: string; lon?: string }>
+    const latitude = Number(rows?.[0]?.lat)
+    const longitude = Number(rows?.[0]?.lon)
+    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
+  } catch {
+    return null
+  }
+}
+
 async function uploadImage(admin: ReturnType<typeof createAdminClient>, userId: string, eventFolderId: string, file: File, prefix: string) {
   if (!IMAGE_TYPES.has(file.type)) throw new Error('As imagens devem ser JPEG, PNG ou WebP.')
   if (file.size > MAX_IMAGE_BYTES) throw new Error('Cada imagem pode ter no máximo 8 MB.')
@@ -81,6 +105,7 @@ export async function createEventAction(formData: FormData) {
   const fields = validateEventFields(formData)
   const admin = createAdminClient()
   await validateCategory(admin, fields.categoryId)
+  const coordinates = fields.address ? await geocodeAddress(fields.address) : null
 
   let organizerName = user.user_metadata?.full_name || 'Organizador'
   let professionalId: string | null = null
@@ -117,7 +142,7 @@ export async function createEventAction(formData: FormData) {
     for (const file of gallery) uploaded.push(await uploadImage(admin, user.id, folderId, file, 'gallery'))
     const galleryUrls = uploaded.filter(item => item.url !== imageUrl).map(item => item.url)
 
-    const { data: event, error } = await admin.from('events').insert({
+    const payload: Record<string, unknown> = {
       title: fields.title,
       description: fields.description,
       category_id: fields.categoryId,
@@ -133,11 +158,17 @@ export async function createEventAction(formData: FormData) {
       professional_id: professionalId,
       organizer_name: organizerName,
       status,
-    }).select('id').single()
+    }
+    if (coordinates) {
+      payload.latitude = coordinates.latitude
+      payload.longitude = coordinates.longitude
+    }
 
+    const { data: event, error } = await admin.from('events').insert(payload).select('id').single()
     if (error || !event) throw new Error(error?.message || 'Não foi possível criar o evento.')
     revalidatePath('/dashboard/eventos')
     revalidatePath('/eventos')
+    revalidatePath('/pesquisa')
     return { success: true, eventId: event.id, status }
   } catch (error) {
     if (uploaded.length) await admin.storage.from('events').remove(uploaded.map(item => item.path))
@@ -155,7 +186,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
   const admin = createAdminClient()
   const { data: current } = await admin
     .from('events')
-    .select('id,created_by,image_url,gallery_urls,status')
+    .select('id,created_by,image_url,gallery_urls,status,address')
     .eq('id', eventId)
     .eq('created_by', user.id)
     .maybeSingle()
@@ -163,6 +194,8 @@ export async function updateEventAction(eventId: string, formData: FormData) {
 
   const fields = validateEventFields(formData)
   await validateCategory(admin, fields.categoryId)
+  const addressChanged = String(current.address || '').trim() !== String(fields.address || '').trim()
+  const coordinates = addressChanged && fields.address ? await geocodeAddress(fields.address) : null
 
   const currentGallery = Array.isArray(current.gallery_urls) ? current.gallery_urls.filter((value): value is string => typeof value === 'string') : []
   const requestedExisting = formData.getAll('existing_gallery').map(String)
@@ -183,7 +216,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
     for (const file of newGallery) uploaded.push(await uploadImage(admin, user.id, eventId, file, 'gallery'))
     const galleryUrls = [...keptGallery, ...uploaded.filter(item => item.url !== imageUrl).map(item => item.url)]
 
-    const { error } = await admin.from('events').update({
+    const payload: Record<string, unknown> = {
       title: fields.title,
       description: fields.description,
       category_id: fields.categoryId,
@@ -195,7 +228,13 @@ export async function updateEventAction(eventId: string, formData: FormData) {
       price_max: fields.priceMax,
       image_url: imageUrl,
       gallery_urls: galleryUrls.length ? galleryUrls : null,
-    }).eq('id', eventId).eq('created_by', user.id)
+    }
+    if (addressChanged) {
+      payload.latitude = coordinates?.latitude ?? null
+      payload.longitude = coordinates?.longitude ?? null
+    }
+
+    const { error } = await admin.from('events').update(payload).eq('id', eventId).eq('created_by', user.id)
     if (error) throw new Error(error.message)
 
     const removedUrls = currentGallery.filter(url => !galleryUrls.includes(url))
@@ -206,6 +245,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
     revalidatePath('/dashboard/eventos')
     revalidatePath(`/dashboard/eventos/${eventId}/editar`)
     revalidatePath('/eventos')
+    revalidatePath('/pesquisa')
     return { success: true }
   } catch (error) {
     if (uploaded.length) await admin.storage.from('events').remove(uploaded.map(item => item.path))
