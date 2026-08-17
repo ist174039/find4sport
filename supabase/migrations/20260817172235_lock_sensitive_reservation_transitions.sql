@@ -1,0 +1,3 @@
+create or replace function public.enforce_reservation_completion_lifecycle() returns trigger language plpgsql set search_path=public,pg_temp as $$begin if new.status='completed' and old.status is distinct from new.status and new.service_delivery_status<>'completed' then raise exception 'DELIVERY_CONFIRMATION_REQUIRED' using errcode='P0001'; end if; return new; end;$$;
+drop trigger if exists reservations_completion_lifecycle on public.reservations;
+create trigger reservations_completion_lifecycle before update on public.reservations for each row execute function public.enforce_reservation_completion_lifecycle();

@@ -1,0 +1,6 @@
+create or replace function public.enforce_approved_service_reservation() returns trigger language plpgsql set search_path=public,pg_temp as $$begin if new.service_id is not null and not exists(select 1 from public.services s where s.id=new.service_id and s.is_active=true and s.moderation_status='approved') then raise exception 'SERVICE_NOT_APPROVED' using errcode='P0001'; end if; return new; end;$$;
+drop trigger if exists reservations_require_approved_service on public.reservations;
+create trigger reservations_require_approved_service before insert or update of service_id on public.reservations for each row execute function public.enforce_approved_service_reservation();
+create or replace function public.enforce_approved_active_service() returns trigger language plpgsql set search_path=public,pg_temp as $$begin if new.is_active=true and new.moderation_status<>'approved' then raise exception 'SERVICE_NOT_APPROVED' using errcode='P0001'; end if; return new; end;$$;
+drop trigger if exists services_require_approval_to_activate on public.services;
+create trigger services_require_approval_to_activate before insert or update of is_active,moderation_status on public.services for each row execute function public.enforce_approved_active_service();
