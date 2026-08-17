@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Service } from '@/lib/types'
 
 interface ProfessionalServicesProps { services: Service[]; professionalId: string }
+type PaymentCapability = { stripe_account_id: string | null; status: string | null }
 function plausibleStripeAccountId(value: unknown) { return /^acct_[A-Za-z0-9]{16,}$/.test(String(value || '')) }
 
 export function ProfessionalServices({ services, professionalId }: ProfessionalServicesProps) {
@@ -29,7 +30,7 @@ export function ProfessionalServices({ services, professionalId }: ProfessionalS
     ]).then(([packagePayload, professionalResult]) => {
       if (cancelled) return
       setPackages(Array.isArray(packagePayload.packages) ? packagePayload.packages : [])
-      const professional = professionalResult.data as any
+      const professional = professionalResult.data as PaymentCapability | null
       setPaymentsEnabled(professional?.status === 'active' && plausibleStripeAccountId(professional?.stripe_account_id))
     }).catch(() => {
       if (!cancelled) { setPackages([]); setPaymentsEnabled(false) }
@@ -46,13 +47,13 @@ export function ProfessionalServices({ services, professionalId }: ProfessionalS
         <h2 className="mb-5 flex items-center gap-2 text-xl font-semibold text-foreground md:text-2xl"><HandCoins className="h-5 w-5 text-primary" />Serviços e preços</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {services.map(service => { const paid = Number(service.price || 0) > 0; const unavailable = paid && paymentsEnabled !== true; return <Card key={service.id} className="border-border shadow-sm transition-colors hover:border-primary/50">
-            <CardHeader className="pb-2"><CardTitle className="text-lg">{service.name}</CardTitle>{service.description&&<CardDescription className="line-clamp-2">{service.description}</CardDescription>}</CardHeader>
-            <CardContent><div className="flex flex-col gap-4"><div className="flex flex-wrap items-center gap-4 text-sm">{service.duration_minutes&&<div className="flex items-center gap-1 text-muted-foreground"><Clock className="h-4 w-4"/>{service.duration_minutes} min</div>}{service.price!==null&&<div className="flex items-center gap-1 font-bold text-primary"><Euro className="h-4 w-4"/>{Number(service.price).toFixed(2)} / {service.price_unit||'sessão'}</div>}</div>{unavailable&&paymentsEnabled!==null&&<p className="text-xs text-muted-foreground">Reserva paga temporariamente indisponível enquanto o profissional configura os pagamentos.</p>}<Button onClick={()=>handleBook(service)} disabled={unavailable} className="min-h-11 w-full gap-2 rounded-xl font-bold">{paid&&paymentsEnabled===null?<Loader2 className="h-4 w-4 animate-spin"/>:<CalendarCheck className="h-4 w-4"/>}{unavailable?(paymentsEnabled===null?'A verificar…':'Indisponível'):'Reservar'}</Button></div></CardContent>
-          </Card>})}
+            <CardHeader className="pb-2"><CardTitle className="text-lg">{service.name}</CardTitle>{service.description && <CardDescription className="line-clamp-2">{service.description}</CardDescription>}</CardHeader>
+            <CardContent><div className="flex flex-col gap-4"><div className="flex flex-wrap items-center gap-4 text-sm">{service.duration_minutes && <div className="flex items-center gap-1 text-muted-foreground"><Clock className="h-4 w-4" />{service.duration_minutes} min</div>}{service.price !== null && <div className="flex items-center gap-1 font-bold text-primary"><Euro className="h-4 w-4" />{Number(service.price).toFixed(2)} / {service.price_unit || 'sessão'}</div>}</div>{unavailable && paymentsEnabled !== null && <p className="text-xs text-muted-foreground">Reserva paga temporariamente indisponível enquanto o profissional configura os pagamentos.</p>}<Button onClick={() => handleBook(service)} disabled={unavailable} className="min-h-11 w-full gap-2 rounded-xl font-bold">{paid && paymentsEnabled === null ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}{unavailable ? (paymentsEnabled === null ? 'A verificar…' : 'Indisponível') : 'Reservar'}</Button></div></CardContent>
+          </Card> })}
         </div>
       </section>}
-      <ServicePackageOffers packages={packages} paymentsEnabled={paymentsEnabled === true}/>
-      <BookingWizard open={wizardOpen} onOpenChange={setWizardOpen} service={selectedService} professionalId={professionalId}/>
+      <ServicePackageOffers packages={packages} paymentsEnabled={paymentsEnabled === true} />
+      <BookingWizard open={wizardOpen} onOpenChange={setWizardOpen} service={selectedService} professionalId={professionalId} />
     </div>
   )
 }
