@@ -57,6 +57,37 @@ jobs:
           echo "Production endpoint did not become reachable"
           exit 1
 
+      - name: Report authenticated E2E coverage
+        env:
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_PROFESSIONAL_EMAIL: ${{ secrets.E2E_PROFESSIONAL_EMAIL }}
+          E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
+          E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
+          E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: |
+          echo "## Authenticated E2E coverage" >> "$GITHUB_STEP_SUMMARY"
+          configured=0
+          missing=0
+          for role in ATHLETE PROFESSIONAL VENUE_MANAGER ADMIN; do
+            email_var="E2E_${role}_EMAIL"
+            password_var="E2E_${role}_PASSWORD"
+            if [ -n "${!email_var}" ] && [ -n "${!password_var}" ]; then
+              echo "- ✅ ${role}: configured" >> "$GITHUB_STEP_SUMMARY"
+              configured=$((configured + 1))
+            else
+              echo "- ⚠️ ${role}: missing GitHub secrets; authenticated tests will be skipped" >> "$GITHUB_STEP_SUMMARY"
+              missing=$((missing + 1))
+            fi
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Configured roles: ${configured}/4" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$missing" -gt 0 ]; then
+            echo "::warning::Authenticated E2E coverage is incomplete: ${configured}/4 roles configured"
+          fi
+
       - name: Run production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
