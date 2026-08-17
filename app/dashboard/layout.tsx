@@ -4,6 +4,8 @@ import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardContentShell } from '@/components/dashboard/content-shell'
 import { resolveSessionAccess } from '@/lib/auth/access'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
