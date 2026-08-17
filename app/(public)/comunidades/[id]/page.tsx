@@ -32,14 +32,14 @@ type Membership = { id: string; role: string | null }
 type PendingRequest = { id: string; status: string }
 type Profile = { type: string | null; full_name: string | null; avatar_url: string | null }
 type Category = { id: string; name: string; slug: string }
-type CategoryRow = { category: Category | null }
+type CategoryRow = { category: Category[] }
 type CommunityPost = ComponentProps<typeof PostCard>['post']
 type CommunityMember = ComponentProps<typeof CommunityMembersList>['members'][number]
 type JoinRequest = {
   id: string
   user_id: string
   created_at: string
-  platform_users: { full_name: string | null; avatar_url: string | null } | null
+  platform_users: Array<{ full_name: string | null; avatar_url: string | null }>
 }
 
 export default async function CommunityProfilePage({
@@ -95,7 +95,7 @@ export default async function CommunityProfilePage({
 
   const memberCount = memberCountRaw || 0
   const postCount = postCountRaw || 0
-  const categories = ((categoryRows || []) as CategoryRow[]).map(row => row.category).filter((category): category is Category => Boolean(category))
+  const categories = ((categoryRows || []) as CategoryRow[]).flatMap(row => row.category)
 
   let posts: CommunityPost[] = []
   let members: CommunityMember[] = []
@@ -176,7 +176,7 @@ export default async function CommunityProfilePage({
               </DetailSection>
             </>
           )}
-          {isCommunityAdmin && <DetailSection title="Pedidos de adesão" icon={<ShieldCheck className="h-5 w-5 text-primary" />}>{joinRequests.length === 0 ? <p className="text-sm text-muted-foreground">Sem pedidos pendentes.</p> : <div className="divide-y">{joinRequests.map(request => <div key={request.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold">{request.platform_users?.full_name || 'Utilizador'}</p><p className="text-xs text-muted-foreground">Pedido em {new Date(request.created_at).toLocaleDateString('pt-PT')}</p></div><div className="grid grid-cols-2 gap-2"><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'reject')}><Button type="submit" variant="outline" className="min-h-11 w-full">Recusar</Button></form><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'approve')}><Button type="submit" className="min-h-11 w-full">Aprovar</Button></form></div></div>)}</div>}</DetailSection>}
+          {isCommunityAdmin && <DetailSection title="Pedidos de adesão" icon={<ShieldCheck className="h-5 w-5 text-primary" />}>{joinRequests.length === 0 ? <p className="text-sm text-muted-foreground">Sem pedidos pendentes.</p> : <div className="divide-y">{joinRequests.map(request => <div key={request.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold">{request.platform_users[0]?.full_name || 'Utilizador'}</p><p className="text-xs text-muted-foreground">Pedido em {new Date(request.created_at).toLocaleDateString('pt-PT')}</p></div><div className="grid grid-cols-2 gap-2"><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'reject')}><Button type="submit" variant="outline" className="min-h-11 w-full">Recusar</Button></form><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'approve')}><Button type="submit" className="min-h-11 w-full">Aprovar</Button></form></div></div>)}</div>}</DetailSection>}
         </>}
         aside={<DetailSection title="Resumo"><div className="grid grid-cols-2 gap-4"><DetailStat label="Membros" value={memberCount} /><DetailStat label="Privacidade" value={community.is_private ? 'Privada' : 'Pública'} />{canViewPrivateContent && <DetailStat label="Publicações" value={postCount} />}<DetailStat label="Âmbito" value={scopeLabel[community.location_scope || ''] || 'Online'} />{categories[0]?.name && <DetailStat label="Modalidade" value={categories[0].name} />}</div></DetailSection>}
       />
