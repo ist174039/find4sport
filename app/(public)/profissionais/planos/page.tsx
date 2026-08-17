@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import PlanosClient from './planos-client'
 
+export const dynamic = 'force-dynamic'
+
 function formatEntitlement(row: any) {
   const label = row.description || row.feature_key
   if (row.value_type === 'boolean') return row.boolean_value ? label : null
