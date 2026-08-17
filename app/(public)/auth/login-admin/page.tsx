@@ -1,9 +1,14 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Shield, ArrowRight, Loader2 } from 'lucide-react'
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Credenciais inválidas.'
+}
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -40,9 +45,9 @@ export default function AdminLoginPage() {
 
       router.push('/admin')
       router.refresh()
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      setError(err.message || 'Credenciais inválidas.')
+      setError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
@@ -117,9 +122,9 @@ export default function AdminLoginPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
-          <a href="/" className="text-sm text-zinc-500 hover:text-white transition-colors">
+          <Link href="/" className="text-sm text-zinc-500 hover:text-white transition-colors">
             ← Voltar ao site público
-          </a>
+          </Link>
         </div>
       </div>
     </div>
