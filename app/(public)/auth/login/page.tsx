@@ -11,6 +11,10 @@ function safeNext(value: string | null) {
   return value
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : ''
+}
+
 function LoginForm() {
   const searchParams = useSearchParams()
   const destination = safeNext(searchParams.get('redirect') || searchParams.get('next'))
@@ -30,8 +34,9 @@ function LoginForm() {
       callback.searchParams.set('next', destination)
       const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: callback.toString() } })
       if (oauthError) throw oauthError
-    } catch (err: any) {
-      setError(err?.message || 'Não foi possível iniciar sessão com este fornecedor.')
+    } catch (err) {
+      const message = getErrorMessage(err)
+      setError(message || 'Não foi possível iniciar sessão com este fornecedor.')
       setOauthLoading(null)
     }
   }
@@ -48,9 +53,10 @@ function LoginForm() {
       const resolve = new URL('/auth/resolve', window.location.origin)
       resolve.searchParams.set('next', destination)
       window.location.assign(resolve.toString())
-    } catch (err: any) {
-      const message = String(err?.message || '').toLowerCase()
-      setError(message.includes('invalid login credentials') ? 'E-mail ou palavra-passe incorretos.' : err?.message || 'Não foi possível iniciar sessão.')
+    } catch (err) {
+      const errorMessage = getErrorMessage(err)
+      const message = errorMessage.toLowerCase()
+      setError(message.includes('invalid login credentials') ? 'E-mail ou palavra-passe incorretos.' : errorMessage || 'Não foi possível iniciar sessão.')
     } finally {
       setIsLoading(false)
     }
