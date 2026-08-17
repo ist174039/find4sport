@@ -5,9 +5,11 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Trophy, User } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import type { User as AuthUser } from '@supabase/supabase-js'
 import type { PlatformRole } from '@/lib/auth/roles'
 
-const ACCOUNT_TYPES: Array<{ id: PlatformRole; label: string; description: string; detail: string; icon: any }> = [
+const ACCOUNT_TYPES: Array<{ id: PlatformRole; label: string; description: string; detail: string; icon: LucideIcon }> = [
   { id: 'athlete', label: 'Utilizador', description: 'Descobrir, reservar e participar.', detail: 'Pesquisa, favoritos, eventos, comunidades e mensagens.', icon: User },
   { id: 'professional', label: 'Profissional', description: 'Promover serviços e gerir clientes.', detail: 'Perfil profissional, serviços, agenda, eventos e comunidades.', icon: Trophy },
   { id: 'venue_manager', label: 'Espaço', description: 'Gerir instalações e reservas.', detail: 'Espaço público, salas/campos, horários, reservas e equipa.', icon: Building2 },
@@ -18,17 +20,25 @@ function safeNext(value: string | null) {
   return value
 }
 
+function accountTypeFromQuery(value: string | null): PlatformRole | null {
+  return ACCOUNT_TYPES.some(item => item.id === value) ? value as PlatformRole : null
+}
+
 function setupDestination(type: PlatformRole, finalDestination: string) {
   if (type === 'professional') return `/auth/registar/profissional?next=${encodeURIComponent(finalDestination)}`
   if (type === 'venue_manager') return `/auth/registar/espaco?next=${encodeURIComponent(finalDestination)}`
   return finalDestination
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : ''
+}
+
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const destination = safeNext(searchParams.get('next') || searchParams.get('redirect'))
-  const [selectedType, setSelectedType] = useState<PlatformRole | null>(null)
+  const [selectedType, setSelectedType] = useState<PlatformRole | null>(() => accountTypeFromQuery(searchParams.get('type')))
   const [step, setStep] = useState<'type' | 'credentials'>('type')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -38,11 +48,9 @@ function RegisterForm() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [existingUser, setExistingUser] = useState<any>(null)
+  const [existingUser, setExistingUser] = useState<AuthUser | null>(null)
 
   useEffect(() => {
-    const requestedType = searchParams.get('type') as PlatformRole | null
-    if (ACCOUNT_TYPES.some(item => item.id === requestedType)) setSelectedType(requestedType)
     void (async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -52,7 +60,7 @@ function RegisterForm() {
         setEmail(user.email || '')
       }
     })()
-  }, [searchParams])
+  }, [])
 
   const continueWithType = async () => {
     if (!selectedType || isLoading) return
@@ -77,8 +85,8 @@ function RegisterForm() {
       })
       if (upsertError) throw upsertError
       window.location.assign(destination)
-    } catch (err: any) {
-      setError(err?.message || 'Não foi possível concluir o perfil.')
+    } catch (err) {
+      setError(getErrorMessage(err) || 'Não foi possível concluir o perfil.')
       setIsLoading(false)
     }
   }
@@ -106,8 +114,8 @@ function RegisterForm() {
       if (signUpError) throw signUpError
       if (data.user?.identities?.length === 0) throw new Error('Este e-mail já está registado. Inicia sessão para continuar.')
       router.push('/auth/confirmar-email')
-    } catch (err: any) {
-      const message = String(err?.message || '')
+    } catch (err) {
+      const message = getErrorMessage(err)
       setError(message.toLowerCase().includes('already registered') ? 'Este e-mail já está registado. Inicia sessão.' : message || 'Não foi possível criar a conta.')
     } finally {
       setIsLoading(false)
@@ -126,8 +134,8 @@ function RegisterForm() {
       callback.searchParams.set('next', nextAfterAuth)
       const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: callback.toString() } })
       if (oauthError) throw oauthError
-    } catch (err: any) {
-      setError(err?.message || `Não foi possível continuar com ${provider}.`)
+    } catch (err) {
+      setError(getErrorMessage(err) || `Não foi possível continuar com ${provider}.`)
       setIsLoading(false)
     }
   }
