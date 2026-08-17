@@ -60,7 +60,15 @@ jobs:
       - name: Run production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
-        run: npx playwright test e2e/public-smoke.spec.mjs --project=${{ matrix.project }}
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_PROFESSIONAL_EMAIL: ${{ secrets.E2E_PROFESSIONAL_EMAIL }}
+          E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
+          E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
+          E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: npx playwright test e2e/public-smoke.spec.mjs e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }}
 
       - name: Upload Playwright report
         if: always()

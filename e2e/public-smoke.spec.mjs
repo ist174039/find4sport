@@ -18,6 +18,15 @@ for (const route of publicRoutes) {
   })
 }
 
+test('baseline security headers are present', async ({ request }) => {
+  const response = await request.get('/')
+  const headers = response.headers()
+
+  expect(headers['x-content-type-options']).toBe('nosniff')
+  expect(headers['x-frame-options']).toBe('DENY')
+  expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
+})
+
 test('login rejects invalid credentials with a user-facing error', async ({ page }) => {
   await page.goto('/auth/login')
 
