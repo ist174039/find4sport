@@ -37,6 +37,24 @@ test('login redirect input cannot escape the application origin', async ({ page 
   expect(registerHref).not.toContain('example.com')
 })
 
+test('anonymous users cannot access the dashboard', async ({ page }) => {
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
+  await expect(page).toHaveURL(/\/auth\/login(?:\?|$)/)
+})
+
+test('anonymous users cannot access admin pages', async ({ page }) => {
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' })
+  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/)
+})
+
+test('checkout endpoints reject anonymous requests', async ({ request }) => {
+  for (const route of ['/api/checkout_sessions', '/api/package-checkout', '/api/stripe/checkout']) {
+    const response = await request.post(route, { data: {} })
+    expect(response.status(), `${route} unexpectedly accepted an anonymous checkout`).toBeGreaterThanOrEqual(400)
+    expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
+  }
+})
+
 test('mobile public pages do not overflow horizontally', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
 
