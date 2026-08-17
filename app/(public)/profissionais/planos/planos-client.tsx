@@ -10,8 +10,10 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 type BillingCycle = 'monthly' | 'annual'
+export type PublicPlan = { code:string; name:string; monthlyPrice:number; annualPrice:number; description:string; features:string[]; notIncluded:string[]; cta:string; href:string; basePopular:boolean }
+type CheckoutPayload = { error?: string; url?: string }
 
-export default function PlanosClient({ initialPlans, header, subheader }: { initialPlans: any[], header: string, subheader: string }) {
+export default function PlanosClient({ initialPlans, header, subheader }: { initialPlans: PublicPlan[], header: string, subheader: string }) {
   const params = useSearchParams()
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(params.get('billing') === 'annual' ? 'annual' : 'monthly')
   const recommendedPlanName = getAudienceRecommendedPlan(params.get('audience'))
@@ -73,19 +75,19 @@ export default function PlanosClient({ initialPlans, header, subheader }: { init
                 <CardContent className="flex flex-1 flex-col relative z-10">
                   <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8"></div>
                   <ul className="flex-1 space-y-4">
-                    {plan.features?.map((f: string) => <li key={f} className="flex items-start gap-3 text-sm"><div className="mt-0.5 rounded-full bg-emerald-500/20 p-0.5 shrink-0"><Check className="h-3 w-3 text-emerald-400" /></div><span className="text-zinc-300">{f}</span></li>)}
-                    {plan.notIncluded?.map((f: string) => <li key={f} className="flex items-start gap-3 text-sm text-zinc-500"><X className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" /><span className="opacity-80">{f}</span></li>)}
+                    {plan.features.map((feature) => <li key={feature} className="flex items-start gap-3 text-sm"><div className="mt-0.5 rounded-full bg-emerald-500/20 p-0.5 shrink-0"><Check className="h-3 w-3 text-emerald-400" /></div><span className="text-zinc-300">{feature}</span></li>)}
+                    {plan.notIncluded.map((feature) => <li key={feature} className="flex items-start gap-3 text-sm text-zinc-500"><X className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" /><span className="opacity-80">{feature}</span></li>)}
                   </ul>
 
                   {params.get('action') === 'upgrade' && plan.code !== 'free' ? (
                     <Button onClick={async () => {
                       try {
                         const res = await fetch('/api/stripe/checkout', { method: 'POST', body: JSON.stringify({ planCode: plan.code, billingCycle }), headers: { 'Content-Type': 'application/json' } })
-                        const data = await res.json()
+                        const data = await res.json().catch(() => ({})) as CheckoutPayload
                         if (!res.ok) throw new Error(data.error || 'Erro ao iniciar checkout')
                         if (data.url) window.location.href = data.url
-                      } catch (e) {
-                        alert(e instanceof Error ? e.message : 'Erro ao processar upgrade.')
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : 'Erro ao processar upgrade.')
                       }
                     }} className={`mt-10 w-full h-12 rounded-xl text-base font-semibold transition-all ${plan.basePopular ? 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'bg-white/10 text-white hover:bg-white/20 border-0'}`} variant={plan.basePopular ? 'default' : 'outline'}>Fazer Upgrade</Button>
                   ) : (
