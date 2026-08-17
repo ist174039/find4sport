@@ -12,19 +12,29 @@ concurrency:
 jobs:
   static-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - name: Install dependencies
         run: npm ci
+
       - name: Dependency audit (informational)
         continue-on-error: true
         run: npm audit --audit-level=low
+
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Production build
+        run: npm run build
