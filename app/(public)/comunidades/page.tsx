@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
 import { DiscoveryPagination } from '@/components/patterns/discovery-pagination'
 import { Button } from '@/components/ui/button'
+import { AppImage } from '@/components/ui/app-image'
 import { parseGeoCookie } from '@/lib/geo'
 import type { Category } from '@/lib/types'
 
@@ -130,7 +131,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
               return (
                 <Link key={community.id} href={`/comunidades/${community.slug || community.id}`} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card transition hover:border-primary/40 hover:shadow-md">
                   <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                    {community.cover_url ? <img src={community.cover_url} alt={community.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}
+                    {community.cover_url ? <AppImage src={community.cover_url} alt={community.name} fill sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, 50vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}
                     <span className="absolute left-2 top-2 max-w-[70%] truncate rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white">{primaryCategory}</span>
                     {distance && <span className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-1 text-[10px] font-semibold shadow"><Navigation className="mr-1 inline h-3 w-3 text-primary" />{distance}</span>}
                   </div>
