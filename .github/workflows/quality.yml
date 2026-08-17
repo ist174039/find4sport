@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install lint tooling
+        run: npm install --no-save --package-lock=false eslint@9.39.1 eslint-config-next@16.3.1
+
       - name: Dependency audit (informational)
         continue-on-error: true
         run: npm audit --audit-level=low
