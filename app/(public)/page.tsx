@@ -7,6 +7,8 @@ import { PageContainer } from '@/components/patterns/page-shell'
 import { distanceFrom, parseGeoCookie } from '@/lib/geo'
 import { PUBLIC_EVENT_STATUS, PUBLIC_PROFESSIONAL_STATUS, PUBLIC_SPACE_STATUS } from '@/lib/domain/public-entities'
 
+export const dynamic = 'force-dynamic'
+
 const ecosystem=[
   {name:'Profissionais',description:'Treino, recuperação e acompanhamento',href:'/profissionais',icon:Users},
   {name:'Espaços',description:'Instalações e campos desportivos',href:'/espacos',icon:Building2},
