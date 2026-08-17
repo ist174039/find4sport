@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Loader2, MessageSquarePlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,6 +14,16 @@ type SearchResult = {
   type: string
 }
 
+type ConversationContact = {
+  id: string
+  name: string
+  avatar: string
+  role: string
+  unread: number
+  lastMsg: string
+  lastMsgDate: string
+}
+
 export function NewConversationModal({ 
   open, 
   onClose,
@@ -22,19 +32,12 @@ export function NewConversationModal({
 }: {
   open: boolean
   onClose: () => void
-  onSelectContact: (contact: any) => void
+  onSelectContact: (contact: ConversationContact) => void
   currentUserId: string
 }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!open) {
-      setQuery('')
-      setResults([])
-    }
-  }, [open])
 
   useEffect(() => {
     const searchContacts = async () => {
@@ -128,12 +131,19 @@ export function NewConversationModal({
       setLoading(false)
     }
 
-    const timer = setTimeout(searchContacts, 400)
+    const timer = setTimeout(() => { void searchContacts() }, 400)
     return () => clearTimeout(timer)
   }, [query, currentUserId])
 
+  function closeModal() {
+    setQuery('')
+    setResults([])
+    setLoading(false)
+    onClose()
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+    <Dialog open={open} onOpenChange={(value) => !value && closeModal()}>
       <DialogContent className="w-full max-w-md h-[500px] max-h-[80vh] p-0 overflow-hidden">
         <DialogHeader className="p-4 border-b border-border bg-muted/20">
           <DialogTitle className="flex items-center gap-2 font-bold text-foreground">
@@ -191,7 +201,7 @@ export function NewConversationModal({
           ) : query.trim().length >= 2 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6 text-center">
               <Search className="w-8 h-8 mb-2 opacity-20" />
-              <p className="text-sm">Nenhum resultado encontrado para "{query}"</p>
+              <p className="text-sm">Nenhum resultado encontrado para &quot;{query}&quot;</p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-6 text-center opacity-70">
