@@ -1,9 +1,30 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import PlanosClient from './planos-client'
+import PlanosClient, { type PublicPlan } from './planos-client'
 
 export const dynamic = 'force-dynamic'
 
-function formatEntitlement(row: any) {
+type EntitlementRow = {
+  feature_key: string
+  value_type: string
+  boolean_value: boolean | null
+  integer_value: number | null
+  decimal_value: number | string | null
+  text_value: string | null
+  is_unlimited: boolean | null
+  description: string | null
+}
+type PlanRow = {
+  code: string
+  name: string
+  description: string | null
+  monthly_price: number | string | null
+  annual_price: number | string | null
+  commission_rate: number | string | null
+  customer_service_fee_rate: number | string | null
+  plan_entitlements: EntitlementRow[]
+}
+
+function formatEntitlement(row: EntitlementRow) {
   const label = row.description || row.feature_key
   if (row.value_type === 'boolean') return row.boolean_value ? label : null
   if (row.is_unlimited) return `${label}: ilimitado`
@@ -18,42 +39,27 @@ function formatEntitlement(row: any) {
 
 export default async function PlanosPage() {
   const admin = createAdminClient()
-
-  const { data: plans, error } = await admin
-    .from('subscription_plans')
-    .select(`
+  const { data: plans, error } = await admin.from('subscription_plans').select(`
       id, code, name, description, monthly_price, annual_price,
       commission_rate, customer_service_fee_rate, sort_order,
       plan_entitlements (
         feature_key, value_type, boolean_value, integer_value,
         decimal_value, text_value, is_unlimited, description
       )
-    `)
-    .eq('audience', 'professional')
-    .eq('is_active', true)
-    .eq('is_public', true)
-    .order('sort_order', { ascending: true })
+    `).eq('audience', 'professional').eq('is_active', true).eq('is_public', true).order('sort_order', { ascending: true })
 
   if (error) throw new Error('Não foi possível carregar os planos.')
 
-  const initialPlans = (plans || []).map((plan: any) => {
+  const initialPlans: PublicPlan[] = ((plans || []) as unknown as PlanRow[]).map((plan) => {
     const included: string[] = []
     const excluded: string[] = []
-
     for (const entitlement of plan.plan_entitlements || []) {
       const formatted = formatEntitlement(entitlement)
-      if (entitlement.value_type === 'boolean' && entitlement.boolean_value === false) {
-        excluded.push(entitlement.description || entitlement.feature_key)
-      } else if (formatted) {
-        included.push(formatted)
-      }
+      if (entitlement.value_type === 'boolean' && entitlement.boolean_value === false) excluded.push(entitlement.description || entitlement.feature_key)
+      else if (formatted) included.push(formatted)
     }
-
     included.push(`Comissão da plataforma: ${Number(plan.commission_rate).toFixed(2)}%`)
-    if (Number(plan.customer_service_fee_rate) > 0) {
-      included.push(`Service fee ao cliente: ${Number(plan.customer_service_fee_rate).toFixed(2)}%`)
-    }
-
+    if (Number(plan.customer_service_fee_rate) > 0) included.push(`Service fee ao cliente: ${Number(plan.customer_service_fee_rate).toFixed(2)}%`)
     return {
       code: plan.code,
       name: plan.name,
@@ -68,11 +74,5 @@ export default async function PlanosPage() {
     }
   })
 
-  return (
-    <PlanosClient
-      initialPlans={initialPlans}
-      header="Planos e Preços"
-      subheader="Escolha o plano ideal para o seu negócio. Os preços, comissões e limites são geridos centralmente pela FIND4SPORT."
-    />
-  )
+  return <PlanosClient initialPlans={initialPlans} header="Planos e Preços" subheader="Escolha o plano ideal para o seu negócio. Os preços, comissões e limites são geridos centralmente pela FIND4SPORT." />
 }
