@@ -10,11 +10,27 @@ import { loadPostCommentsAction, loadPostLikesAction, type PublicPostComment, ty
 import { useModal } from '@/components/providers/modal-provider'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { UserAvatar } from '@/components/user-avatar'
+import { AppImage } from '@/components/ui/app-image'
+
+export type PostCardPost = {
+  id: string
+  content: string | null
+  created_at: string
+  media_url: string | null
+  media_type: string | null
+  professional_id: string | null
+  sport_space_id: string | null
+  professionals?: { professional_name?: string | null; full_name?: string | null; avatar_url?: string | null; public_slug?: string | null } | null
+  sport_spaces?: { name?: string | null; logo_url?: string | null; slug?: string | null } | null
+  platform_users?: { id?: string | null; full_name?: string | null; avatar_url?: string | null } | null
+  likes?: Array<{ count: number | string | null }> | null
+  comments?: Array<{ count: number | string | null }> | null
+}
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const renderPostContent = (value: string) => escapeHtml(value).replace(/#([\wÀ-ÿ]+)/g, (_, tag: string) => `<a href="/pesquisa?q=${encodeURIComponent(tag)}" class="font-semibold text-primary hover:underline">#${tag}</a>`)
 
-export default function PostCard({ post, initialIsLiked = false, isAuthenticated = false }: { post: any; initialIsLiked?: boolean; isAuthenticated?: boolean }) {
+export default function PostCard({ post, initialIsLiked = false, isAuthenticated = false }: { post: PostCardPost; initialIsLiked?: boolean; isAuthenticated?: boolean }) {
   const { showAlert } = useModal()
   const [likesCount, setLikesCount] = useState(Number(post.likes?.[0]?.count || 0))
   const [commentsCount, setCommentsCount] = useState(Number(post.comments?.[0]?.count || 0))
@@ -130,20 +146,16 @@ export default function PostCard({ post, initialIsLiked = false, isAuthenticated
     </header>
 
     {post.content && <div className="px-3 py-3 sm:px-4"><p className="break-words whitespace-pre-wrap text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: renderPostContent(post.content) }} /></div>}
-    {post.media_url && <div className="relative aspect-video overflow-hidden border-y border-border bg-muted" onDoubleClick={() => void handleLike()}>{String(post.media_type || '').startsWith('video') ? <video src={post.media_url} controls playsInline className="h-full w-full bg-black object-contain" /> : <img src={post.media_url} alt="Conteúdo da publicação" className="h-full w-full object-cover" />}</div>}
+    {post.media_url && <div className="relative aspect-video overflow-hidden border-y border-border bg-muted" onDoubleClick={() => void handleLike()}>{String(post.media_type || '').startsWith('video') ? <video src={post.media_url} controls playsInline className="h-full w-full bg-black object-contain" /> : <AppImage src={post.media_url} alt="Conteúdo da publicação" fill sizes="(max-width: 1024px) 100vw, 700px" className="object-cover" />}</div>}
 
     <div className="px-3 py-3 sm:px-4">
       <div className="mb-2 flex items-center justify-between gap-2"><div className="flex items-center gap-1 rounded-full border border-border/70 bg-muted/35 px-1.5 py-1"><button type="button" onClick={() => void handleLike()} disabled={liking} className={`flex h-8 w-8 items-center justify-center rounded-full ${isLiked ? 'text-destructive' : ''}`} aria-label="Gostar"><Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} /></button><button type="button" onClick={() => { const next = !showComments; setShowComments(next); if (next) void fetchComments() }} className="flex h-8 w-8 items-center justify-center rounded-full" aria-label="Comentários"><MessageSquare className="h-5 w-5" /></button><button type="button" onClick={() => void handleShare()} className="flex h-8 w-8 items-center justify-center rounded-full" aria-label="Partilhar"><Share2 className="h-5 w-5" /></button></div>{post.sport_space_id && <Link href={authorLink} className="shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">Ver espaço</Link>}</div>
-
       <div className="flex gap-3 text-sm"><button type="button" disabled={!likesCount} onClick={() => { if (likesCount) { setShowLikesModal(true); void fetchLikes() } }} className="font-semibold disabled:cursor-default">{likesCount} {likesCount === 1 ? 'gosto' : 'gostos'}</button>{commentsCount > 0 && !showComments && <button type="button" onClick={() => { setShowComments(true); void fetchComments() }} className="text-muted-foreground hover:underline">{commentsCount} {commentsCount === 1 ? 'comentário' : 'comentários'}</button>}</div>
-
       {showComments && <div className="mt-3 border-t border-border/60 pt-3">{loadingComments ? <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div> : commentsList.length ? <div className="space-y-3">{commentsList.map(comment => <div key={comment.id} className="flex gap-2.5"><Link href={comment.identity.href} className="shrink-0"><UserAvatar name={comment.identity.name} src={comment.identity.avatar} className="size-8" /></Link><div className="min-w-0 flex-1 rounded-2xl bg-muted/40 px-3 py-2"><Link href={comment.identity.href} className="block truncate text-sm font-bold hover:underline">{comment.identity.name}</Link><p className="break-words whitespace-pre-wrap text-sm text-muted-foreground">{comment.content}</p></div></div>)}</div> : <p className="py-2 text-sm text-muted-foreground">Ainda não existem comentários.</p>}</div>}
-
       <form onSubmit={submitComment} className="mt-3 flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-3 py-2"><input value={commentText} onChange={event => setCommentText(event.target.value)} maxLength={2000} placeholder="Adicionar comentário…" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />{commentText.trim() && <button type="submit" disabled={commenting} className="shrink-0 text-sm font-semibold text-primary">{commenting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Publicar'}</button>}</form>
     </div>
 
     <Dialog open={showLikesModal} onOpenChange={setShowLikesModal}><DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Gostos</DialogTitle></DialogHeader><div className="max-h-[55vh] space-y-3 overflow-y-auto">{loadingLikes ? <div className="flex justify-center py-5"><Loader2 className="h-5 w-5 animate-spin" /></div> : likesList.length ? likesList.map(like => <Link key={like.id} href={like.identity.href} className="flex min-h-12 items-center gap-3 rounded-xl p-2 hover:bg-muted"><UserAvatar name={like.identity.name} src={like.identity.avatar} className="size-10" /><span className="truncate text-sm font-semibold">{like.identity.name}</span></Link>) : <p className="py-4 text-center text-sm text-muted-foreground">Sem gostos.</p>}</div></DialogContent></Dialog>
-
     <Dialog open={showReportModal} onOpenChange={setShowReportModal}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Denunciar publicação</DialogTitle></DialogHeader><div className="space-y-4"><div><label className="mb-1.5 block text-sm font-medium">Motivo</label><select value={reportReason} onChange={event => setReportReason(event.target.value as typeof reportReason)} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"><option value="spam">Spam</option><option value="harassment">Assédio</option><option value="hate">Discurso de ódio</option><option value="nudity">Conteúdo sexual/nudez</option><option value="violence">Violência</option><option value="fraud">Fraude</option><option value="other">Outro</option></select></div><div><label className="mb-1.5 block text-sm font-medium">Detalhes opcionais</label><textarea value={reportDetails} onChange={event => setReportDetails(event.target.value)} maxLength={2000} rows={4} className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm" /></div><button type="button" onClick={() => void submitReport()} disabled={reporting} className="w-full rounded-xl bg-destructive px-4 py-2.5 text-sm font-bold text-destructive-foreground disabled:opacity-50">{reporting ? 'A enviar…' : 'Enviar denúncia'}</button></div></DialogContent></Dialog>
   </article>
 }
