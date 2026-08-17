@@ -2,6 +2,7 @@ import { Fragment, isValidElement, type ReactNode } from 'react'
 import { PageContainer } from '@/components/patterns/page-shell'
 import { EntityMobileTabs } from '@/components/patterns/entity-mobile-tabs'
 import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions'
+import { AppImage } from '@/components/ui/app-image'
 import { cn } from '@/lib/utils'
 
 export function EntityHero({
@@ -26,7 +27,7 @@ export function EntityHero({
   return (
     <section className="relative border-b border-border bg-card">
       <div className="relative h-48 overflow-hidden bg-muted sm:h-64 lg:h-72">
-        {coverUrl ? <img src={coverUrl} alt={coverAlt} className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-primary/35 via-slate-700/35 to-slate-950/70" />}
+        {coverUrl ? <AppImage src={coverUrl} alt={coverAlt} fill sizes="100vw" className="object-cover" priority /> : <div className="h-full w-full bg-gradient-to-br from-primary/35 via-slate-700/35 to-slate-950/70" />}
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/15" />
       </div>
