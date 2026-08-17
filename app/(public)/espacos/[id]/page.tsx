@@ -9,6 +9,7 @@ import { PublicFollowAction } from '@/components/public-follow-action'
 import { EntityHero, EntityDetailLayout, DetailSection, DetailStat } from '@/components/patterns/entity-detail'
 import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions'
 import { EntityGallery } from '@/components/patterns/entity-gallery'
+import { AppImage } from '@/components/ui/app-image'
 import { PUBLIC_SPACE_STATUS } from '@/lib/domain/public-entities'
 
 type Space = {
@@ -96,7 +97,7 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
       <EntityHero
         coverUrl={space.cover_url || gallery[0]}
         coverAlt={`Capa de ${space.name}`}
-        avatar={<div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-white bg-background text-2xl font-bold text-primary shadow-lg sm:h-24 sm:w-24">{space.logo_url ? <img src={space.logo_url} alt={space.name} className="h-full w-full object-cover" /> : space.name?.charAt(0)?.toUpperCase()}</div>}
+        avatar={<div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-2 border-white bg-background text-2xl font-bold text-primary shadow-lg sm:h-24 sm:w-24">{space.logo_url ? <AppImage src={space.logo_url} alt={space.name} fill sizes="96px" className="object-cover" /> : space.name?.charAt(0)?.toUpperCase()}</div>}
         title={space.name}
         badges={<><span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-white">Espaço desportivo</span>{space.is_verified && <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/90 px-2.5 py-1 text-xs font-semibold text-white"><BadgeCheck className="h-3.5 w-3.5" />Verificado</span>}</>}
         meta={<>{space.address && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{space.address}</span>}{Number(space.rating_avg) > 0 && <span className="flex items-center gap-1 text-amber-300"><Star className="h-4 w-4 fill-current" />{Number(space.rating_avg).toFixed(1)} ({space.review_count || 0})</span>}<span className="flex items-center gap-1"><Users className="h-4 w-4" />{followersCount} seguidores</span>{minPrice !== null && <span className="font-semibold">Desde {minPrice.toFixed(2)} €/h</span>}</>}
