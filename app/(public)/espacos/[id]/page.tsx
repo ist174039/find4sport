@@ -11,18 +11,58 @@ import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions
 import { EntityGallery } from '@/components/patterns/entity-gallery'
 import { PUBLIC_SPACE_STATUS } from '@/lib/domain/public-entities'
 
+type Space = {
+  id: string
+  slug: string | null
+  owner_user_id: string | null
+  status: string | null
+  name: string
+  description: string | null
+  cover_url: string | null
+  logo_url: string | null
+  gallery_urls: unknown
+  amenities: unknown
+  is_verified: boolean | null
+  address: string | null
+  latitude: number | null
+  longitude: number | null
+  rating_avg: number | string | null
+  review_count: number | null
+  phone: string | null
+  email: string | null
+}
+
+type Professional = {
+  id: string
+  user_id: string | null
+  full_name: string | null
+  professional_name: string | null
+  avatar_url: string | null
+  public_slug: string | null
+  is_verified: boolean | null
+  rating_avg: number | string | null
+  status: string | null
+}
+
+type ProfessionalRelation = { professional: Professional[] }
+type Room = { id: string; name: string; price_per_hour: number | string | null; is_active: boolean | null }
+type RpcResult = { data: unknown; error: { message: string } | null }
+type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
+
 export default async function SpaceProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
   const admin = createAdminClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
-  let space: any = null
-  if (isUuid) space = (await admin.from('sport_spaces').select('*').eq('id', rawId).maybeSingle()).data
-  if (!space) space = (await admin.from('sport_spaces').select('*').eq('slug', rawId).maybeSingle()).data
+  let space: Space | null = null
+  if (isUuid) space = (await admin.from('sport_spaces').select('*').eq('id', rawId).maybeSingle()).data as Space | null
+  if (!space) space = (await admin.from('sport_spaces').select('*').eq('slug', rawId).maybeSingle()).data as Space | null
   if (!space || space.status !== PUBLIC_SPACE_STATUS) notFound()
 
-  void (admin as any).rpc('increment_space_views', { space_id: space.id })
+  const rpc = admin.rpc.bind(admin) as unknown as RpcCall
+  void rpc('increment_space_views', { space_id: space.id })
+
   const targetUserId = space.owner_user_id || null
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -34,17 +74,20 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
     admin.from('space_rooms').select('id,name,price_per_hour,is_active').eq('space_id', space.id).eq('is_active', true).order('price_per_hour', { ascending: true }),
   ])
 
-  const professionals = (associationResult.data || []).map((row: any) => row.professional).filter((professional: any) => professional?.status === 'active')
+  const professionals = ((associationResult.data || []) as ProfessionalRelation[])
+    .flatMap(row => row.professional)
+    .filter(professional => professional.status === 'active')
   const isPremium = subscriptionResult.data?.tier === 'premium' && ['active', 'trialing'].includes(String(subscriptionResult.data?.status))
-  const gallery = Array.isArray(space.gallery_urls) ? space.gallery_urls.filter(Boolean) : []
-  const amenities = Array.isArray(space.amenities) ? space.amenities.filter(Boolean) : []
-  const rooms = roomsResult.data || []
-  const prices = rooms.map((room: any) => Number(room.price_per_hour)).filter((price: number) => Number.isFinite(price))
+  const gallery = Array.isArray(space.gallery_urls) ? space.gallery_urls.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
+  const amenities = Array.isArray(space.amenities) ? space.amenities.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
+  const rooms = (roomsResult.data || []) as Room[]
+  const prices = rooms.map(room => Number(room.price_per_hour)).filter(price => Number.isFinite(price))
   const minPrice = prices.length ? Math.min(...prices) : null
   const followersCount = followersResult.count || 0
   const publicPath = `/espacos/${space.slug || space.id}`
+  const isFollowing = Boolean(followResult.data)
 
-  const followAction = <PublicFollowAction targetUserId={targetUserId} currentUserId={user?.id || null} initialIsFollowing={Boolean((followResult as any).data)} loginRedirect={publicPath} />
+  const followAction = <PublicFollowAction targetUserId={targetUserId} currentUserId={user?.id || null} initialIsFollowing={isFollowing} loginRedirect={publicPath} />
   const reserveAction = <ReserveSpaceBtn spaceName={space.name} ownerUserId={targetUserId} spaceId={space.id} />
   const directionsAction = <ObterDirecoesBtn address={space.address} name={space.name} latitude={space.latitude} longitude={space.longitude} />
 
@@ -63,9 +106,9 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
       <EntityDetailLayout
         main={<>
           <DetailSection title="Sobre o espaço" icon={<Building2 className="h-5 w-5 text-primary" />}><p className="whitespace-pre-line text-sm leading-7 sm:text-base">{space.description || 'Este espaço ainda não adicionou uma descrição detalhada.'}</p></DetailSection>
-          {rooms.length > 0 && <DetailSection title="Salas e campos"><div className="grid gap-2 sm:grid-cols-2">{rooms.map((room: any) => <div key={room.id} className="flex items-center justify-between rounded-xl border p-3"><span className="font-medium">{room.name}</span><span className="text-sm font-bold">{Number(room.price_per_hour).toFixed(2)} €/h</span></div>)}</div></DetailSection>}
-          <DetailSection title="Infraestruturas e comodidades">{amenities.length ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{amenities.map((amenity: string) => <div key={amenity} className="rounded-xl border bg-muted/25 px-3 py-3 text-sm font-medium">{amenity}</div>)}</div> : <p className="text-sm text-muted-foreground">O espaço ainda não indicou comodidades.</p>}</DetailSection>
-          {professionals.length > 0 && <DetailSection title="Profissionais associados" icon={<Dumbbell className="h-5 w-5 text-primary" />}><div className="grid gap-3 sm:grid-cols-2">{professionals.map((professional: any) => <Link key={professional.id} href={`/profissionais/${professional.public_slug || professional.id}`} className="flex min-h-16 items-center gap-3 rounded-xl border p-3"><div className="min-w-0"><p className="truncate font-semibold">{professional.professional_name || professional.full_name}</p>{Number(professional.rating_avg) > 0 && <p className="text-xs text-muted-foreground">★ {Number(professional.rating_avg).toFixed(1)}</p>}</div></Link>)}</div></DetailSection>}
+          {rooms.length > 0 && <DetailSection title="Salas e campos"><div className="grid gap-2 sm:grid-cols-2">{rooms.map(room => <div key={room.id} className="flex items-center justify-between rounded-xl border p-3"><span className="font-medium">{room.name}</span><span className="text-sm font-bold">{Number(room.price_per_hour).toFixed(2)} €/h</span></div>)}</div></DetailSection>}
+          <DetailSection title="Infraestruturas e comodidades">{amenities.length ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{amenities.map(amenity => <div key={amenity} className="rounded-xl border bg-muted/25 px-3 py-3 text-sm font-medium">{amenity}</div>)}</div> : <p className="text-sm text-muted-foreground">O espaço ainda não indicou comodidades.</p>}</DetailSection>
+          {professionals.length > 0 && <DetailSection title="Profissionais associados" icon={<Dumbbell className="h-5 w-5 text-primary" />}><div className="grid gap-3 sm:grid-cols-2">{professionals.map(professional => <Link key={professional.id} href={`/profissionais/${professional.public_slug || professional.id}`} className="flex min-h-16 items-center gap-3 rounded-xl border p-3"><div className="min-w-0"><p className="truncate font-semibold">{professional.professional_name || professional.full_name}</p>{Number(professional.rating_avg) > 0 && <p className="text-xs text-muted-foreground">★ {Number(professional.rating_avg).toFixed(1)}</p>}</div></Link>)}</div></DetailSection>}
           {gallery.length > 0 && <DetailSection title="Galeria" icon={<Images className="h-5 w-5 text-primary" />}><EntityGallery images={gallery} alt={space.name} /></DetailSection>}
           <DetailSection title="Avaliações" icon={<Star className="h-5 w-5 text-amber-500" />}><ReviewsSection targetType="space" targetId={space.id} /></DetailSection>
         </>}
