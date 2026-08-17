@@ -31,7 +31,7 @@ export default function RecuperarPasswordPage() {
       } else {
         setSuccess(true)
       }
-    } catch (err) {
+    } catch {
       setError('Ocorreu um erro. Tenta novamente.')
     } finally {
       setLoading(false)
