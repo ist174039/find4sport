@@ -4,6 +4,10 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+type MetadataUser = {
+  app_metadata?: Record<string, unknown> | null
+}
+
 async function requireUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -11,8 +15,8 @@ async function requireUser() {
   return { supabase, admin: createAdminClient(), user }
 }
 
-function nextAppMetadata(user: any, patch: Record<string, unknown>, remove: string[] = []) {
-  const metadata = { ...(user.app_metadata || {}) }
+function nextAppMetadata(user: MetadataUser, patch: Record<string, unknown>, remove: string[] = []) {
+  const metadata: Record<string, unknown> = { ...(user.app_metadata || {}) }
   for (const key of remove) delete metadata[key]
   return { ...metadata, ...patch }
 }
