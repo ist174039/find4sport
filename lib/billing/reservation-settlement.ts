@@ -55,17 +55,28 @@ export async function releaseReservationSettlement(reservationId: string) {
 export async function processDueAutoConfirmations(limit = 25) {
   const db = createAdminClient() as any
   const now = new Date().toISOString()
+  const results: Array<{ id:string; ok:boolean; kind:'auto_confirm'|'settlement_retry' }> = []
+
   const { data: rows } = await db.from('reservations').select('id').eq('payment_status','paid').eq('service_delivery_status','awaiting_customer_confirmation').eq('settlement_status','held').lte('auto_confirm_after',now).order('auto_confirm_after',{ascending:true}).limit(limit)
-  const results: Array<{ id:string; ok:boolean }> = []
   for (const row of rows || []) {
     try {
       const { data: updated } = await db.from('reservations').update({ service_delivery_status:'completed', settlement_status:'eligible', status:'completed', updated_at:now }).eq('id',row.id).eq('service_delivery_status','awaiting_customer_confirmation').eq('settlement_status','held').select('id').maybeSingle()
       if (!updated) continue
       await db.from('reservation_delivery_events').insert({ reservation_id:row.id, event_type:'auto_confirmed', note:`Auto-confirmação após ${AUTO_CONFIRM_HOURS}h sem disputa.` })
       await releaseReservationSettlement(row.id)
-      results.push({ id:row.id, ok:true })
-    } catch { results.push({ id:row.id, ok:false }) }
+      results.push({ id:row.id, ok:true, kind:'auto_confirm' })
+    } catch { results.push({ id:row.id, ok:false, kind:'auto_confirm' }) }
   }
+
+  const remaining = Math.max(1, limit - results.length)
+  const { data: eligible } = await db.from('reservations').select('id').eq('payment_status','paid').eq('service_delivery_status','completed').eq('settlement_status','eligible').order('updated_at',{ascending:true}).limit(remaining)
+  for (const row of eligible || []) {
+    try {
+      await releaseReservationSettlement(row.id)
+      results.push({ id:row.id, ok:true, kind:'settlement_retry' })
+    } catch { results.push({ id:row.id, ok:false, kind:'settlement_retry' }) }
+  }
+
   return results
 }
 
