@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Check, X, Calendar, MapPin, User, Loader2 } from 'lucide-react'
@@ -22,30 +22,30 @@ type PendingEvent = {
  professional_email: string | null
 }
 
+type PendingEventRow = Omit<PendingEvent, 'professional_name' | 'professional_email'> & {
+ professionals: { full_name: string | null; email: string | null } | null
+}
+
 export default function AdminValidacaoEventosPage() {
  const router = useRouter()
  const [events, setEvents] = useState<PendingEvent[]>([])
  const [loading, setLoading] = useState(true)
  const [processing, setProcessing] = useState<string | null>(null)
 
- useEffect(() => {
-  loadPending()
- }, [])
-
- async function loadPending() {
+ const loadPending = useCallback(async () => {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) { router.push('/auth/login'); return }
+  if (!user) { router.replace('/auth/login'); return }
 
   const { data: profile } = await supabase
    .from('admins')
    .select('admin_type')
    .eq('auth_user_id', user.id)
-   .single()
+   .maybeSingle()
 
-  if (profile?.admin_type !== 'general' && profile?.admin_type !== 'operacional') { router.push('/'); return }
+  if (profile?.admin_type !== 'general' && profile?.admin_type !== 'operacional') { router.replace('/'); return }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
    .from('events')
    .select(`
     id, title, description, start_date, address, capacity, created_by, created_at,
@@ -54,30 +54,42 @@ export default function AdminValidacaoEventosPage() {
    .eq('status', 'pending')
    .order('created_at', { ascending: false })
 
-  if (data) {
-   setEvents(data.map((e: any) => ({
-    ...e,
-    professional_name: e.professionals?.full_name || null,
-    professional_email: e.professionals?.email || null,
-   })))
+  if (error) {
+   setEvents([])
+   setLoading(false)
+   return
   }
+
+  const rows = (data || []) as unknown as PendingEventRow[]
+  setEvents(rows.map(event => ({
+   id: event.id,
+   title: event.title,
+   description: event.description,
+   start_date: event.start_date,
+   address: event.address,
+   capacity: event.capacity,
+   created_by: event.created_by,
+   created_at: event.created_at,
+   professional_name: event.professionals?.full_name || null,
+   professional_email: event.professionals?.email || null,
+  })))
   setLoading(false)
- }
+ }, [router])
 
- async function handleApprove(id: string) {
-  setProcessing(id)
-  const supabase = createClient()
-  await supabase.from('events').update({ status: 'approved' }).eq('id', id)
-  setEvents(events.filter(e => e.id !== id))
-  setProcessing(null)
- }
+ useEffect(() => {
+  void loadPending()
+ }, [loadPending])
 
- async function handleReject(id: string) {
+ async function updateStatus(id: string, status: 'approved' | 'rejected') {
   setProcessing(id)
-  const supabase = createClient()
-  await supabase.from('events').update({ status: 'rejected' }).eq('id', id)
-  setEvents(events.filter(e => e.id !== id))
-  setProcessing(null)
+  try {
+   const supabase = createClient()
+   const { error } = await supabase.from('events').update({ status }).eq('id', id)
+   if (error) throw error
+   setEvents(current => current.filter(event => event.id !== id))
+  } finally {
+   setProcessing(null)
+  }
  }
 
  if (loading) {
@@ -110,45 +122,18 @@ export default function AdminValidacaoEventosPage() {
            <h3 className="font-semibold text-foreground">{event.title}</h3>
            <Badge variant="outline" className="bg-amber-100 text-amber-700">Pendente</Badge>
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-           {event.description || 'Sem descrição'}
-          </p>
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{event.description || 'Sem descrição'}</p>
           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-           <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {new Date(event.start_date).toLocaleDateString('pt-PT')}
-           </span>
-           {event.address && (
-            <span className="flex items-center gap-1">
-             <MapPin className="h-3.5 w-3.5" />
-             {event.address}
-            </span>
-           )}
-           {event.professional_name && (
-            <span className="flex items-center gap-1">
-             <User className="h-3.5 w-3.5" />
-             {event.professional_name}
-            </span>
-           )}
+           <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(event.start_date).toLocaleDateString('pt-PT')}</span>
+           {event.address && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{event.address}</span>}
+           {event.professional_name && <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{event.professional_name}</span>}
           </div>
          </div>
          <div className="ml-4 flex gap-2">
-          <Button
-           size="sm"
-           className="bg-green-600 hover:bg-green-700"
-           onClick={() => handleApprove(event.id)}
-           disabled={processing === event.id}
-          >
-           {processing === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-           Aprovar
+          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => void updateStatus(event.id, 'approved')} disabled={processing === event.id}>
+           {processing === event.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Aprovar
           </Button>
-          <Button
-           size="sm"
-           variant="outline"
-           className="border-red-200 text-red-600 hover:bg-red-50"
-           onClick={() => handleReject(event.id)}
-           disabled={processing === event.id}
-          >
+          <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => void updateStatus(event.id, 'rejected')} disabled={processing === event.id}>
            <X className="mr-1 h-4 w-4" /> Rejeitar
           </Button>
          </div>

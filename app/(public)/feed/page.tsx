@@ -76,9 +76,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
   }
   if (authorTypeParam === 'pro') postsQuery = postsQuery.not('professional_id', 'is', null)
   if (authorTypeParam === 'space') postsQuery = postsQuery.not('sport_space_id', 'is', null)
-  if (dateParam === 'today') { const date = new Date(); date.setHours(0, 0, 0, 0); postsQuery = postsQuery.gte('created_at', date.toISOString()) }
-  else if (dateParam === 'week') postsQuery = postsQuery.gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
-  else if (dateParam === 'month') postsQuery = postsQuery.gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString())
+  const requestTime = new Date()
+  if (dateParam === 'today') {
+    const date = new Date(requestTime)
+    date.setHours(0, 0, 0, 0)
+    postsQuery = postsQuery.gte('created_at', date.toISOString())
+  } else if (dateParam === 'week') {
+    const date = new Date(requestTime)
+    date.setDate(date.getDate() - 7)
+    postsQuery = postsQuery.gte('created_at', date.toISOString())
+  } else if (dateParam === 'month') {
+    const date = new Date(requestTime)
+    date.setDate(date.getDate() - 30)
+    postsQuery = postsQuery.gte('created_at', date.toISOString())
+  }
   const keyword = categoryParam || searchParam
   if (keyword) postsQuery = postsQuery.ilike('content', `%${keyword}%`)
   const { data: postsRaw } = await postsQuery

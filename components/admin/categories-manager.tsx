@@ -21,16 +21,16 @@ export function CategoriesManager({ initialCategories }: { initialCategories: Ca
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [saving, setSaving] = useState(false)
+  const recentThreshold = new Date()
+  recentThreshold.setDate(recentThreshold.getDate() - 30)
+  const recentThresholdMs = recentThreshold.getTime()
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return categories.filter(category => !q || category.name.toLowerCase().includes(q) || category.slug.toLowerCase().includes(q))
   }, [categories, query])
 
-  const new30d = useMemo(() => {
-    const threshold = Date.now() - 30 * 86400000
-    return categories.filter(category => new Date(category.created_at).getTime() >= threshold).length
-  }, [categories])
+  const new30d = categories.filter(category => new Date(category.created_at).getTime() >= recentThresholdMs).length
 
   function openCreate() {
     setEditingId(null)
