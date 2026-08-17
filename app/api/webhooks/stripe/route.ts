@@ -189,6 +189,18 @@ export async function POST(req: Request) {
       }
     }
 
+    if(event.type==='checkout.session.expired'){
+      const session=event.data.object as Stripe.Checkout.Session
+      const packagePurchaseId=session.metadata?.service_package_purchase_id||null
+      const eventParticipantId=session.metadata?.event_participant_id||null
+      const reservationId=session.metadata?.reservation_id||null
+      if(packagePurchaseId){const {error}=await db.from('service_package_purchases').delete().eq('id',packagePurchaseId).eq('status','pending').eq('stripe_session_id',session.id);if(error)throw error}
+      if(eventParticipantId){const {error}=await adminSupabase.from('event_participants').delete().eq('id',eventParticipantId).eq('status','pending').eq('payment_status','pending');if(error)throw error}
+      if(reservationId){const {error}=await adminSupabase.from('reservations').delete().eq('id',reservationId).eq('status','pending').eq('payment_status','pending').eq('stripe_session_id',session.id);if(error)throw error}
+      await recordEvent({service_package_purchase_id:packagePurchaseId,event_participant_id:eventParticipantId,reservation_id:reservationId})
+      return NextResponse.json({received:true})
+    }
+
     if(event.type==='charge.refunded'){const charge=event.data.object as Stripe.Charge;await persistRefunds(charge);await recordEvent({stripe_payment_intent_id:typeof charge.payment_intent==='string'?charge.payment_intent:charge.payment_intent?.id||null});return NextResponse.json({received:true})}
     if(event.type==='charge.dispute.created'||event.type==='charge.dispute.updated'||event.type==='charge.dispute.closed'){const dispute=event.data.object as Stripe.Dispute;await persistDispute(dispute);await recordEvent({stripe_payment_intent_id:typeof dispute.payment_intent==='string'?dispute.payment_intent:dispute.payment_intent?.id||null});return NextResponse.json({received:true})}
     if(event.type==='transfer.reversed'){const transfer=event.data.object as Stripe.Transfer;await persistTransferReversal(transfer);await recordEvent();return NextResponse.json({received:true})}
