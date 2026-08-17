@@ -2,6 +2,10 @@ name: E2E Smoke
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
+    branches: [main]
   schedule:
     - cron: '17 */6 * * *'
 
@@ -11,8 +15,13 @@ concurrency:
 
 jobs:
   production-smoke:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, mobile-chromium]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,15 +41,31 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Wait for stable production endpoint
+        env:
+          E2E_BASE_URL: https://find4sport.vercel.app
+        run: |
+          for attempt in {1..12}; do
+            status=$(curl -L -s -o /dev/null -w '%{http_code}' "$E2E_BASE_URL" || true)
+            if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
+              echo "Production endpoint is reachable with HTTP $status"
+              exit 0
+            fi
+            echo "Attempt $attempt: production returned HTTP $status"
+            sleep 10
+          done
+          echo "Production endpoint did not become reachable"
+          exit 1
+
       - name: Run production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
-        run: npx playwright test e2e/public-smoke.spec.mjs --project=chromium
+        run: npx playwright test e2e/public-smoke.spec.mjs --project=${{ matrix.project }}
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: playwright-report/
           retention-days: 14
