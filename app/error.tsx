@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
@@ -35,7 +36,7 @@ export default function Error({
           Tentar novamente
         </Button>
         <Button variant="outline" asChild>
-          <a href="/">Voltar ao início</a>
+          <Link href="/">Voltar ao início</Link>
         </Button>
       </div>
       {process.env.NODE_ENV === 'development' && error?.message && (
