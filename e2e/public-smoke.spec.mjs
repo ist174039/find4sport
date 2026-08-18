@@ -18,6 +18,18 @@ for (const route of publicRoutes) {
   })
 }
 
+test('readiness healthcheck reports healthy dependencies', async ({ request }) => {
+  const response = await request.get('/api/health')
+  expect(response.status()).toBe(200)
+  const payload = await response.json()
+
+  expect(payload.status).toBe('ok')
+  expect(payload.checks?.database).toBe('ok')
+  expect(payload.checks?.stripe).toBe('configured')
+  expect(typeof payload.version).toBe('string')
+  expect(response.headers()['cache-control']).toContain('no-store')
+})
+
 test('baseline security headers are present', async ({ request }) => {
   const response = await request.get('/')
   const headers = response.headers()
