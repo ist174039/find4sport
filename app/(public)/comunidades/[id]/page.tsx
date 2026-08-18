@@ -32,14 +32,14 @@ type Membership = { id: string; role: string | null }
 type PendingRequest = { id: string; status: string }
 type Profile = { type: string | null; full_name: string | null; avatar_url: string | null }
 type Category = { id: string; name: string; slug: string }
-type CategoryRow = { category: Category[] }
+type CategoryRow = { category: Category | null }
 type CommunityPost = ComponentProps<typeof PostCard>['post']
 type CommunityMember = ComponentProps<typeof CommunityMembersList>['members'][number]
 type JoinRequest = {
   id: string
   user_id: string
   created_at: string
-  platform_users: Array<{ full_name: string | null; avatar_url: string | null }>
+  platform_users: { full_name: string | null; avatar_url: string | null } | null
 }
 
 export default async function CommunityProfilePage({
@@ -95,7 +95,7 @@ export default async function CommunityProfilePage({
 
   const memberCount = memberCountRaw || 0
   const postCount = postCountRaw || 0
-  const categories = ((categoryRows || []) as CategoryRow[]).flatMap(row => row.category)
+  const categories = ((categoryRows || []) as CategoryRow[]).flatMap(row => row.category ? [row.category] : [])
 
   let posts: CommunityPost[] = []
   let members: CommunityMember[] = []
@@ -153,32 +153,21 @@ export default async function CommunityProfilePage({
         avatar={<div className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-white bg-primary text-primary-foreground shadow-lg sm:h-24 sm:w-24"><Users className="h-10 w-10" /></div>}
         title={community.name}
         badges={<><Badge className="bg-white/15 text-white">Comunidade</Badge>{community.is_private ? <Badge variant="secondary"><Lock className="mr-1 h-3 w-3" />Privada</Badge> : <Badge variant="secondary"><Globe className="mr-1 h-3 w-3" />Pública</Badge>}</>}
-        meta={<><span className="flex items-center gap-1.5"><Users className="h-4 w-4" />{memberCount} membros</span>{canViewPrivateContent && <span className="flex items-center gap-1.5"><MessageSquare className="h-4 w-4" />{postCount} publicações</span>}{categories[0]?.name && <span>{categories[0].name}</span>}{community.address && <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{community.address}</span>}</>}
+        meta={<div className="flex flex-wrap gap-3 text-sm text-white/85">{community.address && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{community.address}</span>}<span>{scopeLabel[community.location_scope || ''] || community.location_scope}</span></div>}
         actions={actions}
       />
       <EntityDetailLayout
         main={<>
-          <DetailSection title="Sobre a comunidade">
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">{community.description || 'Esta comunidade ainda não tem descrição.'}</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border bg-muted/20 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Regra de participação</p><p className="mt-1 text-sm font-medium">{policyLabel}</p></div>
-              <div className="rounded-xl border bg-muted/20 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Âmbito</p><p className="mt-1 text-sm font-medium">{scopeLabel[community.location_scope || ''] || 'Online'}{community.address ? ` · ${community.address}` : ''}</p></div>
-            </div>
-          </DetailSection>
-          {!canViewPrivateContent ? (
-            <DetailSection><div className="py-6 text-center"><Lock className="mx-auto h-10 w-10 text-primary" /><h2 className="mt-4 text-xl font-bold">Conteúdo reservado a membros</h2><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Esta comunidade é privada. Envia um pedido de adesão para aceder ao feed e aos membros.</p><div className="mx-auto mt-5 max-w-xs">{actions}</div></div></DetailSection>
-          ) : (
-            <>
-              <DetailSection title="Membros" icon={<Users className="h-5 w-5 text-primary" />}><CommunityMembersList members={members} memberCount={memberCount} /></DetailSection>
-              <DetailSection title="Feed" icon={<MessageSquare className="h-5 w-5 text-primary" />}>
-                {canPost ? <CreateCommunityPostBox communityId={community.id} currentUserName={profile?.full_name || ''} currentUserAvatar={profile?.avatar_url || user?.user_metadata?.avatar_url || ''} /> : isMember ? <div className="mb-4 rounded-xl border bg-muted/25 p-3 text-sm text-muted-foreground">A publicação nesta comunidade está limitada pela regra definida pela administração.</div> : null}
-                {posts.length ? <><div className="space-y-4">{posts.map(post => <PostCard key={post.id} post={post} isAuthenticated={Boolean(user)} />)}</div><DiscoveryPagination page={page} pageSize={PAGE_SIZE} total={postCount} href={n => n === 1 ? path : `${path}?page=${n}`} /></> : <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Ainda não existem publicações.</div>}
-              </DetailSection>
-            </>
-          )}
-          {isCommunityAdmin && <DetailSection title="Pedidos de adesão" icon={<ShieldCheck className="h-5 w-5 text-primary" />}>{joinRequests.length === 0 ? <p className="text-sm text-muted-foreground">Sem pedidos pendentes.</p> : <div className="divide-y">{joinRequests.map(request => <div key={request.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold">{request.platform_users[0]?.full_name || 'Utilizador'}</p><p className="text-xs text-muted-foreground">Pedido em {new Date(request.created_at).toLocaleDateString('pt-PT')}</p></div><div className="grid grid-cols-2 gap-2"><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'reject')}><Button type="submit" variant="outline" className="min-h-11 w-full">Recusar</Button></form><form action={reviewCommunityJoinRequestAction.bind(null, request.id, 'approve')}><Button type="submit" className="min-h-11 w-full">Aprovar</Button></form></div></div>)}</div>}</DetailSection>}
+          <DetailSection title="Sobre"><p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{community.description || 'Esta comunidade ainda não tem descrição.'}</p></DetailSection>
+          <DetailSection title="Modalidades">{categories.length ? <div className="flex flex-wrap gap-2">{categories.map(category => <Badge key={category.id} variant="secondary">{category.name}</Badge>)}</div> : <p className="text-sm text-muted-foreground">Sem modalidades associadas.</p>}</DetailSection>
+          {canViewPrivateContent ? <>
+            {canPost && user && <CreateCommunityPostBox communityId={community.id} userId={user.id} userName={profile?.full_name || user.email || 'Utilizador'} userAvatar={profile?.avatar_url} />}
+            <DetailSection title="Publicações">{posts.length ? <div className="space-y-4">{posts.map(post => <PostCard key={post.id} post={post} />)}</div> : <p className="text-sm text-muted-foreground">Ainda não existem publicações.</p>}<DiscoveryPagination page={page} pageSize={PAGE_SIZE} total={postCount} pathname={path} /></DetailSection>
+            <DetailSection title="Membros"><CommunityMembersList members={members} /></DetailSection>
+            {isCommunityAdmin && joinRequests.length > 0 && <DetailSection title="Pedidos de adesão"><div className="space-y-3">{joinRequests.map(request => <form key={request.id} action={reviewCommunityJoinRequestAction} className="flex items-center justify-between gap-3 rounded-xl border p-3"><input type="hidden" name="requestId" value={request.id} /><div><p className="font-medium">{request.platform_users?.full_name || 'Utilizador'}</p><p className="text-xs text-muted-foreground">{new Date(request.created_at).toLocaleDateString('pt-PT')}</p></div><div className="flex gap-2"><Button type="submit" size="sm" name="decision" value="approved">Aprovar</Button><Button type="submit" size="sm" variant="outline" name="decision" value="rejected">Recusar</Button></div></form>)}</div></DetailSection>}
+          </> : <DetailSection title="Conteúdo privado"><div className="rounded-xl border border-dashed p-8 text-center"><Lock className="mx-auto mb-3 h-7 w-7 text-muted-foreground" /><p className="font-medium">Adere à comunidade para veres publicações e membros.</p></div></DetailSection>}
         </>}
-        aside={<DetailSection title="Resumo"><div className="grid grid-cols-2 gap-4"><DetailStat label="Membros" value={memberCount} /><DetailStat label="Privacidade" value={community.is_private ? 'Privada' : 'Pública'} />{canViewPrivateContent && <DetailStat label="Publicações" value={postCount} />}<DetailStat label="Âmbito" value={scopeLabel[community.location_scope || ''] || 'Online'} />{categories[0]?.name && <DetailStat label="Modalidade" value={categories[0].name} />}</div></DetailSection>}
+        aside={<><DetailSection title="Comunidade"><div className="grid grid-cols-2 gap-3"><DetailStat label="Membros" value={memberCount} /><DetailStat label="Publicações" value={postCount} /></div></DetailSection><DetailSection title="Regras"><div className="space-y-3 text-sm text-muted-foreground"><p className="flex gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-primary" />{policyLabel}</p>{community.is_private && <p className="flex gap-2"><Lock className="mt-0.5 h-4 w-4 text-primary" />Adesão sujeita a aprovação.</p>}</div></DetailSection><DetailSection title="Interação"><p className="flex gap-2 text-sm text-muted-foreground"><MessageSquare className="mt-0.5 h-4 w-4 text-primary" />Discussões e atividade da comunidade aparecem nesta página.</p></DetailSection></>}
       />
       <MobileActionBar>{actions}</MobileActionBar>
     </main>
