@@ -296,7 +296,7 @@ export type Database = {
       services: {
         Row: { created_at: string; description: string | null; duration_minutes: number | null; id: string; is_active: boolean | null; modality: string | null; moderation_reason: string | null; moderation_status: string; name: string; price: number | null; price_unit: string | null; professional_id: string; reviewed_at: string | null; reviewed_by: string | null; submitted_at: string | null }
         Insert: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string | null; moderation_status?: string; name: string; price?: number | null; price_unit?: string | null; professional_id: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
-        Update: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string | null; moderation_status?: string; name?: string; price?: number | null; price_unit?: string | null; professional_id?: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
+        Update: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string; moderation_status?: string; name?: string; price?: number | null; price_unit?: string | null; professional_id?: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
         Relationships: [{ foreignKeyName: "services_professional_id_fkey"; columns: ["professional_id"]; isOneToOne: false; referencedRelation: "professionals"; referencedColumns: ["id"] }]
       }
       space_categories: {
@@ -478,7 +478,7 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals } ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["CompositeTypes"] : never = never,
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals } ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"] : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"] ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions] : never
