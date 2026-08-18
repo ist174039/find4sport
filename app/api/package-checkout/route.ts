@@ -3,15 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { marketplaceLineItems, marketplacePaymentIntentData, resolveMarketplacePaymentQuote } from '@/lib/billing/marketplace-payment'
-
-function baseUrl(request: Request) {
-  const origin = request.headers.get('origin')
-  if (origin) try { return new URL(origin).origin } catch {}
-  const proto = request.headers.get('x-forwarded-proto') || 'https'
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host')
-  if (host) try { return new URL(`${proto}://${host}`).origin } catch {}
-  return new URL(request.url).origin
-}
+import { getTrustedApplicationOrigin } from '@/lib/http/trusted-origin'
 
 export async function POST(request: Request) {
   try {
@@ -66,7 +58,7 @@ export async function POST(request: Request) {
     if (purchaseError || !purchase) return NextResponse.json({ error: 'Não foi possível iniciar a compra do pacote. A migration de pacotes pode ainda não estar aplicada.' }, { status: 500 })
 
     try {
-      const site = baseUrl(request)
+      const site = getTrustedApplicationOrigin(request)
       const metadata = { service_package_purchase_id: purchase.id, package_id: pack.id, transaction_type: 'service_package', buyer_user_id: user.id }
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
