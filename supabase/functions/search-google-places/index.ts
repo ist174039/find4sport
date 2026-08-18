@@ -3,7 +3,6 @@
 // This enables autocomplete, go to definition, etc.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 interface SearchRequest {
   query: string
@@ -54,11 +53,9 @@ serve(async (req: Request) => {
       )
     }
 
-    // Search using Google Places API (New) - Text Search
     const searchUrl = new URL('https://places.googleapis.com/v1/places:searchText')
     const body: Record<string, unknown> = {
       textQuery: query,
-      // Return only sport/recreation related results
       includedType: type || 'sports_activity_location',
       languageCode: 'pt-PT',
       maxResultCount: 20,
