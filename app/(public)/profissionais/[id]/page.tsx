@@ -35,12 +35,12 @@ type Professional = {
   website: string | null
   whatsapp: string | null
 }
-type CategoryRelation = { category: Array<{ name: string | null }> }
+type CategoryRelation = { category: { name: string | null } | null }
 type Qualification = { id: string; title: string; issuer: string | null }
 type Community = { id: string; slug: string | null; name: string }
-type CommunityRelation = { community: Community[] }
+type CommunityRelation = { community: Community | null }
 type Space = { id: string; name: string; slug: string | null; address: string | null; logo_url: string | null; is_verified: boolean | null; status: string | null }
-type SpaceRelation = { space: Space[] }
+type SpaceRelation = { space: Space | null }
 type RpcResult = { data: unknown; error: { message: string } | null }
 type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
 
@@ -71,10 +71,10 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
     supabase.auth.getUser(),
   ])
 
-  const categories = ((catData || []) as CategoryRelation[]).flatMap(row => row.category).map(category => category.name).filter((name): name is string => Boolean(name))
-  const communities = ((memberData || []) as CommunityRelation[]).flatMap(row => row.community)
+  const categories = ((catData || []) as CategoryRelation[]).flatMap(row => row.category?.name ? [row.category.name] : [])
+  const communities = ((memberData || []) as CommunityRelation[]).flatMap(row => row.community ? [row.community] : [])
   const qualificationsList = (qualifications || []) as Qualification[]
-  const associatedSpaces = ((associationRows || []) as SpaceRelation[]).flatMap(row => row.space).filter(space => space.status === 'active')
+  const associatedSpaces = ((associationRows || []) as SpaceRelation[]).flatMap(row => row.space ? [row.space] : []).filter(space => space.status === 'active')
   const gallery = Array.isArray(professional.gallery_urls) ? professional.gallery_urls.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
   const activeServices = (services || []) as Service[]
   const displayName = professional.professional_name || professional.full_name || 'Profissional'
