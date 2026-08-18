@@ -51,7 +51,11 @@ export function TaxonomyCombobox({
   }
 
   useEffect(() => {
-    const close = (event: MouseEvent) => { if (!rootRef.current?.contains(event.target as Node)) closeDropdown() }
+    const close = (event: MouseEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return
+      setOpen(false)
+      setQuery('')
+    }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [])
