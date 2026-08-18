@@ -195,7 +195,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if(event.type==='checkout.session.expired'){
+    if(event.type==='checkout.session.expired'||event.type==='checkout.session.async_payment_failed'){
       const session=event.data.object as Stripe.Checkout.Session
       const packagePurchaseId=session.metadata?.service_package_purchase_id||null
       const eventParticipantId=session.metadata?.event_participant_id||null
@@ -203,7 +203,7 @@ export async function POST(req: Request) {
       if(packagePurchaseId){const {error}=await db.from('service_package_purchases').delete().eq('id',packagePurchaseId).eq('status','pending').eq('stripe_session_id',session.id);if(error)throw error}
       if(eventParticipantId){const {error}=await adminSupabase.from('event_participants').delete().eq('id',eventParticipantId).eq('status','pending').eq('payment_status','pending');if(error)throw error}
       if(reservationId){const {error}=await adminSupabase.from('reservations').delete().eq('id',reservationId).eq('status','pending').eq('payment_status','pending').eq('stripe_session_id',session.id);if(error)throw error}
-      await recordEvent({service_package_purchase_id:packagePurchaseId,event_participant_id:eventParticipantId,reservation_id:reservationId})
+      await recordEvent({service_package_purchase_id:packagePurchaseId,event_participant_id:eventParticipantId,reservation_id:reservationId,financial_metadata:{checkout_session_id:session.id,cleanup_reason:event.type}})
       return NextResponse.json({received:true})
     }
 
