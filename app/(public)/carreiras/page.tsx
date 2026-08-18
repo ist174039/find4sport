@@ -6,10 +6,10 @@ export default async function CarreirasPage() {
   const { data, error } = await supabase.from('cms_pages').select('*').eq('slug', 'carreiras').single()
 
   return (
-    <NormalizedContentPage 
+    <NormalizedContentPage
       title={data?.title || 'Carreiras na FIND4SPORT'}
-      description={data?.description}
-      content={data?.content?.body}
+      description={data?.description ?? undefined}
+      content={data?.content}
       loading={false}
       error={error ? 'Página não configurada no painel de administração.' : null}
     />
