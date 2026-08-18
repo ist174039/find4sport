@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getFollowersList, getFollowingList } from '@/app/actions/follow'
 import { FollowButton } from '@/components/follow-button'
@@ -35,17 +35,31 @@ function roleLabel(role: PlatformRole) {
 export function FollowListModal({ open, onClose, targetUserId, mode, title }: FollowListModalProps) {
   const [items, setItems] = useState<FollowItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     setLoading(true)
+    setLoadError(false)
     const fn = mode === 'followers' ? getFollowersList : getFollowingList
-    fn(targetUserId).then(res => {
-      setItems((res.list || []) as FollowItem[])
-      setCurrentUserId(res.currentUserId)
-      setLoading(false)
-    })
+    void fn(targetUserId)
+      .then(res => {
+        if (cancelled) return
+        setItems((res.list || []) as FollowItem[])
+        setCurrentUserId(res.currentUserId)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setItems([])
+        setCurrentUserId(null)
+        setLoadError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
   }, [open, targetUserId, mode])
 
   const defaultTitle = mode === 'followers' ? 'Seguidores' : 'A Seguir'
@@ -61,6 +75,12 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <Users className="w-10 h-10 text-muted-foreground mb-3" />
+              <p className="text-sm font-semibold text-foreground mb-1">Não foi possível carregar</p>
+              <p className="text-xs text-muted-foreground">Fecha e volta a abrir esta lista. Se o problema persistir, tenta novamente mais tarde.</p>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

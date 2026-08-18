@@ -36,7 +36,7 @@ export function CreatePostBox({ currentUserType, currentUserName, currentUserAva
       const result = await createPostAction(formData)
       if (result?.error) throw new Error(result.error)
       setContent(''); clearMedia(); showAlert('Publicado', 'A publicação já está disponível no feed.', 'success')
-    } catch (err: any) { showAlert('Erro ao publicar', err.message || 'Não foi possível criar a publicação.', 'error') }
+    } catch (err: unknown) { showAlert('Erro ao publicar', err instanceof Error ? err.message : 'Não foi possível criar a publicação.', 'error') }
     finally { setLoading(false) }
   }
 
