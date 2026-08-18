@@ -6,7 +6,8 @@ import { marketplaceLineItems, marketplacePaymentIntentData, resolveMarketplaceP
 
 function toMinutes(value:string){const[h,m]=value.split(':').map(Number);return Number.isFinite(h)&&Number.isFinite(m)?h*60+m:NaN}
 function addMinutes(value:string,duration:number){const start=toMinutes(value),total=start+duration;if(!Number.isFinite(start)||total>=1440)return null;return`${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`}
-function getBaseUrl(request:Request){const origin=request.headers.get('origin');if(origin){try{return new URL(origin).origin}catch{}}const protocol=request.headers.get('x-forwarded-proto')||'https',host=request.headers.get('x-forwarded-host')||request.headers.get('host');if(host){try{return new URL(`${protocol}://${host}`).origin}catch{}}const configured=process.env.NEXT_PUBLIC_SITE_URL?.trim();if(configured){try{return new URL(/^https?:\/\//i.test(configured)?configured:`https://${configured}`).origin}catch{}}return new URL(request.url).origin}
+function normalizeConfiguredOrigin(value:string|undefined){const configured=value?.trim();if(!configured)return null;try{return new URL(/^https?:\/\//i.test(configured)?configured:`https://${configured}`).origin}catch{return null}}
+function getBaseUrl(request:Request){const configured=normalizeConfiguredOrigin(process.env.NEXT_PUBLIC_SITE_URL);if(configured)return configured;const deployment=normalizeConfiguredOrigin(process.env.VERCEL_URL);if(deployment)return deployment;return new URL(request.url).origin}
 
 export async function POST(request:Request){
  try{
