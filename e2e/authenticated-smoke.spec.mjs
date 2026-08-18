@@ -22,8 +22,26 @@ async function loginAdmin(page, account) {
   await expect(page).toHaveURL(/\/admin(?:\/|$)/)
 }
 
-for (const role of ['ATHLETE', 'PROFESSIONAL', 'VENUE_MANAGER']) {
-  test(`${role.toLowerCase()} can authenticate and reach the protected dashboard`, async ({ page }) => {
+const dashboardRoles = {
+  ATHLETE: {
+    visible: ['Confirmações', 'Faturação e compras'],
+    hidden: ['Serviços', 'Salas / Campos'],
+    route: '/dashboard/confirmacoes',
+  },
+  PROFESSIONAL: {
+    visible: ['Reservas', 'Serviços', 'Entregas e pagamentos'],
+    hidden: ['Confirmações', 'Salas / Campos'],
+    route: '/dashboard/servicos',
+  },
+  VENUE_MANAGER: {
+    visible: ['Reservas', 'Salas / Campos', 'Entregas e pagamentos'],
+    hidden: ['Confirmações', 'Serviços'],
+    route: '/dashboard/espacos/salas',
+  },
+}
+
+for (const [role, expectations] of Object.entries(dashboardRoles)) {
+  test(`${role.toLowerCase()} can authenticate with the correct dashboard authorization`, async ({ page }) => {
     const account = credentials(role)
     test.skip(!account, `Missing E2E_${role}_EMAIL/PASSWORD credentials`)
 
@@ -34,6 +52,18 @@ for (const role of ['ATHLETE', 'PROFESSIONAL', 'VENUE_MANAGER']) {
     expect(response.status()).toBeLessThan(500)
     await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/)
     await expect(page.locator('body')).toBeVisible()
+
+    for (const label of expectations.visible) {
+      await expect(page.getByRole('link', { name: label, exact: true }).first()).toBeVisible()
+    }
+    for (const label of expectations.hidden) {
+      await expect(page.getByRole('link', { name: label, exact: true })).toHaveCount(0)
+    }
+
+    const protectedResponse = await page.goto(expectations.route, { waitUntil: 'domcontentloaded' })
+    expect(protectedResponse).not.toBeNull()
+    expect(protectedResponse.status()).toBeLessThan(500)
+    await expect(page).toHaveURL(new RegExp(expectations.route.replaceAll('/', '\\/')))
   })
 }
 
