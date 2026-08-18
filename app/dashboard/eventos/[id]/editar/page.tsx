@@ -28,5 +28,5 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
     return { id: String(candidate.id), name: String(candidate.name || ''), slug: String(candidate.slug || ''), emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null, parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null }
   })
 
-  return <EventEditForm event={event} categories={categories} />
+  return <EventEditForm event={{ ...event, status: event.status ?? 'draft' }} categories={categories} />
 }
