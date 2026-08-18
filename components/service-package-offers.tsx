@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { PackageCheck, CreditCard, Clock3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -15,6 +16,8 @@ export type PublicServicePackage = {
 }
 
 export function ServicePackageOffers({ packages, paymentsEnabled = true }: { packages: PublicServicePackage[]; paymentsEnabled?: boolean }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   if (!packages.length) return null
@@ -25,7 +28,7 @@ export function ServicePackageOffers({ packages, paymentsEnabled = true }: { pac
     try {
       const response = await fetch('/api/package-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId }) })
       const payload = await response.json().catch(() => ({}))
-      if (response.status === 401) { window.location.assign(`/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`); return }
+      if (response.status === 401) { router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`); return }
       if (!response.ok || !payload.url) throw new Error(payload.error || 'Não foi possível iniciar a compra do pacote.')
       window.location.assign(payload.url)
     } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível iniciar a compra do pacote.'); setLoadingId(null) }
