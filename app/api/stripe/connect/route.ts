@@ -10,6 +10,11 @@ function errorMessage(error: unknown) {
   return ''
 }
 
+type ConnectAudience = 'professional' | 'venue_manager'
+function isConnectAudience(value: string | null): value is ConnectAudience {
+  return value === 'professional' || value === 'venue_manager'
+}
+
 async function getConnectContext() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -17,7 +22,7 @@ async function getConnectContext() {
 
   const admin = createAdminClient()
   const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
-  if (!profile || !['professional', 'venue_manager'].includes(profile.type)) {
+  if (!profile || !isConnectAudience(profile.type)) {
     return { error: NextResponse.json({ error: 'Stripe Connect está disponível apenas para profissionais e gestores de espaço.' }, { status: 403 }) }
   }
 
@@ -121,6 +126,8 @@ export async function POST(req: Request) {
         if (error) throw new Error('Não foi possível associar a conta Stripe ao espaço.')
       }
     }
+
+    if (!accountId) throw new Error('A conta Stripe Connect não ficou disponível após o onboarding.')
 
     const baseUrl = getTrustedApplicationOrigin(req)
     const refreshUrl = new URL('/dashboard/faturacao?connect=refresh', baseUrl).toString()
