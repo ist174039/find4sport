@@ -1,38 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getTrustedApplicationOrigin } from '@/lib/http/trusted-origin'
 import Stripe from 'stripe'
 
-function asHttpOrigin(value?: string | null) {
-  const candidate = value?.trim()
-  if (!candidate) return null
-  try {
-    const url = new URL(/^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`)
-    if (!['http:', 'https:'].includes(url.protocol)) return null
-    return url.origin
-  } catch {
-    return null
-  }
-}
-
-function getBaseUrl(req: Request) {
-  const originHeader = asHttpOrigin(req.headers.get('origin'))
-  if (originHeader) return originHeader
-
-  const forwardedHost = req.headers.get('x-forwarded-host') || req.headers.get('host')
-  const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  if (forwardedHost) {
-    const forwardedOrigin = asHttpOrigin(`${forwardedProto === 'http' ? 'http' : 'https'}://${forwardedHost.split(',')[0].trim()}`)
-    if (forwardedOrigin) return forwardedOrigin
-  }
-
-  const configured = asHttpOrigin(process.env.NEXT_PUBLIC_SITE_URL)
-  if (configured) return configured
-
-  const requestOrigin = asHttpOrigin(req.url)
-  if (requestOrigin) return requestOrigin
-
-  throw new Error('Não foi possível determinar uma URL pública HTTP/HTTPS para o Stripe Connect.')
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error && 'message' in error) return String((error as { message?: unknown }).message || '')
+  return ''
 }
 
 async function getConnectContext() {
@@ -97,9 +72,9 @@ export async function GET() {
       payoutsEnabled: account.payouts_enabled,
       requirementsDue: account.requirements?.currently_due || [],
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Stripe connect status error:', error)
-    return NextResponse.json({ error: error?.message || 'Não foi possível obter o estado do Stripe Connect.' }, { status: 500 })
+    return NextResponse.json({ error: errorMessage(error) || 'Não foi possível obter o estado do Stripe Connect.' }, { status: 500 })
   }
 }
 
@@ -127,8 +102,8 @@ export async function POST(req: Request) {
           metadata: { find4sport_user_id: user.id, audience: profile.type },
         })
         accountId = account.id
-      } catch (error: any) {
-        const message = String(error?.message || '')
+      } catch (error: unknown) {
+        const message = errorMessage(error)
         if (message.includes('connected_account_write') || message.includes('Accounts Write') || message.includes('required permissions')) {
           return NextResponse.json({
             error: 'A chave Stripe configurada não tem permissão para criar/alterar contas Connect. Ative a permissão Accounts Write (connected_account_write) na restricted key usada por STRIPE_SECRET_KEY.',
@@ -139,13 +114,15 @@ export async function POST(req: Request) {
       }
 
       if (profile.type === 'professional') {
-        await admin.from('professionals').update({ stripe_account_id: accountId }).eq('user_id', user.id)
+        const { error } = await admin.from('professionals').update({ stripe_account_id: accountId }).eq('user_id', user.id)
+        if (error) throw new Error('Não foi possível associar a conta Stripe ao perfil profissional.')
       } else {
-        await admin.from('sport_spaces').update({ stripe_account_id: accountId }).eq('owner_user_id', user.id)
+        const { error } = await admin.from('sport_spaces').update({ stripe_account_id: accountId }).eq('owner_user_id', user.id)
+        if (error) throw new Error('Não foi possível associar a conta Stripe ao espaço.')
       }
     }
 
-    const baseUrl = getBaseUrl(req)
+    const baseUrl = getTrustedApplicationOrigin(req)
     const refreshUrl = new URL('/dashboard/faturacao?connect=refresh', baseUrl).toString()
     const returnUrl = new URL('/dashboard/faturacao?connect=complete', baseUrl).toString()
 
@@ -157,8 +134,8 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ url: accountLink.url })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Stripe connect error:', error)
-    return NextResponse.json({ error: error?.message || 'Não foi possível iniciar o onboarding Stripe Connect.' }, { status: 500 })
+    return NextResponse.json({ error: errorMessage(error) || 'Não foi possível iniciar o onboarding Stripe Connect.' }, { status: 500 })
   }
 }
