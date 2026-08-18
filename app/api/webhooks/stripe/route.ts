@@ -144,8 +144,12 @@ export async function POST(req: Request) {
       if(result.error)throw result.error
     }
 
-    if(event.type==='checkout.session.completed'){
+    if(event.type==='checkout.session.completed'||event.type==='checkout.session.async_payment_succeeded'){
       const session=event.data.object as Stripe.Checkout.Session
+      if(event.type==='checkout.session.completed'&&session.payment_status!=='paid'){
+        await recordEvent({financial_metadata:{checkout_session_id:session.id,payment_status:session.payment_status,fulfillment_deferred:true}})
+        return NextResponse.json({received:true,deferred:true})
+      }
       if(session.mode==='subscription'&&session.subscription){const subscriptionId=typeof session.subscription==='string'?session.subscription:session.subscription.id; await syncSubscription(await stripe.subscriptions.retrieve(subscriptionId)); await recordEvent(); return NextResponse.json({received:true})}
 
       const packagePurchaseId=session.metadata?.service_package_purchase_id
@@ -169,8 +173,10 @@ export async function POST(req: Request) {
 
       const eventParticipantId=session.metadata?.event_participant_id
       if(eventParticipantId){
-        const {data:participant}=await adminSupabase.from('event_participants').select('id,event_id,user_id,payment_status,status').eq('id',eventParticipantId).maybeSingle()
+        const {data:participant}=await adminSupabase.from('event_participants').select('id,event_id,user_id,amount,payment_status,status').eq('id',eventParticipantId).maybeSingle()
         if(!participant)return NextResponse.json({error:'Event participant not found'},{status:404})
+        const paidAmount=Number(session.amount_total||0)/100
+        if(Number(participant.amount)!==paidAmount)return NextResponse.json({error:'Event amount mismatch'},{status:400})
         if(participant.payment_status!=='paid'){const {error}=await adminSupabase.from('event_participants').update({status:'confirmed',payment_status:'paid',updated_at:new Date().toISOString()}).eq('id',eventParticipantId);if(error)throw error}
         const settlement=await persistMarketplaceTransaction(session,participant.user_id,'event',eventParticipantId)
         await recordEvent({event_participant_id:eventParticipantId,stripe_payment_intent_id:settlement.paymentIntentId});return NextResponse.json({received:true})
