@@ -2,6 +2,8 @@ name: E2E Smoke
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   workflow_run:
     workflows: [Quality]
     types: [completed]
@@ -10,7 +12,7 @@ on:
     - cron: '17 */6 * * *'
 
 concurrency:
-  group: e2e-smoke-production
+  group: e2e-smoke-production-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -59,7 +61,7 @@ jobs:
           echo "Production healthcheck did not become healthy"
           exit 1
 
-      - name: Report authenticated E2E coverage
+      - name: Require authenticated E2E coverage
         env:
           E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
           E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
@@ -71,24 +73,23 @@ jobs:
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
         run: |
           echo "## Authenticated E2E coverage" >> "$GITHUB_STEP_SUMMARY"
-          configured=0
           missing=0
           for role in ATHLETE PROFESSIONAL VENUE_MANAGER ADMIN; do
             email_var="E2E_${role}_EMAIL"
             password_var="E2E_${role}_PASSWORD"
             if [ -n "${!email_var}" ] && [ -n "${!password_var}" ]; then
               echo "- ✅ ${role}: configured" >> "$GITHUB_STEP_SUMMARY"
-              configured=$((configured + 1))
             else
-              echo "- ⚠️ ${role}: missing GitHub secrets; authenticated tests will be skipped" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ❌ ${role}: missing credentials" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Missing E2E credentials for ${role}"
               missing=$((missing + 1))
             fi
           done
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Configured roles: ${configured}/4" >> "$GITHUB_STEP_SUMMARY"
           if [ "$missing" -gt 0 ]; then
-            echo "::warning::Authenticated E2E coverage is incomplete: ${configured}/4 roles configured"
+            echo "Authenticated E2E coverage is incomplete: $((4 - missing))/4 roles configured" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
+          echo "Configured roles: 4/4" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run production smoke suite
         env:
