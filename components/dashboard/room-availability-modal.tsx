@@ -28,24 +28,28 @@ type TimeSlot = {
 const DAYS_OF_WEEK = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 
 export function RoomAvailabilityModal({ open, onOpenChange, roomId, roomName }: AvailabilityModalProps) {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [slots, setSlots] = useState<TimeSlot[]>([])
   const { showAlert } = useModal()
 
   useEffect(() => {
-    if (!open || !roomId) {
-      setSlots([])
-      return
-    }
+    if (!open || !roomId) return
     let active = true
-    setLoading(true)
     void getRoomAvailabilityAction(roomId)
       .then(data => { if (active) setSlots((data || []).map(slot => ({ ...slot, start_time: String(slot.start_time).slice(0, 5), end_time: String(slot.end_time).slice(0, 5) }))) })
       .catch(error => { if (active) showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar a disponibilidade.', 'error') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [open, roomId, showAlert])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setSlots([])
+      setLoading(true)
+    }
+    onOpenChange(nextOpen)
+  }
 
   const addSlot = (day: number) => setSlots(current => [...current, { day_of_week: day, start_time: '09:00', end_time: '18:00', is_active: true }])
   const updateSlot = (index: number, field: keyof TimeSlot, value: string | boolean | number) => setSlots(current => current.map((slot, i) => i === index ? { ...slot, [field]: value } : slot))
@@ -58,7 +62,7 @@ export function RoomAvailabilityModal({ open, onOpenChange, roomId, roomName }: 
     try {
       await saveRoomAvailabilityAction(roomId, slots.map(slot => ({ day_of_week: slot.day_of_week, start_time: slot.start_time, end_time: slot.end_time, is_active: slot.is_active })))
       showAlert('Disponibilidade guardada', 'Os períodos disponíveis foram atualizados.', 'success')
-      onOpenChange(false)
+      handleOpenChange(false)
     } catch (error) {
       showAlert('Não foi possível guardar', error instanceof Error ? error.message : 'Erro inesperado.', 'error')
     } finally {
@@ -67,7 +71,7 @@ export function RoomAvailabilityModal({ open, onOpenChange, roomId, roomName }: 
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1rem)] max-w-xl flex-col overflow-hidden rounded-2xl p-0 sm:w-full">
         <DialogHeader className="border-b px-4 py-4 sm:px-6">
           <DialogTitle>Disponibilidade · {roomName}</DialogTitle>
@@ -102,7 +106,7 @@ export function RoomAvailabilityModal({ open, onOpenChange, roomId, roomName }: 
         </div>
 
         <div className="grid grid-cols-2 gap-2 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:flex sm:justify-end sm:px-6 sm:pb-4">
-          <Button variant="outline" className="min-h-11" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" className="min-h-11" onClick={() => handleOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button className="min-h-11" onClick={handleSave} disabled={saving || loading}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar</Button>
         </div>
       </DialogContent>
