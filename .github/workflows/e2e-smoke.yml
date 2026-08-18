@@ -41,20 +41,22 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Wait for stable production endpoint
+      - name: Wait for healthy production endpoint
         env:
-          E2E_BASE_URL: https://find4sport.vercel.app
+          E2E_HEALTH_URL: https://find4sport.vercel.app/api/health
         run: |
           for attempt in {1..12}; do
-            status=$(curl -L -s -o /dev/null -w '%{http_code}' "$E2E_BASE_URL" || true)
-            if [ "$status" -ge 200 ] && [ "$status" -lt 500 ]; then
-              echo "Production endpoint is reachable with HTTP $status"
+            status=$(curl -sS -o health.json -w '%{http_code}' "$E2E_HEALTH_URL" || true)
+            if [ "$status" = "200" ]; then
+              echo "Production healthcheck is healthy"
+              cat health.json
               exit 0
             fi
-            echo "Attempt $attempt: production returned HTTP $status"
+            echo "Attempt $attempt: healthcheck returned HTTP $status"
+            cat health.json 2>/dev/null || true
             sleep 10
           done
-          echo "Production endpoint did not become reachable"
+          echo "Production healthcheck did not become healthy"
           exit 1
 
       - name: Report authenticated E2E coverage
