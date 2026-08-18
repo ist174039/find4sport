@@ -45,7 +45,7 @@ type Professional = {
   status: string | null
 }
 
-type ProfessionalRelation = { professional: Professional[] }
+type ProfessionalRelation = { professional: Professional | null }
 type Room = { id: string; name: string; price_per_hour: number | string | null; is_active: boolean | null }
 type RpcResult = { data: unknown; error: { message: string } | null }
 type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
@@ -76,7 +76,7 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
   ])
 
   const professionals = ((associationResult.data || []) as ProfessionalRelation[])
-    .flatMap(row => row.professional)
+    .flatMap(row => row.professional ? [row.professional] : [])
     .filter(professional => professional.status === 'active')
   const isPremium = subscriptionResult.data?.tier === 'premium' && ['active', 'trialing'].includes(String(subscriptionResult.data?.status))
   const gallery = Array.isArray(space.gallery_urls) ? space.gallery_urls.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
