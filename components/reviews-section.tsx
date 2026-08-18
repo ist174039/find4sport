@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { pt } from 'date-fns/locale'
@@ -24,6 +25,8 @@ function reviewerHref(review: PublicReview) {
 
 export function ReviewsSection({ targetType, targetId }: { targetType: TargetType; targetId: string }) {
   const { showAlert } = useModal()
+  const router = useRouter()
+  const pathname = usePathname()
   const [reviews, setReviews] = useState<PublicReview[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -88,7 +91,7 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
             <div className="hidden h-12 w-px bg-border sm:block" />
             <div><h2 className="text-lg font-bold sm:text-xl">Avaliações</h2><p className="mt-0.5 text-sm text-muted-foreground">Opiniões reais da comunidade.</p></div>
           </div>
-          <Button className="min-h-11 w-full rounded-xl font-bold sm:w-auto" onClick={() => { if (!userId) { window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`; return }; setIsModalOpen(true) }} disabled={hasReviewed && userId !== null}><MessageSquare className="mr-2 h-4 w-4" />{hasReviewed ? 'Já avaliou' : 'Deixar avaliação'}</Button>
+          <Button className="min-h-11 w-full rounded-xl font-bold sm:w-auto" onClick={() => { if (!userId) { router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`); return }; setIsModalOpen(true) }} disabled={hasReviewed && userId !== null}><MessageSquare className="mr-2 h-4 w-4" />{hasReviewed ? 'Já avaliou' : 'Deixar avaliação'}</Button>
         </div>
       </div>
 

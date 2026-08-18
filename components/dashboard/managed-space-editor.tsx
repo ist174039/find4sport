@@ -15,6 +15,18 @@ import { searchUnclaimedSpacesAction, updateManagedSpaceAction } from '@/app/das
 
 type ManagedSpace = { id: string; name: string; description?: string | null; email?: string | null; phone?: string | null; website?: string | null; address?: string | null; amenities?: string[] | null; slug?: string | null; is_verified?: boolean | null; status?: string | null }
 type ClaimSpace = { id: string; name: string; address?: string | null }
+type SpaceForm = { name: string; description: string; email: string; phone: string; website: string; address: string; amenities: string }
+
+const emptyForm: SpaceForm = { name: '', description: '', email: '', phone: '', website: '', address: '', amenities: '' }
+const formFromSpace = (space?: ManagedSpace | null): SpaceForm => space ? {
+  name: space.name || '',
+  description: space.description || '',
+  email: space.email || '',
+  phone: space.phone || '',
+  website: space.website || '',
+  address: space.address || '',
+  amenities: Array.isArray(space.amenities) ? space.amenities.join(', ') : '',
+} : emptyForm
 
 export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSpace[] }) {
   const { showAlert } = useModal()
@@ -27,12 +39,7 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
   const [claimOpen, setClaimOpen] = useState(false)
   const [searching, startSearchTransition] = useTransition()
   const selected = spaces.find(space => space.id === spaceId) || null
-  const [form, setForm] = useState({ name: '', description: '', email: '', phone: '', website: '', address: '', amenities: '' })
-
-  useEffect(() => {
-    if (!selected) return
-    setForm({ name: selected.name || '', description: selected.description || '', email: selected.email || '', phone: selected.phone || '', website: selected.website || '', address: selected.address || '', amenities: Array.isArray(selected.amenities) ? selected.amenities.join(', ') : '' })
-  }, [selected?.id])
+  const [form, setForm] = useState<SpaceForm>(() => formFromSpace(initialSpaces[0]))
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -42,6 +49,13 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
     }, 300)
     return () => clearTimeout(timeout)
   }, [query])
+
+  const selectSpace = (value: string) => {
+    const next = spaces.find(space => space.id === value)
+    if (!next) return
+    setSpaceId(value)
+    setForm(formFromSpace(next))
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
@@ -61,7 +75,7 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
     <div className="min-w-0 space-y-6">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">O meu espaço</h1><p className="mt-1 text-sm text-muted-foreground">Informação pública e contactos do espaço. Salas/campos são geridos no módulo próprio.</p></div>
-        {spaces.length > 1 && <Select value={spaceId} onValueChange={value => value && setSpaceId(value)}><SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger><SelectContent>{spaces.map(space => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent></Select>}
+        {spaces.length > 1 && <Select value={spaceId} onValueChange={value => value && selectSpace(value)}><SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger><SelectContent>{spaces.map(space => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent></Select>}
       </div>
 
       <div className="flex flex-wrap gap-2">{selected.is_verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Verificado</span>}{selected.status && <span className="rounded-full border px-3 py-1 text-xs font-medium capitalize">{selected.status}</span>}<Button asChild variant="outline" size="sm"><Link href={`/espacos/${selected.slug || selected.id}`}>Ver página pública</Link></Button></div>

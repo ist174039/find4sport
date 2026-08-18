@@ -8,14 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 
 export function ReserveSpaceBtn({ spaceName, ownerUserId, spaceId }: { spaceName: string; ownerUserId: string | null; spaceId?: string }) {
   const [open, setOpen] = useState(false)
-  const [bookable, setBookable] = useState<boolean | null>(spaceId ? null : Boolean(ownerUserId))
+  const [bookable, setBookable] = useState<boolean | null>(spaceId ? (ownerUserId ? null : false) : Boolean(ownerUserId))
 
   useEffect(() => {
-    if (!spaceId) return
-    if (!ownerUserId) {
-      setBookable(false)
-      return
-    }
+    if (!spaceId || !ownerUserId) return
 
     let cancelled = false
     void (async () => {
@@ -26,9 +22,9 @@ export function ReserveSpaceBtn({ spaceName, ownerUserId, spaceId }: { spaceName
       ])
       if (cancelled) return
       const activeRooms = rooms || []
-      const hasPaidRoom = activeRooms.some((room: any) => Number(room.price_per_hour || 0) > 0)
-      const canCharge = String((space as any)?.stripe_account_id || '').startsWith('acct_')
-      setBookable((space as any)?.status === 'active' && activeRooms.length > 0 && (!hasPaidRoom || canCharge))
+      const hasPaidRoom = activeRooms.some(room => Number(room.price_per_hour || 0) > 0)
+      const canCharge = String(space?.stripe_account_id || '').startsWith('acct_')
+      setBookable(space?.status === 'active' && activeRooms.length > 0 && (!hasPaidRoom || canCharge))
     })()
     return () => { cancelled = true }
   }, [ownerUserId, spaceId])

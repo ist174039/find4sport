@@ -18,11 +18,12 @@ const FILTERS = [
   { id: 'all', label: 'Todos' }, { id: 'upcoming', label: 'Próximos' }, { id: 'past', label: 'Passados' }, { id: 'pending', label: 'Pendentes' }, { id: 'draft', label: 'Rascunhos' },
 ] as const
 type Filter = typeof FILTERS[number]['id']
+type AdminEvent = Awaited<ReturnType<typeof getAdminEvents>>[number]
 const PAGE_SIZE = 20
 
 export default function AdminEventsPage() {
   const { showAlert, showConfirm } = useModal()
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<AdminEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -31,13 +32,14 @@ export default function AdminEventsPage() {
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ title: '', address: '', startDate: '', startTime: '', price: '', capacity: '', description: '' })
 
-  async function reload() {
-    setLoading(true)
-    try { setEvents(await getAdminEvents()) }
-    catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os eventos.', 'error') }
-    finally { setLoading(false) }
-  }
-  useEffect(() => { void reload() }, [])
+  useEffect(() => {
+    let active = true
+    void getAdminEvents()
+      .then(data => { if (active) setEvents(data) })
+      .catch(error => { if (active) showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os eventos.', 'error') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [showAlert])
 
   const filtered = useMemo(() => {
     const now = new Date(); const q = search.trim().toLowerCase()
@@ -52,7 +54,6 @@ export default function AdminEventsPage() {
       return true
     })
   }, [events, filter, search])
-  useEffect(() => setPage(1), [filter, search])
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); const safePage = Math.min(page, totalPages); const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
   const stats = useMemo(() => { const now = new Date(); const next7 = new Date(now.getTime() + 7 * 86400000); return { total: events.length, upcoming: events.filter(e => e.start_date && new Date(e.start_date) >= now).length, next7: events.filter(e => e.start_date && new Date(e.start_date) >= now && new Date(e.start_date) <= next7).length, pending: events.filter(e => e.status === 'pending').length } }, [events])
 
@@ -63,7 +64,7 @@ export default function AdminEventsPage() {
   return <DashboardPage>
     <DashboardPageHeader title="Eventos" description="Aprovação, publicação e manutenção dos eventos registados na plataforma." action={<Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger render={<Button className="min-h-11"><Plus className="mr-2 h-4 w-4" />Criar evento</Button>} /><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Criar evento</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>Título *</Label><Input className="min-h-11 text-base" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} /></div><div className="space-y-2"><Label>Localização</Label><Input className="min-h-11 text-base" value={form.address} onChange={e => setForm(v => ({ ...v, address: e.target.value }))} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Data *</Label><Input type="date" className="min-h-11 text-base" value={form.startDate} onChange={e => setForm(v => ({ ...v, startDate: e.target.value }))} /></div><div className="space-y-2"><Label>Hora</Label><Input type="time" className="min-h-11 text-base" value={form.startTime} onChange={e => setForm(v => ({ ...v, startTime: e.target.value }))} /></div></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Preço (€)</Label><Input type="number" min="0" step="0.01" className="min-h-11 text-base" value={form.price} onChange={e => setForm(v => ({ ...v, price: e.target.value }))} /></div><div className="space-y-2"><Label>Capacidade</Label><Input type="number" min="1" className="min-h-11 text-base" value={form.capacity} onChange={e => setForm(v => ({ ...v, capacity: e.target.value }))} /></div></div><div className="space-y-2"><Label>Descrição</Label><Textarea className="min-h-28 text-base" value={form.description} onChange={e => setForm(v => ({ ...v, description: e.target.value }))} /></div><Button onClick={createEvent} disabled={creating} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Publicar evento</Button></div></DialogContent></Dialog>} />
     <DashboardStatGrid><DashboardStat label="Total" value={stats.total} icon={<Calendar className="h-5 w-5" />} /><DashboardStat label="Próximos" value={stats.upcoming} icon={<Calendar className="h-5 w-5" />} /><DashboardStat label="Próximos 7 dias" value={stats.next7} icon={<CheckCircle2 className="h-5 w-5" />} /><DashboardStat label="Pendentes" value={stats.pending} icon={<XCircle className="h-5 w-5" />} /></DashboardStatGrid>
-    <DashboardSection title="Lista de eventos" description="Pesquisa, filtros e paginação funcional."><div className="mb-4 space-y-3"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar por título, local ou descrição" className="min-h-11 pl-9 text-base" /></div><div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} type="button" variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => setFilter(item.id)}>{item.label}</Button>)}</div></div>
+    <DashboardSection title="Lista de eventos" description="Pesquisa, filtros e paginação funcional."><div className="mb-4 space-y-3"><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Pesquisar por título, local ou descrição" className="min-h-11 pl-9 text-base" /></div><div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} type="button" variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => { setFilter(item.id); setPage(1) }}>{item.label}</Button>)}</div></div>
       {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : visible.length === 0 ? <DashboardEmptyState icon={<Calendar className="h-10 w-10" />} title="Sem eventos" description="Não existem eventos para os critérios selecionados." /> : <div className="grid gap-3">{visible.map(event => <article key={event.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-semibold">{event.title}</h3><Badge variant="outline">{event.status || 'sem estado'}</Badge></div><p className="mt-1 break-words text-sm text-muted-foreground">{event.start_date ? new Date(event.start_date).toLocaleString('pt-PT') : 'Data não indicada'}{event.address ? ` · ${event.address}` : ''}</p></div><div className="grid grid-cols-2 gap-2 sm:flex">{event.status === 'pending' && <><Button variant="outline" className="min-h-11" onClick={() => changeStatus(event.id, 'reject')}>Rejeitar</Button><Button className="min-h-11" onClick={() => changeStatus(event.id, 'approve')}>Aprovar</Button></>}<Button asChild variant="outline" size="icon" className="h-11 w-full sm:w-11"><Link href={`/eventos/${event.slug || event.id}`} target="_blank" aria-label="Ver evento"><Eye className="h-4 w-4" /></Link></Button><Button variant="ghost" size="icon" className="h-11 w-full text-destructive sm:w-11" onClick={() => removeEvent(event.id, event.title)} aria-label="Eliminar evento"><Trash2 className="h-4 w-4" /></Button></div></article>)}</div>}
       <TablePagination currentPage={safePage} totalPages={totalPages} totalItems={filtered.length} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
     </DashboardSection>

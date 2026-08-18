@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {  Activity, X, CheckCircle2  } from 'lucide-react'
+import { Activity, X, CheckCircle2 } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 import { suggestModalityAction } from '@/app/actions/modalities'
 
@@ -20,16 +20,22 @@ export function SuggestModalityModal() {
     try {
       await suggestModalityAction(modality)
       setSuccess(true)
-    } catch (error) {
+    } catch {
       showAlert('Erro', 'Erro ao enviar sugestão. Tente novamente.', 'error')
     } finally {
       setLoading(false)
     }
   }
 
+  const closeModal = () => {
+    setOpen(false)
+    setSuccess(false)
+    setModality('')
+  }
+
   return (
     <>
-      <button 
+      <button
         onClick={() => setOpen(true)}
         className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-medium shadow-sm hover:bg-primary/90 transition-all relative z-10"
       >
@@ -39,9 +45,10 @@ export function SuggestModalityModal() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-card border border-border w-full max-w-md rounded-3xl p-6 md:p-8 shadow-xl relative animate-in zoom-in-95 duration-200">
-            <button 
-              onClick={() => { setOpen(false); setSuccess(false); setModality(''); }}
+            <button
+              onClick={closeModal}
               className="absolute top-4 right-4 p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors"
+              aria-label="Fechar"
             >
               <X className="w-5 h-5" />
             </button>
@@ -52,9 +59,9 @@ export function SuggestModalityModal() {
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">Sugestão Recebida!</h3>
-                <p className="text-muted-foreground mb-6">Obrigado por ajudar a melhorar a plataforma. Vamos analisar a inclusão da modalidade "{modality}".</p>
-                <button 
-                  onClick={() => { setOpen(false); setSuccess(false); setModality(''); }}
+                <p className="text-muted-foreground mb-6">Obrigado por ajudar a melhorar a plataforma. Vamos analisar a inclusão da modalidade “{modality}”.</p>
+                <button
+                  onClick={closeModal}
                   className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:bg-primary/90 transition-all"
                 >
                   Fechar
@@ -67,22 +74,22 @@ export function SuggestModalityModal() {
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2">Sugerir Nova Modalidade</h3>
                 <p className="text-muted-foreground text-sm mb-6">Se não encontrou o desporto que procura, deixe-nos a sua sugestão. Adicionamos constantemente novas opções.</p>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-foreground mb-2">Nome da Modalidade</label>
-                    <input 
+                    <input
                       autoFocus
-                      type="text" 
+                      type="text"
                       value={modality}
                       onChange={(e) => setModality(e.target.value)}
-                      placeholder="Ex: Padel, Escalada..." 
+                      placeholder="Ex: Padel, Escalada..."
                       className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                       required
                     />
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={loading || !modality.trim()}
                     className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:bg-primary/90 transition-all disabled:opacity-70"
                   >
