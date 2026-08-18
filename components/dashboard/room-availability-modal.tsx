@@ -37,7 +37,14 @@ export function RoomAvailabilityModal({ open, onOpenChange, roomId, roomName }: 
     if (!open || !roomId) return
     let active = true
     void getRoomAvailabilityAction(roomId)
-      .then(data => { if (active) setSlots((data || []).map(slot => ({ ...slot, start_time: String(slot.start_time).slice(0, 5), end_time: String(slot.end_time).slice(0, 5) }))) })
+      .then(data => {
+        if (active) setSlots((data || []).map(slot => ({
+          ...slot,
+          start_time: String(slot.start_time).slice(0, 5),
+          end_time: String(slot.end_time).slice(0, 5),
+          is_active: Boolean(slot.is_active),
+        })))
+      })
       .catch(error => { if (active) showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar a disponibilidade.', 'error') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
