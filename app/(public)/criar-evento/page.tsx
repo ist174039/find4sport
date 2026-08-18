@@ -140,7 +140,6 @@ export default function CreateEventPage() {
         organizer_name: professional?.professional_name || professional?.full_name || user.user_metadata?.full_name || user.email || 'Utilizador Find4Sport',
         image_url: imageUrl,
         created_by: user.id,
-        source: 'find4sport',
       })
 
       if (insertError) throw new Error(insertError.message)
