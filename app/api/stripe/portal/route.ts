@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getTrustedApplicationOrigin } from '@/lib/http/trusted-origin'
 import Stripe from 'stripe'
 
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-01-27.acacia' as any,
-}) : null
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 export async function POST(req: Request) {
   try {
@@ -16,11 +15,9 @@ export async function POST(req: Request) {
     }
 
     if (!stripe) {
-      // Mock portal behavior - just redirect back to the billing page
-      return NextResponse.json({ url: '/dashboard/faturacao?portal=mocked' })
+      return NextResponse.json({ error: 'Stripe não está configurado no servidor.' }, { status: 503 })
     }
 
-    // Actual Logic
     const { data: sub } = await supabase
       .from('user_subscriptions')
       .select('stripe_customer_id')
@@ -28,18 +25,17 @@ export async function POST(req: Request) {
       .maybeSingle()
 
     if (!sub?.stripe_customer_id) {
-      return NextResponse.json({ error: 'No Stripe Customer found for this user' }, { status: 404 })
+      return NextResponse.json({ error: 'Não existe cliente Stripe associado a esta conta.' }, { status: 404 })
     }
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/faturacao`,
+      return_url: `${getTrustedApplicationOrigin(req)}/dashboard/faturacao`,
     })
 
     return NextResponse.json({ url: session.url })
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Stripe portal error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao abrir faturação Stripe.' }, { status: 500 })
   }
 }
