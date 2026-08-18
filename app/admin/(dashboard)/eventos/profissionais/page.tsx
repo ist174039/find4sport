@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -27,7 +27,6 @@ type Event = {
 export default function AdminEventosProfissionaisPage() {
  const router = useRouter()
  const [events, setEvents] = useState<Event[]>([])
- const [filtered, setFiltered] = useState<Event[]>([])
  const [loading, setLoading] = useState(true)
  const [search, setSearch] = useState('')
 
@@ -60,21 +59,20 @@ export default function AdminEventosProfissionaisPage() {
      professional_email: e.professionals?.email || null,
     }))
     setEvents(mapped)
-    setFiltered(mapped)
    }
    setLoading(false)
   }
-  load()
+  void load()
  }, [router])
 
- useEffect(() => {
-  if (!search.trim()) { setFiltered(events); return }
-  const term = search.toLowerCase()
-  setFiltered(events.filter(e =>
+ const filtered = useMemo(() => {
+  const term = search.trim().toLowerCase()
+  if (!term) return events
+  return events.filter(e =>
    e.title.toLowerCase().includes(term) ||
    e.professional_name?.toLowerCase().includes(term) ||
    e.professional_email?.toLowerCase().includes(term)
-  ))
+  )
  }, [search, events])
 
  const statusColors: Record<string, string> = {
