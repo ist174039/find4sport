@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getTrustedApplicationOrigin } from '@/lib/http/trusted-origin'
 import Stripe from 'stripe'
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
-
-function getBaseUrl(req: Request) {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (configured) {
-    try {
-      return new URL(/^https?:\/\//i.test(configured) ? configured : `https://${configured}`).origin
-    } catch {}
-  }
-  return new URL(req.url).origin
-}
+const MANAGED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused'])
 
 export async function POST(req: Request) {
   try {
@@ -48,11 +40,23 @@ export async function POST(req: Request) {
 
     const { data: existingSubscription } = await admin
       .from('user_subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, stripe_subscription_id, status')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const baseUrl = getBaseUrl(req)
+    const baseUrl = getTrustedApplicationOrigin(req)
+    if (
+      existingSubscription?.stripe_customer_id &&
+      existingSubscription.stripe_subscription_id &&
+      MANAGED_SUBSCRIPTION_STATUSES.has(String(existingSubscription.status || ''))
+    ) {
+      const portal = await stripe.billingPortal.sessions.create({
+        customer: existingSubscription.stripe_customer_id,
+        return_url: `${baseUrl}/dashboard/faturacao`,
+      })
+      return NextResponse.json({ url: portal.url, mode: 'portal' })
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -63,14 +67,12 @@ export async function POST(req: Request) {
       customer_email: existingSubscription?.stripe_customer_id ? undefined : user.email,
       metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type, billing_cycle: billingCycle },
       subscription_data: { metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type } },
-    }, {
-      idempotencyKey: `subscription-checkout:${user.id}:${plan.id}:${billingCycle}`,
     })
 
     if (!session.url) return NextResponse.json({ error: 'Stripe não devolveu uma URL de checkout.' }, { status: 502 })
-    return NextResponse.json({ url: session.url })
-  } catch (error: any) {
+    return NextResponse.json({ url: session.url, mode: 'checkout' })
+  } catch (error: unknown) {
     console.error('Stripe checkout error:', error)
-    return NextResponse.json({ error: error?.message || 'Erro ao iniciar checkout' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao iniciar checkout' }, { status: 500 })
   }
 }
