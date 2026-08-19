@@ -5,25 +5,7 @@ import { MobileEntityActions } from '@/components/patterns/mobile-entity-actions
 import { AppImage } from '@/components/ui/app-image'
 import { cn } from '@/lib/utils'
 
-export function EntityHero({
-  coverUrl,
-  coverAlt,
-  avatar,
-  title,
-  subtitle,
-  badges,
-  meta,
-  actions,
-}: {
-  coverUrl?: string | null
-  coverAlt: string
-  avatar?: ReactNode
-  title: string
-  subtitle?: ReactNode
-  badges?: ReactNode
-  meta?: ReactNode
-  actions?: ReactNode
-}) {
+export function EntityHero({ coverUrl, coverAlt, avatar, title, subtitle, badges, meta, actions }: { coverUrl?: string | null; coverAlt: string; avatar?: ReactNode; title: string; subtitle?: ReactNode; badges?: ReactNode; meta?: ReactNode; actions?: ReactNode }) {
   return (
     <section className="relative border-b border-border bg-card">
       <div className="relative h-48 overflow-hidden bg-muted sm:h-64 lg:h-72">
@@ -32,7 +14,7 @@ export function EntityHero({
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/15" />
       </div>
       <PageContainer className="relative -mt-20 pb-5 sm:-mt-24 sm:pb-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="flex min-w-0 items-end gap-3 sm:gap-4">
             {avatar && <div className="shrink-0">{avatar}</div>}
             <div className="min-w-0 rounded-xl bg-black/55 px-3 py-2 text-white shadow-sm backdrop-blur-[2px] sm:px-4 sm:py-3">
@@ -42,7 +24,7 @@ export function EntityHero({
               {meta && <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/90 drop-shadow">{meta}</div>}
             </div>
           </div>
-          {actions && <div className="hidden shrink-0 gap-2 pb-2 sm:flex [&>*]:min-h-11 [&>*]:shrink-0">{actions}</div>}
+          {actions && <div className="hidden shrink-0 gap-2 pb-2 md:flex [&>*]:min-h-11 [&>*]:shrink-0">{actions}</div>}
         </div>
       </PageContainer>
     </section>
@@ -52,14 +34,14 @@ export function EntityHero({
 function flattenSections(node: ReactNode): ReactNode[] {
   if (node == null || typeof node === 'boolean') return []
   if (Array.isArray(node)) return node.flatMap(flattenSections)
-  if (isValidElement(node) && node.type === Fragment) return flattenSections((node.props as any).children)
+  if (isValidElement<{ children?: ReactNode }>(node) && node.type === Fragment) return flattenSections(node.props.children)
   return [node]
 }
 
 function tabLabel(node: ReactNode, index: number) {
-  if (isValidElement(node)) {
-    const props = node.props as any
-    if (typeof props?.title === 'string' && props.title.trim()) return props.title.trim()
+  if (isValidElement<{ title?: unknown }>(node)) {
+    const title = node.props.title
+    if (typeof title === 'string' && title.trim()) return title.trim()
   }
   return index === 0 ? 'Detalhes' : `Mais ${index + 1}`
 }
@@ -71,7 +53,7 @@ export function EntityDetailLayout({ main, aside }: { main: ReactNode; aside?: R
   return (
     <>
       <EntityMobileTabs tabs={mobileTabs} />
-      <PageContainer className="hidden py-8 sm:block">
+      <PageContainer className="hidden py-8 md:block">
         <div className={cn('grid gap-5 lg:gap-8', aside ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1')}>
           <div className="min-w-0 space-y-5">{main}</div>
           {aside && <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:self-start">{aside}</aside>}
@@ -90,9 +72,7 @@ export function DetailSection({ title, icon, description, children, className }:
   )
 }
 
-export function MobileActionBar({ children }: { children: ReactNode }) {
-  return <MobileEntityActions>{children}</MobileEntityActions>
-}
+export function MobileActionBar({ children }: { children: ReactNode }) { return <MobileEntityActions>{children}</MobileEntityActions> }
 
 export function DetailStat({ label, value }: { label: string; value: ReactNode }) {
   return <div className="min-w-0"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p><div className="mt-1 break-words font-semibold text-foreground">{value}</div></div>
