@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Loader2, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function DashboardPage({ children, className }: { children: ReactNode; className?: string }) {
@@ -39,7 +40,29 @@ export function DashboardEmptyState({ icon, title, description, action }: { icon
     <div className="min-w-0 max-w-full rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center sm:py-12">
       {icon && <div className="mx-auto mb-3 flex justify-center text-muted-foreground/50">{icon}</div>}
       <h3 className="break-words font-bold text-foreground">{title}</h3>
-      {description && <p className="mx-auto mt-1 max-w-md break-words text-sm text-muted-foreground">{description}</p>}
+      {description && <p className="mx-auto mt-1 max-w-md break-words text-sm leading-6 text-muted-foreground">{description}</p>}
+      {action && <div className="mx-auto mt-5 max-w-sm [&>*]:min-h-11 [&>*]:max-w-full [&>*]:w-full sm:[&>*]:w-auto">{action}</div>}
+    </div>
+  )
+}
+
+export function DashboardLoadingState({ label = 'A carregar…', className }: { label?: string; className?: string }) {
+  return (
+    <div className={cn('flex min-h-48 min-w-0 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/15 px-5 py-10 text-center', className)} role="status" aria-live="polite">
+      <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden="true" />
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+    </div>
+  )
+}
+
+export function DashboardErrorState({ title = 'Não foi possível carregar', description, action, className }: { title?: string; description?: string; action?: ReactNode; className?: string }) {
+  return (
+    <div className={cn('min-w-0 rounded-2xl border border-destructive/25 bg-destructive/5 px-5 py-8 text-center sm:py-10', className)} role="alert">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+        <TriangleAlert className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <h3 className="break-words font-bold text-foreground">{title}</h3>
+      {description && <p className="mx-auto mt-1 max-w-lg break-words text-sm leading-6 text-muted-foreground">{description}</p>}
       {action && <div className="mx-auto mt-5 max-w-sm [&>*]:min-h-11 [&>*]:max-w-full [&>*]:w-full sm:[&>*]:w-auto">{action}</div>}
     </div>
   )
