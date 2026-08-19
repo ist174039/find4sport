@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import type { TablesUpdate } from '@/lib/supabase-types'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -54,7 +55,7 @@ export async function updateProfileAction(formData: FormData) {
     const serviceRadius = Number(formData.get('service_radius_km') || 10)
     const categoryIds = [...new Set(formData.getAll('category_ids').map(String).filter(Boolean))].slice(0, 5)
     const coordinates = address ? await geocodeAddress(address) : null
-    const professionalPatch: Record<string, unknown> = { full_name: fullName, professional_name: professionalName || fullName, bio: bio || null, phone: phone || null, whatsapp: whatsapp || null, address: address || null, website: website || null, service_radius_km: Number.isFinite(serviceRadius) ? Math.min(Math.max(serviceRadius, 1), 200) : 10, updated_at: new Date().toISOString() }
+    const professionalPatch: TablesUpdate<'professionals'> = { full_name: fullName, professional_name: professionalName || fullName, bio: bio || null, phone: phone || null, whatsapp: whatsapp || null, address: address || null, website: website || null, service_radius_km: Number.isFinite(serviceRadius) ? Math.min(Math.max(serviceRadius, 1), 200) : 10, updated_at: new Date().toISOString() }
     if (coordinates) { professionalPatch.latitude = coordinates.latitude; professionalPatch.longitude = coordinates.longitude }
     else if (!address) { professionalPatch.latitude = null; professionalPatch.longitude = null }
 
@@ -64,7 +65,7 @@ export async function updateProfileAction(formData: FormData) {
     const validIds = (validCategories || []).map(row => row.id)
     await admin.from('professional_categories').delete().eq('professional_id', professional.id)
     if (validIds.length) {
-      const { error: categoryError } = await admin.from('professional_categories').insert(validIds.map((categoryId, index) => ({ professional_id: professional.id, category_id: categoryId, is_primary: index === 0 })))
+      const { error: categoryError } = await admin.from('professional_categories').insert(validIds.map(categoryId => ({ professional_id: professional.id, category_id: categoryId })))
       if (categoryError) throw categoryError
     }
   }
