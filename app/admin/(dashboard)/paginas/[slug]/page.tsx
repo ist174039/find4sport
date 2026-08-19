@@ -12,7 +12,7 @@ import { useModal } from '@/components/providers/modal-provider'
 import { BlockBuilder, type CMSBlock } from '@/components/cms/block-builder'
 import { getCmsPage } from '@/lib/cms/registry'
 import { loadCmsPageAction, saveCmsPageAction } from '@/app/admin/actions/cms'
-import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
+import { DashboardLoadingState, DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
 
 type StoredCmsContent = {
   blocks?: CMSBlock[]
@@ -66,9 +66,9 @@ export default function AdminPageEditor() {
   if (!definition) return null
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center" role="status" aria-label="A carregar editor">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <DashboardPage className="mx-auto max-w-4xl">
+        <DashboardLoadingState label="A carregar editor de conteúdo…" className="min-h-[50vh]" />
+      </DashboardPage>
     )
   }
 
