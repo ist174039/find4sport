@@ -7,6 +7,20 @@ import { resolveSessionAccess } from '@/lib/auth/access'
 import { getCmsPage } from '@/lib/cms/registry'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { CMSBlock } from '@/components/cms/block-builder'
+import type { Json } from '@/lib/supabase-types'
+
+function toJson(value: unknown): Json {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value
+  if (Array.isArray(value)) return value.map(toJson)
+  if (typeof value === 'object') {
+    const result: { [key: string]: Json | undefined } = {}
+    for (const [key, item] of Object.entries(value)) {
+      if (item !== undefined) result[key] = toJson(item)
+    }
+    return result
+  }
+  throw new Error('Conteúdo CMS contém um valor não serializável.')
+}
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -43,7 +57,7 @@ export async function saveCmsPageAction(input: {
     title: input.title.trim() || definition.title,
     description: input.description.trim() || null,
     is_published: Boolean(input.isPublished),
-    content: { blocks },
+    content: toJson({ blocks }),
     updated_at: new Date().toISOString(),
   }
 
