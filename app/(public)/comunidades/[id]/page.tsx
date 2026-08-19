@@ -121,13 +121,33 @@ export default async function CommunityProfilePage({
   }
 
   if (isCommunityAdmin) {
-    const { data } = await admin
+    const { data: requestRows, error: requestError } = await admin
       .from('community_join_requests')
-      .select('id,user_id,created_at,platform_users:user_id(full_name,avatar_url)')
+      .select('id,user_id,created_at')
       .eq('community_id', community.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
-    joinRequests = (data || []) as JoinRequest[]
+    if (requestError) throw requestError
+
+    const userIds = [...new Set((requestRows || []).map(request => request.user_id).filter((id): id is string => Boolean(id)))]
+    const profilesById = new Map<string, { full_name: string | null; avatar_url: string | null }>()
+    if (userIds.length > 0) {
+      const { data: requestProfiles, error: profilesError } = await admin
+        .from('platform_users')
+        .select('id,full_name,avatar_url')
+        .in('id', userIds)
+      if (profilesError) throw profilesError
+      for (const requestProfile of requestProfiles || []) {
+        profilesById.set(requestProfile.id, { full_name: requestProfile.full_name, avatar_url: requestProfile.avatar_url })
+      }
+    }
+
+    joinRequests = (requestRows || []).map(request => ({
+      id: request.id,
+      user_id: request.user_id,
+      created_at: request.created_at,
+      platform_users: profilesById.get(request.user_id) || null,
+    }))
   }
 
   const actions = (
