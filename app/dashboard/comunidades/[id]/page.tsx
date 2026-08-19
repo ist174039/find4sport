@@ -51,7 +51,7 @@ export default async function ManageCommunityPage({ params }: { params: Promise<
   const members = membersResult.data || []
   const posts = postsResult.data || []
   const requests = requestsResult.error ? [] : (requestsResult.data || [])
-  const adminCount = members.filter((member: any) => member.role === 'admin').length
+  const adminCount = members.filter(member => member.role === 'admin').length
   const categories: TaxonomyOption[] = (categoriesResult.data || []).map(row => {
     const candidate = row as unknown as Record<string, unknown>
     return { id: String(candidate.id), name: String(candidate.name || ''), slug: String(candidate.slug || ''), emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null, parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null }
