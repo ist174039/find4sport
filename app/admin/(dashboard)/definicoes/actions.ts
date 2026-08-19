@@ -5,6 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { writeAdminAudit } from '@/lib/admin/audit'
+import type { Json } from '@/lib/supabase-types'
+
+function isJsonObject(value: Json | null | undefined): value is { [key: string]: Json | undefined } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 async function requireGeneralAdmin() {
   const supabase = await createClient()
@@ -24,8 +29,9 @@ export async function getRealAdminSettingsAction() {
     admin.from('system_config').select('settings').eq('id', 'global').maybeSingle(),
     admin.from('carousel_slides').select('*').order('display_order', { ascending: true }),
   ])
+  const settings = isJsonObject(config?.settings) ? config.settings : {}
   return {
-    manualProfileApproval: config?.settings?.manual_profile_approval ?? true,
+    manualProfileApproval: typeof settings.manual_profile_approval === 'boolean' ? settings.manual_profile_approval : true,
     slides: slides || [],
   }
 }
@@ -33,7 +39,8 @@ export async function getRealAdminSettingsAction() {
 export async function saveRegistrationApprovalAction(enabled: boolean) {
   const { user, admin } = await requireGeneralAdmin()
   const { data: existing } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
-  const settings = { ...(existing?.settings || {}), manual_profile_approval: enabled }
+  const currentSettings = isJsonObject(existing?.settings) ? existing.settings : {}
+  const settings: Json = { ...currentSettings, manual_profile_approval: enabled }
   const { error } = await admin.from('system_config').upsert({ id: 'global', settings, updated_at: new Date().toISOString() })
   if (error) throw error
   await writeAdminAudit(admin as any, {

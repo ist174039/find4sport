@@ -11,9 +11,9 @@ interface Qualification {
   id: string
   professional_id: string
   title: string
-  issuer?: string
-  issue_date?: string
-  is_verified?: boolean
+  issuer?: string | null
+  issue_date?: string | null
+  is_verified?: boolean | null
 }
 
 export function QualificationsManager({ professionalId }: { professionalId: string }) {
@@ -70,8 +70,8 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
         setQualifications([data, ...qualifications])
         setForm({ title: '', issuer: '', issue_date: '' })
       }
-    } catch (err: any) {
-      console.error(err)
+    } catch (error: unknown) {
+      console.error(error)
     } finally {
       setAdding(false)
     }
@@ -84,8 +84,8 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
       const { error } = await supabase.from('qualifications').delete().eq('id', id)
       if (error) throw error
       setQualifications(qualifications.filter(q => q.id !== id))
-    } catch (err: any) {
-      console.error(err)
+    } catch (error: unknown) {
+      console.error(error)
     } finally {
       setDeletingId(null)
     }
@@ -103,7 +103,6 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
         </span>
       </div>
 
-      {/* Form to Add New Qualification */}
       <div className="bg-muted/30 p-4 rounded-xl border border-border space-y-4">
         <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
           Adicionar Nova Certificação ou Diploma
@@ -112,7 +111,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1 sm:col-span-1">
             <Label className="text-xs font-semibold">Título / Nome *</Label>
-            <Input 
+            <Input
               value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })}
               placeholder="Ex: Licenciatura em Educação Física / CÉTP TEF"
@@ -122,7 +121,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
 
           <div className="space-y-1 sm:col-span-1">
             <Label className="text-xs font-semibold">Entidade Emissora</Label>
-            <Input 
+            <Input
               value={form.issuer}
               onChange={e => setForm({ ...form, issuer: e.target.value })}
               placeholder="Ex: IPDJ / FMH / CrossFit"
@@ -132,7 +131,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
 
           <div className="space-y-1 sm:col-span-1">
             <Label className="text-xs font-semibold">Data de Emissão</Label>
-            <Input 
+            <Input
               type="date"
               value={form.issue_date}
               onChange={e => setForm({ ...form, issue_date: e.target.value })}
@@ -142,7 +141,7 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
         </div>
 
         <div className="flex justify-end">
-          <Button 
+          <Button
             type="button"
             onClick={handleAdd}
             disabled={adding || !form.title.trim()}
@@ -154,7 +153,6 @@ export function QualificationsManager({ professionalId }: { professionalId: stri
         </div>
       </div>
 
-      {/* Qualifications List */}
       {loading ? (
         <div className="flex items-center justify-center p-6 text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />

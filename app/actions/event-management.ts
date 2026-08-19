@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { requireFeature } from '@/lib/billing/entitlements'
+import type { Json, TablesInsert, TablesUpdate } from '@/lib/supabase-types'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -26,6 +27,12 @@ function validateDate(value: string, label: string) {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) throw new Error(`${label} inválida.`)
   return date
+}
+
+function manualApprovalEnabled(settings: Json | null | undefined) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true
+  const value = settings.manual_profile_approval
+  return typeof value === 'boolean' ? value : true
 }
 
 async function geocodeAddress(address: string) {
@@ -123,8 +130,7 @@ export async function createEventAction(formData: FormData) {
   }
 
   const { data: configData } = await admin.from('system_config').select('settings').maybeSingle()
-  const manualApproval = configData?.settings?.manual_profile_approval ?? true
-  const status = manualApproval ? 'pending' : 'published'
+  const status: NonNullable<TablesInsert<'events'>['status']> = manualApprovalEnabled(configData?.settings) ? 'pending' : 'published'
 
   const banner = formData.get('banner')
   const gallery = formData.getAll('gallery').filter((value): value is File => value instanceof File && value.size > 0)
@@ -142,7 +148,7 @@ export async function createEventAction(formData: FormData) {
     for (const file of gallery) uploaded.push(await uploadImage(admin, user.id, folderId, file, 'gallery'))
     const galleryUrls = uploaded.filter(item => item.url !== imageUrl).map(item => item.url)
 
-    const payload: Record<string, unknown> = {
+    const payload: TablesInsert<'events'> = {
       title: fields.title,
       description: fields.description,
       category_id: fields.categoryId,
@@ -158,10 +164,8 @@ export async function createEventAction(formData: FormData) {
       professional_id: professionalId,
       organizer_name: organizerName,
       status,
-    }
-    if (coordinates) {
-      payload.latitude = coordinates.latitude
-      payload.longitude = coordinates.longitude
+      latitude: coordinates?.latitude ?? null,
+      longitude: coordinates?.longitude ?? null,
     }
 
     const { data: event, error } = await admin.from('events').insert(payload).select('id').single()
@@ -216,7 +220,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
     for (const file of newGallery) uploaded.push(await uploadImage(admin, user.id, eventId, file, 'gallery'))
     const galleryUrls = [...keptGallery, ...uploaded.filter(item => item.url !== imageUrl).map(item => item.url)]
 
-    const payload: Record<string, unknown> = {
+    const payload: TablesUpdate<'events'> = {
       title: fields.title,
       description: fields.description,
       category_id: fields.categoryId,
@@ -228,10 +232,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
       price_max: fields.priceMax,
       image_url: imageUrl,
       gallery_urls: galleryUrls.length ? galleryUrls : null,
-    }
-    if (addressChanged) {
-      payload.latitude = coordinates?.latitude ?? null
-      payload.longitude = coordinates?.longitude ?? null
+      ...(addressChanged ? { latitude: coordinates?.latitude ?? null, longitude: coordinates?.longitude ?? null } : {}),
     }
 
     const { error } = await admin.from('events').update(payload).eq('id', eventId).eq('created_by', user.id)

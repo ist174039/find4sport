@@ -6,10 +6,10 @@ export default async function BlogPage() {
   const { data, error } = await supabase.from('cms_pages').select('*').eq('slug', 'blog').single()
 
   return (
-    <NormalizedContentPage 
+    <NormalizedContentPage
       title={data?.title || 'Blog Oficial'}
-      description={data?.description}
-      content={data?.content?.body}
+      description={data?.description ?? undefined}
+      content={data?.content}
       loading={false}
       error={error ? 'Página não configurada no painel de administração.' : null}
     />

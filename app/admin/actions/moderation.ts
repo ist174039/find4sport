@@ -41,8 +41,9 @@ export async function removeReportedContentAction(reportId: string) {
     const { error } = await admin.from('post_comments').delete().eq('id', report.target_id)
     if (error) throw new Error('Não foi possível remover o comentário.')
   } else if (report.target_type === 'community') {
-    const { error } = await admin.from('communities').update({ is_active: false }).eq('id', report.target_id)
-    if (error) throw new Error('Não foi possível desativar a comunidade.')
+    throw new Error('A desativação de comunidades não está implementada no schema atual. A denúncia não foi marcada como resolvida.')
+  } else {
+    throw new Error(`Tipo de conteúdo não suportado pela moderação: ${report.target_type}`)
   }
 
   const { error: updateError } = await admin

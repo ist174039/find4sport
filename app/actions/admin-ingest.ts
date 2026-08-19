@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { writeAdminAudit } from '@/lib/admin/audit'
+import type { TablesInsert } from '@/lib/supabase-types'
 
 async function requireAdminAccess() {
   const supabase = await createClient()
@@ -77,7 +78,7 @@ export async function adminIngestData(queueItems: any[]) {
   const { data: existing } = await admin.from('sport_spaces').select('name').in('name', candidates.map(item => String(item.name).trim()))
   const existingNames = new Set((existing || []).map(row => String(row.name).trim().toLowerCase()))
 
-  const rows = candidates.filter(item => !existingNames.has(String(item.name).trim().toLowerCase())).map(item => ({
+  const rows: TablesInsert<'sport_spaces'>[] = candidates.filter(item => !existingNames.has(String(item.name).trim().toLowerCase())).map(item => ({
     name: String(item.name).trim(),
     slug: cleanSlug(String(item.name)),
     address: String(item.address).trim(),

@@ -4,21 +4,29 @@ import { Building2, ChevronLeft, ChevronRight, Dumbbell, Search, UserRound, User
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import type { Tables } from '@/lib/supabase-types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
 const PAGE_SIZE = 20
-const roleLabels: Record<string, string> = { athlete: 'Atleta', professional: 'Profissional', venue_manager: 'Gestor de espaço' }
-const roleOptions = [
+type UserRole = NonNullable<Tables<'platform_users'>['type']>
+type RoleFilter = 'all' | UserRole
+type AdminUserRow = Pick<Tables<'platform_users'>, 'id' | 'full_name' | 'type' | 'avatar_url' | 'created_at'> & { email: string | null }
+const roleLabels: Record<UserRole, string> = { athlete: 'Atleta', professional: 'Profissional', venue_manager: 'Gestor de espaço' }
+const roleOptions: Array<{ value: RoleFilter; label: string }> = [
   { value: 'all', label: 'Todos os tipos' },
   { value: 'athlete', label: 'Atletas' },
   { value: 'professional', label: 'Profissionais' },
   { value: 'venue_manager', label: 'Gestores de espaço' },
 ]
 
-function pageHref(page: number, q: string, role: string) {
+function parseRole(value: string | undefined): RoleFilter {
+  return value === 'athlete' || value === 'professional' || value === 'venue_manager' ? value : 'all'
+}
+
+function pageHref(page: number, q: string, role: RoleFilter) {
   const params = new URLSearchParams()
   if (page > 1) params.set('page', String(page))
   if (q) params.set('q', q)
@@ -40,7 +48,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const rawRole = Array.isArray(params.role) ? params.role[0] : params.role
   const page = Math.max(1, Number.parseInt(rawPage || '1', 10) || 1)
   const q = String(rawQuery || '').trim().slice(0, 100)
-  const role = ['athlete', 'professional', 'venue_manager'].includes(String(rawRole)) ? String(rawRole) : 'all'
+  const role = parseRole(rawRole)
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
@@ -66,7 +74,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     )
   }
 
-  const rows = await Promise.all((profiles || []).map(async (profile: any) => {
+  const rows: AdminUserRow[] = await Promise.all((profiles || []).map(async profile => {
     const { data } = await admin.auth.admin.getUserById(profile.id)
     return { ...profile, email: data?.user?.email || null }
   }))
@@ -104,13 +112,13 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <DashboardEmptyState icon={<Users className="h-10 w-10" />} title="Sem utilizadores" description="Não existem contas para os critérios selecionados." />
         ) : (
           <div className="grid min-w-0 gap-3">
-            {rows.map((row: any) => (
+            {rows.map(row => (
               <article key={row.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{row.avatar_url ? <img src={row.avatar_url} alt="" className="h-full w-full object-cover" /> : (row.full_name || row.email || 'U').charAt(0).toUpperCase()}</div>
                   <div className="min-w-0"><p className="truncate text-sm font-semibold">{row.full_name || 'Sem nome'}</p><p className="truncate text-xs text-muted-foreground">{row.email || row.id}</p><p className="mt-1 text-xs text-muted-foreground">Registo: {row.created_at ? new Date(row.created_at).toLocaleDateString('pt-PT') : '—'}</p></div>
                 </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant="outline">{roleLabels[row.type] || row.type}</Badge>{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant="outline">{row.type ? roleLabels[row.type] : 'Sem tipo'}</Badge>{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
               </article>
             ))}
           </div>

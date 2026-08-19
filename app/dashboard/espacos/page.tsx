@@ -49,7 +49,10 @@ export default async function DashboardEspacosPage() {
       .eq('status', 'active')
     if (relationError) throw new Error('Não foi possível carregar as associações a espaços.')
 
-    const associatedIds = (relations || []).map(row => row.space_id).filter(id => !associations.some(item => item.space_id === id))
+    const associatedIds = (relations || [])
+      .map(row => row.space_id)
+      .filter((id): id is string => Boolean(id) && !associations.some(item => item.space_id === id))
+
     if (associatedIds.length) {
       const { data: spaces, error: spacesError } = await supabase
         .from('sport_spaces')

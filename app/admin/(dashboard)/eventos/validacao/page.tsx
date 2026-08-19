@@ -16,7 +16,7 @@ type PendingEvent = {
  start_date: string
  address: string | null
  capacity: number | null
- created_by: string
+ created_by: string | null
  created_at: string
  professional_name: string | null
  professional_email: string | null
@@ -80,11 +80,12 @@ export default function AdminValidacaoEventosPage() {
   void loadPending()
  }, [loadPending])
 
- async function updateStatus(id: string, status: 'approved' | 'rejected') {
+ async function updateStatus(id: string, decision: 'approved' | 'rejected') {
   setProcessing(id)
   try {
    const supabase = createClient()
-   const { error } = await supabase.from('events').update({ status }).eq('id', id)
+   const persistedStatus = decision === 'approved' ? 'published' : 'cancelled'
+   const { error } = await supabase.from('events').update({ status: persistedStatus }).eq('id', id)
    if (error) throw error
    setEvents(current => current.filter(event => event.id !== id))
   } finally {

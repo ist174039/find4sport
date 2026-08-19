@@ -16,10 +16,9 @@ export type SessionAccess = {
 type Supabase = SupabaseClient<Database>
 
 async function resolveAdminRecord(supabase: Supabase, user: User) {
-  const unsafeSupabase = supabase as any
-  const { data: admin } = await unsafeSupabase.from('admins').select('id, auth_user_id, admin_type').eq('auth_user_id', user.id).maybeSingle()
+  const { data: admin } = await supabase.from('admins').select('id, auth_user_id, admin_type').eq('auth_user_id', user.id).maybeSingle()
   if (!admin) return null
-  return { id: admin.id as string, role: 'admin' as const, adminLabel: (admin.admin_type as string) || 'general' }
+  return { id: admin.id, role: 'admin' as const, adminLabel: admin.admin_type || 'general' }
 }
 
 export async function resolveAdminSidebarUser(supabase: Supabase, user: User): Promise<{ role: string } | null> {

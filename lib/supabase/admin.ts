@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase-types'
 
 /**
  * Service-role client. This bypasses RLS and therefore belongs exclusively in
@@ -10,7 +11,7 @@ export function createAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceRoleKey) throw new Error('Supabase admin credentials are not configured')
 
-  return createSupabaseClient(url, serviceRoleKey, {
+  return createSupabaseClient<Database>(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }

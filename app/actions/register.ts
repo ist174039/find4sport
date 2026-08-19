@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import type { Json, TablesInsert } from '@/lib/supabase-types'
 
 type QualificationInput = { title: string; issuer?: string | null; issue_date?: string | null }
 type ProfessionalInput = {
@@ -47,10 +48,16 @@ async function validateCategoryIds(ids: string[], max = 5) {
   return unique
 }
 
+function readManualApproval(settings: Json | null | undefined) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true
+  const value = settings.manual_profile_approval
+  return typeof value === 'boolean' ? value : true
+}
+
 async function manualProfileApprovalEnabled() {
   const admin = createAdminClient()
   const { data } = await admin.from('system_config').select('settings').single()
-  return data?.settings?.manual_profile_approval ?? true
+  return readManualApproval(data?.settings)
 }
 
 export async function registerProfessionalInitial(
@@ -72,18 +79,25 @@ export async function registerProfessionalInitial(
 
     const fullName = String(profPayload.full_name || '').trim()
     if (fullName.length < 2 || fullName.length > 160) throw new Error('Indica um nome válido.')
-    const safeProfessionalPayload: ProfessionalInput & { user_id: string; email: string | null; is_verified?: boolean } = {
-      ...profPayload,
-      full_name: fullName,
-      user_id: user.id,
-      email: user.email ?? profPayload.email ?? null,
-    }
+    const email = String(user.email || profPayload.email || '').trim()
+    if (!email) throw new Error('A conta autenticada não tem um email válido associado.')
 
-    if (!(await manualProfileApprovalEnabled())) {
-      safeProfessionalPayload.status = 'active'
-      safeProfessionalPayload.is_verified = true
-    } else {
-      safeProfessionalPayload.status = 'pending'
+    const requiresApproval = await manualProfileApprovalEnabled()
+    const safeProfessionalPayload: TablesInsert<'professionals'> = {
+      user_id: user.id,
+      email,
+      full_name: fullName,
+      professional_name: profPayload.professional_name ?? null,
+      bio: profPayload.bio ?? null,
+      phone: profPayload.phone ?? null,
+      whatsapp: profPayload.whatsapp ?? null,
+      address: profPayload.address ?? null,
+      website: profPayload.website ?? null,
+      service_radius_km: profPayload.service_radius_km,
+      nif: profPayload.nif ?? null,
+      gallery_urls: profPayload.gallery_urls ?? null,
+      status: requiresApproval ? 'pending' : 'active',
+      is_verified: requiresApproval ? false : true,
     }
 
     const { error: authMetadataError } = await admin.auth.admin.updateUserById(user.id, { user_metadata: { ...user.user_metadata, full_name: fullName, type: 'professional' } })
@@ -93,7 +107,7 @@ export async function registerProfessionalInitial(
     if (profileError) return { error: profileError.message }
 
     const { data: existingProf } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
-    let professionalId = existingProf?.id
+    let professionalId: string | undefined = existingProf?.id
     if (professionalId) {
       const { error } = await admin.from('professionals').update(safeProfessionalPayload).eq('id', professionalId)
       if (error) return { error: error.message }
@@ -102,13 +116,14 @@ export async function registerProfessionalInitial(
       if (error || !data) return { error: error?.message || 'Não foi possível criar o perfil profissional.' }
       professionalId = data.id
     }
+    if (!professionalId) return { error: 'Não foi possível determinar o perfil profissional criado.' }
 
     const { data: previousCategories } = await admin.from('professional_categories').select('category_id').eq('professional_id', professionalId)
     const { error: deleteCategoriesError } = await admin.from('professional_categories').delete().eq('professional_id', professionalId)
     if (deleteCategoriesError) return { error: deleteCategoriesError.message }
-    const { error: categoriesError } = await admin.from('professional_categories').insert(categories.map(categoryId => ({ professional_id: professionalId!, category_id: categoryId })))
+    const { error: categoriesError } = await admin.from('professional_categories').insert(categories.map(categoryId => ({ professional_id: professionalId, category_id: categoryId })))
     if (categoriesError) {
-      if (previousCategories?.length) await admin.from('professional_categories').insert(previousCategories.map(row => ({ professional_id: professionalId!, category_id: row.category_id })))
+      if (previousCategories?.length) await admin.from('professional_categories').insert(previousCategories.map(row => ({ professional_id: professionalId, category_id: row.category_id })))
       return { error: categoriesError.message }
     }
 
@@ -116,9 +131,9 @@ export async function registerProfessionalInitial(
     const { error: deleteQualificationsError } = await admin.from('qualifications').delete().eq('professional_id', professionalId)
     if (deleteQualificationsError) return { error: deleteQualificationsError.message }
     if (cleanQualifications.length) {
-      const { error } = await admin.from('qualifications').insert(cleanQualifications.map(item => ({ ...item, professional_id: professionalId!, is_verified: false })))
+      const { error } = await admin.from('qualifications').insert(cleanQualifications.map(item => ({ ...item, professional_id: professionalId, is_verified: false })))
       if (error) {
-        if (previousQualifications?.length) await admin.from('qualifications').insert(previousQualifications.map(item => ({ ...item, professional_id: professionalId! })))
+        if (previousQualifications?.length) await admin.from('qualifications').insert(previousQualifications.map(item => ({ ...item, professional_id: professionalId })))
         return { error: error.message }
       }
     }
@@ -138,17 +153,20 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
     if (cleanName.length < 2 || cleanName.length > 180) throw new Error('Indica um nome válido para o espaço.')
     if (String(spacePayload.address || '').trim().length < 5) throw new Error('Indica uma morada válida.')
 
-    const safeSpacePayload: SpaceInput & { created_by: string; owner_user_id: string; email: string | null; is_verified?: boolean } = {
-      ...spacePayload,
+    const requiresApproval = await manualProfileApprovalEnabled()
+    const safeSpacePayload: TablesInsert<'sport_spaces'> = {
       name: cleanName,
+      description: spacePayload.description ?? null,
+      address: spacePayload.address,
+      phone: spacePayload.phone ?? null,
+      email: spacePayload.email ?? user.email ?? null,
+      website: spacePayload.website ?? null,
+      amenities: spacePayload.amenities ?? [],
+      status: requiresApproval ? 'pending' : 'active',
+      is_verified: requiresApproval ? false : true,
       created_by: user.id,
       owner_user_id: user.id,
-      email: spacePayload.email ?? user.email ?? null,
     }
-    if (!(await manualProfileApprovalEnabled())) {
-      safeSpacePayload.status = 'active'
-      safeSpacePayload.is_verified = true
-    } else safeSpacePayload.status = 'pending'
 
     const { error: authMetadataError } = await admin.auth.admin.updateUserById(user.id, { user_metadata: { ...user.user_metadata, type: 'venue_manager' } })
     if (authMetadataError) return { error: authMetadataError.message }
@@ -156,7 +174,7 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
     if (profileError) return { error: profileError.message }
 
     const { data: existingSpace } = await admin.from('sport_spaces').select('id').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
-    let spaceId = existingSpace?.id
+    let spaceId: string | undefined = existingSpace?.id
     if (spaceId) {
       const { error } = await admin.from('sport_spaces').update(safeSpacePayload).eq('id', spaceId)
       if (error) return { error: error.message }
@@ -165,13 +183,14 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
       if (error || !data) return { error: error?.message || 'Não foi possível criar o espaço.' }
       spaceId = data.id
     }
+    if (!spaceId) return { error: 'Não foi possível determinar o espaço criado.' }
 
     const { data: previousCategories } = await admin.from('space_categories').select('category_id').eq('space_id', spaceId)
     const { error: deleteError } = await admin.from('space_categories').delete().eq('space_id', spaceId)
     if (deleteError) return { error: deleteError.message }
-    const { error: categoryError } = await admin.from('space_categories').insert(categories.map(categoryId => ({ space_id: spaceId!, category_id: categoryId })))
+    const { error: categoryError } = await admin.from('space_categories').insert(categories.map(categoryId => ({ space_id: spaceId, category_id: categoryId })))
     if (categoryError) {
-      if (previousCategories?.length) await admin.from('space_categories').insert(previousCategories.map(row => ({ space_id: spaceId!, category_id: row.category_id })))
+      if (previousCategories?.length) await admin.from('space_categories').insert(previousCategories.map(row => ({ space_id: spaceId, category_id: row.category_id })))
       return { error: categoryError.message }
     }
 

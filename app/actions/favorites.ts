@@ -36,13 +36,16 @@ export async function leaveCommunityAction(memberId: string) {
     .select('id, user_id, community_id, role')
     .eq('id', memberId)
     .maybeSingle()
-  if (!membership || membership.user_id !== user.id) throw new Error('Adesão à comunidade não encontrada.')
+  if (!membership || membership.user_id !== user.id || !membership.community_id) {
+    throw new Error('Adesão à comunidade não encontrada.')
+  }
 
+  const communityId = membership.community_id
   if (membership.role === 'admin') {
     const { count } = await admin
       .from('community_members')
       .select('id', { count: 'exact', head: true })
-      .eq('community_id', membership.community_id)
+      .eq('community_id', communityId)
       .eq('role', 'admin')
     if ((count || 0) <= 1) {
       throw new Error('És o último administrador. Atribui outro administrador antes de sair da comunidade.')
@@ -53,7 +56,7 @@ export async function leaveCommunityAction(memberId: string) {
   if (error) throw new Error('Não foi possível sair da comunidade.')
 
   revalidatePath('/dashboard/favoritos')
-  revalidatePath(`/comunidades/${membership.community_id}`)
+  revalidatePath(`/comunidades/${communityId}`)
   revalidatePath('/dashboard')
   return { success: true }
 }

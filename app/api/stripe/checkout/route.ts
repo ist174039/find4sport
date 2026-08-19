@@ -7,6 +7,11 @@ import Stripe from 'stripe'
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 const MANAGED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused'])
 
+type CommercialAudience = 'professional' | 'venue_manager'
+function isCommercialAudience(value: string | null): value is CommercialAudience {
+  return value === 'professional' || value === 'venue_manager'
+}
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
@@ -20,14 +25,15 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient()
     const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
-    if (!profile || !['professional', 'venue_manager'].includes(profile.type)) {
+    if (!profile || !isCommercialAudience(profile.type)) {
       return NextResponse.json({ error: 'Este tipo de utilizador não possui subscrição comercial' }, { status: 403 })
     }
+    const audience = profile.type
 
     const { data: plan, error: planError } = await admin
       .from('subscription_plans')
       .select('id, code, name, stripe_monthly_price_id, stripe_annual_price_id, is_active, is_public')
-      .eq('audience', profile.type)
+      .eq('audience', audience)
       .eq('code', planCode)
       .eq('is_active', true)
       .eq('is_public', true)
@@ -65,8 +71,8 @@ export async function POST(req: Request) {
       client_reference_id: user.id,
       customer: existingSubscription?.stripe_customer_id || undefined,
       customer_email: existingSubscription?.stripe_customer_id ? undefined : user.email,
-      metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type, billing_cycle: billingCycle },
-      subscription_data: { metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience: profile.type } },
+      metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience, billing_cycle: billingCycle },
+      subscription_data: { metadata: { user_id: user.id, plan_id: plan.id, plan_code: plan.code, audience } },
     })
 
     if (!session.url) return NextResponse.json({ error: 'Stripe não devolveu uma URL de checkout.' }, { status: 502 })
