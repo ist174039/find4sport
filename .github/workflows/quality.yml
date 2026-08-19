@@ -3,7 +3,10 @@ name: Quality
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'chore/**'
+      - 'fix/**'
 
 concurrency:
   group: quality-${{ github.ref }}
