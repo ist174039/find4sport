@@ -28,11 +28,44 @@ export async function POST(req: Request) {
     const recordEvent = async (extra: Record<string, unknown> = {}) => { await adminSupabase.from('stripe_webhook_events').upsert({ event_id:event.id,event_type:event.type,payload:event as any,...extra },{onConflict:'event_id',ignoreDuplicates:true}) }
 
     const syncSubscription = async (subscription: Stripe.Subscription, forceCanceled = false) => {
-      const userId=subscription.metadata?.user_id, planId=subscription.metadata?.plan_id, planCode=subscription.metadata?.plan_code
-      if(!userId||!planId||!['pro','premium'].includes(planCode||'')) throw new Error(`Subscription ${subscription.id} missing Find4Sport metadata`)
-      const raw=subscription as any; const customerId=typeof subscription.customer==='string'?subscription.customer:subscription.customer?.id
+      const customerId=typeof subscription.customer==='string'?subscription.customer:subscription.customer?.id
+      let userId=subscription.metadata?.user_id||null
+      if(!userId&&customerId){
+        const {data:existingSubscription}=await adminSupabase.from('user_subscriptions').select('user_id').eq('stripe_customer_id',customerId).maybeSingle()
+        userId=existingSubscription?.user_id||null
+      }
+      if(!userId) throw new Error(`Subscription ${subscription.id} is not linked to a Find4Sport user`)
+
+      const priceIds=[...new Set(subscription.items.data.map(item=>item.price?.id).filter((value): value is string=>Boolean(value)))]
+      let resolvedPlan:{id:string;code:string;audience:string}|null=null
+      for(const priceId of priceIds){
+        const {data:plan,error:planError}=await adminSupabase
+          .from('subscription_plans')
+          .select('id,code,audience')
+          .or(`stripe_monthly_price_id.eq.${priceId},stripe_annual_price_id.eq.${priceId}`)
+          .maybeSingle()
+        if(planError) throw planError
+        if(plan){resolvedPlan=plan;break}
+      }
+
+      if(!resolvedPlan&&subscription.metadata?.plan_id){
+        const {data:metadataPlan,error:metadataPlanError}=await adminSupabase
+          .from('subscription_plans')
+          .select('id,code,audience')
+          .eq('id',subscription.metadata.plan_id)
+          .maybeSingle()
+        if(metadataPlanError) throw metadataPlanError
+        resolvedPlan=metadataPlan||null
+      }
+      if(!resolvedPlan||!['pro','premium'].includes(resolvedPlan.code)) throw new Error(`Subscription ${subscription.id} does not map to a commercial Find4Sport plan`)
+
+      const {data:profile,error:profileError}=await adminSupabase.from('platform_users').select('type').eq('id',userId).maybeSingle()
+      if(profileError) throw profileError
+      if(!profile||profile.type!==resolvedPlan.audience) throw new Error(`Subscription ${subscription.id} plan audience does not match user ${userId}`)
+
+      const raw=subscription as any
       const status=forceCanceled?'canceled':normalizeSubscriptionStatus(subscription.status)
-      const {error}=await adminSupabase.from('user_subscriptions').upsert({user_id:userId,plan_id:planId,tier:planCode,stripe_customer_id:customerId||null,stripe_subscription_id:subscription.id,status,current_period_start:asIsoFromUnix(raw.current_period_start),current_period_end:asIsoFromUnix(raw.current_period_end),cancel_at_period_end:Boolean(raw.cancel_at_period_end),updated_at:new Date().toISOString()},{onConflict:'user_id'})
+      const {error}=await adminSupabase.from('user_subscriptions').upsert({user_id:userId,plan_id:resolvedPlan.id,tier:resolvedPlan.code,stripe_customer_id:customerId||null,stripe_subscription_id:subscription.id,status,current_period_start:asIsoFromUnix(raw.current_period_start),current_period_end:asIsoFromUnix(raw.current_period_end),cancel_at_period_end:Boolean(raw.cancel_at_period_end),updated_at:new Date().toISOString()},{onConflict:'user_id'})
       if(error) throw error
     }
 
