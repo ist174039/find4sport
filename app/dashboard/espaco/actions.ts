@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { TablesUpdate } from '@/lib/supabase-types'
 
 async function geocodeAddress(address: string) {
   const value = address.trim()
@@ -43,7 +44,7 @@ export async function updateManagedSpaceAction(spaceId: string, input: { name: s
   const amenities = (input.amenities || []).map(item => item.trim()).filter(Boolean).slice(0, 100)
   const address = input.address?.trim() || ''
   const coordinates = address ? await geocodeAddress(address) : null
-  const patch: Record<string, unknown> = { name, description, email: input.email?.trim() || null, phone: input.phone?.trim() || null, website, address: address || null, amenities, updated_at: new Date().toISOString() }
+  const patch: TablesUpdate<'sport_spaces'> = { name, description, email: input.email?.trim() || null, phone: input.phone?.trim() || null, website, address: address || null, amenities, updated_at: new Date().toISOString() }
   if (coordinates) { patch.latitude = coordinates.latitude; patch.longitude = coordinates.longitude }
   else if (!address) { patch.latitude = null; patch.longitude = null }
 
