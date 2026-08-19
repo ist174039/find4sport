@@ -52,7 +52,7 @@ export async function updateCommunityAction(communityId: string, formData: FormD
   const { data: category, error: categoryError } = await admin.from('categories').select('id,name').eq('id', categoryId).maybeSingle()
   if (categoryError || !category) throw new Error('A modalidade selecionada já não está disponível.')
 
-  const updatePayload: Record<string, unknown> = {
+  const { error } = await admin.from('communities').update({
     name,
     description: description || null,
     is_private: isPrivate,
@@ -60,13 +60,9 @@ export async function updateCommunityAction(communityId: string, formData: FormD
     posting_policy: postingPolicy,
     location_scope: locationScope,
     address,
-  }
-  if (locationScope === 'online') {
-    updatePayload.latitude = null
-    updatePayload.longitude = null
-  }
-
-  const { error } = await admin.from('communities').update(updatePayload).eq('id', communityId)
+    latitude: locationScope === 'online' ? null : undefined,
+    longitude: locationScope === 'online' ? null : undefined,
+  }).eq('id', communityId)
   if (error) throw new Error(`Não foi possível guardar a comunidade: ${error.message}`)
 
   const relationClient = admin as unknown as { from: (table: string) => any }
