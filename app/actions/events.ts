@@ -163,3 +163,41 @@ export async function cancelEventParticipationAction(participantId: string): Pro
 
   revalidateEventParticipation(participant.event_id)
 }
+
+export async function updateEventParticipantAttendanceAction(eventId: string, participantId: string, attended: boolean): Promise<void> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Autenticação necessária.')
+
+  const admin = createAdminClient()
+  const { data: event, error: eventError } = await admin
+    .from('events')
+    .select('id,created_by,start_date')
+    .eq('id', eventId)
+    .eq('created_by', user.id)
+    .maybeSingle()
+  if (eventError || !event) throw new Error('Evento não encontrado ou sem permissão para gerir participantes.')
+  if (new Date(event.start_date).getTime() > Date.now()) throw new Error('A presença só pode ser registada depois do início do evento.')
+
+  const { data: participant, error: participantError } = await admin
+    .from('event_participants')
+    .select('id,event_id,status,payment_status')
+    .eq('id', participantId)
+    .eq('event_id', eventId)
+    .maybeSingle()
+  if (participantError || !participant) throw new Error('Participante não encontrado.')
+  if (participant.status === 'cancelled') throw new Error('Uma inscrição cancelada não pode ser marcada como presença.')
+  if (participant.status === 'pending' || participant.payment_status === 'pending') throw new Error('Uma inscrição com pagamento pendente não pode ser marcada como presença.')
+  if (['refund_pending', 'refunded'].includes(participant.payment_status)) throw new Error('Uma inscrição reembolsada não pode ser marcada como presença.')
+
+  const nextStatus = attended ? 'attended' : 'confirmed'
+  const { error } = await admin
+    .from('event_participants')
+    .update({ status: nextStatus, updated_at: new Date().toISOString() })
+    .eq('id', participantId)
+    .eq('event_id', eventId)
+  if (error) throw new Error('Não foi possível atualizar a presença do participante.')
+
+  revalidateEventParticipation(eventId)
+  revalidatePath(`/dashboard/eventos/${eventId}/participantes`)
+}
