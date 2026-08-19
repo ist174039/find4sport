@@ -132,16 +132,18 @@ export async function setGalleryFeaturedImageAction(expected: GalleryEntity, url
 
 export async function deleteGalleryPhotoAction(expected: GalleryEntity, url: string) {
   const context = await requireGalleryEntity(expected)
-  const { admin, entity, userId } = context
-  const { currentPublic, currentPrivate } = galleries(entity)
+  const { admin, userId } = context
+  const { currentPublic, currentPrivate } = galleries(context.entity)
   if (![...currentPublic, ...currentPrivate].includes(url)) throw new Error('Fotografia não encontrada.')
 
   const publicGallery = currentPublic.filter(item => item !== url)
   const privateGallery = currentPrivate.filter(item => item !== url)
-  const currentCover = entity.cover_url || ''
+  const currentCover = context.entity.cover_url || ''
+  let featuredImage = ''
 
   if (context.type === 'professional') {
-    const currentAvatar = entity.avatar_url || ''
+    const currentAvatar = context.entity.avatar_url || ''
+    featuredImage = currentAvatar === url ? '' : currentAvatar
     const { error } = await admin.from('professionals').update({
       gallery_urls: publicGallery,
       private_gallery_urls: privateGallery,
@@ -154,7 +156,8 @@ export async function deleteGalleryPhotoAction(expected: GalleryEntity, url: str
       if (profileError) throw profileError
     }
   } else {
-    const currentLogo = entity.logo_url || ''
+    const currentLogo = context.entity.logo_url || ''
+    featuredImage = currentLogo === url ? '' : currentLogo
     const { error } = await admin.from('sport_spaces').update({
       gallery_urls: publicGallery,
       private_gallery_urls: privateGallery,
@@ -171,8 +174,6 @@ export async function deleteGalleryPhotoAction(expected: GalleryEntity, url: str
     publicGallery,
     privateGallery,
     cover: currentCover === url ? '' : currentCover,
-    avatar: context.type === 'professional'
-      ? (entity.avatar_url === url ? '' : entity.avatar_url || '')
-      : (entity.logo_url === url ? '' : entity.logo_url || ''),
+    avatar: featuredImage,
   }
 }
