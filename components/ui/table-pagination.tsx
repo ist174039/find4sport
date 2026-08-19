@@ -9,46 +9,43 @@ interface TablePaginationProps {
   onPageChange: (page: number) => void
 }
 
-export function TablePagination({
-  currentPage,
-  totalPages,
-  totalItems,
-  itemsPerPage,
-  onPageChange,
-}: TablePaginationProps) {
+export function TablePagination({ currentPage, totalPages, totalItems, itemsPerPage, onPageChange }: TablePaginationProps) {
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(currentPage * itemsPerPage, totalItems)
 
   if (totalItems === 0) return null
 
   return (
-    <div className="p-4 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4 bg-card">
-      <span className="text-sm text-muted-foreground">
-        Mostrando <span className="font-medium text-foreground">{startItem}</span> a{' '}
-        <span className="font-medium text-foreground">{endItem}</span> de{' '}
+    <nav aria-label="Paginação de resultados" className="mt-4 flex min-w-0 flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-center text-xs leading-5 text-muted-foreground sm:text-left sm:text-sm">
+        <span className="font-medium text-foreground">{startItem}</span>–<span className="font-medium text-foreground">{endItem}</span> de{' '}
         <span className="font-medium text-foreground">{totalItems}</span> resultados
-      </span>
-      <div className="flex items-center gap-1">
+      </p>
+      <div className="flex min-w-0 items-center justify-center gap-2">
         <button
+          type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="p-1.5 rounded border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Página Anterior"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Página anterior"
+          title="Página anterior"
         >
-          <ChevronLeft className="text-[20px]" />
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
-        <div className="text-sm font-medium px-3 text-muted-foreground">
-          Página <span className="text-foreground">{currentPage}</span> de {Math.max(1, totalPages)}
+        <div className="min-w-[6.5rem] text-center text-sm font-medium text-muted-foreground" aria-live="polite">
+          <span className="text-foreground">{currentPage}</span> / {Math.max(1, totalPages)}
         </div>
         <button
+          type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="p-1.5 rounded border border-border bg-background hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Próxima Página"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Página seguinte"
+          title="Página seguinte"
         >
-          <ChevronRight className="text-[20px]" />
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </nav>
   )
 }
