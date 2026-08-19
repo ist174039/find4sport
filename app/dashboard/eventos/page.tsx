@@ -9,8 +9,12 @@ import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
 
 const PAGE_SIZE = 20
+const eventStatuses = ['draft', 'pending', 'published', 'cancelled', 'completed'] as const
+const participationStatuses = ['pending', 'confirmed', 'paid', 'cancelled', 'attended'] as const
+type EventStatus = (typeof eventStatuses)[number]
+type ParticipationStatus = (typeof participationStatuses)[number]
 
-const eventStatusLabel: Record<string, string> = {
+const eventStatusLabel: Record<EventStatus, string> = {
   draft: 'Rascunho',
   pending: 'Pendente de aprovação',
   published: 'Publicado',
@@ -18,12 +22,20 @@ const eventStatusLabel: Record<string, string> = {
   completed: 'Concluído',
 }
 
-const participationStatusLabel: Record<string, string> = {
+const participationStatusLabel: Record<ParticipationStatus, string> = {
   pending: 'Pagamento pendente',
   confirmed: 'Inscrição confirmada',
   paid: 'Inscrição paga',
   cancelled: 'Inscrição cancelada',
   attended: 'Participou',
+}
+
+function eventStatus(value: string): EventStatus | null {
+  return eventStatuses.includes(value as EventStatus) ? value as EventStatus : null
+}
+
+function participationStatus(value: string): ParticipationStatus | null {
+  return participationStatuses.includes(value as ParticipationStatus) ? value as ParticipationStatus : null
 }
 
 function href(page: number, q: string, status: string) {
@@ -60,7 +72,8 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
       .order('start_date', { ascending: false })
 
     if (q) query = query.or(`title.ilike.%${q}%,address.ilike.%${q}%`)
-    if (status !== 'all') query = query.eq('status', status)
+    const statusFilter = eventStatus(status)
+    if (statusFilter) query = query.eq('status', statusFilter)
 
     const result = await query.range(from, from + PAGE_SIZE - 1)
     if (result.error) throw new Error(`Não foi possível carregar eventos: ${result.error.message}`)
@@ -86,7 +99,8 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (status !== 'all') query = query.eq('status', status)
+      const statusFilter = participationStatus(status)
+      if (statusFilter) query = query.eq('status', statusFilter)
       if (matchingEventIds) query = query.in('event_id', matchingEventIds)
 
       const result = await query.range(from, from + PAGE_SIZE - 1)
@@ -114,7 +128,7 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
         </label>
         <select name="status" defaultValue={status} className="min-h-11 rounded-lg border border-input bg-background px-3">
           <option value="all">Todos os estados</option>
-          {(isCreator ? ['draft', 'pending', 'published', 'cancelled', 'completed'] : ['pending', 'confirmed', 'paid', 'cancelled', 'attended']).map(value => <option key={value} value={value}>{(isCreator ? eventStatusLabel : participationStatusLabel)[value] || value}</option>)}
+          {(isCreator ? eventStatuses : participationStatuses).map(value => <option key={value} value={value}>{isCreator ? eventStatusLabel[value as EventStatus] : participationStatusLabel[value as ParticipationStatus]}</option>)}
         </select>
         <Button type="submit">Filtrar</Button>
       </form>
@@ -133,7 +147,7 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
         const eventStart = typeof relatedEvent?.start_date === 'string' ? relatedEvent.start_date : null
         const eventAddress = typeof relatedEvent?.address === 'string' ? relatedEvent.address : null
         const rowStatus = String(row.status || '')
-        const statusText = (isCreator ? eventStatusLabel : participationStatusLabel)[rowStatus] || rowStatus
+        const statusText = isCreator ? eventStatusLabel[eventStatus(rowStatus) || 'draft'] : participationStatusLabel[participationStatus(rowStatus) || 'pending']
         const capacity = typeof row.capacity === 'number' ? row.capacity : null
 
         return <article key={String(row.id)} className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
