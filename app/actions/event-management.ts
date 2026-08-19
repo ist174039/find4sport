@@ -10,6 +10,7 @@ import type { Json, TablesInsert, TablesUpdate } from '@/lib/supabase-types'
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const MAX_GALLERY_FILES = 12
+const DEFAULT_TICKET_NAME = 'Bilhete geral'
 
 function text(formData: FormData, key: string, max: number) {
   return String(formData.get(key) || '').trim().slice(0, max)
@@ -31,8 +32,10 @@ function validateDate(value: string, label: string) {
 
 function manualApprovalEnabled(settings: Json | null | undefined) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true
-  const value = settings.manual_profile_approval
-  return typeof value === 'boolean' ? value : true
+  const eventValue = settings.manual_event_approval
+  if (typeof eventValue === 'boolean') return eventValue
+  const legacyValue = settings.manual_profile_approval
+  return typeof legacyValue === 'boolean' ? legacyValue : true
 }
 
 async function geocodeAddress(address: string) {
@@ -100,6 +103,44 @@ async function validateCategory(admin: ReturnType<typeof createAdminClient>, cat
   if (!category) throw new Error('Modalidade inválida.')
 }
 
+async function syncDefaultTicket(admin: ReturnType<typeof createAdminClient>, eventId: string, priceMin: number | null, capacity: number | null) {
+  const { data: tickets, error: ticketsError } = await admin
+    .from('event_ticket_types')
+    .select('id,name,sort_order,is_active')
+    .eq('event_id', eventId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+  if (ticketsError) throw new Error(`Não foi possível validar os bilhetes do evento: ${ticketsError.message}`)
+
+  const activeTickets = tickets || []
+  const autoTicket = activeTickets.length === 1 && activeTickets[0].name === DEFAULT_TICKET_NAME && Number(activeTickets[0].sort_order || 0) === 0 ? activeTickets[0] : null
+
+  if (activeTickets.length === 0 && Number(priceMin || 0) > 0) {
+    const payload: TablesInsert<'event_ticket_types'> = {
+      event_id: eventId,
+      name: DEFAULT_TICKET_NAME,
+      description: 'Acesso geral ao evento',
+      price: priceMin,
+      capacity,
+      is_active: true,
+      sort_order: 0,
+    }
+    const { error } = await admin.from('event_ticket_types').insert(payload)
+    if (error) throw new Error(`Não foi possível criar o bilhete do evento: ${error.message}`)
+    return
+  }
+
+  if (autoTicket) {
+    if (Number(priceMin || 0) > 0) {
+      const { error } = await admin.from('event_ticket_types').update({ price: priceMin, capacity }).eq('id', autoTicket.id)
+      if (error) throw new Error(`Não foi possível atualizar o bilhete do evento: ${error.message}`)
+    } else {
+      const { error } = await admin.from('event_ticket_types').update({ is_active: false }).eq('id', autoTicket.id)
+      if (error) throw new Error(`Não foi possível desativar o bilhete do evento: ${error.message}`)
+    }
+  }
+}
+
 export async function createEventAction(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -136,19 +177,21 @@ export async function createEventAction(formData: FormData) {
   const gallery = formData.getAll('gallery').filter((value): value is File => value instanceof File && value.size > 0)
   if (gallery.length > MAX_GALLERY_FILES) throw new Error(`A galeria pode ter no máximo ${MAX_GALLERY_FILES} imagens.`)
 
-  const folderId = crypto.randomUUID()
+  const eventId = crypto.randomUUID()
   const uploaded: Array<{ path: string; url: string }> = []
+  let eventCreated = false
   try {
     let imageUrl: string | null = null
     if (banner instanceof File && banner.size > 0) {
-      const item = await uploadImage(admin, user.id, folderId, banner, 'banner')
+      const item = await uploadImage(admin, user.id, eventId, banner, 'banner')
       uploaded.push(item)
       imageUrl = item.url
     }
-    for (const file of gallery) uploaded.push(await uploadImage(admin, user.id, folderId, file, 'gallery'))
+    for (const file of gallery) uploaded.push(await uploadImage(admin, user.id, eventId, file, 'gallery'))
     const galleryUrls = uploaded.filter(item => item.url !== imageUrl).map(item => item.url)
 
     const payload: TablesInsert<'events'> = {
+      id: eventId,
       title: fields.title,
       description: fields.description,
       category_id: fields.categoryId,
@@ -168,13 +211,17 @@ export async function createEventAction(formData: FormData) {
       longitude: coordinates?.longitude ?? null,
     }
 
-    const { data: event, error } = await admin.from('events').insert(payload).select('id').single()
-    if (error || !event) throw new Error(error?.message || 'Não foi possível criar o evento.')
+    const { error } = await admin.from('events').insert(payload)
+    if (error) throw new Error(error.message || 'Não foi possível criar o evento.')
+    eventCreated = true
+    await syncDefaultTicket(admin, eventId, fields.priceMin, fields.capacity)
+
     revalidatePath('/dashboard/eventos')
     revalidatePath('/eventos')
     revalidatePath('/pesquisa')
-    return { success: true, eventId: event.id, status }
+    return { success: true, eventId, status }
   } catch (error) {
+    if (eventCreated) await admin.from('events').delete().eq('id', eventId)
     if (uploaded.length) await admin.storage.from('events').remove(uploaded.map(item => item.path))
     throw error
   }
@@ -237,6 +284,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
 
     const { error } = await admin.from('events').update(payload).eq('id', eventId).eq('created_by', user.id)
     if (error) throw new Error(error.message)
+    await syncDefaultTicket(admin, eventId, fields.priceMin, fields.capacity)
 
     const removedUrls = currentGallery.filter(url => !galleryUrls.includes(url))
     if (current.image_url && current.image_url !== imageUrl) removedUrls.push(current.image_url)
@@ -245,6 +293,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
 
     revalidatePath('/dashboard/eventos')
     revalidatePath(`/dashboard/eventos/${eventId}/editar`)
+    revalidatePath(`/eventos/${eventId}`)
     revalidatePath('/eventos')
     revalidatePath('/pesquisa')
     return { success: true }
