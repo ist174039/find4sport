@@ -7,12 +7,16 @@ import { writeAdminAudit } from '@/lib/admin/audit'
 import type { TablesInsert } from '@/lib/supabase-types'
 
 const MAX_IMPORT_ITEMS = 500
+const MAX_NAME_LENGTH = 160
+const MAX_ADDRESS_LENGTH = 500
+const MAX_PHONE_LENGTH = 64
+const MAX_DESCRIPTION_LENGTH = 2_000
 
 type ImportQueueItem = {
   id?: string
   name?: string
   address?: string
-  type?: 'space'
+  type?: string
   lat?: number
   lon?: number
   phone?: string
@@ -79,8 +83,8 @@ export async function searchImportPlacesAction(query: string) {
 
   return results.map(place => ({
     id: `${place.osm_type || 'osm'}-${place.osm_id || crypto.randomUUID()}`,
-    name: String(place.name || place.display_name?.split(',')?.[0] || 'Local').trim(),
-    address: String(place.display_name || '').trim(),
+    name: String(place.name || place.display_name?.split(',')?.[0] || 'Local').trim().slice(0, MAX_NAME_LENGTH),
+    address: String(place.display_name || '').trim().slice(0, MAX_ADDRESS_LENGTH),
     type: 'space' as const,
     lat: Number(place.lat),
     lon: Number(place.lon),
@@ -108,9 +112,15 @@ export async function adminIngestData(queueItems: ImportQueueItem[]) {
     const address = String(item.address || '').trim()
     const lat = Number(item.lat)
     const lon = Number(item.lon)
+    const phone = item.phone ? String(item.phone).trim() : ''
+    const description = item.description ? String(item.description).trim() : ''
 
     if (!name || !address || !hasValidCoordinates(lat, lon)) {
       invalid.push(`${name || 'Item'}: nome, morada e coordenadas válidas são obrigatórios.`)
+      return false
+    }
+    if (name.length > MAX_NAME_LENGTH || address.length > MAX_ADDRESS_LENGTH || phone.length > MAX_PHONE_LENGTH || description.length > MAX_DESCRIPTION_LENGTH) {
+      invalid.push(`${name}: um ou mais campos excedem o tamanho permitido.`)
       return false
     }
 
