@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Building2, ChevronLeft, ChevronRight, Dumbbell, Search, UserRound, Users } from 'lucide-react'
+import { Building2, Dumbbell, Search, UserRound, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { ServerPagination } from '@/components/patterns/server-pagination'
 
 const PAGE_SIZE = 20
 type UserRole = NonNullable<Tables<'platform_users'>['type']>
@@ -118,13 +119,21 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{row.avatar_url ? <img src={row.avatar_url} alt="" className="h-full w-full object-cover" /> : (row.full_name || row.email || 'U').charAt(0).toUpperCase()}</div>
                   <div className="min-w-0"><p className="truncate text-sm font-semibold">{row.full_name || 'Sem nome'}</p><p className="truncate text-xs text-muted-foreground">{row.email || row.id}</p><p className="mt-1 text-xs text-muted-foreground">Registo: {row.created_at ? new Date(row.created_at).toLocaleDateString('pt-PT') : '—'}</p></div>
                 </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant="outline">{row.type ? roleLabels[row.type] : 'Sem tipo'}</Badge>{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-10"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant="outline">{row.type ? roleLabels[row.type] : 'Sem tipo'}</Badge>{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
               </article>
             ))}
           </div>
         )}
 
-        {total > 0 && <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">A mostrar {from + 1}–{Math.min(to + 1, total)} de {total} resultados</p><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm" className={page <= 1 ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page - 1, q, role)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Link></Button><span className="px-2 text-sm font-medium">{page} / {totalPages}</span><Button asChild variant="outline" size="sm" className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page + 1, q, role)}>Seguinte<ChevronRight className="ml-1 h-4 w-4" /></Link></Button></div></div>}
+        <ServerPagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          startItem={from + 1}
+          endItem={Math.min(to + 1, total)}
+          previousHref={pageHref(page - 1, q, role)}
+          nextHref={pageHref(page + 1, q, role)}
+        />
       </DashboardSection>
     </DashboardPage>
   )
