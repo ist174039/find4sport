@@ -1,13 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+function clearSupabaseCookies(request: NextRequest, response: NextResponse) {
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith('sb-')) response.cookies.delete(cookie.name)
+  }
+  return response
+}
 
-  // With Fluid compute, don't put this client in a global environment
-  // variable. Always create a new one on each request.
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request })
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,12 +20,8 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          )
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           )
@@ -31,24 +30,30 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  // IMPORTANT: If you remove getUser() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
+  let user = null
 
-  // 1. Verificações para Dashboard (Utilizadores da Plataforma)
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (error: unknown) {
+    const code = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : ''
+
+    if (code !== 'refresh_token_not_found') throw error
+
+    // A stale browser refresh token is an expired local session, not an
+    // application failure. Clear Supabase cookies so the next request starts
+    // from a clean anonymous state instead of repeatedly throwing in proxy.
+    supabaseResponse = clearSupabaseCookies(request, NextResponse.next({ request }))
+  }
+
   if (pathname.startsWith('/dashboard')) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
-      return NextResponse.redirect(url)
+      return clearSupabaseCookies(request, NextResponse.redirect(url))
     }
 
     const { data: profile } = await supabase
@@ -64,12 +69,11 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 2. Verificações para Área de Admin (Administradores)
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
+      return clearSupabaseCookies(request, NextResponse.redirect(url))
     }
 
     const { data: admin } = await supabase
@@ -84,7 +88,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // RBAC para admins
     if (pathname.startsWith('/admin/utilizadores') || pathname.startsWith('/admin/api-keys')) {
       if (admin.admin_type !== 'general') {
         const url = request.nextUrl.clone()
@@ -93,19 +96,6 @@ export async function updateSession(request: NextRequest) {
       }
     }
   }
-
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
 
   return supabaseResponse
 }
