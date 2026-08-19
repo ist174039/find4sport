@@ -41,7 +41,7 @@ export default function FaturacaoPage(){
 
   useEffect(()=>{void(async()=>{try{
     const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.push('/auth/login');return}setUserId(user.id)
-    const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=['professional','venue_manager'].includes(profile?.type)?profile!.type:null;setAudience(role)
+    const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'?profile.type:null;setAudience(role)
     const [{data:sub},{data:tx},{data:prof},{data:spaces}]=await Promise.all([
       supabase.from('user_subscriptions').select('*').eq('user_id',user.id).maybeSingle(),
       supabase.from('transactions').select('*').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
