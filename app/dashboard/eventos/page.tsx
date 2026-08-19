@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
+import { EventParticipationCancelDialog } from '@/components/dashboard/event-participation-cancel-dialog'
 
 const PAGE_SIZE = 20
 const eventStatuses = ['draft', 'pending', 'published', 'cancelled', 'completed'] as const
@@ -147,8 +148,12 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
         const eventStart = typeof relatedEvent?.start_date === 'string' ? relatedEvent.start_date : null
         const eventAddress = typeof relatedEvent?.address === 'string' ? relatedEvent.address : null
         const rowStatus = String(row.status || '')
+        const paymentStatus = String(row.payment_status || '')
         const statusText = isCreator ? eventStatusLabel[eventStatus(rowStatus) || 'draft'] : participationStatusLabel[participationStatus(rowStatus) || 'pending']
         const capacity = typeof row.capacity === 'number' ? row.capacity : null
+        const eventHasStarted = eventStart ? new Date(eventStart).getTime() <= Date.now() : false
+        const cancellableParticipation = !isCreator && !eventHasStarted && !['pending', 'cancelled', 'attended'].includes(rowStatus) && ['free', 'paid'].includes(paymentStatus)
+        const paidParticipation = paymentStatus === 'paid'
 
         return <article key={String(row.id)} className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 gap-3">
@@ -158,11 +163,14 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
               <p className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"><Calendar className="h-4 w-4 shrink-0" />{eventStart ? new Date(eventStart).toLocaleString('pt-PT') : 'Data indisponível'}</p>
               {eventAddress && <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="h-4 w-4 shrink-0" /><span className="truncate">{eventAddress}</span></p>}
               {isCreator && capacity && <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><Users className="h-4 w-4" />{capacity} lugares</p>}
+              {!isCreator && paymentStatus === 'pending' && <p className="mt-2 text-xs text-muted-foreground">O checkout ainda está pendente. A vaga fica reservada até o pagamento concluir ou a sessão expirar.</p>}
+              {!isCreator && paymentStatus === 'refund_pending' && <p className="mt-2 text-xs text-muted-foreground">O reembolso foi solicitado e está a ser processado.</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             {eventId && <Button asChild variant="outline"><Link href={`/eventos/${eventSlug}`}><ExternalLink className="mr-2 h-4 w-4" />Ver</Link></Button>}
             {isCreator && <Button asChild variant="outline"><Link href={`/dashboard/eventos/${String(row.id)}/editar`}><Edit className="mr-2 h-4 w-4" />Editar</Link></Button>}
+            {cancellableParticipation && <EventParticipationCancelDialog participantId={String(row.id)} eventTitle={eventTitle} paid={paidParticipation} />}
           </div>
         </article>
       })}</div>}
