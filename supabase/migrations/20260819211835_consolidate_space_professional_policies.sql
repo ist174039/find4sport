@@ -9,3 +9,21 @@ create policy space_professionals_authenticated_read on public.space_professiona
   or exists (select 1 from public.professionals p where p.id = space_professionals.professional_id and p.user_id = (select auth.uid()))
   or exists (select 1 from public.sport_spaces s where s.id = space_professionals.space_id and s.owner_user_id = (select auth.uid()))
 );
+
+create policy space_professionals_authenticated_insert on public.space_professionals for insert to authenticated with check (
+  exists (select 1 from public.professionals p where p.id = space_professionals.professional_id and p.user_id = (select auth.uid()))
+  or exists (select 1 from public.sport_spaces s where s.id = space_professionals.space_id and s.owner_user_id = (select auth.uid()))
+);
+
+create policy space_professionals_authenticated_update on public.space_professionals for update to authenticated using (
+  exists (select 1 from public.professionals p where p.id = space_professionals.professional_id and p.user_id = (select auth.uid()))
+  or exists (select 1 from public.sport_spaces s where s.id = space_professionals.space_id and s.owner_user_id = (select auth.uid()))
+) with check (
+  exists (select 1 from public.professionals p where p.id = space_professionals.professional_id and p.user_id = (select auth.uid()))
+  or exists (select 1 from public.sport_spaces s where s.id = space_professionals.space_id and s.owner_user_id = (select auth.uid()))
+);
+
+create policy space_professionals_authenticated_delete on public.space_professionals for delete to authenticated using (
+  exists (select 1 from public.professionals p where p.id = space_professionals.professional_id and p.user_id = (select auth.uid()))
+  or exists (select 1 from public.sport_spaces s where s.id = space_professionals.space_id and s.owner_user_id = (select auth.uid()))
+);
