@@ -8,7 +8,7 @@ import type { Tables } from '@/lib/supabase-types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { DashboardEmptyState, DashboardErrorState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 import { ServerPagination } from '@/components/patterns/server-pagination'
 
 const PAGE_SIZE = 20
@@ -67,10 +67,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     return (
       <DashboardPage>
         <DashboardPageHeader title="Utilizadores" description="Gestão das contas da plataforma." />
-        <DashboardSection title="Não foi possível carregar os utilizadores">
-          <p className="text-sm text-destructive">{error.message}</p>
-          <p className="mt-2 text-sm text-muted-foreground">A página deixou de depender da coluna email em platform_users; se este erro persistir, indica uma divergência adicional de schema que deve ser corrigida na base de dados.</p>
-        </DashboardSection>
+        <DashboardErrorState
+          title="Não foi possível carregar os utilizadores"
+          description={`A consulta falhou: ${error.message}. Se o problema persistir, deve ser tratado como divergência de schema ou indisponibilidade da base de dados.`}
+        />
       </DashboardPage>
     )
   }
