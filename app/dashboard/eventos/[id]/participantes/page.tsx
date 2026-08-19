@@ -8,6 +8,7 @@ import { isProviderRole } from '@/lib/auth/roles'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { AppImage } from '@/components/ui/app-image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 import { EventParticipantAttendanceButton } from '@/components/dashboard/event-participant-attendance-button'
@@ -93,12 +94,11 @@ export default async function EventParticipantsPage({ params, searchParams }: { 
   const ticketMap = new Map((tickets || []).map(ticket => [ticket.id, ticket.name]))
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const eventStarted = new Date(event.start_date).getTime() <= Date.now()
 
   return <DashboardPage>
     <DashboardPageHeader
       title={`Participantes · ${event.title}`}
-      description={eventStarted ? 'Gere inscrições e regista presenças do evento.' : 'Consulta as inscrições. A presença só pode ser registada depois do início do evento.'}
+      description="Gere inscrições e presenças. O registo de presença só é aceite depois do início do evento."
       action={<div className="flex flex-wrap gap-2"><Button asChild variant="outline"><Link href={`/dashboard/eventos/${id}/editar`}><ArrowLeft className="mr-2 h-4 w-4" />Editar evento</Link></Button><Button asChild variant="outline"><Link href={`/eventos/${id}`}>Ver evento</Link></Button></div>}
     />
 
@@ -120,13 +120,13 @@ export default async function EventParticipantsPage({ params, searchParams }: { 
         const name = profile?.full_name || 'Utilizador'
         const ticketName = row.ticket_type_id ? ticketMap.get(row.ticket_type_id) : null
         const attended = row.status === 'attended'
-        const canManageAttendance = eventStarted && !['pending', 'cancelled'].includes(row.status) && !['pending', 'refund_pending', 'refunded'].includes(row.payment_status)
+        const canManageAttendance = !['pending', 'cancelled'].includes(row.status) && !['pending', 'refund_pending', 'refunded'].includes(row.payment_status)
         return <Card key={row.id}><CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold text-primary">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0).toUpperCase()}</div>
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold text-primary">{profile?.avatar_url ? <AppImage src={profile.avatar_url} alt={name} fill sizes="44px" className="object-cover" /> : name.charAt(0).toUpperCase()}</div>
             <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="truncate font-semibold">{name}</p><Badge variant="outline">{statusLabels[row.status] || row.status}</Badge><Badge variant="secondary">{paymentLabels[row.payment_status] || row.payment_status}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{ticketName || 'Inscrição geral'}{row.amount != null && Number(row.amount) > 0 ? ` · ${Number(row.amount).toFixed(2)} €` : ''}</p></div>
           </div>
-          <div className="shrink-0">{canManageAttendance ? <EventParticipantAttendanceButton eventId={id} participantId={row.id} attended={attended} /> : <span className="text-xs text-muted-foreground">{!eventStarted ? 'Disponível após o início' : 'Sem ação disponível'}</span>}</div>
+          <div className="shrink-0">{canManageAttendance ? <EventParticipantAttendanceButton eventId={id} participantId={row.id} attended={attended} eventStartDate={event.start_date} /> : <span className="text-xs text-muted-foreground">Sem ação disponível</span>}</div>
         </CardContent></Card>
       })}</div>}
 
