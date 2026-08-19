@@ -6,11 +6,15 @@ import { updateEventParticipantAttendanceAction } from '@/app/actions/events'
 import { Button } from '@/components/ui/button'
 import { useModal } from '@/components/providers/modal-provider'
 
-export function EventParticipantAttendanceButton({ eventId, participantId, attended }: { eventId: string; participantId: string; attended: boolean }) {
+export function EventParticipantAttendanceButton({ eventId, participantId, attended, eventStartDate }: { eventId: string; participantId: string; attended: boolean; eventStartDate: string }) {
   const [pending, startTransition] = useTransition()
   const { showAlert } = useModal()
 
   function update() {
+    if (new Date(eventStartDate).getTime() > Date.now()) {
+      showAlert('Presença indisponível', 'Só podes registar presença depois do início do evento.', 'info')
+      return
+    }
     startTransition(async () => {
       try {
         await updateEventParticipantAttendanceAction(eventId, participantId, !attended)
