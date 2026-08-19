@@ -1,7 +1,10 @@
+import Link from 'next/link'
+import { Users } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { isProviderRole } from '@/lib/auth/roles'
+import { Button } from '@/components/ui/button'
 import { EventEditForm } from './event-edit-form'
 import type { TaxonomyOption } from '@/components/taxonomy-combobox'
 
@@ -28,5 +31,8 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
     return { id: String(candidate.id), name: String(candidate.name || ''), slug: String(candidate.slug || ''), emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null, parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null }
   })
 
-  return <EventEditForm event={{ ...event, status: event.status ?? 'draft' }} categories={categories} />
+  return <div className="mx-auto max-w-4xl space-y-4">
+    <div className="flex justify-end"><Button asChild variant="outline"><Link href={`/dashboard/eventos/${id}/participantes`}><Users className="mr-2 h-4 w-4" />Gerir participantes</Link></Button></div>
+    <EventEditForm event={{ ...event, status: event.status ?? 'draft' }} categories={categories} />
+  </div>
 }
