@@ -114,14 +114,16 @@ async function syncDefaultTicket(admin: ReturnType<typeof createAdminClient>, ev
 
   const activeTickets = tickets || []
   const autoTicket = activeTickets.length === 1 && activeTickets[0].name === DEFAULT_TICKET_NAME && Number(activeTickets[0].sort_order || 0) === 0 ? activeTickets[0] : null
+  const defaultPrice = priceMin ?? 0
+  const defaultCapacity = capacity ?? 0
 
-  if (activeTickets.length === 0 && Number(priceMin || 0) > 0) {
+  if (activeTickets.length === 0 && defaultPrice > 0) {
     const payload: TablesInsert<'event_ticket_types'> = {
       event_id: eventId,
       name: DEFAULT_TICKET_NAME,
       description: 'Acesso geral ao evento',
-      price: priceMin,
-      capacity,
+      price: defaultPrice,
+      capacity: defaultCapacity,
       is_active: true,
       sort_order: 0,
     }
@@ -131,8 +133,8 @@ async function syncDefaultTicket(admin: ReturnType<typeof createAdminClient>, ev
   }
 
   if (autoTicket) {
-    if (Number(priceMin || 0) > 0) {
-      const { error } = await admin.from('event_ticket_types').update({ price: priceMin, capacity }).eq('id', autoTicket.id)
+    if (defaultPrice > 0) {
+      const { error } = await admin.from('event_ticket_types').update({ price: defaultPrice, capacity: defaultCapacity }).eq('id', autoTicket.id)
       if (error) throw new Error(`Não foi possível atualizar o bilhete do evento: ${error.message}`)
     } else {
       const { error } = await admin.from('event_ticket_types').update({ is_active: false }).eq('id', autoTicket.id)
