@@ -47,9 +47,9 @@ async function resolveExactContext(currentUserId:string, receiverId:string, cont
     if(reservation.professional_id){const {data:p}=await admin.from('professionals').select('user_id').eq('id',reservation.professional_id).maybeSingle();providerUserId=p?.user_id||null}
     if(!providerUserId&&reservation.space_id){const {data:s}=await admin.from('sport_spaces').select('owner_user_id').eq('id',reservation.space_id).maybeSingle();providerUserId=s?.owner_user_id||null}
     const buyerUserId=reservation.user_id
-    const pairOk=Boolean(providerUserId&&((currentUserId===buyerUserId&&receiverId===providerUserId)||(currentUserId===providerUserId&&receiverId===buyerUserId)))
+    const pairOk=Boolean(providerUserId&&buyerUserId&&((currentUserId===buyerUserId&&receiverId===providerUserId)||(currentUserId===providerUserId&&receiverId===buyerUserId)))
     const active=(reservation.payment_status==='paid'||reservation.status==='confirmed')&&['paid','confirmed'].includes(String(reservation.status))&&bookingEndKey(reservation.date,String(reservation.end_time))>lisbonNowKey()
-    return{allowed:pairOk&&active,label:'Reserva ativa',buyerUserId,providerUserId:providerUserId||undefined,contextType,contextId}
+    return{allowed:pairOk&&active,label:'Reserva ativa',buyerUserId:buyerUserId||undefined,providerUserId:providerUserId||undefined,contextType,contextId}
   }
   const {data:participant}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status').eq('id',contextId).maybeSingle()
   if(!participant)return{allowed:false}
