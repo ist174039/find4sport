@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SportIcon } from '@/components/sport-icon'
 import { cn } from '@/lib/utils'
 import type { Category } from '@/lib/types'
 
@@ -22,12 +23,12 @@ export function CategoryCard({ category, variant = 'default', className }: Categ
     >
       <div
         className={cn(
-          'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl transition-transform group-hover:scale-110',
-          isCompact && 'h-10 w-10 text-xl'
+          'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-primary transition-transform group-hover:scale-110',
+          isCompact && 'h-10 w-10'
         )}
         style={{ backgroundColor: category.color ? `${category.color}15` : 'hsl(var(--muted))' }}
       >
-        {category.emoji || '🏃'}
+        <SportIcon name={category.name} className={isCompact ? 'h-5 w-5' : 'h-7 w-7'} />
       </div>
       <div className="min-w-0 flex-1">
         <h3
@@ -55,12 +56,7 @@ interface CategoryGridProps {
   className?: string
 }
 
-export function CategoryGrid({
-  categories,
-  variant = 'default',
-  columns = 4,
-  className,
-}: CategoryGridProps) {
+export function CategoryGrid({ categories, variant = 'default', columns = 4, className }: CategoryGridProps) {
   const gridCols = {
     2: 'grid-cols-1 sm:grid-cols-2',
     3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
@@ -69,11 +65,5 @@ export function CategoryGrid({
     6: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
   }
 
-  return (
-    <div className={cn('grid gap-4', gridCols[columns], className)}>
-      {categories.map((category) => (
-        <CategoryCard key={category.id} category={category} variant={variant} />
-      ))}
-    </div>
-  )
+  return <div className={cn('grid gap-4', gridCols[columns], className)}>{categories.map(category => <CategoryCard key={category.id} category={category} variant={variant} />)}</div>
 }

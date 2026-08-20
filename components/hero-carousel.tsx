@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { HomeSearchForm } from '@/components/home-search-form'
 import { Button } from '@/components/ui/button'
+import { AppImage } from '@/components/ui/app-image'
 
 interface Slide {
   id: string
@@ -33,12 +34,6 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
 
   const discovery = (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="mb-4 flex gap-2 overflow-x-auto px-1 pb-1 sm:justify-center">
-        <Button asChild size="sm" className="min-h-10 shrink-0 rounded-full"><Link href="/espacos">Espaços</Link></Button>
-        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/profissionais">Profissionais</Link></Button>
-        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/eventos">Eventos</Link></Button>
-        <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/comunidades">Comunidades</Link></Button>
-      </div>
       <HomeSearchForm />
       <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs font-medium text-white/85 sm:mx-auto sm:max-w-lg">
         <span><strong className="block text-lg text-white">{spacesCount}</strong>Espaços</span>
@@ -53,7 +48,7 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
       <section className="relative flex min-h-[520px] items-center overflow-hidden border-b border-border bg-gradient-to-br from-primary via-primary/80 to-teal-700 px-4 py-16 sm:min-h-[580px]">
         <div className="mx-auto w-full max-w-7xl text-center text-primary-foreground">
           <h1 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">Encontre desporto, profissionais e espaços perto de si</h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base text-white/85 sm:text-lg">Pesquise, compare, participe e ligue-se à comunidade desportiva.</p>
+          <p className="mx-auto mt-4 max-w-2xl text-base text-white/85 sm:text-lg">Escolha o que procura, refine os critérios e só depois execute a pesquisa.</p>
           <div className="mt-8">{discovery}</div>
         </div>
       </section>
@@ -63,7 +58,7 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
   return (
     <section className="relative flex min-h-[540px] items-center justify-center overflow-hidden border-b border-border sm:min-h-[620px]">
       <div className="absolute inset-0">
-        {slides.map((slide, index) => <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${index === current ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><img src={slide.image_url} alt={slide.title || ''} className="h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/30 to-black/70" /></div>)}
+        {slides.map((slide, index) => <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${index === current ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><AppImage src={slide.image_url} alt={slide.title || 'FIND4SPORT'} fill sizes="100vw" className="object-cover" /><div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/30 to-black/70" /></div>)}
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 text-center sm:px-6">
