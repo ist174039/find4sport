@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Building2, CalendarDays, MapPin, Star, UserRound, Users } from 'lucide-react'
+import { ArrowRight, MapPin, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { AppImage } from '@/components/ui/app-image'
 
@@ -9,7 +9,7 @@ export type SearchResultListItem = {
   id:string; itemType:'space'|'professional'|'event'|'community'; title:string; subtitle:string; address:string; rating_avg:number|null; review_count:number|null; is_verified:boolean; image_url?:string|null; link:string; distanceKm?:number|null
 }
 
-function ResultImage({item}:{item:SearchResultListItem}){const Icon=item.itemType==='space'?Building2:item.itemType==='professional'?UserRound:item.itemType==='event'?CalendarDays:Users;return <div className="relative h-36 w-full shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-primary/15 via-muted to-secondary/20 sm:h-28 sm:w-28">{item.image_url?<AppImage className="object-cover" alt={item.title} src={item.image_url} fill sizes="(max-width: 640px) 100vw, 112px"/>:<div className="flex h-full items-center justify-center"><Icon className="h-9 w-9 text-primary/35"/></div>}</div>}
+function ResultImage({item}:{item:SearchResultListItem}){return <div className="relative h-36 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:h-28 sm:w-28"><AppImage className="object-cover" alt={item.title} src={item.image_url} fill sizes="(max-width: 640px) 100vw, 112px"/></div>}
 function label(item:SearchResultListItem){return item.itemType==='space'?'Espaço':item.itemType==='professional'?'Profissional':item.itemType==='event'?'Evento':'Comunidade'}
 
 export function SearchResultsList({items}:{items:SearchResultListItem[]}){

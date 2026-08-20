@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type SyntheticEvent } from 'react'
+import { useState, type SyntheticEvent } from 'react'
 import Image, { type ImageProps } from 'next/image'
 import { cn } from '@/lib/utils'
 
@@ -33,12 +33,11 @@ function isOptimizableSource(src: string) {
 
 export function AppImage({ src, fallbackSrc = DEFAULT_FALLBACK, alt, fill, className, sizes, onError, ...props }: AppImageProps) {
   const normalized = normalizeSource(src) || fallbackSrc
-  const [currentSrc, setCurrentSrc] = useState(normalized)
-
-  useEffect(() => setCurrentSrc(normalized), [normalized])
+  const [failedSource, setFailedSource] = useState<string | null>(null)
+  const currentSrc = failedSource === normalized ? fallbackSrc : normalized
 
   function handleError(event: SyntheticEvent<HTMLImageElement>) {
-    if (currentSrc !== fallbackSrc) setCurrentSrc(fallbackSrc)
+    if (currentSrc !== fallbackSrc) setFailedSource(normalized)
     onError?.(event)
   }
 
