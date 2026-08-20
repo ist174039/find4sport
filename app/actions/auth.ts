@@ -1,83 +1,13 @@
 'use server'
-
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { isPlatformRole, type PlatformRole } from '@/lib/auth/roles'
-
-async function requireAdminAccess() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Utilizador não autenticado')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administrador')
-}
-
-function requirePlatformRole(value: unknown): PlatformRole {
-  if (!isPlatformRole(value)) throw new Error('Tipo de perfil inválido')
-  return value
-}
-
-export async function adminCreateProfessional(input: {
-  full_name: string
-  email: string
-  professional_name?: string | null
-  public_slug?: string | null
-}) {
-  await requireAdminAccess()
-  const admin = createAdminClient()
-
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: input.email,
-    email_confirm: true,
-    user_metadata: { full_name: input.full_name, type: 'professional' },
-  })
-  if (authError || !authData.user) return { error: authError?.message || 'Não foi possível criar a identidade do profissional' }
-
-  const userId = authData.user.id
-  const { error: profileError } = await admin.from('platform_users').update({ full_name: input.full_name, type: 'professional' }).eq('id', userId)
-  if (profileError) {
-    await admin.auth.admin.deleteUser(userId)
-    return { error: profileError.message }
-  }
-
-  const { data, error } = await admin.from('professionals').insert({
-    user_id: userId,
-    full_name: input.full_name,
-    email: input.email,
-    professional_name: input.professional_name ?? input.full_name,
-    public_slug: input.public_slug ?? null,
-    is_verified: false,
-    status: 'pending',
-  }).select('*').single()
-
-  if (error) {
-    await admin.auth.admin.deleteUser(userId)
-    return { error: error.message }
-  }
-  return { professional: data }
-}
-
-export async function adminUpdateProfessional(id: string, input: { status?: 'active' | 'pending' | 'suspended' | 'rejected'; is_verified?: boolean }) {
-  await requireAdminAccess()
-  const admin = createAdminClient()
-  const { data, error } = await admin.from('professionals').update(input).eq('id', id).select('*').single()
-  if (error) return { error: error.message }
-  return { professional: data }
-}
-
-export async function adminCreateUser(email: string, password: string, fullName: string, type: PlatformRole) {
-  await requireAdminAccess()
-  const role = requirePlatformRole(type)
-  if (password.length < 8) return { error: 'A palavra-passe deve ter pelo menos 8 caracteres' }
-
-  const admin = createAdminClient()
-  const { data, error } = await admin.auth.admin.createUser({
-    email: email.trim(),
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName.trim(), type: role },
-  })
-  if (error) return { error: error.message }
-  return { user: data.user }
-}
+import { writeAdminAudit } from '@/lib/admin/audit'
+type AdminProfessionalInput={full_name:string;email:string;professional_name?:string|null;bio?:string|null;phone?:string|null;whatsapp?:string|null;address?:string|null;website?:string|null;service_radius_km?:number;nif?:string|null;category_ids?:string[];qualifications?:Array<{title:string;issuer?:string|null;issue_date?:string|null}>}
+async function requireAdminAccess(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)throw new Error('Utilizador não autenticado');const access=await resolveSessionAccess(supabase,user);if(!access?.canAccessAdmin)throw new Error('Sem permissões de administrador');return{user,admin:createAdminClient()}}
+function requirePlatformRole(value:unknown):PlatformRole{if(!isPlatformRole(value))throw new Error('Tipo de perfil inválido');return value}function cleanText(value:unknown,max:number){return String(value||'').trim().slice(0,max)}async function validateCategories(admin:ReturnType<typeof createAdminClient>,ids:string[]){const unique=[...new Set(ids.filter(id=>/^[0-9a-f-]{36}$/i.test(id)))].slice(0,5);if(!unique.length)throw new Error('Seleciona pelo menos uma modalidade.');const{data,error}=await admin.from('categories').select('id').in('id',unique);if(error||(data||[]).length!==unique.length)throw new Error('Uma ou mais modalidades são inválidas.');return unique}
+export async function getAdminCategoryOptionsAction(){const{admin}=await requireAdminAccess();const{data,error}=await admin.from('categories').select('id,name,slug,emoji,parent_id').order('name');if(error)throw new Error('Não foi possível carregar as modalidades.');return data||[]}
+export async function adminCreateProfessional(input:AdminProfessionalInput){const{user,admin}=await requireAdminAccess();const fullName=cleanText(input.full_name,160),email=cleanText(input.email,254).toLowerCase();if(fullName.length<2)return{error:'Indica um nome válido.'};if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return{error:'Indica um email válido.'};const categories=await validateCategories(admin,input.category_ids||[]),serviceRadius=Math.min(500,Math.max(0,Number(input.service_radius_km||0))),qualifications=(input.qualifications||[]).slice(0,20).map(item=>({title:cleanText(item.title,180),issuer:cleanText(item.issuer,180)||null,issue_date:item.issue_date&&/^\d{4}-\d{2}-\d{2}$/.test(item.issue_date)?item.issue_date:null})).filter(item=>item.title);const{data:authData,error:authError}=await admin.auth.admin.createUser({email,email_confirm:true,user_metadata:{full_name:fullName,type:'professional'}});if(authError||!authData.user)return{error:authError?.message||'Não foi possível criar a identidade do profissional'};const userId=authData.user.id;try{const{error:profileError}=await admin.from('platform_users').upsert({id:userId,full_name:fullName,type:'professional'});if(profileError)throw profileError;const slugBase=(cleanText(input.professional_name,160)||fullName).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')||'profissional';const{data:professional,error}=await admin.from('professionals').insert({user_id:userId,full_name:fullName,email,professional_name:cleanText(input.professional_name,160)||fullName,bio:cleanText(input.bio,5000)||null,phone:cleanText(input.phone,40)||null,whatsapp:cleanText(input.whatsapp,40)||null,address:cleanText(input.address,500)||null,website:cleanText(input.website,500)||null,service_radius_km:serviceRadius,nif:cleanText(input.nif,30)||null,public_slug:`${slugBase}-${crypto.randomUUID().slice(0,8)}`,is_verified:false,status:'pending'}).select('id,full_name').single();if(error||!professional)throw error||new Error('Falha ao criar perfil.');const{error:categoryError}=await admin.from('professional_categories').insert(categories.map(category_id=>({professional_id:professional.id,category_id})));if(categoryError)throw categoryError;if(qualifications.length){const{error:qualificationError}=await admin.from('qualifications').insert(qualifications.map(item=>({...item,professional_id:professional.id,is_verified:false})));if(qualificationError)throw qualificationError}await writeAdminAudit(admin as any,{action:'INSERT',tableName:'professionals',userEmail:user.email||'admin',message:`Profissional ${professional.id} criado administrativamente`,data:{professional_id:professional.id,user_id:userId}});return{professional}}catch(error){await admin.auth.admin.deleteUser(userId).catch(()=>undefined);return{error:error instanceof Error?error.message:'Não foi possível concluir a criação do profissional'}}}
+export async function adminUpdateProfessional(id:string,input:{status?:'active'|'pending'|'suspended'|'rejected';is_verified?:boolean}){const{user,admin}=await requireAdminAccess();const{data,error}=await admin.from('professionals').update(input).eq('id',id).select('*').single();if(error)return{error:error.message};await writeAdminAudit(admin as any,{action:'UPDATE',tableName:'professionals',userEmail:user.email||'admin',message:`Profissional ${id} atualizado`,data:{professional_id:id,status:input.status,is_verified:input.is_verified}});return{professional:data}}
+export async function adminCreateUser(email:string,password:string,fullName:string,type:PlatformRole){await requireAdminAccess();const role=requirePlatformRole(type);if(password.length<8)return{error:'A palavra-passe deve ter pelo menos 8 caracteres'};const admin=createAdminClient();const{data,error}=await admin.auth.admin.createUser({email:email.trim(),password,email_confirm:true,user_metadata:{full_name:fullName.trim(),type:role}});if(error)return{error:error.message};return{user:data.user}}
