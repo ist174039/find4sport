@@ -23,7 +23,7 @@ export default async function AdminSupportDetailPage({ params }: { params: Promi
   if(messagesError)throw new Error(`Não foi possível carregar mensagens: ${messagesError.message}`)
   const adminIds=[...new Set((messages||[]).map((m:any)=>m.sender_admin_id).filter(Boolean))]; const userIds=[...new Set((messages||[]).map((m:any)=>m.sender_user_id).filter(Boolean))]
   const [messageAdmins,messageUsers]=await Promise.all([adminIds.length?db.from('admins').select('id,email').in('id',adminIds):Promise.resolve({data:[]}),userIds.length?db.from('platform_users').select('id,full_name').in('id',userIds):Promise.resolve({data:[]})])
-  const adminMap=new Map((messageAdmins.data||[]).map((r:any)=>[r.id,r.email])); const userMap=new Map((messageUsers.data||[]).map((r:any)=>[r.id,r.full_name]))
+  const adminMap=new Map<string,string>((messageAdmins.data||[]).map((r:any)=>[String(r.id),String(r.email||'Administrador')] as [string,string])); const userMap=new Map<string,string>((messageUsers.data||[]).map((r:any)=>[String(r.id),String(r.full_name||'Utilizador')] as [string,string]))
   return <DashboardPage>
     <DashboardPageHeader title={ticket.subject} description={`Caso ${ticket.id}`} action={<Button asChild variant="outline"><Link href="/admin/suporte"><ArrowLeft className="mr-2 h-4 w-4"/>Fila</Link></Button>}/>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
