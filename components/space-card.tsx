@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Category, SportSpace } from '@/lib/types'
 
-type DiscoverySpace=SportSpace&{categories?:Category[];distanceKm?:number|null;averagePrice?:number|null}
+type DiscoverySpace=SportSpace&{cover_url?:string|null;categories?:Category[];distanceKm?:number|null;averagePrice?:number|null}
 interface SpaceCardProps{space:DiscoverySpace;variant?:'default'|'compact'|'horizontal';showFavoriteButton?:boolean;isFavorited?:boolean;onFavoriteToggle?:(id:string)=>void;className?:string}
 function distanceLabel(value?:number|null){if(value==null)return null;return value<1?`${Math.round(value*1000)} m`:`${value.toFixed(1)} km`}
 function money(value?:number|null){return value==null?null:new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(value)}
