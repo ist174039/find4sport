@@ -1,6 +1,8 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export type SessionAccess = {
   role: AccessRole
@@ -25,6 +27,20 @@ export async function resolveAdminSidebarUser(supabase: Supabase, user: User): P
   const adminRecord = await resolveAdminRecord(supabase, user)
   if (!adminRecord) return null
   return { role: adminRecord.adminLabel }
+}
+
+/**
+ * Server-side trust boundary for privileged administrative operations.
+ * Authenticate and authorize with the request-scoped client before exposing
+ * a service-role client to the caller.
+ */
+export async function requireAdminAccess() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Sessão inválida.')
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access?.canAccessAdmin || access.role !== 'admin') throw new Error('Acesso reservado a administradores.')
+  return { user, access, admin: createAdminClient() }
 }
 
 export function getAccountStatus(user: User) {
