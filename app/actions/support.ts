@@ -29,6 +29,19 @@ function enumValue<T extends readonly string[]>(value: FormDataEntryValue | null
   return allowed.includes(normalized as T[number]) ? normalized as T[number] : fallback
 }
 
+async function notifySupportUser(db: any, userId: string | null, ticketId: string, message: string, dedupeKey: string) {
+  if (!userId) return
+  const { error } = await db.from('notifications').insert({
+    user_id: userId,
+    type: 'system',
+    message,
+    link: `/dashboard/suporte/${ticketId}`,
+    data: { support_ticket_id: ticketId },
+    dedupe_key: dedupeKey,
+  })
+  if (error && error.code !== '23505') console.error('Support notification error:', error)
+}
+
 async function requirePlatformUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -110,14 +123,16 @@ export async function createAdminSupportTicketAction(formData: FormData) {
     status: 'pending_user',
   }).select('id').single()
   if (error || !ticket) throw new Error(error?.message || 'Não foi possível abrir o caso de suporte.')
-  const { error: messageError } = await db.from('support_messages').insert({ ticket_id: ticket.id, sender_admin_id: admin.id, body: message, is_internal: false })
-  if (messageError) {
+  const { data: supportMessage, error: messageError } = await db.from('support_messages').insert({ ticket_id: ticket.id, sender_admin_id: admin.id, body: message, is_internal: false }).select('id').single()
+  if (messageError || !supportMessage) {
     await db.from('support_tickets').delete().eq('id', ticket.id)
     throw new Error('Não foi possível registar a primeira mensagem.')
   }
+  await notifySupportUser(db, userId, ticket.id, `A equipa FIND4SPORT abriu um pedido de suporte: ${subject}`, `support:${ticket.id}:${supportMessage.id}`)
   await writeAdminAudit(db, { action: 'INSERT', tableName: 'support_tickets', userEmail: user.email || admin.email, message: `Caso de suporte ${ticket.id} aberto para ${userId}`, data: { ticket_id: ticket.id, user_id: userId } })
   revalidatePath('/admin/suporte')
   revalidatePath(`/admin/utilizadores/${userId}`)
+  revalidatePath('/dashboard/notificacoes')
   redirect(`/admin/suporte/${ticket.id}`)
 }
 
@@ -129,12 +144,16 @@ export async function replyAdminSupportTicketAction(formData: FormData) {
   const internal = String(formData.get('internal') || '') === 'true'
   const { data: ticket } = await db.from('support_tickets').select('id,user_id,status').eq('id', ticketId).maybeSingle()
   if (!ticket) throw new Error('Caso de suporte não encontrado.')
-  const { error } = await db.from('support_messages').insert({ ticket_id: ticketId, sender_admin_id: admin.id, body, is_internal: internal })
-  if (error) throw new Error('Não foi possível enviar a mensagem.')
-  if (!internal) await db.from('support_tickets').update({ status: 'pending_user', assigned_admin_id: admin.id, updated_at: new Date().toISOString() }).eq('id', ticketId)
+  const { data: supportMessage, error } = await db.from('support_messages').insert({ ticket_id: ticketId, sender_admin_id: admin.id, body, is_internal: internal }).select('id').single()
+  if (error || !supportMessage) throw new Error('Não foi possível enviar a mensagem.')
+  if (!internal) {
+    await db.from('support_tickets').update({ status: 'pending_user', assigned_admin_id: admin.id, updated_at: new Date().toISOString() }).eq('id', ticketId)
+    await notifySupportUser(db, ticket.user_id, ticketId, 'A equipa FIND4SPORT respondeu ao teu pedido de suporte.', `support:${ticketId}:${supportMessage.id}`)
+  }
   await writeAdminAudit(db, { action: 'INSERT', tableName: 'support_messages', userEmail: user.email || admin.email, message: `${internal ? 'Nota interna' : 'Resposta'} no caso ${ticketId}`, data: { ticket_id: ticketId, internal } })
   revalidatePath(`/admin/suporte/${ticketId}`)
   revalidatePath('/admin/suporte')
+  revalidatePath('/dashboard/notificacoes')
   if (ticket.user_id) revalidatePath(`/admin/utilizadores/${ticket.user_id}`)
 }
 
@@ -153,6 +172,10 @@ export async function updateAdminSupportTicketAction(formData: FormData) {
     closed_at: status === 'closed' ? now : null,
   }).eq('id', ticketId).select('id,user_id').maybeSingle()
   if (error || !data) throw new Error(error?.message || 'Não foi possível atualizar o caso.')
+  if (status === 'resolved' || status === 'closed') {
+    await notifySupportUser(db, data.user_id, ticketId, `O teu pedido de suporte foi marcado como ${status === 'resolved' ? 'resolvido' : 'fechado'}.`, `support-status:${ticketId}:${status}:${now}`)
+    revalidatePath('/dashboard/notificacoes')
+  }
   await writeAdminAudit(db, { action: 'UPDATE', tableName: 'support_tickets', userEmail: user.email || admin.email, message: `Caso ${ticketId} atualizado`, data: { ticket_id: ticketId, status, priority } })
   revalidatePath(`/admin/suporte/${ticketId}`)
   revalidatePath('/admin/suporte')
