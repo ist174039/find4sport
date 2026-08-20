@@ -29,8 +29,51 @@ jobs:
         with:
           version: latest
 
+      - name: Normalize legacy migration versions for clean replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          migrations = Path('supabase/migrations')
+          files = sorted(p for p in migrations.glob('*.sql') if p.is_file())
+          used = set()
+          legacy_counters = {}
+
+          for path in files:
+              match = re.match(r'^(\d+)_([^/]+)\.sql$', path.name)
+              if not match:
+                  continue
+              version, name = match.groups()
+              if len(version) >= 14 and version not in used:
+                  used.add(version)
+                  continue
+
+              day = version[:8]
+              counter = legacy_counters.get(day, 0)
+              while True:
+                  counter += 1
+                  candidate = f'{day}00{counter:04d}'
+                  if candidate not in used:
+                      break
+              legacy_counters[day] = counter
+              used.add(candidate)
+              target = path.with_name(f'{candidate}_{name}.sql')
+              path.rename(target)
+              print(f'{path.name} -> {target.name}')
+
+          # This legacy file predates the timestamp convention and was silently skipped.
+          room_file = migrations / 'add_space_rooms.sql'
+          if room_file.exists():
+              target = migrations / '20260815000000_add_space_rooms.sql'
+              room_file.rename(target)
+              print(f'{room_file.name} -> {target.name}')
+          PY
+
       - name: Start local Supabase
-        run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector
+        run: supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector
 
       - name: Rebuild database from migrations
         run: supabase db reset --local --no-seed
