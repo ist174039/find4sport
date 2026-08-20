@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Globe, Lock, Plus, Search, ShieldCheck, Users } from 'lucide-react'
+import { Globe, Lock, Plus, Search, ShieldCheck, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { ServerPagination } from '@/components/patterns/server-pagination'
 
 const PAGE_SIZE = 20
 
@@ -58,7 +59,8 @@ export default async function DashboardCommunitiesPage({ searchParams }: { searc
   })
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const start = (safePage - 1) * PAGE_SIZE
+  const visible = filtered.slice(start, safePage * PAGE_SIZE)
 
   return (
     <DashboardPage>
@@ -72,9 +74,9 @@ export default async function DashboardCommunitiesPage({ searchParams }: { searc
 
       <DashboardSection title="As minhas comunidades" description="Pesquisa, filtro de privacidade e paginação das comunidades administradas.">
         <form method="get" className="mb-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_190px_auto]">
-          <label className="relative min-w-0"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input name="q" defaultValue={q} placeholder="Nome, descrição ou modalidade" className="min-h-11 w-full pl-10" /></label>
-          <select name="privacy" defaultValue={privacy} className="min-h-11 rounded-lg border border-input bg-background px-3"><option value="all">Todas</option><option value="public">Públicas</option><option value="private">Privadas</option></select>
-          <Button type="submit">Filtrar</Button>
+          <label className="relative min-w-0"><span className="sr-only">Pesquisar comunidades</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input name="q" defaultValue={q} placeholder="Nome, descrição ou modalidade" className="min-h-11 w-full pl-10" /></label>
+          <label className="min-w-0"><span className="sr-only">Filtrar comunidades por privacidade</span><select name="privacy" defaultValue={privacy} className="min-h-11 w-full rounded-lg border border-input bg-background px-3"><option value="all">Todas</option><option value="public">Públicas</option><option value="private">Privadas</option></select></label>
+          <Button type="submit" className="min-h-11">Filtrar</Button>
         </form>
 
         {visible.length === 0 ? <DashboardEmptyState icon={<Users className="h-10 w-10" />} title={communities.length ? 'Sem resultados' : 'Ainda não geres nenhuma comunidade'} description={communities.length ? 'Ajusta os filtros para encontrar a comunidade.' : 'Cria uma comunidade para reunir atletas, partilhar conteúdo e construir uma rede em torno da tua modalidade.'} action={!communities.length ? <Button asChild><Link href="/comunidades/criar">Criar primeira comunidade</Link></Button> : undefined} /> : (
@@ -82,11 +84,21 @@ export default async function DashboardCommunitiesPage({ searchParams }: { searc
             {visible.map((community: any) => {
               const memberCount = Number(community.community_members?.[0]?.count || 0)
               const postCount = Number(community.posts?.[0]?.count || 0)
-              return <article key={community.id} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-background"><div className="relative aspect-[16/7] bg-muted">{community.cover_url ? <img src={community.cover_url} alt={community.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}<span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-semibold backdrop-blur">{community.is_private ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}{community.is_private ? 'Privada' : 'Pública'}</span></div><div className="min-w-0 p-4 sm:p-5"><p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{community.sport_category || 'Desporto'}</p><h2 className="mt-1 break-words text-lg font-bold">{community.name}</h2><p className="mt-2 line-clamp-2 break-words text-sm leading-6 text-muted-foreground">{community.description || 'Sem descrição.'}</p><div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground"><span>{memberCount} membros</span><span>{postCount} publicações</span></div><div className="mt-5 grid grid-cols-2 gap-2"><Button asChild variant="outline"><Link href={`/comunidades/${community.slug || community.id}`}>Abrir</Link></Button><Button asChild><Link href={`/dashboard/comunidades/${community.id}`}>Gerir</Link></Button></div></div></article>
+              return <article key={community.id} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-background"><div className="relative aspect-[16/7] bg-muted">{community.cover_url ? <img src={community.cover_url} alt={community.name} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}<span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-semibold backdrop-blur">{community.is_private ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}{community.is_private ? 'Privada' : 'Pública'}</span></div><div className="min-w-0 p-4 sm:p-5"><p className="truncate text-xs font-semibold uppercase tracking-wide text-primary">{community.sport_category || 'Desporto'}</p><h2 className="mt-1 break-words text-lg font-bold">{community.name}</h2><p className="mt-2 line-clamp-2 break-words text-sm leading-6 text-muted-foreground">{community.description || 'Sem descrição.'}</p><div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground"><span>{memberCount} membros</span><span>{postCount} publicações</span></div><div className="mt-5 grid grid-cols-2 gap-2"><Button asChild variant="outline" className="min-h-11"><Link href={`/comunidades/${community.slug || community.id}`}>Abrir</Link></Button><Button asChild className="min-h-11"><Link href={`/dashboard/comunidades/${community.id}`}>Gerir</Link></Button></div></div></article>
             })}
           </div>
         )}
-        {filtered.length > 0 && <div className="mt-5 flex items-center justify-between border-t pt-4"><span className="text-sm text-muted-foreground">{filtered.length} comunidades</span><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm" className={safePage <= 1 ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(safePage - 1, q, privacy)}><ChevronLeft className="h-4 w-4" />Anterior</Link></Button><span className="text-sm">{safePage}/{totalPages}</span><Button asChild variant="outline" size="sm" className={safePage >= totalPages ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(safePage + 1, q, privacy)}>Seguinte<ChevronRight className="h-4 w-4" /></Link></Button></div></div>}
+
+        <ServerPagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          startItem={filtered.length > 0 ? start + 1 : 0}
+          endItem={Math.min(start + PAGE_SIZE, filtered.length)}
+          previousHref={pageHref(Math.max(1, safePage - 1), q, privacy)}
+          nextHref={pageHref(Math.min(totalPages, safePage + 1), q, privacy)}
+          label="comunidades"
+        />
       </DashboardSection>
     </DashboardPage>
   )

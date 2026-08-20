@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Eye, Search, ShieldAlert, Star } from 'lucide-react'
+import { CheckCircle2, Dumbbell, Eye, Search, ShieldAlert, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { ServerPagination } from '@/components/patterns/server-pagination'
 import { CreateProfessionalButton, ProfessionalStateActions } from './professional-admin-actions'
 
 const PAGE_SIZE = 20
@@ -78,7 +79,7 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
     <DashboardSection title="Perfis" description="Pesquisa por nome, email ou localização e filtra pelo estado real do perfil.">
       <form method="get" className="mb-4 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_200px_auto]">
         <label className="relative min-w-0"><span className="sr-only">Pesquisar profissionais</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input name="q" defaultValue={q} placeholder="Nome, email ou localização" className="min-h-11 w-full pl-10" /></label>
-        <select name="status" defaultValue={filter} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="all">Todos</option><option value="active">Ativos</option><option value="pending">Pendentes</option><option value="suspended">Suspensos</option></select>
+        <label className="min-w-0"><span className="sr-only">Filtrar profissionais por estado</span><select name="status" defaultValue={filter} className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-sm"><option value="all">Todos</option><option value="active">Ativos</option><option value="pending">Pendentes</option><option value="suspended">Suspensos</option></select></label>
         <Button type="submit" className="min-h-11">Filtrar</Button>
       </form>
 
@@ -87,12 +88,21 @@ export default async function AdminProfessionalsPage({ searchParams }: { searchP
           const name = professional.full_name || professional.professional_name || 'Profissional'
           return <article key={professional.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{professional.avatar_url ? <img src={professional.avatar_url} alt="" className="h-full w-full object-cover" /> : name.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="truncate font-semibold">{name}</p><p className="truncate text-sm text-muted-foreground">{professional.email || 'Sem email profissional'}{professional.address ? ` · ${professional.address}` : ''}</p><div className="mt-1 flex flex-wrap gap-2"><Badge variant="outline">{professional.status || 'sem estado'}</Badge>{professional.is_verified && <Badge>Verificado</Badge>}{Number(professional.review_count || 0) > 0 && <Badge variant="secondary">{Number(professional.rating_avg || 0).toFixed(1)} · {professional.review_count} avaliações</Badge>}</div></div></div>
-            <div className="grid grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-10"><Link href={`/profissionais/${professional.public_slug || professional.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button><ProfessionalStateActions id={professional.id} name={name} isVerified={Boolean(professional.is_verified)} status={professional.status} /></div>
+            <div className="grid grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-11"><Link href={`/profissionais/${professional.public_slug || professional.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button><ProfessionalStateActions id={professional.id} name={name} isVerified={Boolean(professional.is_verified)} status={professional.status} /></div>
           </article>
         })}
       </div>}
 
-      {total > 0 && <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">A mostrar {from + 1}–{Math.min(from + PAGE_SIZE, total)} de {total}</p><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm" className={page <= 1 ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page - 1, q, filter)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Link></Button><span className="px-2 text-sm font-medium">{page} / {totalPages}</span><Button asChild variant="outline" size="sm" className={page >= totalPages ? 'pointer-events-none opacity-50' : ''}><Link href={pageHref(page + 1, q, filter)}>Seguinte<ChevronRight className="ml-1 h-4 w-4" /></Link></Button></div></div>}
+      <ServerPagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={total}
+        startItem={total > 0 ? from + 1 : 0}
+        endItem={Math.min(from + PAGE_SIZE, total)}
+        previousHref={pageHref(Math.max(1, page - 1), q, filter)}
+        nextHref={pageHref(Math.min(totalPages, page + 1), q, filter)}
+        label="profissionais"
+      />
     </DashboardSection>
   </DashboardPage>
 }
