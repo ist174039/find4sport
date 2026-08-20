@@ -1,0 +1,46 @@
+name: Database Security
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/database-security.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/database-security.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: database-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrated-database-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector
+
+      - name: Rebuild database from migrations
+        run: supabase db reset --local --no-seed
+
+      - name: Run database security regression tests
+        run: supabase test db supabase/tests/financial_write_boundary.sql
+
+      - name: Verify migration state
+        run: supabase migration list --local
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
