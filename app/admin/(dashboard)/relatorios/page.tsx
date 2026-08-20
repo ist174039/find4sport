@@ -1,86 +1,14 @@
+import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
-import { Building2, Calendar, Star, Users } from 'lucide-react'
+import { BarChart3, Building2, Calendar, CreditCard, Star, TrendingUp, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
-import { DashboardErrorState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
-
-function queryFailure(label: string, result: { error?: { message?: string } | null }) {
-  return result.error ? `${label}: ${result.error.message || 'erro desconhecido'}` : null
-}
-
-export default async function AdminReportsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/admin/login')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) redirect('/admin/login?error=unauthorized')
-
-  const admin = createAdminClient()
-  const [users, professionals, spaces, events, reviews, reservations, completedReservations] = await Promise.all([
-    admin.from('platform_users').select('id', { count: 'exact', head: true }),
-    admin.from('professionals').select('id', { count: 'exact', head: true }),
-    admin.from('sport_spaces').select('id', { count: 'exact', head: true }),
-    admin.from('events').select('id', { count: 'exact', head: true }),
-    admin.from('reviews').select('id', { count: 'exact', head: true }),
-    admin.from('reservations').select('id', { count: 'exact', head: true }),
-    admin.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
-  ])
-
-  const failures = [
-    queryFailure('utilizadores', users),
-    queryFailure('profissionais', professionals),
-    queryFailure('espaços', spaces),
-    queryFailure('eventos', events),
-    queryFailure('avaliações', reviews),
-    queryFailure('reservas', reservations),
-    queryFailure('reservas concluídas', completedReservations),
-  ].filter(Boolean) as string[]
-
-  if (failures.length > 0) {
-    return (
-      <DashboardPage>
-        <DashboardPageHeader title="Relatórios" description="Indicadores factuais calculados a partir da base de dados." />
-        <DashboardErrorState
-          title="Não é seguro apresentar estes indicadores"
-          description={`Uma ou mais consultas falharam; os valores não foram convertidos em zero. ${failures.join(' · ')}`}
-        />
-      </DashboardPage>
-    )
-  }
-
-  const totalReservations = reservations.count ?? 0
-  const completed = completedReservations.count ?? 0
-  const completionRate = totalReservations > 0 ? (completed / totalReservations) * 100 : null
-
-  return (
-    <DashboardPage>
-      <DashboardPageHeader title="Relatórios" description="Indicadores factuais calculados a partir da base de dados. Esta página não produz conclusões automáticas sem evidência." />
-
-      <DashboardStatGrid>
-        <DashboardStat label="Utilizadores" value={users.count ?? 0} icon={<Users className="h-5 w-5" />} />
-        <DashboardStat label="Profissionais" value={professionals.count ?? 0} icon={<Users className="h-5 w-5" />} />
-        <DashboardStat label="Espaços" value={spaces.count ?? 0} icon={<Building2 className="h-5 w-5" />} />
-        <DashboardStat label="Eventos" value={events.count ?? 0} icon={<Calendar className="h-5 w-5" />} />
-      </DashboardStatGrid>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <DashboardSection title="Atividade" description="Volumes acumulados registados na plataforma.">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reservas</p><p className="mt-2 text-2xl font-bold">{totalReservations}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Concluídas</p><p className="mt-2 text-2xl font-bold">{completed}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Taxa conclusão</p><p className="mt-2 text-2xl font-bold">{completionRate === null ? '—' : `${completionRate.toFixed(1)}%`}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Star className="h-3.5 w-3.5" />Avaliações</p><p className="mt-2 text-2xl font-bold">{reviews.count ?? 0}</p></div>
-          </div>
-        </DashboardSection>
-
-        <DashboardSection title="Leitura dos dados" description="O painel apresenta métricas; interpretações de negócio devem ser feitas com contexto temporal e financeiro.">
-          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-            <p>Os números apresentados são totais atuais da base de dados e não representam, por si só, crescimento, retenção ou saúde do negócio.</p>
-            <p>Para análise de tendência será necessário adicionar séries temporais confiáveis, coortes e métricas financeiras reconciliadas.</p>
-          </div>
-        </DashboardSection>
-      </div>
-    </DashboardPage>
-  )
-}
+import { getAdminReportData } from '@/lib/admin/report-data'
+import { ReportActions } from '@/components/admin/report-actions'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+function money(value:number){return new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(value)}
+function first(v:string|string[]|undefined){return Array.isArray(v)?v[0]:v}
+export default async function AdminReportsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/admin/login');const access=await resolveSessionAccess(supabase,user);if(!access?.canAccessAdmin)redirect('/admin/login?error=unauthorized');const params=await searchParams;const data=await getAdminReportData(first(params.from),first(params.to));const p=data.period,f=data.financial;return <DashboardPage><DashboardPageHeader title="Relatórios" description={`Operação e financeiro de ${data.range.from} a ${data.range.to}. O mesmo intervalo alimenta o ecrã, a impressão, Excel e PDF.`} action={<ReportActions from={data.range.from} to={data.range.to}/>}/><form method="get" className="grid gap-3 rounded-2xl border bg-card p-4 print:hidden sm:grid-cols-[1fr_1fr_auto]"><label className="space-y-1 text-sm"><span className="font-medium">De</span><Input type="date" name="from" defaultValue={data.range.from}/></label><label className="space-y-1 text-sm"><span className="font-medium">Até</span><Input type="date" name="to" defaultValue={data.range.to}/></label><Button type="submit" className="self-end">Atualizar relatório</Button></form><DashboardStatGrid><DashboardStat label="Novos utilizadores" value={p.users} hint={`${data.totals.users} total`} icon={<Users className="h-5 w-5"/>}/><DashboardStat label="Novos profissionais" value={p.professionals} hint={`${data.totals.professionals} total`} icon={<Users className="h-5 w-5"/>}/><DashboardStat label="Novos espaços" value={p.spaces} hint={`${data.totals.spaces} total`} icon={<Building2 className="h-5 w-5"/>}/><DashboardStat label="Novos eventos" value={p.events} hint={`${data.totals.events} total`} icon={<Calendar className="h-5 w-5"/>}/></DashboardStatGrid><div className="grid gap-6 xl:grid-cols-2"><DashboardSection title="Reservas e atividade" description="Volumes do intervalo selecionado."><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Reservas" value={p.reservations}/><Metric label="Pagas" value={p.paidReservations}/><Metric label="Concluídas" value={p.completedReservations}/><Metric label="Canceladas" value={p.cancelledReservations}/><Metric label="Taxa conclusão" value={p.completionRate==null?'—':`${p.completionRate.toFixed(1)}%`}/><Metric label="Avaliações" value={p.reviews} icon={<Star className="h-4 w-4"/>}/></div></DashboardSection><DashboardSection title="Financeiro" description="Vendas concluídas no ledger; refunds e disputes são apresentados separadamente para não inflacionar GMV."><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Volume bruto" value={money(f.gross)}/><Metric label="Comissões" value={money(f.commission)}/><Metric label="Fees Stripe" value={money(f.stripeFees)}/><Metric label="Líquido FIND4SPORT" value={money(f.platformNet)}/><Metric label="Líquido prestadores" value={money(f.providerNet)}/><Metric label="Vendas concluídas" value={f.completedSales}/><Metric label="Reembolsos" value={money(f.refunds)}/><Metric label="Disputas" value={money(f.disputes)}/></div></DashboardSection></div><DashboardSection title="Distribuição financeira por tipo" description="Valor bruto das transações concluídas agrupado pelo tipo persistido no ledger.">{data.transactionTypes.length===0?<div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">Sem transações concluídas no intervalo.</div>:<div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead><tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground"><th className="py-3 pr-4">Tipo</th><th className="py-3 pr-4 text-right">Operações</th><th className="py-3 text-right">Volume</th></tr></thead><tbody>{data.transactionTypes.map(row=><tr key={row.type} className="border-b last:border-0"><td className="py-3 pr-4 font-medium">{row.type}</td><td className="py-3 pr-4 text-right">{row.count}</td><td className="py-3 text-right font-semibold">{money(row.gross)}</td></tr>)}</tbody></table></div>}</DashboardSection><DashboardSection title="Leitura do relatório" description="Os totais gerais e os movimentos do período não são confundidos."><div className="grid gap-3 md:grid-cols-3"><div className="rounded-xl border p-4"><BarChart3 className="h-5 w-5 text-primary"/><p className="mt-3 font-semibold">Período consistente</p><p className="mt-1 text-sm text-muted-foreground">Todos os indicadores de atividade e financeiro usam o mesmo intervalo em Europe/Lisbon.</p></div><div className="rounded-xl border p-4"><TrendingUp className="h-5 w-5 text-primary"/><p className="mt-3 font-semibold">Sem conclusões inventadas</p><p className="mt-1 text-sm text-muted-foreground">O painel apresenta factos; crescimento e causalidade exigem comparação entre períodos.</p></div><div className="rounded-xl border p-4"><CreditCard className="h-5 w-5 text-primary"/><p className="mt-3 font-semibold">Financeiro reconciliável</p><p className="mt-1 text-sm text-muted-foreground">As métricas vêm do ledger e podem ser aprofundadas em Faturação.</p></div></div></DashboardSection></DashboardPage>}
+function Metric({label,value,icon}:{label:string;value:string|number;icon?:ReactNode}){return <div className="rounded-xl border p-4"><p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{icon}{label}</p><p className="mt-2 text-xl font-bold">{value}</p></div>}
