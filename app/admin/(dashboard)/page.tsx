@@ -205,7 +205,7 @@ export default async function AdminDashboardPage() {
                   <p className="mt-1 truncate text-sm">{auditMessage(log.new_data)}</p>
                   <p className="text-xs text-muted-foreground">{log.user_email || 'Sistema'}</p>
                 </div>
-                <time className="shrink-0 text-xs text-muted-foreground">{new Date(log.created_at).toLocaleString('pt-PT')}</time>
+                <time className="shrink-0 text-xs text-muted-foreground">{log.created_at ? new Date(log.created_at).toLocaleString('pt-PT') : '—'}</time>
               </article>
             ))}
           </div>
