@@ -59,7 +59,7 @@ jobs:
           echo "Production healthcheck did not become healthy"
           exit 1
 
-      - name: Report authenticated E2E coverage
+      - name: Require authenticated E2E coverage
         env:
           E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
           E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
@@ -80,14 +80,16 @@ jobs:
               echo "- ✅ ${role}: configured" >> "$GITHUB_STEP_SUMMARY"
               configured=$((configured + 1))
             else
-              echo "- ⚠️ ${role}: missing GitHub secrets; authenticated tests will be skipped" >> "$GITHUB_STEP_SUMMARY"
+              echo "- ❌ ${role}: missing required GitHub secrets" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error::Missing authenticated E2E credentials for ${role}"
               missing=$((missing + 1))
             fi
           done
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Configured roles: ${configured}/4" >> "$GITHUB_STEP_SUMMARY"
           if [ "$missing" -gt 0 ]; then
-            echo "::warning::Authenticated E2E coverage is incomplete: ${configured}/4 roles configured"
+            echo "Authenticated E2E is a release gate; refusing to pass with incomplete role coverage."
+            exit 1
           fi
 
       - name: Run production smoke suite
