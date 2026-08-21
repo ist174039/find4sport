@@ -63,20 +63,46 @@ jobs:
               target = path.with_name(f'{candidate}_{name}.sql')
               path.rename(target)
               print(f'{path.name} -> {target.name}')
-
-          # This legacy file predates the timestamp convention and was silently skipped.
-          room_file = migrations / 'add_space_rooms.sql'
-          if room_file.exists():
-              target = migrations / '20260815000000_add_space_rooms.sql'
-              room_file.rename(target)
-              print(f'{room_file.name} -> {target.name}')
           PY
 
-      - name: Start local Supabase
-        run: supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector
+      - name: Start local Supabase without replaying legacy deltas
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations.replay
+          mkdir supabase/migrations
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector
 
-      - name: Rebuild database from migrations
-        run: supabase db reset --local --no-seed
+      - name: Load canonical schema baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          PGPASSWORD=postgres psql \
+            -h 127.0.0.1 \
+            -p 54322 \
+            -U postgres \
+            -d postgres \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/schema.sql
+
+      - name: Restore and apply post-baseline migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf supabase/migrations
+          mv supabase/migrations.replay supabase/migrations
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          migrations = Path('supabase/migrations')
+          cutoff = '20260819000000'
+          for path in migrations.glob('*.sql'):
+              match = re.match(r'^(\d+)_', path.name)
+              if not match or match.group(1) < cutoff:
+                  path.unlink()
+          PY
+          supabase migration up --local
 
       - name: Run database security regression tests
         run: supabase test db supabase/tests/financial_write_boundary.sql
