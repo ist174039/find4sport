@@ -1,19 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Autenticação necessária.')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administração.')
-  return { user, admin: createAdminClient() }
-}
 
 export async function decideSpaceClaimAction(claimId: string, decision: 'approved' | 'rejected') {
   const { user, admin } = await requireAdmin()
