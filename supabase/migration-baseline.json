@@ -1,0 +1,14 @@
+{
+  "project": "bqjwsllnhvnxrfojftjb",
+  "policy": "All production migrations at or after cutoff must exist in Git with the exact version and name.",
+  "cutoff_version": "20260819211506",
+  "reconciled": [
+    { "version": "20260819211506", "name": "prevent_reservation_overlap" },
+    { "version": "20260819211602", "name": "enforce_event_registration_capacity" },
+    { "version": "20260819211724", "name": "harden_booking_capacity_objects" },
+    { "version": "20260819211802", "name": "consolidate_reservation_read_policy" },
+    { "version": "20260819211835", "name": "consolidate_space_professional_policies" },
+    { "version": "20260819211854", "name": "consolidate_admin_read_policy" },
+    { "version": "20260822005025", "name": "harden_platform_users_column_updates" }
+  ]
+}
