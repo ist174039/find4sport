@@ -1,6 +1,6 @@
 'use server'
 
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { isPlatformRole, type PlatformRole } from '@/lib/auth/roles'
 
 function requirePlatformRole(value: unknown): PlatformRole {
@@ -14,7 +14,7 @@ export async function adminCreateProfessional(input: {
   professional_name?: string | null
   public_slug?: string | null
 }) {
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('professionals.manage')
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
@@ -48,14 +48,14 @@ export async function adminCreateProfessional(input: {
 }
 
 export async function adminUpdateProfessional(id: string, input: { status?: 'active' | 'pending' | 'suspended' | 'rejected'; is_verified?: boolean }) {
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('professionals.manage')
   const { data, error } = await admin.from('professionals').update(input).eq('id', id).select('*').single()
   if (error) return { error: error.message }
   return { professional: data }
 }
 
 export async function adminCreateUser(email: string, password: string, fullName: string, type: PlatformRole) {
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('platform_users.manage')
   const role = requirePlatformRole(type)
   if (password.length < 8) return { error: 'A palavra-passe deve ter pelo menos 8 caracteres' }
 
