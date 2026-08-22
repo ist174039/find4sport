@@ -2,18 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import Stripe from 'stripe'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Utilizador não autenticado')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administrador')
-  return user
-}
+import { requireAdmin } from '@/lib/auth/authorization'
 
 function decimal(formData: FormData, key: string, min = 0, max = Number.MAX_SAFE_INTEGER) {
   const value = Number(formData.get(key))
@@ -26,8 +15,7 @@ function cents(value: number) {
 }
 
 export async function saveSubscriptionPlan(formData: FormData) {
-  const adminUser = await requireAdmin()
-  const admin = createAdminClient()
+  const { user: adminUser, admin } = await requireAdmin()
   const planId = String(formData.get('planId') || '')
   if (!planId) throw new Error('Plano inválido')
 
