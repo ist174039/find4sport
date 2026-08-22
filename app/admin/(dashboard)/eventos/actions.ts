@@ -36,9 +36,13 @@ async function transitionEvent(id: string, status: 'published' | 'cancelled', au
   const { data: current } = await admin.from('events').select('id,title,status').eq('id', id).maybeSingle()
   if (!current) throw new Error('Evento não encontrado.')
   if (current.status === status) return { error: null }
-  const { data: updated, error } = await admin.from('events').update({ status }).eq('id', id).eq('status', current.status).select('id').maybeSingle()
+
+  let updateQuery = admin.from('events').update({ status }).eq('id', id)
+  updateQuery = current.status === null ? updateQuery.is('status', null) : updateQuery.eq('status', current.status)
+  const { data: updated, error } = await updateQuery.select('id').maybeSingle()
   if (error) return { error }
   if (!updated) throw new Error('O evento foi alterado por outro administrador. Atualiza a página e tenta novamente.')
+
   await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'events', userEmail: user.email || 'admin', message: `${auditAction}: ${current.title || id}`, data: { event_id: id, previous_status: current.status, status } })
   revalidatePath('/admin/eventos'); revalidatePath('/admin/eventos/validacao'); revalidatePath(`/admin/eventos/${id}`); revalidatePath('/eventos')
   return { error: null }
@@ -53,8 +57,6 @@ export async function getAdminEvents() {
 
 export async function approveEventAction(id: string) { return transitionEvent(id, 'published', 'Evento aprovado') }
 export async function rejectEventAction(id: string) { return transitionEvent(id, 'cancelled', 'Evento rejeitado/cancelado') }
-
-// Compatibility action kept for existing UI callers. Events are lifecycle records and are never hard-deleted by the admin UI.
 export async function deleteEventAction(id: string) { return transitionEvent(id, 'cancelled', 'Evento removido da publicação') }
 
 export async function createAdminEventAction(newEvent: AdminEventInput) {
