@@ -1,133 +1,20 @@
 'use client'
-
-import { useMemo, useState } from 'react'
-import { Edit3, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import { useMemo,useState } from 'react'
+import { ChevronRight,Edit3,Plus,Search,Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useModal } from '@/components/providers/modal-provider'
-import { createCategoryAction, deleteCategoryAction, updateCategoryAction } from '@/app/admin/(dashboard)/categorias/actions'
-
-type Category = { id: string; name: string; slug: string; emoji: string | null; color: string | null; created_at: string }
-type FormState = { name: string; slug: string; emoji: string; color: string }
-const emptyForm: FormState = { name: '', slug: '', emoji: '⚽', color: '#14b8a6' }
-
-export function CategoriesManager({ initialCategories }: { initialCategories: Category[] }) {
-  const { showAlert, showConfirm } = useModal()
-  const [categories, setCategories] = useState(initialCategories)
-  const [query, setQuery] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const recentThreshold = new Date()
-  recentThreshold.setDate(recentThreshold.getDate() - 30)
-  const recentThresholdMs = recentThreshold.getTime()
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return categories.filter(category => !q || category.name.toLowerCase().includes(q) || category.slug.toLowerCase().includes(q))
-  }, [categories, query])
-
-  const new30d = categories.filter(category => new Date(category.created_at).getTime() >= recentThresholdMs).length
-
-  function openCreate() {
-    setEditingId(null)
-    setForm(emptyForm)
-    setDialogOpen(true)
-  }
-
-  function openEdit(category: Category) {
-    setEditingId(category.id)
-    setForm({ name: category.name, slug: category.slug, emoji: category.emoji || '', color: category.color || '#14b8a6' })
-    setDialogOpen(true)
-  }
-
-  function changeName(name: string) {
-    const generated = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    setForm(prev => ({ ...prev, name, slug: editingId ? prev.slug : generated }))
-  }
-
-  async function save() {
-    if (!form.name.trim()) return
-    setSaving(true)
-    try {
-      if (editingId) {
-        const updated = await updateCategoryAction(editingId, form)
-        setCategories(prev => prev.map(category => category.id === editingId ? updated as Category : category).sort((a, b) => a.name.localeCompare(b.name)))
-        showAlert('Categoria atualizada', 'As alterações foram guardadas.', 'success')
-      } else {
-        const created = await createCategoryAction(form)
-        setCategories(prev => [...prev, created as Category].sort((a, b) => a.name.localeCompare(b.name)))
-        showAlert('Categoria criada', 'A nova modalidade já está disponível na taxonomia.', 'success')
-      }
-      setDialogOpen(false)
-    } catch (error) {
-      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível guardar a categoria.', 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function remove(category: Category) {
-    const confirmed = await showConfirm('Eliminar categoria', `Eliminar “${category.name}”? Se estiver associada a dados existentes, a operação será recusada.`, { confirmLabel: 'Eliminar', destructive: true })
-    if (!confirmed) return
-    try {
-      await deleteCategoryAction(category.id)
-      setCategories(prev => prev.filter(item => item.id !== category.id))
-      showAlert('Categoria eliminada', 'A alteração foi registada no Audit Log.', 'success')
-    } catch (error) {
-      showAlert('Não foi possível eliminar', error instanceof Error ? error.message : 'Erro inesperado.', 'error')
-    }
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Categorias e modalidades</h1><p className="mt-1 text-sm text-muted-foreground">Taxonomia usada em pesquisa, perfis, eventos e comunidades.</p></div>
-        <Button onClick={openCreate} className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Nova categoria</Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p><p className="mt-1 text-2xl font-bold">{categories.length}</p></div>
-        <div className="rounded-xl border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Criadas em 30 dias</p><p className="mt-1 text-2xl font-bold">{new30d}</p></div>
-      </div>
-
-      <label className="relative block max-w-xl">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input value={query} onChange={event => setQuery(event.target.value)} type="search" placeholder="Pesquisar nome ou slug..." className="h-11 w-full rounded-xl border bg-background pl-10 pr-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" />
-      </label>
-
-      {filtered.length === 0 ? <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">Nenhuma categoria encontrada.</div> : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map(category => (
-            <article key={category.id} className="flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl" style={{ backgroundColor: `${category.color || '#14b8a6'}20`, color: category.color || '#14b8a6' }}>{category.emoji || <Tag className="h-5 w-5" />}</div>
-              <div className="min-w-0 flex-1"><h2 className="truncate font-semibold">{category.name}</h2><p className="truncate font-mono text-xs text-muted-foreground">{category.slug}</p></div>
-              <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(category)} aria-label={`Editar ${category.name}`}><Edit3 className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => void remove(category)} className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Eliminar ${category.name}`}><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editingId ? 'Editar categoria' : 'Nova categoria'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-[1fr_88px] gap-3">
-              <div className="space-y-2"><Label htmlFor="category-name">Nome</Label><Input id="category-name" value={form.name} onChange={event => changeName(event.target.value)} placeholder="Ex.: Padel" /></div>
-              <div className="space-y-2"><Label htmlFor="category-emoji">Emoji</Label><Input id="category-emoji" value={form.emoji} onChange={event => setForm(prev => ({ ...prev, emoji: event.target.value }))} className="text-center text-lg" maxLength={8} /></div>
-            </div>
-            <div className="space-y-2"><Label htmlFor="category-slug">Slug</Label><Input id="category-slug" value={form.slug} onChange={event => setForm(prev => ({ ...prev, slug: event.target.value }))} placeholder="padel" /></div>
-            <div className="space-y-2"><Label htmlFor="category-color">Cor</Label><div className="flex gap-2"><input id="category-color" type="color" value={form.color} onChange={event => setForm(prev => ({ ...prev, color: event.target.value }))} className="h-11 w-14 cursor-pointer rounded-lg border bg-background p-1" /><Input value={form.color} onChange={event => setForm(prev => ({ ...prev, color: event.target.value }))} placeholder="#14b8a6" /></div></div>
-            <Button onClick={() => void save()} disabled={saving || !form.name.trim()} className="w-full">{saving ? 'A guardar…' : editingId ? 'Guardar alterações' : 'Criar categoria'}</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+import { createCategoryAction,deleteCategoryAction,updateCategoryAction } from '@/app/admin/(dashboard)/categorias/actions'
+import { CATEGORY_ICON_KEYS,CategoryIcon,inferCategoryIconKey } from '@/components/categories/category-icon'
+type Category={id:string;name:string;slug:string;icon_key:string|null;color:string|null;parent_id:string|null;created_at:string}
+type FormState={name:string;slug:string;icon_key:string;color:string;parent_id:string}
+const emptyForm:FormState={name:'',slug:'',icon_key:'sport',color:'#14b8a6',parent_id:''}
+export function CategoriesManager({initialCategories}:{initialCategories:Category[]}){const{showAlert,showConfirm}=useModal();const[categories,setCategories]=useState(initialCategories);const[query,setQuery]=useState('');const[dialogOpen,setDialogOpen]=useState(false);const[editingId,setEditingId]=useState<string|null>(null);const[form,setForm]=useState<FormState>(emptyForm);const[saving,setSaving]=useState(false)
+ const filtered=useMemo(()=>{const q=query.trim().toLowerCase();if(!q)return categories;const matches=new Set(categories.filter(c=>c.name.toLowerCase().includes(q)||c.slug.toLowerCase().includes(q)).map(c=>c.id));for(const c of categories)if(matches.has(c.id)&&c.parent_id)matches.add(c.parent_id);return categories.filter(c=>matches.has(c.id))},[categories,query]);const roots=filtered.filter(c=>!c.parent_id||!filtered.some(x=>x.id===c.parent_id));const children=(id:string)=>filtered.filter(c=>c.parent_id===id);const new30d=categories.filter(c=>Date.now()-new Date(c.created_at).getTime()<=30*86400000).length
+ function openCreate(parentId=''){setEditingId(null);setForm({...emptyForm,parent_id:parentId});setDialogOpen(true)}function openEdit(c:Category){setEditingId(c.id);setForm({name:c.name,slug:c.slug,icon_key:c.icon_key||inferCategoryIconKey(c.slug,c.name),color:c.color||'#14b8a6',parent_id:c.parent_id||''});setDialogOpen(true)}function changeName(name:string){const slug=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');setForm(p=>({...p,name,slug:editingId?p.slug:slug,icon_key:editingId?p.icon_key:inferCategoryIconKey(slug,name)}))}
+ async function save(){if(!form.name.trim())return;setSaving(true);try{const payload={...form,parent_id:form.parent_id||null};const saved=editingId?await updateCategoryAction(editingId,payload):await createCategoryAction(payload);setCategories(prev=>(editingId?prev.map(c=>c.id===editingId?saved as Category:c):[...prev,saved as Category]).sort((a,b)=>a.name.localeCompare(b.name)));showAlert(editingId?'Categoria atualizada':'Categoria criada','A taxonomia foi atualizada.','success');setDialogOpen(false)}catch(e){showAlert('Erro',e instanceof Error?e.message:'Não foi possível guardar.','error')}finally{setSaving(false)}}async function remove(c:Category){const ok=await showConfirm('Eliminar categoria',`Eliminar “${c.name}”? Categorias com filhos ou associações não podem ser eliminadas.`,{confirmLabel:'Eliminar',destructive:true});if(!ok)return;try{await deleteCategoryAction(c.id);setCategories(p=>p.filter(x=>x.id!==c.id));showAlert('Categoria eliminada','Alteração registada no Audit Log.','success')}catch(e){showAlert('Não foi possível eliminar',e instanceof Error?e.message:'Erro inesperado.','error')}}
+ function Card({category,depth=0}:{category:Category;depth?:number}){const subs=children(category.id);return <div className={depth?'ml-5 border-l border-border pl-3 sm:ml-8':''}><article className="flex min-w-0 items-center gap-3 rounded-2xl border bg-card p-4 shadow-sm"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{backgroundColor:`${category.color||'#14b8a6'}20`,color:category.color||'#14b8a6'}}><CategoryIcon iconKey={category.icon_key} slug={category.slug} name={category.name} className="h-6 w-6"/></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h2 className="truncate font-semibold">{category.name}</h2>{depth>0&&<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Nível {depth+1}</span>}</div><p className="truncate font-mono text-xs text-muted-foreground">{category.slug}</p></div><div className="flex shrink-0 gap-1"><Button variant="ghost" size="icon" onClick={()=>openCreate(category.id)} aria-label={`Criar subcategoria de ${category.name}`}><Plus className="h-4 w-4"/></Button><Button variant="ghost" size="icon" onClick={()=>openEdit(category)} aria-label={`Editar ${category.name}`}><Edit3 className="h-4 w-4"/></Button><Button variant="ghost" size="icon" onClick={()=>void remove(category)} className="text-muted-foreground hover:text-destructive" aria-label={`Eliminar ${category.name}`}><Trash2 className="h-4 w-4"/></Button></div></article>{subs.length>0&&<div className="mt-2 space-y-2">{subs.map(c=><Card key={c.id} category={c} depth={depth+1}/>)}</div>}</div>}
+ return <div className="space-y-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Categorias e modalidades</h1><p className="mt-1 text-sm text-muted-foreground">Taxonomia hierárquica usada em pesquisa, perfis, eventos e comunidades.</p></div><Button onClick={()=>openCreate()} className="min-h-11 w-full sm:w-auto"><Plus className="mr-2 h-4 w-4"/>Nova categoria raiz</Button></div><div className="grid grid-cols-2 gap-3"><div className="rounded-xl border bg-card p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Total</p><p className="mt-1 text-2xl font-bold">{categories.length}</p></div><div className="rounded-xl border bg-card p-4"><p className="text-xs font-semibold uppercase text-muted-foreground">Criadas em 30 dias</p><p className="mt-1 text-2xl font-bold">{new30d}</p></div></div><label className="relative block max-w-xl"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><input value={query} onChange={e=>setQuery(e.target.value)} type="search" placeholder="Pesquisar nome ou slug..." className="h-11 w-full rounded-xl border bg-background pl-10 pr-3 text-base"/></label>{roots.length===0?<div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">Nenhuma categoria encontrada.</div>:<div className="space-y-3">{roots.map(c=><Card key={c.id} category={c}/>)}</div>}
+ <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle>{editingId?'Editar categoria':'Nova categoria'}</DialogTitle></DialogHeader><div className="space-y-4 pt-2"><div className="space-y-2"><Label>Nome</Label><Input value={form.name} onChange={e=>changeName(e.target.value)} placeholder="Ex.: Massagem desportiva"/></div><div className="space-y-2"><Label>Categoria pai</Label><select value={form.parent_id} onChange={e=>setForm(p=>({...p,parent_id:e.target.value}))} className="min-h-11 w-full rounded-xl border bg-background px-3 text-base"><option value="">Categoria raiz</option>{categories.filter(c=>c.id!==editingId).map(c=><option key={c.id} value={c.id}>{c.parent_id?'↳ ':''}{c.name}</option>)}</select></div><div className="space-y-2"><Label>Ícone</Label><div className="grid grid-cols-5 gap-2 sm:grid-cols-8">{CATEGORY_ICON_KEYS.map(key=><button key={key} type="button" title={key} aria-label={`Ícone ${key}`} onClick={()=>setForm(p=>({...p,icon_key:key}))} className={`flex aspect-square items-center justify-center rounded-xl border transition ${form.icon_key===key?'border-primary bg-primary/10 text-primary ring-2 ring-primary/20':'bg-background text-muted-foreground hover:border-primary/40'}`}><CategoryIcon iconKey={key} className="h-5 w-5"/></button>)}</div></div><div className="space-y-2"><Label>Slug</Label><Input value={form.slug} onChange={e=>setForm(p=>({...p,slug:e.target.value}))}/></div><div className="space-y-2"><Label>Cor de destaque</Label><div className="flex gap-2"><input type="color" value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))} className="h-11 w-14 rounded-lg border bg-background p-1"/><Input value={form.color} onChange={e=>setForm(p=>({...p,color:e.target.value}))}/></div></div><div className="rounded-xl border bg-muted/20 p-3"><p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Pré-visualização</p><div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{backgroundColor:`${form.color}20`,color:form.color}}><CategoryIcon iconKey={form.icon_key} className="h-6 w-6"/></div><span className="font-medium">{form.name||'Nome da categoria'}</span><ChevronRight className="ml-auto h-4 w-4 text-muted-foreground"/></div></div><Button onClick={()=>void save()} disabled={saving||!form.name.trim()} className="min-h-11 w-full">{saving?'A guardar…':editingId?'Guardar alterações':'Criar categoria'}</Button></div></DialogContent></Dialog></div>}
