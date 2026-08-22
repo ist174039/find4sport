@@ -1,10 +1,12 @@
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
+import { parseAdminType, type AdminType } from '@/lib/auth/admin-permissions'
 
 export type SessionAccess = {
   role: AccessRole
   profileId: string | null
+  adminType: AdminType | null
   canAccessDashboard: boolean
   canAccessAdmin: boolean
   canManageProfessionals: boolean
@@ -18,25 +20,25 @@ type Supabase = SupabaseClient<Database>
 async function resolveAdminRecord(supabase: Supabase, user: User) {
   const { data: admin } = await supabase.from('admins').select('id, auth_user_id, admin_type').eq('auth_user_id', user.id).maybeSingle()
   if (!admin) return null
-  return { id: admin.id, role: 'admin' as const, adminLabel: admin.admin_type || 'general' }
+  const adminType = parseAdminType(admin.admin_type)
+  if (!adminType) return null
+  return { id: admin.id, role: 'admin' as const, adminType }
 }
 
 export async function resolveAdminSidebarUser(supabase: Supabase, user: User): Promise<{ role: string } | null> {
   const adminRecord = await resolveAdminRecord(supabase, user)
   if (!adminRecord) return null
-  return { role: adminRecord.adminLabel }
+  return { role: adminRecord.adminType }
 }
 
 export function getAccountStatus(user: User) {
-  // app_metadata is controlled by trusted server/admin APIs. user_metadata is kept only
-  // as a temporary read fallback for accounts marked before the migration.
   return String(user.app_metadata?.account_status || user.user_metadata?.account_status || '')
 }
 
 export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
   const adminUser = await resolveAdminRecord(supabase, user)
   if (adminUser) {
-    return { role: 'admin', profileId: adminUser.id, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false }
+    return { role: 'admin', profileId: adminUser.id, adminType: adminUser.adminType, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false }
   }
 
   const accountStatus = getAccountStatus(user)
@@ -57,6 +59,7 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
   return {
     role,
     profileId: platformUser.id,
+    adminType: null,
     canAccessDashboard: true,
     canAccessAdmin: false,
     canManageProfessionals: role === 'professional' && hasProfessionalProfile,
