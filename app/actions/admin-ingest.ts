@@ -1,19 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { TablesInsert } from '@/lib/supabase-types'
-
-async function requireAdminAccess() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Utilizador não autenticado')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administrador')
-  return { user, admin: createAdminClient() }
-}
 
 function cleanSlug(value: string) {
   const base = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'espaco'
@@ -21,7 +10,7 @@ function cleanSlug(value: string) {
 }
 
 export async function searchImportPlacesAction(query: string) {
-  await requireAdminAccess()
+  await requireAdmin()
   const q = query.trim()
   if (q.length < 3 || q.length > 160) throw new Error('Indique uma pesquisa válida.')
 
@@ -56,7 +45,7 @@ export async function searchImportPlacesAction(query: string) {
 }
 
 export async function adminIngestData(queueItems: any[]) {
-  const { user, admin } = await requireAdminAccess()
+  const { user, admin } = await requireAdmin()
 
   const invalid: string[] = []
   const candidates = (queueItems || []).filter(item => {
