@@ -2,6 +2,7 @@ import 'server-only'
 
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { executeSettlement } from '@/lib/billing/settlement-engine'
 
 const AUTO_CONFIRM_HOURS = 48
 
@@ -47,50 +48,64 @@ export async function releaseReservationSettlement(reservationId: string) {
   if (!(amount > 0) || !destination.startsWith('acct_')) throw new Error('Dados de liquidação do prestador incompletos.')
   const secret = process.env.STRIPE_SECRET_KEY
   if (!secret) throw new Error('Stripe não está configurado.')
-
-  // Acquire the settlement lock before any external financial side effect.
-  // If a dispute changed eligible -> blocked first, this conditional update
-  // returns no row and no Stripe transfer is attempted.
-  const lockAt = new Date().toISOString()
-  const { data: locked, error: lockError } = await db.from('reservations')
-    .update({ settlement_status:'processing', updated_at:lockAt })
-    .eq('id', reservationId)
-    .eq('payment_status','paid')
-    .eq('service_delivery_status','completed')
-    .eq('settlement_status','eligible')
-    .select('id')
-    .maybeSingle()
-  if (lockError) throw lockError
-  if (!locked) throw new Error('A liquidação deixou de estar elegível antes da transferência.')
-
   const stripe = new Stripe(secret)
   const sourceCharge = String(transaction.stripe_charge_id || '')
-  let transfer: Stripe.Transfer
-  try {
-    transfer = await stripe.transfers.create({
-      amount,
-      currency: String(transaction.currency || 'eur'),
-      destination,
-      ...(sourceCharge.startsWith('ch_') ? { source_transaction: sourceCharge } : {}),
-      transfer_group: `f4s:${transaction.source_type || 'reservation'}:${reservationId}`,
-      metadata: { reservation_id: reservationId, transaction_id: transaction.id, settlement: 'athlete_or_timeout_confirmed' },
-    }, { idempotencyKey: `reservation-settlement:${reservationId}` })
-  } catch (error) {
-    // No transfer object was returned. Release only our own processing lock;
-    // never overwrite blocked/refunded/transferred states set concurrently.
-    await db.from('reservations').update({ settlement_status:'eligible', updated_at:new Date().toISOString() }).eq('id', reservationId).eq('settlement_status','processing')
-    throw error
-  }
 
-  const now = new Date().toISOString()
-  const { error: txUpdateError } = await db.from('transactions').update({ stripe_transfer_id:transfer.id }).eq('id', transaction.id).is('stripe_transfer_id', null)
-  if (txUpdateError) throw txUpdateError
-  const { data: finalized, error: reservationUpdateError } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', reservationId).eq('settlement_status','processing').select('id').maybeSingle()
-  if (reservationUpdateError) throw reservationUpdateError
-  if (!finalized) throw new Error('A transferência foi criada, mas o estado da reserva mudou durante a liquidação.')
-  const { error: deliveryEventError } = await db.from('reservation_delivery_events').insert({ reservation_id:reservationId, event_type:'settlement_released', metadata:{ stripe_transfer_id:transfer.id } })
-  if (deliveryEventError) console.error('reservation_settlement_audit_event_failed', { reservationId, transferId: transfer.id, error: deliveryEventError.message })
-  return { transferred:true, transferId:transfer.id }
+  const result = await executeSettlement({
+    reservationId,
+    transactionId: transaction.id,
+    amount,
+    currency: String(transaction.currency || 'eur'),
+    destination,
+    sourceCharge: sourceCharge.startsWith('ch_') ? sourceCharge : null,
+    sourceType: transaction.source_type,
+  }, {
+    acquireLock: async (id) => {
+      const now = new Date().toISOString()
+      const { data, error } = await db.from('reservations')
+        .update({ settlement_status:'processing', updated_at:now })
+        .eq('id', id)
+        .eq('payment_status','paid')
+        .eq('service_delivery_status','completed')
+        .eq('settlement_status','eligible')
+        .select('id')
+        .maybeSingle()
+      if (error) throw error
+      return Boolean(data)
+    },
+    releaseLock: async (id) => {
+      const { error } = await db.from('reservations').update({ settlement_status:'eligible', updated_at:new Date().toISOString() }).eq('id', id).eq('settlement_status','processing')
+      if (error) throw error
+    },
+    createTransfer: async ({ amount, currency, destination, sourceCharge, transferGroup, idempotencyKey, metadata }) => {
+      const transfer = await stripe.transfers.create({
+        amount,
+        currency,
+        destination,
+        ...(sourceCharge?.startsWith('ch_') ? { source_transaction: sourceCharge } : {}),
+        transfer_group: transferGroup,
+        metadata,
+      }, { idempotencyKey })
+      return { id: transfer.id }
+    },
+    persistTransfer: async (transactionId, transferId) => {
+      const { error } = await db.from('transactions').update({ stripe_transfer_id:transferId }).eq('id', transactionId).is('stripe_transfer_id', null)
+      if (error) throw error
+    },
+    finalizeSettlement: async (id, transferId) => {
+      const now = new Date().toISOString()
+      const { data, error } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', id).eq('settlement_status','processing').select('id').maybeSingle()
+      if (error) throw error
+      if (data) {
+        const { error: eventError } = await db.from('reservation_delivery_events').insert({ reservation_id:id, event_type:'settlement_released', metadata:{ stripe_transfer_id:transferId } })
+        if (eventError) console.error('reservation_settlement_audit_event_failed', { reservationId:id, transferId, error:eventError.message })
+      }
+      return Boolean(data)
+    },
+  })
+
+  if (!result.transferred && result.reason === 'lock_not_acquired') throw new Error('A liquidação deixou de estar elegível antes da transferência.')
+  return result
 }
 
 export async function processDueAutoConfirmations(limit = 25): Promise<SettlementRunResult[]> {
