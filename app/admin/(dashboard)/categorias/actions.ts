@@ -3,62 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
+import { CATEGORY_ICON_KEYS, inferCategoryIconKey } from '@/components/categories/category-icon'
 
-function normalizeSlug(value: string) {
-  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-}
-
-function sanitizeColor(value: string) {
-  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#14b8a6'
-}
-
-export async function createCategoryAction(input: { name: string; slug?: string; emoji?: string; color?: string }) {
-  const { user, admin } = await requireAdminPermission('categories.manage')
-  const name = input.name.trim()
-  if (!name) throw new Error('O nome é obrigatório.')
-  const slug = normalizeSlug(input.slug?.trim() || name)
-  if (!slug) throw new Error('Não foi possível gerar um slug válido.')
-
-  const { data, error } = await admin.from('categories').insert({ name, slug, emoji: input.emoji?.trim() || null, color: sanitizeColor(input.color || '') }).select('id,name,slug,emoji,color,created_at').single()
-  if (error) {
-    if ((error as any).code === '23505') throw new Error('Já existe uma categoria com este nome ou slug.')
-    throw new Error(error.message)
-  }
-  await writeAdminAudit(admin as any, { action: 'INSERT', tableName: 'categories', userEmail: user.email || 'admin', message: `Categoria ${name} criada`, data: { category_id: data.id, slug } })
-  revalidatePath('/admin/categorias')
-  return data
-}
-
-export async function updateCategoryAction(id: string, input: { name: string; slug?: string; emoji?: string; color?: string }) {
-  const { user, admin } = await requireAdminPermission('categories.manage')
-  if (!id) throw new Error('Categoria inválida.')
-  const name = input.name.trim()
-  if (!name) throw new Error('O nome é obrigatório.')
-  const slug = normalizeSlug(input.slug?.trim() || name)
-  if (!slug) throw new Error('Não foi possível gerar um slug válido.')
-
-  const { data, error } = await admin.from('categories').update({ name, slug, emoji: input.emoji?.trim() || null, color: sanitizeColor(input.color || '') }).eq('id', id).select('id,name,slug,emoji,color,created_at').single()
-  if (error) {
-    if ((error as any).code === '23505') throw new Error('Já existe uma categoria com este nome ou slug.')
-    throw new Error(error.message)
-  }
-  await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'categories', userEmail: user.email || 'admin', message: `Categoria ${name} atualizada`, data: { category_id: id, slug } })
-  revalidatePath('/admin/categorias')
-  return data
-}
-
-export async function deleteCategoryAction(id: string) {
-  const { user, admin } = await requireAdminPermission('categories.manage')
-  if (!id) throw new Error('Categoria inválida.')
-  const { data: category } = await admin.from('categories').select('name,slug').eq('id', id).maybeSingle()
-  if (!category) throw new Error('Categoria não encontrada.')
-
-  const { error } = await admin.from('categories').delete().eq('id', id)
-  if (error) {
-    if ((error as any).code === '23503') throw new Error('Esta categoria está a ser utilizada e não pode ser eliminada. Remova primeiro as associações existentes.')
-    throw new Error('Não foi possível eliminar a categoria.')
-  }
-  await writeAdminAudit(admin as any, { action: 'DELETE', tableName: 'categories', userEmail: user.email || 'admin', message: `Categoria ${category.name} eliminada`, data: { category_id: id, slug: category.slug } })
-  revalidatePath('/admin/categorias')
-  return { success: true }
-}
+type CategoryInput = { name: string; slug?: string; icon_key?: string; color?: string; parent_id?: string | null }
+function normalizeSlug(value:string){return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')}
+function sanitizeColor(value:string){return /^#[0-9a-fA-F]{6}$/.test(value)?value:'#14b8a6'}
+function sanitizeIcon(value:string|undefined,slug:string,name:string){return CATEGORY_ICON_KEYS.includes(value as any)?value!:inferCategoryIconKey(slug,name)}
+async function assertValidParent(admin:any,id:string|null,parentId:string|null){if(!parentId)return;if(parentId===id)throw new Error('Uma categoria não pode ser filha de si própria.');const{data:parent}=await admin.from('categories').select('id,parent_id').eq('id',parentId).maybeSingle();if(!parent)throw new Error('Categoria pai não encontrada.');if(!id)return;let cursor=parent as {id:string;parent_id:string|null}|null;const visited=new Set<string>();while(cursor){if(cursor.id===id)throw new Error('A hierarquia criaria um ciclo.');if(!cursor.parent_id||visited.has(cursor.parent_id))break;visited.add(cursor.id);const{data:next}=await admin.from('categories').select('id,parent_id').eq('id',cursor.parent_id).maybeSingle();cursor=next as typeof cursor}}
+export async function createCategoryAction(input:CategoryInput){const{user,admin}=await requireAdminPermission('categories.manage');const name=input.name.trim();if(!name)throw new Error('O nome é obrigatório.');const slug=normalizeSlug(input.slug?.trim()||name);if(!slug)throw new Error('Não foi possível gerar um slug válido.');const parent_id=input.parent_id||null;await assertValidParent(admin,null,parent_id);const icon_key=sanitizeIcon(input.icon_key,slug,name);const{data,error}=await admin.from('categories').insert({name,slug,icon_key,color:sanitizeColor(input.color||''),parent_id}).select('id,name,slug,icon_key,color,parent_id,created_at').single();if(error){if((error as any).code==='23505')throw new Error('Já existe uma categoria com este nome ou slug.');throw new Error(error.message)}await writeAdminAudit(admin as any,{action:'INSERT',tableName:'categories',userEmail:user.email||'admin',message:`Categoria ${name} criada`,data:{category_id:data.id,slug,parent_id,icon_key}});revalidatePath('/admin/categorias');revalidatePath('/modalidades');return data}
+export async function updateCategoryAction(id:string,input:CategoryInput){const{user,admin}=await requireAdminPermission('categories.manage');if(!id)throw new Error('Categoria inválida.');const name=input.name.trim();if(!name)throw new Error('O nome é obrigatório.');const slug=normalizeSlug(input.slug?.trim()||name);if(!slug)throw new Error('Não foi possível gerar um slug válido.');const parent_id=input.parent_id||null;await assertValidParent(admin,id,parent_id);const icon_key=sanitizeIcon(input.icon_key,slug,name);const{data,error}=await admin.from('categories').update({name,slug,icon_key,color:sanitizeColor(input.color||''),parent_id}).eq('id',id).select('id,name,slug,icon_key,color,parent_id,created_at').single();if(error){if((error as any).code==='23505')throw new Error('Já existe uma categoria com este nome ou slug.');throw new Error(error.message)}await writeAdminAudit(admin as any,{action:'UPDATE',tableName:'categories',userEmail:user.email||'admin',message:`Categoria ${name} atualizada`,data:{category_id:id,slug,parent_id,icon_key}});revalidatePath('/admin/categorias');revalidatePath('/modalidades');return data}
+export async function deleteCategoryAction(id:string){const{user,admin}=await requireAdminPermission('categories.manage');if(!id)throw new Error('Categoria inválida.');const{data:category}=await admin.from('categories').select('name,slug').eq('id',id).maybeSingle();if(!category)throw new Error('Categoria não encontrada.');const{count:children}=await admin.from('categories').select('id',{count:'exact',head:true}).eq('parent_id',id);if((children||0)>0)throw new Error('Esta categoria tem subcategorias. Reorganize-as antes de eliminar a categoria pai.');const{error}=await admin.from('categories').delete().eq('id',id);if(error){if((error as any).code==='23503')throw new Error('Esta categoria está a ser utilizada e não pode ser eliminada. Remova primeiro as associações existentes.');throw new Error('Não foi possível eliminar a categoria.')}await writeAdminAudit(admin as any,{action:'DELETE',tableName:'categories',userEmail:user.email||'admin',message:`Categoria ${category.name} eliminada`,data:{category_id:id,slug:category.slug}});revalidatePath('/admin/categorias');revalidatePath('/modalidades');return{success:true}}
