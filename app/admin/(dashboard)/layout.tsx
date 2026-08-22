@@ -13,6 +13,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const access = await resolveSessionAccess(supabase, user)
   if (!access || !access.canAccessAdmin) redirect('/admin/login?error=unauthorized')
 
+  const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (assuranceError || assurance.currentLevel !== 'aal2') redirect('/admin/mfa')
+
   const adminUser = await resolveAdminSidebarUser(supabase, user)
 
   return (
