@@ -7,6 +7,7 @@ export type AdminPermission =
   | 'spaces.manage'
   | 'events.manage'
   | 'communities.manage'
+  | 'categories.manage'
   | 'content.moderate'
   | 'reports.read'
   | 'finance.read'
@@ -22,6 +23,7 @@ const GENERAL_PERMISSIONS: readonly AdminPermission[] = [
   'spaces.manage',
   'events.manage',
   'communities.manage',
+  'categories.manage',
   'content.moderate',
   'reports.read',
   'finance.read',
@@ -37,6 +39,7 @@ const OPERATIONAL_PERMISSIONS: readonly AdminPermission[] = [
   'spaces.manage',
   'events.manage',
   'communities.manage',
+  'categories.manage',
   'content.moderate',
   'reports.read',
 ]
