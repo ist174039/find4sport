@@ -35,30 +35,25 @@ function csvCell(v:any){const s=String(v??'').replaceAll('"','""');return `"${s}
 export default function FaturacaoPage(){
   const router=useRouter(); const {showAlert}=useModal()
   const [loading,setLoading]=useState(true); const [changing,setChanging]=useState<string|null>(null); const [cycle,setCycle]=useState<'monthly'|'annual'>('monthly')
-  const [subscription,setSubscription]=useState<Subscription>({tier:'free',status:'active'}); const [plans,setPlans]=useState<Plan[]>([]); const [transactions,setTransactions]=useState<Transaction[]>([]); const [reservations,setReservations]=useState<any[]>([]); const [audience,setAudience]=useState<string|null>(null); const [userId,setUserId]=useState<string|null>(null)
+  const [subscription,setSubscription]=useState<Subscription>({tier:'free',status:'active'}); const [plans,setPlans]=useState<Plan[]>([]); const [transactions,setTransactions]=useState<Transaction[]>([]); const [audience,setAudience]=useState<string|null>(null); const [userId,setUserId]=useState<string|null>(null)
   const [connectStatus,setConnectStatus]=useState<ConnectStatus|null>(null); const [connectLoading,setConnectLoading]=useState(false)
   const [ledgerOpen,setLedgerOpen]=useState(false); const [ledgerFilter,setLedgerFilter]=useState<LedgerFilter>('all'); const [selectedTx,setSelectedTx]=useState<Transaction|null>(null)
 
   useEffect(()=>{void(async()=>{try{
     const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.push('/auth/login');return}setUserId(user.id)
     const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'?profile.type:null;setAudience(role)
-    const [{data:sub},{data:tx},{data:prof},{data:spaces}]=await Promise.all([
+    const [{data:sub},{data:tx}]=await Promise.all([
       supabase.from('user_subscriptions').select('*').eq('user_id',user.id).maybeSingle(),
       supabase.from('transactions').select('*').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
-      supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),
-      supabase.from('sport_spaces').select('id').eq('owner_user_id',user.id),
     ])
     setSubscription((sub as Subscription)||{tier:'free',status:'active'});setTransactions((tx||[]) as Transaction[])
     if(role){const [{data,error},connectRes]=await Promise.all([supabase.from('subscription_plans').select('*,entitlements:plan_entitlements(*)').eq('audience',role).eq('is_active',true).eq('is_public',true).order('sort_order'),fetch('/api/stripe/connect',{method:'GET',cache:'no-store'})]);if(error)throw error;setPlans((data||[]) as Plan[]);if(connectRes.ok)setConnectStatus(await connectRes.json())}
-    const ors:string[]=[];if(prof?.id)ors.push(`professional_id.eq.${prof.id}`);if(spaces?.length)ors.push(`space_id.in.(${spaces.map((s:any)=>s.id).join(',')})`);if(ors.length){const {data}=await supabase.from('reservations').select('id,amount,status,date,start_time').or(ors.join(',')).order('date',{ascending:false}).limit(100);setReservations(data||[])}
   }catch(e:any){showAlert('Faturação',e?.message||'Não foi possível carregar a faturação.','error')}finally{setLoading(false)}})()},[router,showAlert])
 
   const current=useMemo(()=>plans.find(p=>p.id===subscription.plan_id)||plans.find(p=>p.code===subscription.tier),[plans,subscription])
   const entries=useMemo(()=>transactions.filter(tx=>tx.provider_user_id===userId&&['paid','succeeded','completed','available','transferred'].includes(String(tx.status||'').toLowerCase())),[transactions,userId])
   const exits=useMemo(()=>transactions.filter(tx=>tx.user_id===userId&&tx.provider_user_id!==userId&&['paid','succeeded','completed','refunded','transferred'].includes(String(tx.status||'').toLowerCase())),[transactions,userId])
   const cashIn=entries.reduce((s,tx)=>s+effectiveAmount(tx,'in'),0);const cashOut=exits.reduce((s,tx)=>s+effectiveAmount(tx,'out'),0);const net=cashIn-cashOut
-  const reservationFallback=reservations.filter(r=>['paid','completed'].includes(r.status)).reduce((s,r)=>s+Number(r.amount||0),0)
-  const receivedDisplay=transactions.length?cashIn:reservationFallback
   const connectReady=Boolean(connectStatus?.connected&&connectStatus.detailsSubmitted&&connectStatus.chargesEnabled&&connectStatus.payoutsEnabled)
   const filteredTransactions=useMemo(()=>transactions.filter(tx=>{const direction=tx.provider_user_id===userId?'in':'out';if(ledgerFilter==='in'||ledgerFilter==='out')return direction===ledgerFilter;if(['reservation','service','event'].includes(ledgerFilter))return sourceGroup(tx)===ledgerFilter;return true}),[transactions,ledgerFilter,userId])
 
@@ -76,7 +71,7 @@ export default function FaturacaoPage(){
 
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="rounded-2xl border border-border bg-card p-5"><p className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><Crown className="h-4 w-4 text-primary"/>Plano atual</p><div className="mt-3 flex items-end justify-between gap-3"><div><p className="text-2xl font-bold">{current?.name||'Grátis'}</p><p className="mt-1 text-sm text-muted-foreground">Comissão {current?.commission_rate??0}% · {subscription.status}</p></div>{subscription.tier!=='free'&&<Button variant="outline" onClick={portal}>Gerir</Button>}</div></div>
-      <button onClick={()=>openLedger('in')} className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/50"><p className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><ArrowDownLeft className="h-4 w-4"/>Cash in</p><p className="mt-3 text-2xl font-bold">{money(receivedDisplay)}</p><p className="mt-1 text-sm text-muted-foreground">Recebimentos líquidos · clicar para detalhes</p></button>
+      <button onClick={()=>openLedger('in')} className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/50"><p className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><ArrowDownLeft className="h-4 w-4"/>Cash in</p><p className="mt-3 text-2xl font-bold">{money(cashIn)}</p><p className="mt-1 text-sm text-muted-foreground">Recebimentos líquidos · clicar para detalhes</p></button>
       <button onClick={()=>openLedger('out')} className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/50"><p className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><ArrowUpRight className="h-4 w-4"/>Cash out</p><p className="mt-3 text-2xl font-bold">{money(cashOut)}</p><p className="mt-1 text-sm text-muted-foreground">Pagamentos e saídas · clicar para detalhes</p></button>
       <button onClick={()=>openLedger('all')} className="rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary/50"><p className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><Wallet className="h-4 w-4"/>Saldo líquido</p><p className="mt-3 text-2xl font-bold">{money(net)}</p><p className="mt-1 text-sm text-muted-foreground">Entradas − saídas · abrir movimentos</p></button>
     </section>
