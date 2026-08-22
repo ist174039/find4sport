@@ -1,8 +1,10 @@
 'use server'
 
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { TablesInsert } from '@/lib/supabase-types'
+
+const MAX_IMPORT_ITEMS = 500
 
 function cleanSlug(value: string) {
   const base = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'espaco'
@@ -10,7 +12,7 @@ function cleanSlug(value: string) {
 }
 
 export async function searchImportPlacesAction(query: string) {
-  await requireAdmin()
+  await requireAdminPermission('spaces.manage')
   const q = query.trim()
   if (q.length < 3 || q.length > 160) throw new Error('Indique uma pesquisa válida.')
 
@@ -45,18 +47,25 @@ export async function searchImportPlacesAction(query: string) {
 }
 
 export async function adminIngestData(queueItems: any[]) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('spaces.manage')
+  if (!Array.isArray(queueItems)) throw new Error('Formato de importação inválido.')
+  if (queueItems.length > MAX_IMPORT_ITEMS) throw new Error(`Cada importação está limitada a ${MAX_IMPORT_ITEMS} espaços.`)
 
   const invalid: string[] = []
-  const candidates = (queueItems || []).filter(item => {
-    if (item.type && item.type !== 'space') {
-      invalid.push(`${item.name || 'Item'}: profissionais exigem onboarding com identidade Auth.`)
+  const candidates = queueItems.filter((item, index) => {
+    const label = `Linha ${index + 1}${item?.name ? ` (${String(item.name).trim()})` : ''}`
+    if (item?.type && item.type !== 'space') {
+      invalid.push(`${label}: profissionais exigem onboarding com identidade Auth.`)
       return false
     }
-    const lat = Number(item.lat)
-    const lon = Number(item.lon)
-    if (!item.name?.trim() || !item.address?.trim() || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-      invalid.push(`${item.name || 'Item'}: nome, morada e coordenadas válidas são obrigatórios.`)
+    const lat = Number(item?.lat)
+    const lon = Number(item?.lon)
+    if (!item?.name?.trim() || !item?.address?.trim() || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+      invalid.push(`${label}: nome, morada e coordenadas válidas são obrigatórios.`)
+      return false
+    }
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      invalid.push(`${label}: coordenadas fora do intervalo válido.`)
       return false
     }
     return true
