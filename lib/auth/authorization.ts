@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess, type SessionAccess } from '@/lib/auth/access'
 import type { AccessRole } from '@/lib/auth/roles'
+import { adminHasPermission, parseAdminType, type AdminPermission } from '@/lib/auth/admin-permissions'
 
 export type AuthorizedSession = {
   user: User
@@ -40,17 +41,28 @@ export async function requireAdmin() {
   return { ...session, admin: createAdminClient() }
 }
 
-export async function requireGeneralAdmin() {
+async function resolveAuthorizedAdmin() {
   const session = await requireAdmin()
   const { data: adminProfile, error } = await session.admin
     .from('admins')
-    .select('admin_type')
+    .select('id, admin_type')
     .eq('auth_user_id', session.user.id)
     .maybeSingle()
-  if (error || adminProfile?.admin_type !== 'general') {
-    throw new Error('Apenas o administrador geral pode executar esta operação')
+  const adminType = parseAdminType(adminProfile?.admin_type)
+  if (error || !adminProfile?.id || !adminType) throw new Error('Perfil administrativo inválido')
+  return { ...session, adminProfile: { id: adminProfile.id, adminType } }
+}
+
+export async function requireAdminPermission(permission: AdminPermission) {
+  const session = await resolveAuthorizedAdmin()
+  if (!adminHasPermission(session.adminProfile.adminType, permission)) {
+    throw new Error('Sem permissões para esta operação administrativa')
   }
   return session
+}
+
+export async function requireGeneralAdmin() {
+  return requireAdminPermission('admin.manage')
 }
 
 export async function requireProfessional() {
