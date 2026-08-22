@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { getCmsPage } from '@/lib/cms/registry'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { CMSBlock } from '@/components/cms/block-builder'
@@ -23,7 +23,7 @@ function toJson(value: unknown): Json {
 export async function loadCmsPageAction(slug: string) {
   const definition = getCmsPage(slug)
   if (!definition) throw new Error('Página CMS inválida.')
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('content.moderate')
   const { data, error } = await admin.from('cms_pages').select('id, slug, title, description, content, is_published, updated_at').eq('slug', slug).maybeSingle()
   if (error) throw error
   return { definition, page: data }
@@ -38,7 +38,7 @@ export async function saveCmsPageAction(input: {
 }) {
   const definition = getCmsPage(input.slug)
   if (!definition) throw new Error('Página CMS inválida.')
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('content.moderate')
 
   const blocks = (input.blocks || []).filter(block => ['hero', 'text', 'image'].includes(block.type))
   const payload = {
