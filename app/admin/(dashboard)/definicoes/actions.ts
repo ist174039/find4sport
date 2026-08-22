@@ -1,26 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireGeneralAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { Json } from '@/lib/supabase-types'
 
 function isJsonObject(value: Json | null | undefined): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-async function requireGeneralAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Sessão administrativa inválida.')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Acesso administrativo necessário.')
-  const admin = createAdminClient()
-  const { data: adminProfile } = await admin.from('admins').select('admin_type').eq('auth_user_id', user.id).maybeSingle()
-  if (adminProfile?.admin_type !== 'general') throw new Error('Apenas o administrador geral pode alterar definições do sistema.')
-  return { user, admin }
 }
 
 export async function getRealAdminSettingsAction() {
