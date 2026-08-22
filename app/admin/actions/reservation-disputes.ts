@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { releaseReservationSettlement } from '@/lib/billing/reservation-settlement'
 import { createReservationRefund } from '@/lib/billing/admin-refund'
 import { writeAdminAudit } from '@/lib/admin/audit'
@@ -12,7 +12,7 @@ async function providerUserId(db:any,r:{professional_id?:string|null;space_id?:s
 async function notify(db:any,userId:string|null,message:string,reservationId:string,suffix:string,link='/dashboard/agenda'){if(!userId)return;await db.from('notifications').insert({user_id:userId,type:'reservation',message,link,data:{reservation_id:reservationId},dedupe_key:`dispute:${reservationId}:${suffix}`})}
 
 export async function resolveReservationDisputeAction(reservationId:string,resolution:Resolution,note:string){
- const {user,admin:db}=await requireAdmin();const cleanNote=String(note||'').trim();if(cleanNote.length<5||cleanNote.length>2000)throw new Error('Regista uma justificação entre 5 e 2000 caracteres.')
+ const {user,admin:db}=await requireAdminPermission('finance.operate');const cleanNote=String(note||'').trim();if(cleanNote.length<5||cleanNote.length>2000)throw new Error('Regista uma justificação entre 5 e 2000 caracteres.')
  const {data:r,error:reservationError}=await db.from('reservations').select('id,user_id,professional_id,space_id,status,payment_status,service_delivery_status,settlement_status').eq('id',reservationId).maybeSingle();if(reservationError||!r)throw new Error('Reserva não encontrada.');if(r.payment_status!=='paid'||r.service_delivery_status!=='disputed'||r.settlement_status!=='blocked')throw new Error('Esta contestação já não está pendente de decisão.')
  const providerId=await providerUserId(db,r),now=new Date().toISOString()
  if(resolution==='release'){
