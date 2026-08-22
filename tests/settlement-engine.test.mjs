@@ -1,23 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-
-async function executeSettlement(input, deps) {
-  const locked = await deps.acquireLock(input.reservationId)
-  if (!locked) return { transferred:false, reason:'lock_not_acquired' }
-  const transferGroup=`f4s:${input.sourceType||'reservation'}:${input.reservationId}`
-  const idempotencyKey=`reservation-settlement:${input.reservationId}`
-  let transfer
-  try {
-    transfer=await deps.createTransfer({ ...input, transferGroup, idempotencyKey })
-  } catch(error) {
-    await deps.releaseLock(input.reservationId)
-    throw error
-  }
-  await deps.persistTransfer(input.transactionId,transfer.id)
-  const finalized=await deps.finalizeSettlement(input.reservationId,transfer.id)
-  if(!finalized) throw new Error('Transfer created but settlement state changed before finalization.')
-  return {transferred:true,transferId:transfer.id,idempotencyKey,transferGroup}
-}
+import { executeSettlement } from '../lib/billing/settlement-engine.ts'
 
 function harness() {
   let status='eligible', transferCalls=0, persisted=null, finalized=0
