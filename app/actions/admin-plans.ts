@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import Stripe from 'stripe'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 
 function decimal(formData: FormData, key: string, min = 0, max = Number.MAX_SAFE_INTEGER) {
   const value = Number(formData.get(key))
@@ -15,7 +15,7 @@ function cents(value: number) {
 }
 
 export async function saveSubscriptionPlan(formData: FormData) {
-  const { user: adminUser, admin } = await requireAdmin()
+  const { user: adminUser, admin } = await requireAdminPermission('finance.configure')
   const planId = String(formData.get('planId') || '')
   if (!planId) throw new Error('Plano inválido')
 
