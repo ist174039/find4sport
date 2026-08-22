@@ -28,11 +28,12 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
   }).eq('id', id).eq('moderation_status', 'pending')
   if (error) throw error
 
-  await db.from('service_moderation_events').insert({
+  await db.from('service_moderation_history').insert({
     service_id: id,
-    event_type: decision,
+    from_status: service.moderation_status,
+    to_status: decision,
     actor_user_id: user.id,
-    note: decision === 'rejected' ? clean : null,
+    reason: decision === 'rejected' ? clean : null,
   })
 
   revalidatePath('/admin/servicos')
