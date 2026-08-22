@@ -12,108 +12,22 @@ import { useModal } from '@/components/providers/modal-provider'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 import { createAdminSpaceAction, getAdminSpacesAction, getAdminSpaceStatsAction, setAdminSpaceStatusAction } from './actions'
 
-const FILTERS = [
-  { id: 'all', label: 'Todos' },
-  { id: 'active', label: 'Ativos' },
-  { id: 'pending', label: 'Pendentes' },
-  { id: 'managed', label: 'Com gestor' },
-  { id: 'unmanaged', label: 'Sem gestor' },
-] as const
-
+const FILTERS = [{ id: 'all', label: 'Todos' }, { id: 'active', label: 'Ativos' }, { id: 'pending', label: 'Pendentes' }, { id: 'managed', label: 'Com gestor' }, { id: 'unmanaged', label: 'Sem gestor' }] as const
 type Filter = typeof FILTERS[number]['id']
 const PAGE_SIZE = 20
 
 export default function AdminSpacesPage() {
-  const { showAlert, showConfirm } = useModal()
-  const [spaces, setSpaces] = useState<any[]>([])
-  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, unmanaged: 0 })
-  const [loading, setLoading] = useState(true)
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<Filter>('all')
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ name: '', address: '' })
-
-  async function load(targetPage = page, targetSearch = search, targetFilter = filter) {
-    setLoading(true)
-    try {
-      const [result, currentStats] = await Promise.all([
-        getAdminSpacesAction({ page: targetPage, pageSize: PAGE_SIZE, search: targetSearch, filter: targetFilter }),
-        getAdminSpaceStatsAction(),
-      ])
-      setSpaces(result.items)
-      setPage(result.page)
-      setTotal(result.total)
-      setTotalPages(result.totalPages)
-      setStats(currentStats)
-    } catch (error) {
-      showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os espaços.', 'error')
-    } finally { setLoading(false) }
-  }
-
+  const { showAlert, showConfirm } = useModal(); const [spaces, setSpaces] = useState<any[]>([]); const [stats, setStats] = useState({ total: 0, active: 0, pending: 0, unmanaged: 0 }); const [loading, setLoading] = useState(true); const [searchInput, setSearchInput] = useState(''); const [search, setSearch] = useState(''); const [filter, setFilter] = useState<Filter>('all'); const [page, setPage] = useState(1); const [total, setTotal] = useState(0); const [totalPages, setTotalPages] = useState(1); const [createOpen, setCreateOpen] = useState(false); const [creating, setCreating] = useState(false); const [form, setForm] = useState({ name: '', address: '' })
+  async function load(targetPage = page, targetSearch = search, targetFilter = filter) { setLoading(true); try { const [result, currentStats] = await Promise.all([getAdminSpacesAction({ page: targetPage, pageSize: PAGE_SIZE, search: targetSearch, filter: targetFilter }), getAdminSpaceStatsAction()]); setSpaces(result.items); setPage(result.page); setTotal(result.total); setTotalPages(result.totalPages); setStats(currentStats) } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar os espaços.', 'error') } finally { setLoading(false) } }
   useEffect(() => { void load(1, '', 'all') }, [])
+  async function applyFilters(nextFilter = filter) { const q = searchInput.trim(); setSearch(q); setFilter(nextFilter); setPage(1); await load(1, q, nextFilter) }
+  async function createSpace() { if (!form.name.trim() || !form.address.trim()) return showAlert('Dados em falta', 'Nome e localização são obrigatórios.', 'error'); setCreating(true); try { await createAdminSpaceAction(form); setForm({ name: '', address: '' }); setCreateOpen(false); showAlert('Criado', 'Espaço criado em estado pendente para curadoria.', 'success'); await load(1, search, filter) } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar o espaço.', 'error') } finally { setCreating(false) } }
+  async function changeStatus(space: any, active: boolean) { if (!active) { const confirmed = await showConfirm('Desativar espaço', `Retirar “${space.name}” da listagem pública?`, { confirmLabel: 'Desativar', destructive: true }); if (!confirmed) return } try { await setAdminSpaceStatusAction(space.id, active); showAlert('Atualizado', active ? 'Espaço ativado e verificado.' : 'Espaço colocado como pendente.', 'success'); await load(page, search, filter) } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível alterar o espaço.', 'error') } }
 
-  async function applyFilters(nextFilter = filter) {
-    const q = searchInput.trim()
-    setSearch(q)
-    setFilter(nextFilter)
-    setPage(1)
-    await load(1, q, nextFilter)
-  }
-
-  async function createSpace() {
-    if (!form.name.trim() || !form.address.trim()) return showAlert('Dados em falta', 'Nome e localização são obrigatórios.', 'error')
-    setCreating(true)
-    try {
-      await createAdminSpaceAction(form)
-      setForm({ name: '', address: '' })
-      setCreateOpen(false)
-      showAlert('Criado', 'Espaço criado em estado pendente para curadoria.', 'success')
-      await load(1, search, filter)
-    } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar o espaço.', 'error') }
-    finally { setCreating(false) }
-  }
-
-  async function changeStatus(space: any, active: boolean) {
-    if (!active) {
-      const confirmed = await showConfirm('Desativar espaço', `Retirar “${space.name}” da listagem pública?`, { confirmLabel: 'Desativar', destructive: true })
-      if (!confirmed) return
-    }
-    try {
-      await setAdminSpaceStatusAction(space.id, active)
-      showAlert('Atualizado', active ? 'Espaço ativado e verificado.' : 'Espaço colocado como pendente.', 'success')
-      await load(page, search, filter)
-    } catch (error) { showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível alterar o espaço.', 'error') }
-  }
-
-  return (
-    <DashboardPage>
-      <DashboardPageHeader title="Espaços" description="Catálogo paginado e filtrado no servidor. Reivindicações de propriedade são tratadas no módulo Reivindicações." action={<Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger render={<Button className="min-h-11"><Plus className="mr-2 h-4 w-4" />Adicionar espaço</Button>} /><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Novo espaço</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>Nome *</Label><Input className="min-h-11 text-base" value={form.name} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} /></div><div className="space-y-2"><Label>Localização *</Label><Input className="min-h-11 text-base" value={form.address} onChange={e => setForm(v => ({ ...v, address: e.target.value }))} /></div><Button onClick={createSpace} disabled={creating} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar como pendente</Button></div></DialogContent></Dialog>} />
-
-      <DashboardStatGrid>
-        <DashboardStat label="Total" value={stats.total} icon={<Building2 className="h-5 w-5" />} />
-        <DashboardStat label="Ativos" value={stats.active} icon={<CheckCircle2 className="h-5 w-5" />} />
-        <DashboardStat label="Pendentes" value={stats.pending} icon={<ShieldAlert className="h-5 w-5" />} />
-        <DashboardStat label="Sem gestor" value={stats.unmanaged} icon={<UserRound className="h-5 w-5" />} />
-      </DashboardStatGrid>
-
-      <DashboardSection title="Catálogo" description="Pesquisa por nome/localização e filtros de estado e gestão.">
-        <div className="mb-4 space-y-3">
-          <form onSubmit={e => { e.preventDefault(); void applyFilters() }} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <label className="relative min-w-0"><span className="sr-only">Pesquisar espaços</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="min-h-11 w-full pl-9 text-base" value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Pesquisar espaço ou localização" /></label>
-            <Button type="submit" variant="outline" className="min-h-11">Pesquisar</Button>
-          </form>
-          <div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => void applyFilters(item.id)}>{item.label}</Button>)}</div>
-        </div>
-
-        {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : spaces.length === 0 ? <DashboardEmptyState icon={<Building2 className="h-10 w-10" />} title="Sem espaços" description="Não existem resultados para os critérios selecionados." /> : <div className="grid min-w-0 gap-3">{spaces.map(space => <article key={space.id} className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex min-w-0 items-center gap-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 font-bold text-primary">{space.logo_url ? <img src={space.logo_url} alt="" className="h-full w-full object-cover" /> : <Building2 className="h-5 w-5" />}</div><div className="min-w-0"><p className="truncate font-semibold">{space.name}</p><p className="truncate text-sm text-muted-foreground">{space.address || 'Sem localização'}</p><div className="mt-1 flex min-w-0 flex-wrap gap-2"><Badge variant="outline">{space.status || 'sem estado'}</Badge>{space.is_verified && <Badge>Verificado</Badge>}<Badge variant="secondary" className="max-w-full truncate">{space.owner ? `Gestor: ${space.owner.full_name || space.owner.email || 'Conta associada'}` : 'Sem gestor'}</Badge></div></div></div><div className="grid min-w-0 grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-11"><Link href={`/espacos/${space.slug || space.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button>{space.status === 'active' && space.is_verified ? <Button variant="outline" className="min-h-11 text-destructive" onClick={() => changeStatus(space, false)}>Desativar</Button> : <Button className="min-h-11" onClick={() => changeStatus(space, true)}>Ativar</Button>}</div></article>)}</div>}
-
-        {total > 0 && <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">A mostrar {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de {total} espaços</p><div className="flex items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => void load(page - 1, search, filter)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button><span className="px-2 text-sm font-medium">{page} / {totalPages}</span><Button type="button" variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => void load(page + 1, search, filter)}>Seguinte<ChevronRight className="ml-1 h-4 w-4" /></Button></div></div>}
-      </DashboardSection>
-    </DashboardPage>
-  )
+  return <DashboardPage><DashboardPageHeader title="Espaços" description="Catálogo paginado e filtrado no servidor. Reivindicações de propriedade são tratadas no módulo Reivindicações." action={<Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogTrigger render={<Button className="min-h-11"><Plus className="mr-2 h-4 w-4" />Adicionar espaço</Button>} /><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Novo espaço</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>Nome *</Label><Input className="min-h-11 text-base" value={form.name} onChange={e => setForm(v => ({ ...v, name: e.target.value }))} /></div><div className="space-y-2"><Label>Localização *</Label><Input className="min-h-11 text-base" value={form.address} onChange={e => setForm(v => ({ ...v, address: e.target.value }))} /></div><Button onClick={createSpace} disabled={creating} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Criar como pendente</Button></div></DialogContent></Dialog>} />
+    <DashboardStatGrid><DashboardStat label="Total" value={stats.total} icon={<Building2 className="h-5 w-5" />} /><DashboardStat label="Ativos" value={stats.active} icon={<CheckCircle2 className="h-5 w-5" />} /><DashboardStat label="Pendentes" value={stats.pending} icon={<ShieldAlert className="h-5 w-5" />} /><DashboardStat label="Sem gestor" value={stats.unmanaged} icon={<UserRound className="h-5 w-5" />} /></DashboardStatGrid>
+    <DashboardSection title="Catálogo" description="Pesquisa por nome/localização e filtros de estado e gestão."><div className="mb-4 space-y-3"><form onSubmit={e => { e.preventDefault(); void applyFilters() }} className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><label className="relative min-w-0"><span className="sr-only">Pesquisar espaços</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="min-h-11 w-full pl-9 text-base" value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Pesquisar espaço ou localização" /></label><Button type="submit" variant="outline" className="min-h-11">Pesquisar</Button></form><div className="flex gap-2 overflow-x-auto pb-1">{FILTERS.map(item => <Button key={item.id} variant={filter === item.id ? 'default' : 'outline'} className="min-h-11 shrink-0" onClick={() => void applyFilters(item.id)}>{item.label}</Button>)}</div></div>
+      {loading ? <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : spaces.length === 0 ? <DashboardEmptyState icon={<Building2 className="h-10 w-10" />} title="Sem espaços" description="Não existem resultados para os critérios selecionados." /> : <div className="grid min-w-0 gap-3">{spaces.map(space => <article key={space.id} className="flex min-w-0 max-w-full flex-col gap-4 overflow-hidden rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex min-w-0 items-center gap-3"><div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 font-bold text-primary">{space.logo_url ? <img src={space.logo_url} alt="" className="h-full w-full object-cover" /> : <Building2 className="h-5 w-5" />}</div><div className="min-w-0"><p className="truncate font-semibold">{space.name}</p><p className="truncate text-sm text-muted-foreground">{space.address || 'Sem localização'}</p><div className="mt-1 flex min-w-0 flex-wrap gap-2"><Badge variant="outline">{space.status || 'sem estado'}</Badge>{space.is_verified && <Badge>Verificado</Badge>}<Badge variant="secondary" className="max-w-full truncate">{space.owner ? `Gestor: ${space.owner.full_name || space.owner.email || 'Conta associada'}` : 'Sem gestor'}</Badge></div></div></div><div className="grid min-w-0 grid-cols-2 gap-2 sm:flex"><Button asChild variant="outline" className="min-h-11"><Link href={`/admin/espacos/${space.id}`}>Detalhe</Link></Button><Button asChild variant="outline" className="min-h-11"><Link href={`/espacos/${space.slug || space.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Público</Link></Button>{space.status === 'active' && space.is_verified ? <Button variant="outline" className="min-h-11 text-destructive" onClick={() => changeStatus(space, false)}>Desativar</Button> : <Button className="min-h-11" onClick={() => changeStatus(space, true)}>Ativar</Button>}</div></article>)}</div>}
+      {total > 0 && <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">A mostrar {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de {total} espaços</p><div className="flex items-center gap-2"><Button type="button" variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => void load(page - 1, search, filter)}><ChevronLeft className="mr-1 h-4 w-4" />Anterior</Button><span className="px-2 text-sm font-medium">{page} / {totalPages}</span><Button type="button" variant="outline" size="sm" disabled={page >= totalPages || loading} onClick={() => void load(page + 1, search, filter)}>Seguinte<ChevronRight className="ml-1 h-4 w-4" /></Button></div></div>}
+    </DashboardSection></DashboardPage>
 }
