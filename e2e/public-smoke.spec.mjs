@@ -9,6 +9,22 @@ const publicRoutes = [
   '/auth/login',
 ]
 
+const protectedDashboardRoutes = [
+  '/dashboard',
+  '/dashboard/agenda',
+  '/dashboard/reservas',
+  '/dashboard/definicoes',
+]
+
+const protectedAdminRoutes = [
+  '/admin',
+  '/admin/utilizadores',
+  '/admin/administradores',
+  '/admin/faturacao',
+  '/admin/relatorios',
+  '/admin/importacao',
+]
+
 for (const route of publicRoutes) {
   test(`${route} loads without server error`, async ({ page }) => {
     const response = await page.goto(route, { waitUntil: 'domcontentloaded' })
@@ -58,22 +74,32 @@ test('login redirect input cannot escape the application origin', async ({ page 
   expect(registerHref).not.toContain('example.com')
 })
 
-test('anonymous users cannot access the dashboard', async ({ page }) => {
-  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
-  await expect(page).toHaveURL(/\/auth\/login(?:\?|$)/)
+test('anonymous users are denied across dashboard surface', async ({ page }) => {
+  for (const route of protectedDashboardRoutes) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' })
+    await expect(page, `${route} must redirect anonymous users to login`).toHaveURL(/\/auth\/login(?:\?|$)/)
+  }
 })
 
-test('anonymous users cannot access admin pages', async ({ page }) => {
-  await page.goto('/admin', { waitUntil: 'domcontentloaded' })
-  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/)
+test('anonymous users are denied across sensitive admin surface', async ({ page }) => {
+  for (const route of protectedAdminRoutes) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' })
+    await expect(page, `${route} must redirect anonymous users to admin login`).toHaveURL(/\/admin\/login(?:\?|$)/)
+  }
 })
 
-test('checkout endpoints reject anonymous requests', async ({ request }) => {
+test('checkout endpoints reject anonymous requests without server errors', async ({ request }) => {
   for (const route of ['/api/checkout_sessions', '/api/package-checkout', '/api/stripe/checkout']) {
     const response = await request.post(route, { data: {} })
     expect(response.status(), `${route} unexpectedly accepted an anonymous checkout`).toBeGreaterThanOrEqual(400)
     expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
   }
+})
+
+test('unknown public route returns a controlled client error, not a server failure', async ({ request }) => {
+  const response = await request.get('/e2e-route-that-must-not-exist')
+  expect(response.status()).toBeGreaterThanOrEqual(400)
+  expect(response.status()).toBeLessThan(500)
 })
 
 test('mobile public pages do not overflow horizontally', async ({ page }) => {
