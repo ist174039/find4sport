@@ -19,22 +19,25 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
   if (decision === 'rejected' && clean.length < 5) throw new Error('Indica o motivo da rejeição.')
 
   const now = new Date().toISOString()
-  const { error } = await db.from('services').update({
+  const moderationUpdate = {
     moderation_status: decision,
-    moderation_reason: decision === 'rejected' ? clean : null,
     reviewed_at: now,
     reviewed_by: user.id,
     is_active: decision === 'approved',
-  }).eq('id', id).eq('moderation_status', 'pending')
+    ...(decision === 'rejected' ? { moderation_reason: clean } : {}),
+  }
+  const { error } = await db.from('services').update(moderationUpdate).eq('id', id).eq('moderation_status', 'pending')
   if (error) throw error
 
-  await db.from('service_moderation_history').insert({
+  const historyEntry = {
     service_id: id,
     from_status: service.moderation_status,
     to_status: decision,
     actor_user_id: user.id,
-    reason: decision === 'rejected' ? clean : null,
-  })
+    ...(decision === 'rejected' ? { reason: clean } : {}),
+  }
+  const { error: historyError } = await db.from('service_moderation_history').insert(historyEntry)
+  if (historyError) throw historyError
 
   revalidatePath('/admin/servicos')
   revalidatePath('/dashboard/servicos')
