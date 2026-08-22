@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { executeReservationRefund } from '../lib/billing/admin-refund.ts'
+import { executeReservationRefund } from '../lib/billing/admin-refund-core.ts'
 
 const base={reservationId:'r1',chargeId:'ch_1',paymentIntentId:'pi_1',reason:'admin_dispute_refund'}
 function harness(transfer={id:'tr_1',amount:1000,amount_reversed:0}){const calls={retrieve:0,reversal:[],refund:[]};return{calls,deps:{retrieveTransfer:async()=>{calls.retrieve++;return transfer},createReversal:async(id,amount,metadata,key)=>{calls.reversal.push({id,amount,metadata,key});return{id:'trr_1',amount}},createRefund:async(payment,metadata,key)=>{calls.refund.push({payment,metadata,key});return{id:'re_1',status:'succeeded'}}}}}
