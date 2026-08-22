@@ -1,12 +1,12 @@
 'use server'
 
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 type SpaceFilter = 'all' | 'active' | 'pending' | 'managed' | 'unmanaged'
 
 export async function getAdminSpacesAction(input?: { page?: number; pageSize?: number; search?: string; filter?: SpaceFilter }) {
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('spaces.manage')
   const page = Math.max(1, Math.floor(input?.page || 1))
   const pageSize = Math.min(50, Math.max(5, Math.floor(input?.pageSize || 20)))
   const search = String(input?.search || '').trim().replace(/[,%]/g, '').slice(0, 100)
@@ -42,7 +42,7 @@ export async function getAdminSpacesAction(input?: { page?: number; pageSize?: n
 }
 
 export async function getAdminSpaceStatsAction() {
-  const { admin } = await requireAdmin()
+  const { admin } = await requireAdminPermission('spaces.manage')
   const [{ count: total }, { count: active }, { count: unmanaged }] = await Promise.all([
     admin.from('sport_spaces').select('id', { count: 'exact', head: true }),
     admin.from('sport_spaces').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('is_verified', true),
@@ -52,7 +52,7 @@ export async function getAdminSpaceStatsAction() {
 }
 
 export async function setAdminSpaceStatusAction(spaceId: string, active: boolean) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('spaces.manage')
   const { data, error } = await admin.from('sport_spaces').update({ status: active ? 'active' : 'pending', is_verified: active }).eq('id', spaceId).select('id, status, is_verified').single()
   if (error) throw error
   await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'sport_spaces', userEmail: user.email || 'admin', message: `Estado do espaço ${spaceId} alterado para ${data.status}`, data: { space_id: spaceId, status: data.status } })
@@ -60,7 +60,7 @@ export async function setAdminSpaceStatusAction(spaceId: string, active: boolean
 }
 
 export async function createAdminSpaceAction(input: { name: string; address: string }) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('spaces.manage')
   const name = input.name.trim()
   const address = input.address.trim()
   if (!name || !address) throw new Error('Nome e localização são obrigatórios.')
