@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 function normalizeSlug(value: string) {
@@ -13,7 +13,7 @@ function sanitizeColor(value: string) {
 }
 
 export async function createCategoryAction(input: { name: string; slug?: string; emoji?: string; color?: string }) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('categories.manage')
   const name = input.name.trim()
   if (!name) throw new Error('O nome é obrigatório.')
   const slug = normalizeSlug(input.slug?.trim() || name)
@@ -30,7 +30,7 @@ export async function createCategoryAction(input: { name: string; slug?: string;
 }
 
 export async function updateCategoryAction(id: string, input: { name: string; slug?: string; emoji?: string; color?: string }) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('categories.manage')
   if (!id) throw new Error('Categoria inválida.')
   const name = input.name.trim()
   if (!name) throw new Error('O nome é obrigatório.')
@@ -48,7 +48,7 @@ export async function updateCategoryAction(id: string, input: { name: string; sl
 }
 
 export async function deleteCategoryAction(id: string) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('categories.manage')
   if (!id) throw new Error('Categoria inválida.')
   const { data: category } = await admin.from('categories').select('name,slug').eq('id', id).maybeSingle()
   if (!category) throw new Error('Categoria não encontrada.')
