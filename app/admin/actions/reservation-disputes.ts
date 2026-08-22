@@ -2,21 +2,10 @@
 
 import Stripe from 'stripe'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { releaseReservationSettlement } from '@/lib/billing/reservation-settlement'
 
 type Resolution = 'release' | 'refund'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Sessão inválida.')
-  const db = createAdminClient() as any
-  const { data: admin } = await db.from('admins').select('id').eq('auth_user_id', user.id).maybeSingle()
-  if (!admin) throw new Error('Acesso reservado a administradores.')
-  return { user, db }
-}
 
 async function providerUserId(db: any, reservation: { professional_id?: string | null; space_id?: string | null }) {
   if (reservation.professional_id) return (await db.from('professionals').select('user_id').eq('id', reservation.professional_id).maybeSingle()).data?.user_id || null
@@ -30,7 +19,7 @@ async function notify(db: any, userId: string | null, message: string, reservati
 }
 
 export async function resolveReservationDisputeAction(reservationId: string, resolution: Resolution, note: string) {
-  const { user, db } = await requireAdmin()
+  const { user, admin: db } = await requireAdmin()
   const cleanNote = String(note || '').trim()
   if (cleanNote.length < 5 || cleanNote.length > 2000) throw new Error('Regista uma justificação entre 5 e 2000 caracteres.')
 
