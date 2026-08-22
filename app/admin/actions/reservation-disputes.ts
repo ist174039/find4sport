@@ -60,12 +60,13 @@ export async function resolveReservationDisputeAction(reservationId: string, res
     if (!chargeId.startsWith('ch_') && !paymentIntentId.startsWith('pi_')) throw new Error('Pagamento Stripe da reserva não encontrado.')
     const refund = await stripe.refunds.create({ ...(chargeId.startsWith('ch_') ? { charge:chargeId } : { payment_intent:paymentIntentId }), reason:'requested_by_customer', metadata:{ reservation_id:reservationId, resolution:'admin_dispute_refund' } }, { idempotencyKey:`reservation-dispute-refund:${reservationId}` })
     if (!['pending','succeeded'].includes(refund.status || '')) throw new Error('O Stripe não aceitou o reembolso.')
-    const { error } = await db.from('reservations').update({ payment_status:'refunded', status:'cancelled', service_delivery_status:'cancelled', settlement_status:'refunded', updated_at:now }).eq('id', reservationId).eq('service_delivery_status','disputed').eq('settlement_status','blocked')
+    const refundSucceeded = refund.status === 'succeeded'
+    const { error } = await db.from('reservations').update({ payment_status:refundSucceeded?'refunded':'refund_pending', status:'cancelled', service_delivery_status:'cancelled', settlement_status:refundSucceeded?'refunded':'blocked', updated_at:now }).eq('id', reservationId).eq('service_delivery_status','disputed').eq('settlement_status','blocked')
     if (error) throw error
-    await db.from('reservation_delivery_events').insert({ reservation_id:reservationId, event_type:'dispute_resolved_refund', actor_user_id:user.id, note:cleanNote, metadata:{ stripe_refund_id:refund.id } })
+    await db.from('reservation_delivery_events').insert({ reservation_id:reservationId, event_type:refundSucceeded?'dispute_resolved_refund':'dispute_refund_pending', actor_user_id:user.id, note:cleanNote, metadata:{ stripe_refund_id:refund.id, stripe_refund_status:refund.status } })
     await Promise.all([
-      notify(db, reservation.user_id, 'A contestação foi analisada e o reembolso da reserva foi iniciado.', reservationId, 'refunded:athlete'),
-      notify(db, providerId, 'A contestação da reserva foi resolvida com reembolso ao atleta.', reservationId, 'refunded:provider', '/dashboard/entregas'),
+      notify(db, reservation.user_id, refundSucceeded?'A contestação foi analisada e a reserva foi reembolsada.':'A contestação foi analisada e o reembolso da reserva está a ser processado.', reservationId, refundSucceeded?'refunded:athlete':'refund-pending:athlete'),
+      notify(db, providerId, refundSucceeded?'A contestação da reserva foi resolvida com reembolso ao atleta.':'A contestação foi resolvida com reembolso ao atleta, atualmente em processamento.', reservationId, refundSucceeded?'refunded:provider':'refund-pending:provider', '/dashboard/entregas'),
     ])
   }
 
