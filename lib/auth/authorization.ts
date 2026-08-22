@@ -40,6 +40,19 @@ export async function requireAdmin() {
   return { ...session, admin: createAdminClient() }
 }
 
+export async function requireGeneralAdmin() {
+  const session = await requireAdmin()
+  const { data: adminProfile, error } = await session.admin
+    .from('admins')
+    .select('admin_type')
+    .eq('auth_user_id', session.user.id)
+    .maybeSingle()
+  if (error || adminProfile?.admin_type !== 'general') {
+    throw new Error('Apenas o administrador geral pode executar esta operação')
+  }
+  return session
+}
+
 export async function requireProfessional() {
   const session = await requireAccess()
   if (session.access.role !== 'professional' || !session.access.canManageProfessionals) {
