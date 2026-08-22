@@ -42,7 +42,7 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
   }
 
   const accountStatus = getAccountStatus(user)
-  if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') return null
+  if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested' || accountStatus === 'suspended') return null
 
   const { data: platformUser } = await supabase.from('platform_users').select('id, type').eq('id', user.id).maybeSingle()
   if (!platformUser?.id) return null
