@@ -1,11 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 export async function decideSpaceClaimAction(claimId: string, decision: 'approved' | 'rejected') {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('spaces.manage')
   if (!claimId) throw new Error('Reivindicação inválida.')
 
   const { data: claim, error: claimError } = await admin
