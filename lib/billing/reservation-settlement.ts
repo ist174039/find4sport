@@ -28,6 +28,7 @@ export async function releaseReservationSettlement(reservationId: string) {
   if (reservation.payment_status !== 'paid') throw new Error('A reserva ainda não está paga.')
   if (reservation.service_delivery_status !== 'completed') throw new Error('O serviço ainda não foi confirmado como concluído.')
   if (reservation.settlement_status === 'transferred' || reservation.settlement_status === 'not_applicable') return { transferred: reservation.settlement_status === 'transferred', alreadyDone: true }
+  if (reservation.settlement_status === 'processing') throw new Error('A liquidação desta reserva já está em processamento.')
   if (reservation.settlement_status !== 'eligible') throw new Error('O valor ainda não está elegível para transferência.')
 
   const { data: transaction, error: txError } = await db.from('transactions').select('id,currency,provider_net_amount,stripe_charge_id,stripe_transfer_id,stripe_connected_account_id,source_type,source_id,status').eq('source_id', reservationId).in('type', ['service_reservation_payment','space_reservation_payment']).eq('status','completed').order('created_at',{ascending:false}).limit(1).maybeSingle()
@@ -36,7 +37,7 @@ export async function releaseReservationSettlement(reservationId: string) {
 
   if (transaction.stripe_transfer_id) {
     const now = new Date().toISOString()
-    const { error } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', reservationId)
+    const { error } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', reservationId).in('settlement_status',['eligible','processing'])
     if (error) throw error
     return { transferred:true, alreadyDone:true }
   }
@@ -46,22 +47,47 @@ export async function releaseReservationSettlement(reservationId: string) {
   if (!(amount > 0) || !destination.startsWith('acct_')) throw new Error('Dados de liquidação do prestador incompletos.')
   const secret = process.env.STRIPE_SECRET_KEY
   if (!secret) throw new Error('Stripe não está configurado.')
+
+  // Acquire the settlement lock before any external financial side effect.
+  // If a dispute changed eligible -> blocked first, this conditional update
+  // returns no row and no Stripe transfer is attempted.
+  const lockAt = new Date().toISOString()
+  const { data: locked, error: lockError } = await db.from('reservations')
+    .update({ settlement_status:'processing', updated_at:lockAt })
+    .eq('id', reservationId)
+    .eq('payment_status','paid')
+    .eq('service_delivery_status','completed')
+    .eq('settlement_status','eligible')
+    .select('id')
+    .maybeSingle()
+  if (lockError) throw lockError
+  if (!locked) throw new Error('A liquidação deixou de estar elegível antes da transferência.')
+
   const stripe = new Stripe(secret)
   const sourceCharge = String(transaction.stripe_charge_id || '')
-  const transfer = await stripe.transfers.create({
-    amount,
-    currency: String(transaction.currency || 'eur'),
-    destination,
-    ...(sourceCharge.startsWith('ch_') ? { source_transaction: sourceCharge } : {}),
-    transfer_group: `f4s:${transaction.source_type || 'reservation'}:${reservationId}`,
-    metadata: { reservation_id: reservationId, transaction_id: transaction.id, settlement: 'athlete_or_timeout_confirmed' },
-  }, { idempotencyKey: `reservation-settlement:${reservationId}` })
+  let transfer: Stripe.Transfer
+  try {
+    transfer = await stripe.transfers.create({
+      amount,
+      currency: String(transaction.currency || 'eur'),
+      destination,
+      ...(sourceCharge.startsWith('ch_') ? { source_transaction: sourceCharge } : {}),
+      transfer_group: `f4s:${transaction.source_type || 'reservation'}:${reservationId}`,
+      metadata: { reservation_id: reservationId, transaction_id: transaction.id, settlement: 'athlete_or_timeout_confirmed' },
+    }, { idempotencyKey: `reservation-settlement:${reservationId}` })
+  } catch (error) {
+    // No transfer object was returned. Release only our own processing lock;
+    // never overwrite blocked/refunded/transferred states set concurrently.
+    await db.from('reservations').update({ settlement_status:'eligible', updated_at:new Date().toISOString() }).eq('id', reservationId).eq('settlement_status','processing')
+    throw error
+  }
 
   const now = new Date().toISOString()
   const { error: txUpdateError } = await db.from('transactions').update({ stripe_transfer_id:transfer.id }).eq('id', transaction.id).is('stripe_transfer_id', null)
   if (txUpdateError) throw txUpdateError
-  const { error: reservationUpdateError } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', reservationId).eq('settlement_status','eligible')
+  const { data: finalized, error: reservationUpdateError } = await db.from('reservations').update({ settlement_status:'transferred', settlement_released_at:now, updated_at:now }).eq('id', reservationId).eq('settlement_status','processing').select('id').maybeSingle()
   if (reservationUpdateError) throw reservationUpdateError
+  if (!finalized) throw new Error('A transferência foi criada, mas o estado da reserva mudou durante a liquidação.')
   const { error: deliveryEventError } = await db.from('reservation_delivery_events').insert({ reservation_id:reservationId, event_type:'settlement_released', metadata:{ stripe_transfer_id:transfer.id } })
   if (deliveryEventError) console.error('reservation_settlement_audit_event_failed', { reservationId, transferId: transfer.id, error: deliveryEventError.message })
   return { transferred:true, transferId:transfer.id }
