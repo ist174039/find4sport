@@ -1,17 +1,7 @@
 'use server'
 
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { isPlatformRole, type PlatformRole } from '@/lib/auth/roles'
-
-async function requireAdminAccess() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Utilizador não autenticado')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administrador')
-}
 
 function requirePlatformRole(value: unknown): PlatformRole {
   if (!isPlatformRole(value)) throw new Error('Tipo de perfil inválido')
@@ -24,8 +14,7 @@ export async function adminCreateProfessional(input: {
   professional_name?: string | null
   public_slug?: string | null
 }) {
-  await requireAdminAccess()
-  const admin = createAdminClient()
+  const { admin } = await requireAdmin()
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
@@ -59,19 +48,17 @@ export async function adminCreateProfessional(input: {
 }
 
 export async function adminUpdateProfessional(id: string, input: { status?: 'active' | 'pending' | 'suspended' | 'rejected'; is_verified?: boolean }) {
-  await requireAdminAccess()
-  const admin = createAdminClient()
+  const { admin } = await requireAdmin()
   const { data, error } = await admin.from('professionals').update(input).eq('id', id).select('*').single()
   if (error) return { error: error.message }
   return { professional: data }
 }
 
 export async function adminCreateUser(email: string, password: string, fullName: string, type: PlatformRole) {
-  await requireAdminAccess()
+  const { admin } = await requireAdmin()
   const role = requirePlatformRole(type)
   if (password.length < 8) return { error: 'A palavra-passe deve ter pelo menos 8 caracteres' }
 
-  const admin = createAdminClient()
   const { data, error } = await admin.auth.admin.createUser({
     email: email.trim(),
     password,
