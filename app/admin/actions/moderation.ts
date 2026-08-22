@@ -1,10 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 
 export async function dismissContentReportAction(reportId: string) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('content.moderate')
   const { error } = await admin
     .from('content_reports')
     .update({ status: 'dismissed', reviewed_by: user.id, reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -14,7 +14,7 @@ export async function dismissContentReportAction(reportId: string) {
 }
 
 export async function removeReportedContentAction(reportId: string) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('content.moderate')
   const { data: report, error: reportError } = await admin
     .from('content_reports')
     .select('id, target_type, target_id')
