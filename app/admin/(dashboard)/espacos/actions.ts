@@ -1,18 +1,7 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Sessão administrativa inválida.')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Acesso administrativo necessário.')
-  return { user, admin: createAdminClient() }
-}
 
 type SpaceFilter = 'all' | 'active' | 'pending' | 'managed' | 'unmanaged'
 
