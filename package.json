@@ -10,6 +10,9 @@
     "lint:strict": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project=chromium",
+    "test:e2e:mobile": "playwright test --project=mobile-chromium",
     "check": "npm run lint && npm run typecheck && npm test"
   },
   "dependencies": {
@@ -47,6 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^24",
