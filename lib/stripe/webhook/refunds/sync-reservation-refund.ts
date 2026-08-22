@@ -13,9 +13,8 @@ type RefundLike = {
 const RESERVATION_SOURCE_TYPES = new Set(['service_reservation', 'space_reservation'])
 
 /**
- * Synchronizes the reservation state from a Stripe refund.
- * Stripe remains the authority for completion: only a succeeded refund can
- * transition refund_pending/blocked to refunded/refunded.
+ * Synchronizes reservation state from Stripe refund state.
+ * Stripe is authoritative for completion: only succeeded may finalize refunded.
  */
 export async function syncReservationRefund(
   db: DbClient,
@@ -42,13 +41,6 @@ export async function syncReservationRefund(
       .in('settlement_status', ['held', 'blocked', 'refunded'])
 
     if (error) throw error
-
-    await db.from('reservation_delivery_events').upsert({
-      reservation_id: reservationId,
-      event_type: 'refund_completed',
-      note: 'Reembolso confirmado pelo Stripe.',
-      metadata: { stripe_refund_id: refund.id, stripe_refund_status: refund.status },
-    }, { onConflict: 'reservation_id,event_type' })
     return
   }
 
