@@ -85,11 +85,22 @@ jobs:
           done
           if [ "$missing" -gt 0 ]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Authenticated production E2E is blocked until all four role accounts are configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "Authenticated production E2E is blocked until all four required role accounts are configured." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "All 4/4 authenticated roles are configured." >> "$GITHUB_STEP_SUMMARY"
+          echo "All 4/4 required authenticated roles are configured." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report operational-admin E2E readiness
+        env:
+          E2E_OPERATIONAL_ADMIN_EMAIL: ${{ secrets.E2E_OPERATIONAL_ADMIN_EMAIL }}
+          E2E_OPERATIONAL_ADMIN_PASSWORD: ${{ secrets.E2E_OPERATIONAL_ADMIN_PASSWORD }}
+        run: |
+          if [ -n "$E2E_OPERATIONAL_ADMIN_EMAIL" ] && [ -n "$E2E_OPERATIONAL_ADMIN_PASSWORD" ]; then
+            echo "- ✅ OPERATIONAL_ADMIN: configured; negative General-only browser checks enabled" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- ⚠️ OPERATIONAL_ADMIN: not configured; General-only browser denial remains covered only below E2E level" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Run production smoke suite
         env:
@@ -102,6 +113,8 @@ jobs:
           E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_OPERATIONAL_ADMIN_EMAIL: ${{ secrets.E2E_OPERATIONAL_ADMIN_EMAIL }}
+          E2E_OPERATIONAL_ADMIN_PASSWORD: ${{ secrets.E2E_OPERATIONAL_ADMIN_PASSWORD }}
         run: npx playwright test e2e/public-smoke.spec.mjs e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }}
 
       - name: Upload Playwright report
