@@ -21,8 +21,6 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
   const now = new Date().toISOString()
   const moderationUpdate = {
     moderation_status: decision,
-    reviewed_at: now,
-    reviewed_by: user.id,
     is_active: decision === 'approved',
     moderation_reason: decision === 'rejected' ? clean : null,
   }
@@ -43,9 +41,7 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
       moderation_status: service.moderation_status,
       is_active: service.is_active,
       moderation_reason: service.moderation_reason,
-      reviewed_at: service.reviewed_at,
-      reviewed_by: service.reviewed_by,
-    }).eq('id', id).eq('moderation_status', decision).eq('reviewed_by', user.id).eq('reviewed_at', now)
+    }).eq('id', id).eq('moderation_status', decision)
     if (rollbackError) throw new Error(`Falhou o histórico de moderação e o rollback também falhou: ${rollbackError.message}`)
     throw new Error(`A moderação foi revertida porque não foi possível gravar o histórico: ${historyError.message}`)
   }
