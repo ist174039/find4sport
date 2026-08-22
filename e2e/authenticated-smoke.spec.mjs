@@ -53,7 +53,7 @@ test('a normal authenticated user is denied across the admin surface', async ({ 
   }
 })
 
-test('an administrator can authenticate and reach the operational admin surface', async ({ page }) => {
+test('a general administrator can authenticate and reach the operational admin surface', async ({ page }) => {
   const account = credentials('ADMIN')
   test.skip(!account, 'Missing E2E_ADMIN_EMAIL/PASSWORD credentials')
 
@@ -77,4 +77,22 @@ test('general administrator can reach general-only administrator management', as
   expect(response.status()).toBeLessThan(500)
   await expect(page).toHaveURL(/\/admin\/administradores(?:\?|$)/)
   await expect(page.locator('body')).toBeVisible()
+})
+
+test('operational administrator can work operationally but is denied general-only administrator management', async ({ page }) => {
+  const account = credentials('OPERATIONAL_ADMIN')
+  test.skip(!account, 'Missing optional E2E_OPERATIONAL_ADMIN_EMAIL/PASSWORD credentials')
+
+  await loginAdmin(page, account)
+
+  for (const route of ['/admin', '/admin/utilizadores', '/admin/relatorios']) {
+    const response = await page.goto(route, { waitUntil: 'domcontentloaded' })
+    expect(response, `Expected a response for ${route}`).not.toBeNull()
+    expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
+    await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}(?:\\?|$)`))
+  }
+
+  await page.goto('/admin/administradores', { waitUntil: 'domcontentloaded' })
+  await expect(page).not.toHaveURL(/\/admin\/administradores(?:\?|$)/)
+  await expect(page).toHaveURL(/\/admin(?:\?|$)/)
 })
