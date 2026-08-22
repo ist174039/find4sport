@@ -22,40 +22,59 @@ async function loginAdmin(page, account) {
   await expect(page).toHaveURL(/\/admin(?:\/|$)/)
 }
 
+async function expectProtectedPage(page, route) {
+  const response = await page.goto(route, { waitUntil: 'domcontentloaded' })
+  expect(response, `Expected a response for ${route}`).not.toBeNull()
+  expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
+  await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/)
+  await expect(page.locator('body')).toBeVisible()
+}
+
 for (const role of ['ATHLETE', 'PROFESSIONAL', 'VENUE_MANAGER']) {
-  test(`${role.toLowerCase()} can authenticate and reach the protected dashboard`, async ({ page }) => {
+  test(`${role.toLowerCase()} can authenticate and reach core dashboard pages`, async ({ page }) => {
     const account = credentials(role)
     test.skip(!account, `Missing E2E_${role}_EMAIL/PASSWORD credentials`)
 
     await loginUser(page, account)
-    const response = await page.goto('/dashboard', { waitUntil: 'domcontentloaded' })
-
-    expect(response).not.toBeNull()
-    expect(response.status()).toBeLessThan(500)
-    await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/)
-    await expect(page.locator('body')).toBeVisible()
+    for (const route of ['/dashboard', '/dashboard/agenda', '/dashboard/definicoes']) {
+      await expectProtectedPage(page, route)
+    }
   })
 }
 
-test('a normal authenticated user cannot enter the admin area', async ({ page }) => {
+test('a normal authenticated user is denied across the admin surface', async ({ page }) => {
   const account = credentials('ATHLETE')
   test.skip(!account, 'Missing E2E_ATHLETE_EMAIL/PASSWORD credentials')
 
   await loginUser(page, account)
-  await page.goto('/admin', { waitUntil: 'domcontentloaded' })
-
-  await expect(page).toHaveURL(/\/admin\/login(?:\?|$)/)
+  for (const route of ['/admin', '/admin/utilizadores', '/admin/administradores', '/admin/faturacao']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' })
+    await expect(page, `${route} must deny a platform user`).toHaveURL(/\/admin\/login(?:\?|$)/)
+  }
 })
 
-test('an administrator can authenticate and reach the admin dashboard', async ({ page }) => {
+test('an administrator can authenticate and reach the operational admin surface', async ({ page }) => {
   const account = credentials('ADMIN')
   test.skip(!account, 'Missing E2E_ADMIN_EMAIL/PASSWORD credentials')
 
   await loginAdmin(page, account)
-  const response = await page.goto('/admin', { waitUntil: 'domcontentloaded' })
+  for (const route of ['/admin', '/admin/utilizadores', '/admin/relatorios']) {
+    const response = await page.goto(route, { waitUntil: 'domcontentloaded' })
+    expect(response, `Expected a response for ${route}`).not.toBeNull()
+    expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
+    await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}(?:\\?|$)`))
+    await expect(page.locator('body')).toBeVisible()
+  }
+})
 
+test('general administrator can reach general-only administrator management', async ({ page }) => {
+  const account = credentials('ADMIN')
+  test.skip(!account, 'Missing E2E_ADMIN_EMAIL/PASSWORD credentials')
+
+  await loginAdmin(page, account)
+  const response = await page.goto('/admin/administradores', { waitUntil: 'domcontentloaded' })
   expect(response).not.toBeNull()
   expect(response.status()).toBeLessThan(500)
-  await expect(page).toHaveURL(/\/admin(?:\/|$)/)
+  await expect(page).toHaveURL(/\/admin\/administradores(?:\?|$)/)
   await expect(page.locator('body')).toBeVisible()
 })
