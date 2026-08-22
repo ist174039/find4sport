@@ -22,7 +22,9 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
   const moderationUpdate = {
     moderation_status: decision,
     is_active: decision === 'approved',
-    moderation_reason: decision === 'rejected' ? clean : null,
+    ...(decision === 'rejected' ? { moderation_reason: clean } : {}),
+    reviewed_at: now,
+    reviewed_by: user.id,
   }
   const { data: updated, error } = await db.from('services').update(moderationUpdate).eq('id', id).eq('moderation_status', 'pending').select('id').maybeSingle()
   if (error) throw error
@@ -37,11 +39,14 @@ export async function reviewServiceAction(id: string, decision: 'approved' | 're
   }
   const { error: historyError } = await db.from('service_moderation_history').insert(historyEntry)
   if (historyError) {
-    const { error: rollbackError } = await db.from('services').update({
+    const rollbackUpdate = {
       moderation_status: service.moderation_status,
       is_active: service.is_active,
-      moderation_reason: service.moderation_reason,
-    }).eq('id', id).eq('moderation_status', decision)
+      ...(service.moderation_reason !== null ? { moderation_reason: service.moderation_reason } : {}),
+      ...(service.reviewed_at !== null ? { reviewed_at: service.reviewed_at } : {}),
+      ...(service.reviewed_by !== null ? { reviewed_by: service.reviewed_by } : {}),
+    }
+    const { error: rollbackError } = await db.from('services').update(rollbackUpdate).eq('id', id).eq('moderation_status', decision)
     if (rollbackError) throw new Error(`Falhou o histórico de moderação e o rollback também falhou: ${rollbackError.message}`)
     throw new Error(`A moderação foi revertida porque não foi possível gravar o histórico: ${historyError.message}`)
   }
