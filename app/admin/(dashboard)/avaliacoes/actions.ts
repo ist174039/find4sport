@@ -1,21 +1,13 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 export async function deleteReviewAdminAction(reviewId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Autenticação necessária.')
-
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Sem permissões de administração.')
+  const { user, admin } = await requireAdmin()
   if (!reviewId) throw new Error('Avaliação inválida.')
 
-  const admin = createAdminClient()
   const { data: review, error: readError } = await admin
     .from('reviews')
     .select('id,rating,professional_id,space_id,user_id')
