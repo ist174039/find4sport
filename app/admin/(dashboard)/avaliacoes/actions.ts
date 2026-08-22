@@ -1,11 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth/authorization'
+import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 export async function deleteReviewAdminAction(reviewId: string) {
-  const { user, admin } = await requireAdmin()
+  const { user, admin } = await requireAdminPermission('reviews.manage')
   if (!reviewId) throw new Error('Avaliação inválida.')
 
   const { data: review, error: readError } = await admin
