@@ -1,3 +1,5 @@
+import { syncReservationDispute } from './sync-reservation-dispute'
+
 type DbClient = any
 
 type DisputeLike = {
@@ -47,7 +49,11 @@ async function findOriginalTransaction(db: DbClient, chargeId?: string | null, p
   return null
 }
 
-/** Persists Stripe dispute state as an idempotent financial-ledger entry. */
+/**
+ * Persists Stripe dispute state as an idempotent financial-ledger entry and
+ * synchronizes reservation settlement protection from the same authoritative
+ * Stripe event.
+ */
 export async function persistDispute(db: DbClient, dispute: DisputeLike) {
   const chargeId = objectId(dispute.charge)
   const paymentIntentId = objectId(dispute.payment_intent)
@@ -93,6 +99,8 @@ export async function persistDispute(db: DbClient, dispute: DisputeLike) {
     ? await db.from('transactions').update(payload).eq('id', existing.id)
     : await db.from('transactions').insert(payload)
   if (result.error) throw result.error
+
+  await syncReservationDispute(db, original, dispute)
 
   return { persisted: true, original }
 }
