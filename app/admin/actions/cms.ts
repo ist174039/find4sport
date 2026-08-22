@@ -1,9 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveSessionAccess } from '@/lib/auth/access'
+import { requireAdmin } from '@/lib/auth/authorization'
 import { getCmsPage } from '@/lib/cms/registry'
 import { writeAdminAudit } from '@/lib/admin/audit'
 import type { CMSBlock } from '@/components/cms/block-builder'
@@ -20,15 +18,6 @@ function toJson(value: unknown): Json {
     return result
   }
   throw new Error('Conteúdo CMS contém um valor não serializável.')
-}
-
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Sessão administrativa inválida.')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) throw new Error('Acesso administrativo necessário.')
-  return { user, admin: createAdminClient() }
 }
 
 export async function loadCmsPageAction(slug: string) {
