@@ -5,7 +5,7 @@ import { requireAdminPermission } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
 export async function deleteReviewAdminAction(reviewId: string) {
-  const { user, admin } = await requireAdminPermission('reviews.manage')
+  const { user, admin } = await requireAdminPermission('content.moderate')
   if (!reviewId) throw new Error('Avaliação inválida.')
 
   const { data: review, error: readError } = await admin
