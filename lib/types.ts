@@ -12,7 +12,7 @@ export type ReservationStatus = 'pending' | 'confirmed' | 'paid' | 'cancelled' |
 
 // Database types
 export interface UserProfile { id:string;user_id:string;full_name:string|null;avatar_url:string|null;location:string|null;language:string;preferences:Record<string,unknown>;created_at:string;updated_at:string }
-export interface Category { id:string;name:string;slug:string;parent_id?:string|null;icon_key?:string|null;color:string|null;pro_count:number;space_count:number;event_count:number;created_at:string }
+export interface Category { id:string;name:string;slug:string;parent_id?:string|null;icon_key?:string|null;color:string|null;pro_count?:number;space_count?:number;event_count?:number;created_at:string }
 export interface Professional { id:string;user_id:string;full_name:string;professional_name:string|null;bio:string|null;avatar_url:string|null;phone:string|null;whatsapp:string|null;email:string;nif:string|null;address:string|null;latitude:number|null;longitude:number|null;service_radius_km:number;status:ProfessionalStatus;public_slug:string|null;contact_methods:string[];rating_avg:number;review_count:number;views_count:number;website:string|null;social_links:Record<string,string>;is_verified:boolean;is_premium:boolean;gallery_urls:string[]|null;created_at:string;updated_at:string;categories?:Category[];services?:Service[];qualifications?:Qualification[] }
 export interface Service { id:string;professional_id:string;name:string;description:string|null;duration_minutes:number|null;price:number|null;price_unit:string;modality:string|null;is_active:boolean;created_at:string }
 export interface ProfessionalAvailability { id:string;professional_id:string;day_of_week:number;start_time:string;end_time:string;is_active:boolean;created_at:string }
