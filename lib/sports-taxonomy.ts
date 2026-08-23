@@ -11,6 +11,16 @@ export const SPORT_FAMILIES: SportFamily[] = [
  {id:'mind-body',name:'Corpo e mente',description:'Mobilidade, equilíbrio e bem-estar.',iconKey:'wellness',keywords:['yoga','pilates','alongamento','mobilidade','meditação','meditacao','tai chi','dança','danca']},
  {id:'other',name:'Outras modalidades',description:'Outros desportos e atividades.',iconKey:'trophy',keywords:[]},
 ]
+
+const PROFESSIONAL_ROLE_PATTERNS = [
+ /^treinador(?:\s+de)?\b/i,
+ /^instrutor(?:\s+de)?\b/i,
+ /^professor(?:\s+de)?\b/i,
+ /^coach(?:\s+de)?\b/i,
+ /\bcoach$/i,
+]
+
 function normalize(value:string){return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+export function isProfessionalRoleCategory(name:string){const value=normalize(name||'');return PROFESSIONAL_ROLE_PATTERNS.some(pattern=>pattern.test(value))}
 export function getSportFamily(name:string):SportFamily{const value=normalize(name||'');return SPORT_FAMILIES.find(f=>f.id!=='other'&&f.keywords.some(k=>value.includes(normalize(k))))||SPORT_FAMILIES[SPORT_FAMILIES.length-1]}
-export function groupSports<T extends {name?:string|null}>(sports:T[]){return SPORT_FAMILIES.map(family=>({...family,sports:sports.filter(s=>getSportFamily(s.name||'').id===family.id)})).filter(group=>group.sports.length>0)}
+export function groupSports<T extends {name?:string|null}>(sports:T[]){const modalities=sports.filter(s=>!isProfessionalRoleCategory(s.name||''));return SPORT_FAMILIES.map(family=>({...family,sports:modalities.filter(s=>getSportFamily(s.name||'').id===family.id)})).filter(group=>group.sports.length>0)}
