@@ -11,10 +11,12 @@ export default async function CreateCommunityPage() {
 
   if (!user) redirect('/auth/login?redirect=/comunidades/criar')
 
-  const [{ data: profile }, { data: categoryRows }] = await Promise.all([
+  const [{ data: profile }, { data: categoryRows, error: categoriesError }] = await Promise.all([
     supabase.from('platform_users').select('type').eq('id', user.id).single(),
-    supabase.from('categories').select('*').order('name'),
+    supabase.from('categories').select('id,name,slug,parent_id,icon_key').order('name'),
   ])
+
+  if (categoriesError) throw new Error('Não foi possível carregar as modalidades.')
 
   if (profile?.type !== 'professional') {
     return (
@@ -32,13 +34,6 @@ export default async function CreateCommunityPage() {
     )
   }
 
-  const categories: TaxonomyOption[] = (categoryRows || []).map((row: Record<string, unknown>) => ({
-    id: String(row.id),
-    name: String(row.name || ''),
-    slug: String(row.slug || ''),
-    emoji: typeof row.emoji === 'string' ? row.emoji : null,
-    parent_id: typeof row.parent_id === 'string' ? row.parent_id : null,
-  }))
-
+  const categories: TaxonomyOption[] = categoryRows ?? []
   return <CreateCommunityWizard categories={categories} />
 }
