@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import { isProfessionalRoleCategory } from '@/lib/sports-taxonomy'
 
 type CommunityScope = 'online' | 'local' | 'regional' | 'national'
 type PostingPolicy = 'members' | 'reactions_only' | 'admin_only'
@@ -27,12 +28,6 @@ function revalidateCommunity(communityId: string) {
   revalidatePath('/comunidades')
 }
 
-function optionalSchemaMissing(error: any) {
-  const code = String(error?.code || '')
-  const message = String(error?.message || '')
-  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(code) || /community_categories|community_media|schema cache/i.test(message)
-}
-
 export async function updateCommunityAction(communityId: string, formData: FormData) {
   const { admin } = await requireCommunityAdmin(communityId)
   const name = String(formData.get('name') || '').trim()
@@ -51,6 +46,7 @@ export async function updateCommunityAction(communityId: string, formData: FormD
 
   const { data: category, error: categoryError } = await admin.from('categories').select('id,name').eq('id', categoryId).maybeSingle()
   if (categoryError || !category) throw new Error('A modalidade selecionada já não está disponível.')
+  if (isProfessionalRoleCategory(category.name)) throw new Error('Seleciona uma modalidade desportiva, não uma função profissional.')
 
   const { error } = await admin.from('communities').update({
     name,
@@ -65,14 +61,10 @@ export async function updateCommunityAction(communityId: string, formData: FormD
   }).eq('id', communityId)
   if (error) throw new Error(`Não foi possível guardar a comunidade: ${error.message}`)
 
-  const relationClient = admin as unknown as { from: (table: string) => any }
-  const deleteResult = await relationClient.from('community_categories').delete().eq('community_id', communityId)
-  if (!deleteResult.error) {
-    const insertResult = await relationClient.from('community_categories').insert({ community_id: communityId, category_id: category.id })
-    if (insertResult.error && !optionalSchemaMissing(insertResult.error)) throw new Error('Não foi possível guardar a modalidade da comunidade.')
-  } else if (!optionalSchemaMissing(deleteResult.error)) {
-    throw new Error('Não foi possível atualizar a taxonomia da comunidade.')
-  }
+  const { error: deleteError } = await admin.from('community_categories').delete().eq('community_id', communityId)
+  if (deleteError) throw new Error('Não foi possível atualizar a taxonomia da comunidade.')
+  const { error: relationError } = await admin.from('community_categories').insert({ community_id: communityId, category_id: category.id })
+  if (relationError) throw new Error('Não foi possível guardar a modalidade da comunidade.')
 
   revalidateCommunity(communityId)
 }
