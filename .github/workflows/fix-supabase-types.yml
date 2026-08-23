@@ -1,0 +1,68 @@
+name: Fix Supabase generated types
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-supabase-types.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch generated database types to current production schema
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = 'lib/supabase-types.ts'
+          let s = fs.readFileSync(path, 'utf8')
+
+          const oldCategories = `      categories: {
+        Row: { color: string | null; created_at: string; emoji: string | null; id: string; name: string; parent_id: string | null; slug: string }
+        Insert: { color?: string | null; created_at?: string; emoji?: string | null; id?: string; name: string; parent_id?: string | null; slug: string }
+        Update: { color?: string | null; created_at?: string; emoji?: string | null; id?: string; name?: string; parent_id?: string | null; slug?: string }
+        Relationships: [{ foreignKeyName: "categories_parent_id_fkey"; columns: ["parent_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] }]
+      }`
+
+          const newCategories = `      categories: {
+        Row: { code: string | null; color: string | null; created_at: string; emoji: string | null; icon_key: string | null; id: string; is_active: boolean; name: string; parent_id: string | null; slug: string; taxonomy_type: string }
+        Insert: { code?: string | null; color?: string | null; created_at?: string; emoji?: string | null; icon_key?: string | null; id?: string; is_active?: boolean; name: string; parent_id?: string | null; slug: string; taxonomy_type?: string }
+        Update: { code?: string | null; color?: string | null; created_at?: string; emoji?: string | null; icon_key?: string | null; id?: string; is_active?: boolean; name?: string; parent_id?: string | null; slug?: string; taxonomy_type?: string }
+        Relationships: [{ foreignKeyName: "categories_parent_id_fkey"; columns: ["parent_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] }]
+      }`
+
+          if (!s.includes(oldCategories)) throw new Error('Expected categories type block not found')
+          s = s.replace(oldCategories, newCategories)
+
+          const marker = `      event_participants: {`
+          if (!s.includes(marker)) throw new Error('event_participants marker not found')
+          if (!s.includes('      event_categories: {')) {
+            const eventCategories = `      event_categories: {
+        Row: { category_id: string; created_at: string; event_id: string }
+        Insert: { category_id: string; created_at?: string; event_id: string }
+        Update: { category_id?: string; created_at?: string; event_id?: string }
+        Relationships: [
+          { foreignKeyName: "event_categories_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] },
+          { foreignKeyName: "event_categories_event_id_fkey"; columns: ["event_id"]; isOneToOne: false; referencedRelation: "events"; referencedColumns: ["id"] }
+        ]
+      }
+`
+            s = s.replace(marker, eventCategories + marker)
+          }
+
+          fs.writeFileSync(path, s)
+          NODE
+      - name: Commit synchronized types
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/supabase-types.ts
+          git diff --cached --exit-code && exit 0
+          git commit -m 'fix: sync Supabase category and event category types'
+          git push
