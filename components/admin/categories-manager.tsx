@@ -10,7 +10,7 @@ import { useModal } from '@/components/providers/modal-provider'
 import { createCategoryAction, deleteCategoryAction, setCategoryActiveAction, updateCategoryAction } from '@/app/admin/(dashboard)/categorias/actions'
 import type { Category, TaxonomyType } from '@/lib/types'
 
-type TaxonomyCategory=Omit<Category,'taxonomy_type'>&{taxonomy_type:TaxonomyType}
+type TaxonomyCategory=Omit<Category,'taxonomy_type'|'is_active'>&{taxonomy_type:TaxonomyType;is_active:boolean}
 type FormState={name:string;slug:string;emoji:string;color:string;code:string;taxonomy_type:TaxonomyType;is_active:boolean;parent_id:string}
 const labels:Record<TaxonomyType,string>={modality:'Modalidades',profession:'Profissões',specialty:'Especialidades',service:'Serviços'}
 const emptyForm:FormState={name:'',slug:'',emoji:'⚽',color:'#14b8a6',code:'',taxonomy_type:'modality',is_active:true,parent_id:''}
