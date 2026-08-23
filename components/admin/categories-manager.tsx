@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useModal } from '@/components/providers/modal-provider'
 import { createCategoryAction, deleteCategoryAction, setCategoryActiveAction, updateCategoryAction } from '@/app/admin/(dashboard)/categorias/actions'
+import type { Category, TaxonomyType } from '@/lib/types'
 
-type TaxonomyType='modality'|'profession'|'specialty'|'service'
-type Category={id:string;name:string;slug:string;emoji:string|null;color:string|null;icon_key:string|null;code:string|null;taxonomy_type:TaxonomyType;is_active:boolean;parent_id:string|null;created_at:string}
 type FormState={name:string;slug:string;emoji:string;color:string;code:string;taxonomy_type:TaxonomyType;is_active:boolean;parent_id:string}
 const labels:Record<TaxonomyType,string>={modality:'Modalidades',profession:'Profissões',specialty:'Especialidades',service:'Serviços'}
 const emptyForm:FormState={name:'',slug:'',emoji:'⚽',color:'#14b8a6',code:'',taxonomy_type:'modality',is_active:true,parent_id:''}
@@ -21,7 +20,7 @@ export function CategoriesManager({initialCategories}:{initialCategories:Categor
  const filtered=useMemo(()=>{const q=query.trim().toLowerCase();return categories.filter(c=>c.taxonomy_type===type&&(!q||`${c.name} ${c.slug} ${c.code||''}`.toLowerCase().includes(q)))},[categories,type,query])
  const parents=categories.filter(c=>c.taxonomy_type===form.taxonomy_type&&c.id!==editingId)
  function openCreate(){setEditingId(null);setForm({...emptyForm,taxonomy_type:type});setDialogOpen(true)}
- function openEdit(c:Category){setEditingId(c.id);setForm({name:c.name,slug:c.slug,emoji:c.emoji||'',color:c.color||'#14b8a6',code:c.code||'',taxonomy_type:c.taxonomy_type,is_active:c.is_active,parent_id:c.parent_id||''});setDialogOpen(true)}
+ function openEdit(c:Category){setEditingId(c.id);setForm({name:c.name,slug:c.slug,emoji:c.emoji||'',color:c.color||'#14b8a6',code:c.code||'',taxonomy_type:c.taxonomy_type as TaxonomyType,is_active:c.is_active,parent_id:c.parent_id||''});setDialogOpen(true)}
  function changeName(name:string){const slug=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');setForm(p=>({...p,name,slug:editingId?p.slug:slug}))}
  async function save(){if(!form.name.trim())return;setSaving(true);try{const payload={...form,parent_id:form.parent_id||null};if(editingId){const u=await updateCategoryAction(editingId,payload);setCategories(p=>p.map(c=>c.id===editingId?u as Category:c))}else{const c=await createCategoryAction(payload);setCategories(p=>[...p,c as Category])}setDialogOpen(false);showAlert('Taxonomia guardada','A configuração foi atualizada.','success')}catch(e){showAlert('Erro',e instanceof Error?e.message:'Não foi possível guardar.','error')}finally{setSaving(false)}}
  async function toggle(c:Category){try{const u=await setCategoryActiveAction(c.id,!c.is_active);setCategories(p=>p.map(x=>x.id===c.id?u as Category:x))}catch(e){showAlert('Erro',e instanceof Error?e.message:'Não foi possível alterar o estado.','error')}}
