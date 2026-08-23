@@ -19,17 +19,14 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
 
   const [{ data: event, error: eventError }, { data: categoryRows, error: categoriesError }] = await Promise.all([
     supabase.from('events').select('id,title,description,category_id,address,start_date,end_date,capacity,price_min,price_max,image_url,gallery_urls,status,created_by').eq('id', id).eq('created_by', user.id).maybeSingle(),
-    supabase.from('categories').select('*').order('name'),
+    supabase.from('categories').select('id,name,slug,parent_id,icon_key').order('name'),
   ])
 
   if (eventError) throw new Error('Não foi possível carregar o evento.')
   if (!event) redirect('/dashboard/eventos')
   if (categoriesError) throw new Error('Não foi possível carregar as modalidades.')
 
-  const categories: TaxonomyOption[] = (categoryRows || []).map(row => {
-    const candidate = row as unknown as Record<string, unknown>
-    return { id: String(candidate.id), name: String(candidate.name || ''), slug: String(candidate.slug || ''), emoji: typeof candidate.emoji === 'string' ? candidate.emoji : null, parent_id: typeof candidate.parent_id === 'string' ? candidate.parent_id : null }
-  })
+  const categories: TaxonomyOption[] = categoryRows ?? []
 
   return <div className="mx-auto max-w-4xl space-y-4">
     <div className="flex justify-end"><Button asChild variant="outline"><Link href={`/dashboard/eventos/${id}/participantes`}><Users className="mr-2 h-4 w-4" />Gerir participantes</Link></Button></div>
