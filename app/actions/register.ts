@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Json, TablesInsert } from '@/lib/supabase-types'
 
+type TaxonomyType = 'modality' | 'profession' | 'specialty' | 'service'
 type QualificationInput = { title: string; issuer?: string | null; issue_date?: string | null }
 type ProfessionalInput = {
   full_name: string
@@ -30,6 +31,13 @@ type SpaceInput = {
   status?: 'pending' | 'active'
 }
 
+const PROFESSIONAL_TAXONOMY_LIMITS: Record<TaxonomyType, number> = {
+  modality: 5,
+  profession: 5,
+  specialty: 10,
+  service: 10,
+}
+
 async function requireAuthenticatedUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
@@ -37,14 +45,46 @@ async function requireAuthenticatedUser() {
   return user
 }
 
-async function validateCategoryIds(ids: string[], max = 5) {
+async function validateProfessionalTaxonomyIds(ids: string[]) {
+  const unique = [...new Set(ids.map(String).filter(Boolean))]
+  if (!unique.length) throw new Error('Seleciona pelo menos uma modalidade ou profissão.')
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('categories')
+    .select('id,taxonomy_type,is_active')
+    .in('id', unique)
+
+  if (error) throw new Error('Não foi possível validar a taxonomia selecionada.')
+  if ((data || []).length !== unique.length) throw new Error('Uma ou mais opções selecionadas já não existem.')
+
+  const counts: Record<TaxonomyType, number> = { modality: 0, profession: 0, specialty: 0, service: 0 }
+  for (const row of data || []) {
+    const type = row.taxonomy_type as TaxonomyType | null
+    if (!type || !(type in PROFESSIONAL_TAXONOMY_LIMITS)) throw new Error('Uma das opções selecionadas não pertence à taxonomia profissional.')
+    if (!row.is_active) throw new Error('Uma das opções selecionadas está inativa.')
+    counts[type] += 1
+    if (counts[type] > PROFESSIONAL_TAXONOMY_LIMITS[type]) {
+      throw new Error(`Foram selecionadas demasiadas opções do tipo ${type}.`)
+    }
+  }
+
+  if (!counts.modality && !counts.profession) throw new Error('Seleciona pelo menos uma modalidade ou profissão.')
+  return unique
+}
+
+async function validateModalityIds(ids: string[], max = 5) {
   const unique = [...new Set(ids.map(String).filter(Boolean))]
   if (!unique.length) throw new Error('Seleciona pelo menos uma modalidade.')
   if (unique.length > max) throw new Error(`Seleciona no máximo ${max} modalidades.`)
   const admin = createAdminClient()
-  const { data, error } = await admin.from('categories').select('id').in('id', unique)
+  const { data, error } = await admin
+    .from('categories')
+    .select('id,taxonomy_type,is_active')
+    .in('id', unique)
   if (error) throw new Error('Não foi possível validar as modalidades.')
   if ((data || []).length !== unique.length) throw new Error('Uma ou mais modalidades selecionadas já não existem.')
+  if ((data || []).some(row => row.taxonomy_type !== 'modality' || !row.is_active)) throw new Error('Só podem ser selecionadas modalidades ativas.')
   return unique
 }
 
@@ -70,7 +110,7 @@ export async function registerProfessionalInitial(
   try {
     const user = await requireAuthenticatedUser()
     const admin = createAdminClient()
-    const categories = await validateCategoryIds(categoryIds)
+    const categories = await validateProfessionalTaxonomyIds(categoryIds)
     const cleanQualifications = qualifications.slice(0, 20).map(item => ({
       title: String(item.title || '').trim().slice(0, 180),
       issuer: String(item.issuer || '').trim().slice(0, 180) || null,
@@ -148,7 +188,7 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
   try {
     const user = await requireAuthenticatedUser()
     const admin = createAdminClient()
-    const categories = await validateCategoryIds(categoryIds)
+    const categories = await validateModalityIds(categoryIds)
     const cleanName = String(name || spacePayload.name || '').trim()
     if (cleanName.length < 2 || cleanName.length > 180) throw new Error('Indica um nome válido para o espaço.')
     if (String(spacePayload.address || '').trim().length < 5) throw new Error('Indica uma morada válida.')
