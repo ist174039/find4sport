@@ -25,8 +25,9 @@ export default function ProfessionalRegisterPage(){
   const [formData,setFormData]=useState({full_name:'',professional_name:'',bio:'',email:'',phone:'',whatsapp:'',address:'',website:'',service_radius_km:10,nif:''})
 
   useEffect(()=>{void(async()=>{const supabase=createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user){router.replace(`/auth/registar?type=professional&next=${encodeURIComponent(next)}`);return}
-    const [{data:existing},{data:categoryRows}]=await Promise.all([supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),supabase.from('categories').select('*').order('name')]); if(existing){router.replace('/profissional/estado');return}
-    setUserId(user.id); setCategories((categoryRows||[]).map(row=>{const item=row as unknown as Record<string,unknown>;return{id:String(item.id),name:String(item.name||''),slug:String(item.slug||''),emoji:typeof item.emoji==='string'?item.emoji:null,parent_id:typeof item.parent_id==='string'?item.parent_id:null}})); setFormData(current=>({...current,full_name:user.user_metadata?.full_name||'',email:user.email||''})); setLoading(false)})()},[next,router])
+    const [{data:existing},{data:categoryRows,error:categoriesError}]=await Promise.all([supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),supabase.from('categories').select('id,name,slug,parent_id,icon_key').order('name')]); if(existing){router.replace('/profissional/estado');return}
+    if(categoriesError){setError('Não foi possível carregar as modalidades.');setLoading(false);return}
+    setUserId(user.id); setCategories(categoryRows??[]); setFormData(current=>({...current,full_name:user.user_metadata?.full_name||'',email:user.email||''})); setLoading(false)})()},[next,router])
 
   const stepIndex=STEPS.findIndex(item=>item.id===step)
   const selectedNames=useMemo(()=>categories.filter(category=>selectedCategories.includes(category.id)).map(category=>category.name),[categories,selectedCategories])
