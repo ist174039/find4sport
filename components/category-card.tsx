@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ModalityIcon } from '@/components/modality-icon'
 import { cn } from '@/lib/utils'
 import type { Category } from '@/lib/types'
 
@@ -10,6 +11,7 @@ interface CategoryCardProps {
 
 export function CategoryCard({ category, variant = 'default', className }: CategoryCardProps) {
   const isCompact = variant === 'compact'
+  const isModality = category.taxonomy_type === 'modality'
 
   return (
     <Link
@@ -22,12 +24,20 @@ export function CategoryCard({ category, variant = 'default', className }: Categ
     >
       <div
         className={cn(
-          'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl transition-transform group-hover:scale-110',
-          isCompact && 'h-10 w-10 text-xl'
+          'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110',
+          isCompact && 'h-10 w-10'
         )}
         style={{ backgroundColor: category.color ? `${category.color}15` : 'hsl(var(--muted))' }}
       >
-        {category.emoji || '🏃'}
+        {isModality ? (
+          <ModalityIcon
+            iconKey={category.icon_key}
+            name={category.name}
+            className={cn('h-7 w-7 text-primary', isCompact && 'h-5 w-5')}
+          />
+        ) : (
+          <span className={cn('text-2xl', isCompact && 'text-xl')}>{category.emoji || '•'}</span>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <h3

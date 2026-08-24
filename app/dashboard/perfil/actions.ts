@@ -7,6 +7,8 @@ import { resolveSessionAccess } from '@/lib/auth/access'
 import type { TablesUpdate } from '@/lib/supabase-types'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const TAXONOMY_TYPES = new Set(['modality', 'profession', 'specialty', 'service'])
+const MAX_TAXONOMY_PER_TYPE = 5
 
 async function geocodeAddress(address: string) {
   const value = address.trim()
@@ -34,6 +36,26 @@ async function requireProfileUser() {
   return { user, access, supabase, admin: createAdminClient() }
 }
 
+async function validateProfessionalTaxonomy(admin: ReturnType<typeof createAdminClient>, ids: string[]) {
+  const unique = [...new Set(ids.map(String).filter(Boolean))]
+  if (!unique.length) return []
+  if (unique.length > MAX_TAXONOMY_PER_TYPE * TAXONOMY_TYPES.size) throw new Error('Foram selecionadas demasiadas classificações profissionais.')
+
+  const { data, error } = await admin.from('categories').select('id,taxonomy_type,is_active').in('id', unique)
+  if (error) throw new Error('Não foi possível validar a taxonomia profissional.')
+  if ((data || []).length !== unique.length) throw new Error('Uma ou mais classificações selecionadas já não existem.')
+
+  const counts = new Map<string, number>()
+  for (const category of data || []) {
+    const type = category.taxonomy_type
+    if (!type || !TAXONOMY_TYPES.has(type)) throw new Error('Foi selecionada uma classificação com tipo inválido.')
+    if (!category.is_active) throw new Error('Foi selecionada uma classificação que já não está ativa.')
+    counts.set(type, (counts.get(type) || 0) + 1)
+    if ((counts.get(type) || 0) > MAX_TAXONOMY_PER_TYPE) throw new Error(`Seleciona no máximo ${MAX_TAXONOMY_PER_TYPE} opções por dimensão.`)
+  }
+  return unique
+}
+
 export async function updateProfileAction(formData: FormData) {
   const { user, access, supabase, admin } = await requireProfileUser()
   const fullName = String(formData.get('full_name') || '').trim()
@@ -53,7 +75,8 @@ export async function updateProfileAction(formData: FormData) {
     const address = String(formData.get('address') || '').trim()
     const website = String(formData.get('website') || '').trim()
     const serviceRadius = Number(formData.get('service_radius_km') || 10)
-    const categoryIds = [...new Set(formData.getAll('category_ids').map(String).filter(Boolean))].slice(0, 5)
+    const submittedIds = formData.getAll('category_ids').map(String).filter(Boolean)
+    const categoryIds = await validateProfessionalTaxonomy(admin, submittedIds)
     const coordinates = address ? await geocodeAddress(address) : null
     const professionalPatch: TablesUpdate<'professionals'> = { full_name: fullName, professional_name: professionalName || fullName, bio: bio || null, phone: phone || null, whatsapp: whatsapp || null, address: address || null, website: website || null, service_radius_km: Number.isFinite(serviceRadius) ? Math.min(Math.max(serviceRadius, 1), 200) : 10, updated_at: new Date().toISOString() }
     if (coordinates) { professionalPatch.latitude = coordinates.latitude; professionalPatch.longitude = coordinates.longitude }
@@ -61,12 +84,17 @@ export async function updateProfileAction(formData: FormData) {
 
     const { data: professional, error: professionalError } = await admin.from('professionals').update(professionalPatch).eq('user_id', user.id).select('id').single()
     if (professionalError) throw professionalError
-    const { data: validCategories } = categoryIds.length ? await admin.from('categories').select('id').in('id', categoryIds) : { data: [] }
-    const validIds = (validCategories || []).map(row => row.id)
-    await admin.from('professional_categories').delete().eq('professional_id', professional.id)
-    if (validIds.length) {
-      const { error: categoryError } = await admin.from('professional_categories').insert(validIds.map(categoryId => ({ professional_id: professional.id, category_id: categoryId })))
-      if (categoryError) throw categoryError
+
+    const { data: previousCategories, error: previousError } = await admin.from('professional_categories').select('category_id').eq('professional_id', professional.id)
+    if (previousError) throw previousError
+    const { error: deleteError } = await admin.from('professional_categories').delete().eq('professional_id', professional.id)
+    if (deleteError) throw deleteError
+    if (categoryIds.length) {
+      const { error: categoryError } = await admin.from('professional_categories').insert(categoryIds.map(categoryId => ({ professional_id: professional.id, category_id: categoryId })))
+      if (categoryError) {
+        if (previousCategories?.length) await admin.from('professional_categories').insert(previousCategories.map(row => ({ professional_id: professional.id, category_id: row.category_id })))
+        throw categoryError
+      }
     }
   }
 
