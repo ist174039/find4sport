@@ -61,3 +61,5 @@ jobs:
           git diff --cached --exit-code && exit 0
           git commit -m 'fix: sync Supabase category and event category types'
           git push
+
+# Manual retrigger: 2026-08-24
