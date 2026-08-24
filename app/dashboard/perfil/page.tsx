@@ -11,7 +11,35 @@ import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/componen
 import { updateProfileAction, uploadAvatarAction, uploadBannerAction } from './actions'
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import { SpaceProfessionalLink } from '@/components/dashboard/space-professional-link'
-import { GroupedSportCheckboxes } from '@/components/sports/grouped-sport-fields'
+
+type TaxonomyType = 'modality' | 'profession' | 'specialty' | 'service'
+type TaxonomyCategory = { id: string; name: string; emoji: string | null; taxonomy_type: TaxonomyType | null }
+
+const TAXONOMY_SECTIONS: Array<{ type: TaxonomyType; title: string; description: string; max: number }> = [
+  { type: 'profession', title: 'Profissões', description: 'Funções profissionais que exerce.', max: 5 },
+  { type: 'modality', title: 'Modalidades', description: 'Modalidades desportivas em que trabalha.', max: 5 },
+  { type: 'specialty', title: 'Especialidades', description: 'Áreas técnicas em que se diferencia.', max: 10 },
+  { type: 'service', title: 'Serviços', description: 'Serviços que disponibiliza aos clientes.', max: 10 },
+]
+
+function TaxonomySelector({ categories, selectedIds }: { categories: TaxonomyCategory[]; selectedIds: string[] }) {
+  return <div className="grid gap-5 lg:grid-cols-2">
+    {TAXONOMY_SECTIONS.map(section => {
+      const options = categories.filter(category => category.taxonomy_type === section.type)
+      if (!options.length) return null
+      return <fieldset key={section.type} className="min-w-0 rounded-2xl border border-border p-4">
+        <legend className="px-1 font-semibold">{section.title}</legend>
+        <p className="mb-3 text-sm text-muted-foreground">{section.description} Máximo: {section.max}.</p>
+        <div className="grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+          {options.map(category => <label key={category.id} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted/50">
+            <input type="checkbox" name="category_ids" value={category.id} defaultChecked={selectedIds.includes(category.id)} className="h-4 w-4 shrink-0" />
+            <span className="truncate">{category.emoji ? `${category.emoji} ` : ''}{category.name}</span>
+          </label>)}
+        </div>
+      </fieldset>
+    })}
+  </div>
+}
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -22,7 +50,9 @@ export default async function ProfilePage() {
 
   const [{ data: platformUser }, { data: categories }] = await Promise.all([
     supabase.from('platform_users').select('id, full_name, avatar_url, banner_url, location, language').eq('id', user.id).maybeSingle(),
-    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji').order('name') : Promise.resolve({ data: [] as any[] }),
+    access.role === 'professional'
+      ? supabase.from('categories').select('id, name, emoji, taxonomy_type').eq('is_active', true).in('taxonomy_type', ['modality', 'profession', 'specialty', 'service']).order('name')
+      : Promise.resolve({ data: [] as TaxonomyCategory[] }),
   ])
 
   let professional: any = null
@@ -68,7 +98,7 @@ export default async function ProfilePage() {
             <div className="min-w-0 space-y-2 sm:col-span-2"><Label htmlFor="address">Morada / zona de atendimento</Label><Input id="address" name="address" defaultValue={professional.address || ''} className="min-h-11 w-full text-base" /></div>
             <div className="min-w-0 space-y-2 sm:col-span-2"><Label htmlFor="bio">Biografia</Label><Textarea id="bio" name="bio" defaultValue={professional.bio || ''} className="min-h-36 w-full text-base" maxLength={3000} /></div>
           </div>
-          {(categories || []).length > 0 && <div className="min-w-0 space-y-2"><Label>Modalidades</Label><GroupedSportCheckboxes categories={(categories || []) as any[]} name="category_ids" selectedIds={selectedCategoryIds} /></div>}
+          {(categories || []).length > 0 && <div className="min-w-0 space-y-3"><Label>Atividade profissional</Label><p className="text-sm text-muted-foreground">Defina separadamente o que faz, em que modalidades trabalha, as suas especialidades e os serviços prestados.</p><TaxonomySelector categories={(categories || []) as TaxonomyCategory[]} selectedIds={selectedCategoryIds} /></div>}
         </>}
 
         {access.role === 'venue_manager' && <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-4"><div className="flex min-w-0 items-start gap-3"><Building2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="font-semibold">Informação do espaço separada</p><p className="mt-1 break-words text-sm text-muted-foreground">Nome, descrição, contactos, comodidades, morada e instalações são geridos em “O Meu Espaço”.</p><Button asChild variant="link" className="mt-2 h-auto max-w-full p-0"><Link href="/dashboard/espaco">Gerir o meu espaço</Link></Button></div></div></div>}
