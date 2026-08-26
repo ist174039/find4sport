@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/authorization'
 import { writeAdminAudit } from '@/lib/admin/audit'
 
-export async function decideSpaceClaimAction(claimId: string, decision: 'approved' | 'rejected') {
+export async function decideSpaceClaimAction(claimId: string, decision: 'approved' | 'rejected', decisionReason: string) {
   const { user, admin } = await requireAdmin()
   if (!claimId) throw new Error('Reivindicação inválida.')
 
@@ -16,6 +16,8 @@ export async function decideSpaceClaimAction(claimId: string, decision: 'approve
   if (claimError || !claim) throw new Error('Reivindicação não encontrada.')
   if (claim.status !== 'pending') throw new Error('Esta reivindicação já foi decidida.')
   if (!claim.space_id || !claim.user_id) throw new Error('A reivindicação não tem espaço ou requerente válido associado.')
+  const reason = decisionReason.trim()
+  if (reason.length < 10) throw new Error('Indique uma justificação com pelo menos 10 caracteres.')
 
   const spaceId = claim.space_id
   const claimantUserId = claim.user_id
@@ -32,7 +34,7 @@ export async function decideSpaceClaimAction(claimId: string, decision: 'approve
     const { error: ownerError } = await admin.from('sport_spaces').update({ owner_user_id: claimantUserId, is_verified: true }).eq('id', spaceId).is('owner_user_id', null)
     if (ownerError) throw new Error('Não foi possível atribuir o espaço.')
 
-    const { error: statusError } = await admin.from('space_claims').update({ status: 'approved' }).eq('id', claimId).eq('status', 'pending')
+    const { error: statusError } = await (admin as any).from('space_claims').update({ status: 'approved', decision_reason: reason }).eq('id', claimId).eq('status', 'pending')
     if (statusError) {
       await admin.from('sport_spaces').update({ owner_user_id: null, is_verified: false }).eq('id', spaceId).eq('owner_user_id', claimantUserId)
       throw new Error('A atribuição foi revertida porque não foi possível concluir o pedido.')
@@ -40,7 +42,7 @@ export async function decideSpaceClaimAction(claimId: string, decision: 'approve
 
     await admin.from('space_claims').update({ status: 'rejected' }).eq('space_id', spaceId).eq('status', 'pending').neq('id', claimId)
   } else {
-    const { error } = await admin.from('space_claims').update({ status: 'rejected' }).eq('id', claimId).eq('status', 'pending')
+    const { error } = await (admin as any).from('space_claims').update({ status: 'rejected', decision_reason: reason }).eq('id', claimId).eq('status', 'pending')
     if (error) throw new Error('Não foi possível rejeitar a reivindicação.')
   }
 

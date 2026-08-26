@@ -59,6 +59,16 @@ export async function setAdminSpaceStatusAction(spaceId: string, active: boolean
   return data
 }
 
+export async function updateAdminSpaceAction(spaceId: string, input: { name: string; address: string; description: string; email: string; phone: string }) {
+  const { user, admin } = await requireAdmin()
+  const name = input.name.trim()
+  if (!spaceId || !name) throw new Error('O nome do espaço é obrigatório.')
+  const { data, error } = await admin.from('sport_spaces').update({ name, address: input.address.trim() || null, description: input.description.trim() || null, email: input.email.trim() || null, phone: input.phone.trim() || null }).eq('id', spaceId).select('id,name,address,description,email,phone').single()
+  if (error) throw error
+  await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'sport_spaces', userEmail: user.email || 'admin', message: `Espaço ${spaceId} editado no painel`, data: { space_id: spaceId } })
+  return data
+}
+
 export async function createAdminSpaceAction(input: { name: string; address: string }) {
   const { user, admin } = await requireAdmin()
   const name = input.name.trim()

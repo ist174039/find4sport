@@ -15,5 +15,6 @@ export default async function EspacoPage({ searchParams }: { searchParams: Promi
 
   if (error) throw new Error(`Não foi possível carregar os espaços: ${error.message}`)
   const params = await searchParams
-  return <ManagedSpaceEditor initialSpaces={(data || []) as any} initialSpaceId={params.space} />
+  const { data: claims } = await supabase.from('space_claims').select('id,status,message,decision_reason,created_at,space_id,space:sport_spaces(name)').eq('user_id', user.id).order('created_at', { ascending: false })
+  return <ManagedSpaceEditor initialSpaces={(data || []) as any} initialSpaceId={params.space} claims={(claims || []) as any} />
 }

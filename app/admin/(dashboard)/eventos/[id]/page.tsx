@@ -16,7 +16,7 @@ export default async function AdminEventDetailPage({ params }: { params: Promise
     admin.from('event_ticket_types').select('id,name,price,capacity,is_active').eq('event_id', id).order('price'),
   ])
   if (eventResult.error || !eventResult.data) notFound()
-  const event = eventResult.data, participants = participantsResult.data || [], reviews = reviewsResult.data || [], tickets = ticketsResult.data || []
+  const event = { ...eventResult.data, categories: Array.isArray(eventResult.data.categories) ? eventResult.data.categories[0] : eventResult.data.categories, professionals: Array.isArray(eventResult.data.professionals) ? eventResult.data.professionals[0] : eventResult.data.professionals, sport_spaces: Array.isArray(eventResult.data.sport_spaces) ? eventResult.data.sport_spaces[0] : eventResult.data.sport_spaces }, participants = participantsResult.data || [], reviews = reviewsResult.data || [], tickets = ticketsResult.data || []
   const soldByTicket = new Map<string, number>()
   for (const participant of participants) if (participant.ticket_type_id) soldByTicket.set(participant.ticket_type_id, (soldByTicket.get(participant.ticket_type_id) || 0) + 1)
   return <DashboardPage>

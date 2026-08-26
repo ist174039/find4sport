@@ -28,7 +28,8 @@ const formFromSpace = (space?: ManagedSpace | null): SpaceForm => space ? {
   amenities: Array.isArray(space.amenities) ? space.amenities.join(', ') : '',
 } : emptyForm
 
-export function ManagedSpaceEditor({ initialSpaces, initialSpaceId }: { initialSpaces: ManagedSpace[]; initialSpaceId?: string }) {
+type SpaceClaim = { id: string; status: string; message?: string | null; decision_reason?: string | null; created_at: string; space_id: string; space?: { name?: string | null } | null }
+export function ManagedSpaceEditor({ initialSpaces, initialSpaceId, claims = [] }: { initialSpaces: ManagedSpace[]; initialSpaceId?: string; claims?: SpaceClaim[] }) {
   const { showAlert } = useModal()
   const initialSpace = initialSpaces.find(space => space.id === initialSpaceId) || initialSpaces[0]
   const [spaces, setSpaces] = useState(initialSpaces)
@@ -75,6 +76,7 @@ export function ManagedSpaceEditor({ initialSpaces, initialSpaceId }: { initialS
 
   return (
     <div className="min-w-0 space-y-6">
+      {claims.length > 0 && <section className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5"><h2 className="font-semibold">Espaços reivindicados</h2><p className="mt-1 text-sm text-muted-foreground">Acompanhe aqui o estado dos pedidos submetidos.</p><div className="mt-4 space-y-3">{claims.map(claim => <div key={claim.id} className="rounded-xl border bg-muted/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{claim.space?.name || 'Espaço'}</p><span className="rounded-full border px-2.5 py-1 text-xs font-semibold capitalize">{claim.status === 'approved' ? 'Aprovada' : claim.status === 'rejected' ? 'Rejeitada' : 'Em análise'}</span></div>{claim.message && <p className="mt-2 text-sm text-muted-foreground">{claim.message}</p>}{claim.decision_reason && <p className="mt-2 text-sm"><span className="font-semibold">Resposta administrativa:</span> {claim.decision_reason}</p>}<p className="mt-2 text-xs text-muted-foreground">Submetida em {new Date(claim.created_at).toLocaleDateString('pt-PT')}</p></div>)}</div></section>}
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Os meus espaços</h1><p className="mt-1 text-sm text-muted-foreground">Selecione um espaço para gerir informação, contactos e presença pública. Salas/campos e avaliações respeitam este contexto.</p></div>
         {spaces.length > 1 && <Select value={spaceId} onValueChange={value => value && selectSpace(value)}><SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger><SelectContent>{spaces.map(space => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent></Select>}

@@ -5,6 +5,7 @@ import { requireAdminPermission } from '@/lib/auth/authorization'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { SpaceDetailEditor } from '@/components/admin/space-detail-editor'
 
 export default async function AdminSpaceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -18,6 +19,7 @@ export default async function AdminSpaceDetailPage({ params }: { params: Promise
   if (spaceResult.error || !spaceResult.data) notFound()
   const space = spaceResult.data, rooms = roomsResult.data || [], reservations = reservationsResult.data || [], reviews = reviewsResult.data || []
   return <DashboardPage>
+    <DashboardSection title="Editar espaço"><SpaceDetailEditor space={space} /></DashboardSection>
     <DashboardPageHeader title={space.name} description="Propriedade, publicação, inventário, reservas e reputação do espaço." action={<div className="flex gap-2"><Button asChild variant="outline"><Link href="/admin/espacos"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button><Button asChild><Link href={`/espacos/${space.slug || space.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Página pública</Link></Button></div>} />
     <DashboardStatGrid><DashboardStat label="Salas/campos" value={rooms.length} icon={<DoorOpen className="h-5 w-5" />} /><DashboardStat label="Reservas recentes" value={reservations.length} icon={<CalendarCheck className="h-5 w-5" />} /><DashboardStat label="Avaliações" value={space.review_count || reviews.length} icon={<Star className="h-5 w-5" />} /><DashboardStat label="Visualizações" value={space.views_count || 0} icon={<Building2 className="h-5 w-5" />} /></DashboardStatGrid>
     <DashboardSection title="Identidade e publicação"><div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3"><p><span className="font-semibold">Estado:</span> {space.status || '—'}</p><p><span className="font-semibold">Verificado:</span> {space.is_verified ? 'Sim' : 'Não'}</p><p><span className="font-semibold">Gestor:</span> {space.owner?.full_name || 'Sem gestor'}</p><p><span className="font-semibold">Email:</span> {space.email || '—'}</p><p><span className="font-semibold">Telefone:</span> {space.phone || '—'}</p><p><span className="font-semibold">Stripe:</span> {space.stripe_account_id ? 'Ligado' : 'Não ligado'}</p><p className="sm:col-span-2"><span className="font-semibold">Localização:</span> {space.address || '—'}</p></div>{space.description && <p className="mt-4 whitespace-pre-line text-sm text-muted-foreground">{space.description}</p>}</DashboardSection>

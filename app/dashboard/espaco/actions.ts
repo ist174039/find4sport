@@ -64,7 +64,7 @@ export async function searchUnclaimedSpacesAction(query: string) {
   return data || []
 }
 
-export async function submitSpaceClaimAction(spaceId: string, message: string) {
+export async function submitSpaceClaimAction(spaceId: string, message: string, formData?: FormData) {
   const { user, admin } = await requireVenueManager()
   const cleanMessage = message.trim()
   if (!spaceId) throw new Error('Espaço inválido.')
@@ -74,7 +74,16 @@ export async function submitSpaceClaimAction(spaceId: string, message: string) {
   if (!space || space.owner_user_id) throw new Error('Este espaço já tem gestor ou deixou de estar disponível para reivindicação.')
   const { data: pending } = await admin.from('space_claims').select('id').eq('space_id', spaceId).eq('user_id', user.id).eq('status', 'pending').maybeSingle()
   if (pending) throw new Error('Já existe uma reivindicação pendente sua para este espaço.')
-  const { data, error } = await admin.from('space_claims').insert({ space_id: spaceId, user_id: user.id, message: cleanMessage, documents_url: null, status: 'pending' }).select('id,status,created_at').single()
+  let documentPath: string | null = null
+  const file = formData?.get('document')
+  if (file instanceof File && file.size > 0) {
+    if (file.size > 10 * 1024 * 1024) throw new Error('O documento não pode exceder 10 MB.')
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) throw new Error('Formato inválido. Utilize PDF, JPG ou PNG.')
+    documentPath = `${user.id}/${spaceId}/${crypto.randomUUID()}.${file.name.split('.').pop()?.toLowerCase() || 'bin'}`
+    const upload = await admin.storage.from('claim-documents').upload(documentPath, await file.arrayBuffer(), { contentType: file.type, upsert: false })
+    if (upload.error) throw new Error('Não foi possível guardar o documento comprovativo.')
+  }
+  const { data, error } = await admin.from('space_claims').insert({ space_id: spaceId, user_id: user.id, message: cleanMessage, documents_url: documentPath, status: 'pending' }).select('id,status,created_at').single()
   if (error) throw new Error('Não foi possível submeter a reivindicação.')
   revalidatePath('/dashboard/espaco'); revalidatePath('/admin/reivindicacoes')
   return data

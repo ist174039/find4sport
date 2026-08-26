@@ -5,7 +5,7 @@ export default async function Page() {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('space_claims')
-    .select('id,status,message,documents_url,created_at,space_id,user_id')
+    .select('id,status,message,documents_url,decision_reason,created_at,space_id,user_id')
     .order('created_at', { ascending: false })
     .limit(500)
 
@@ -29,9 +29,10 @@ export default async function Page() {
     if (authData?.user?.email) emailMap.set(id, authData.user.email)
   }))
 
-  const claims = rows.map((claim: any) => {
+  const claims = await Promise.all(rows.map(async (claim: any) => {
     const profile = userMap.get(claim.user_id) as any
     const space = spaceMap.get(claim.space_id) as any
+    const signed = claim.documents_url ? await admin.storage.from('claim-documents').createSignedUrl(claim.documents_url, 3600) : { data: null }
     return {
       id: claim.id,
       status: claim.status || 'pending',
@@ -44,8 +45,10 @@ export default async function Page() {
       space_address: space?.address || '',
       user_name: profile?.full_name || 'Utilizador indisponível',
       user_email: emailMap.get(claim.user_id) || '',
+      decision_reason: claim.decision_reason || null,
+      document_url: signed.data?.signedUrl || null,
     }
-  })
+  }))
 
   return <SpaceClaimsManager initialClaims={claims} />
 }
