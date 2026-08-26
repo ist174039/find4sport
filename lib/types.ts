@@ -30,9 +30,13 @@ export interface Category {
   parent_id?: string | null
   emoji: string | null
   color: string | null
-  pro_count: number
-  space_count: number
-  event_count: number
+  icon_key?: string | null
+  taxonomy_type?: 'modality' | 'profession' | 'specialty' | 'service' | string
+  code?: string | null
+  is_active?: boolean
+  pro_count?: number
+  space_count?: number
+  event_count?: number
   created_at: string
 }
 
