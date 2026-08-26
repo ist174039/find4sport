@@ -111,7 +111,7 @@ export default async function CommunityProfilePage({
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1),
       admin
         .from('community_members')
-        .select('id,role,user_id,platform_users(id,full_name,avatar_url,type,professionals(public_slug,professional_name,full_name,avatar_url),sport_spaces(slug,name,logo_url))')
+        .select('id,role,user_id,platform_users(id,full_name,avatar_url,type)')
         .eq('community_id', community.id)
         .order('joined_at', { ascending: false })
         .limit(100),

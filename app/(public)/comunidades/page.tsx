@@ -103,14 +103,14 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
     >
       {communities.length ? (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4">
             {communities.map(community => {
               const distance = community.distanceKm == null ? null : community.distanceKm < 1 ? `${Math.round(community.distanceKm * 1000)} m` : `${Number(community.distanceKm).toFixed(1)} km`
               const primaryCategory = community.categories?.[0]?.name || community.sport_category || 'Desporto'
               return (
                 <Link key={community.id} href={`/comunidades/${community.slug || community.id}`} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card transition hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                   <div className="relative aspect-[16/9] overflow-hidden bg-muted">
-                    {community.cover_url ? <AppImage src={community.cover_url} alt={community.name} fill sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center bg-primary/10 text-3xl font-bold text-primary">{community.name?.charAt(0)?.toUpperCase() || 'C'}</div>}
+                    <AppImage src={community.cover_url || '/placeholder.jpg'} fallbackSrc="/placeholder.jpg" alt={community.name} fill sizes="(min-width: 1280px) 25vw, (min-width: 768px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition duration-300 group-hover:scale-[1.03]" />
                     <span className="absolute left-2 top-2 max-w-[70%] truncate rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white">{primaryCategory}</span>
                     {distance && <span className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-1 text-[10px] font-semibold shadow"><Navigation className="mr-1 inline h-3 w-3 text-primary" />{distance}</span>}
                   </div>

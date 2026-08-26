@@ -82,8 +82,7 @@ export default async function PesquisaPage({ searchParams: promise }: { searchPa
 
   const { data: rawCategories, error: categoryError } = await supabase
     .from('categories')
-    .select('id,name,slug,parent_id')
-    .eq('taxonomy_type', 'modality')
+    .select('id,name,slug,parent_id,taxonomy_type,code')
     .eq('is_active', true)
     .order('name')
   if (categoryError) throw new Error('Não foi possível carregar as modalidades.')
@@ -98,13 +97,19 @@ export default async function PesquisaPage({ searchParams: promise }: { searchPa
   const selectedCategory = filters.category
     ? categories.find(category => category.slug === filters.category || category.id === filters.category || category.name.toLowerCase() === filters.category.toLowerCase())
     : null
-  const categoryIds = selectedCategory ? branchIds(categories, selectedCategory.id) : null
+  const normalizedQuery = filters.query.trim().toLocaleLowerCase('pt-PT')
+  const taxonomyQueryIds = normalizedQuery && !selectedCategory
+    ? (rawCategories || [])
+      .filter(category => [category.name, category.slug, category.code].some(value => value?.toLocaleLowerCase('pt-PT').includes(normalizedQuery)))
+      .flatMap(category => branchIds(categories, category.id))
+    : []
+  const categoryIds = selectedCategory ? branchIds(categories, selectedCategory.id) : taxonomyQueryIds.length ? [...new Set(taxonomyQueryIds)] : null
   const dateFrom = filters.dateFrom ? `${filters.dateFrom}T00:00:00+00:00` : null
   const dateTo = filters.dateTo ? `${filters.dateTo}T23:59:59+00:00` : null
 
   const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
   const { data, error } = await rpc('search_public_entities', {
-    p_q: filters.query || null,
+    p_q: taxonomyQueryIds.length ? null : filters.query || null,
     p_entity_type: filters.type,
     p_category_ids: categoryIds,
     p_location: filters.location || null,

@@ -1,8 +1,12 @@
+'use client'
+
 import Image, { type ImageProps } from 'next/image'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 type AppImageProps = Omit<ImageProps, 'src'> & {
   src: string
+  fallbackSrc?: string
 }
 
 function isOptimizableSource(src: string) {
@@ -21,9 +25,16 @@ function isOptimizableSource(src: string) {
   }
 }
 
-export function AppImage({ src, alt, fill, className, sizes, ...props }: AppImageProps) {
-  if (isOptimizableSource(src)) {
-    return <Image src={src} alt={alt} fill={fill} className={className} sizes={sizes} {...props} />
+export function AppImage({ src, fallbackSrc = '/placeholder.svg', alt, fill, className, sizes, onError, ...props }: AppImageProps) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  const currentSrc = failedSrc === src ? fallbackSrc : src || fallbackSrc
+  const handleError: NonNullable<ImageProps['onError']> = event => {
+    if (currentSrc !== fallbackSrc) setFailedSrc(src)
+    onError?.(event)
+  }
+
+  if (isOptimizableSource(currentSrc)) {
+    return <Image src={currentSrc} alt={alt} fill={fill} className={className} sizes={sizes} onError={handleError} {...props} />
   }
 
   const nativeProps = props as Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'>
@@ -31,5 +42,5 @@ export function AppImage({ src, alt, fill, className, sizes, ...props }: AppImag
   // External provider avatars, data URLs and local blob previews deliberately bypass
   // the Next image proxy. This keeps the optimizer restricted to trusted storage.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} className={cn(fill && 'absolute inset-0 h-full w-full', className)} {...nativeProps} />
+  return <img src={currentSrc} alt={alt} className={cn(fill && 'absolute inset-0 h-full w-full', className)} onError={handleError} {...nativeProps} />
 }

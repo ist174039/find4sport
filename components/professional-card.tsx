@@ -41,7 +41,7 @@ export function ProfessionalCard({ professional, variant = 'default', showFavori
 interface ProfessionalGridProps { professionals: DiscoveryProfessional[]; variant?: 'default'|'compact'|'horizontal'; columns?:2|3|4; showFavoriteButton?:boolean; favoritedIds?:string[]; onFavoriteToggle?:(id:string)=>void; className?:string }
 
 export function ProfessionalGrid({ professionals, variant='default', columns=3, showFavoriteButton=false, favoritedIds=[], onFavoriteToggle, className }: ProfessionalGridProps) {
-  const gridCols={2:'grid-cols-1 sm:grid-cols-2',3:'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',4:'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'}
+  const gridCols={2:'grid-cols-2',3:'grid-cols-2 lg:grid-cols-3',4:'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'}
   if(variant==='horizontal')return <div className={cn('flex flex-col gap-3',className)}>{professionals.map(pro=><ProfessionalCard key={pro.id} professional={pro} variant="horizontal" showFavoriteButton={showFavoriteButton} isFavorited={favoritedIds.includes(pro.id)} onFavoriteToggle={onFavoriteToggle}/>)}</div>
   return <div className={cn('grid gap-4',gridCols[columns],className)}>{professionals.map(pro=><ProfessionalCard key={pro.id} professional={pro} variant={variant} showFavoriteButton={showFavoriteButton} isFavorited={favoritedIds.includes(pro.id)} onFavoriteToggle={onFavoriteToggle}/>)}</div>
 }

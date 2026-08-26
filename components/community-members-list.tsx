@@ -8,8 +8,8 @@ import { UserAvatar } from '@/components/user-avatar'
 
 const resolveUserLink = (u: any) => {
   if (!u || !isPlatformRole(u.type)) return '#'
-  if (u.type === 'professional') return `/profissionais/${u.professionals?.[0]?.public_slug || u.id}`
-  if (u.type === 'venue_manager') return `/espacos/${u.sport_spaces?.[0]?.slug || u.id}`
+  if (u.type === 'professional' && u.professionals?.[0]?.public_slug) return `/profissionais/${u.professionals[0].public_slug}`
+  if (u.type === 'venue_manager' && u.sport_spaces?.[0]?.slug) return `/espacos/${u.sport_spaces[0].slug}`
   return `/utilizadores/${u.id}`
 }
 
