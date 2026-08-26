@@ -16,7 +16,7 @@ const configs:Record<PlatformRole,DashboardNavGroup[]>={
       {name:'Faturação e compras',href:`${base}/compras`,icon:ReceiptText},
       {name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},
     ]},
-    {label:'Rede',items:[{name:'Favoritos',href:`${base}/favoritos`,icon:Heart},{name:'A Seguir',href:`${base}/seguidores`,icon:UserRound}]},
+    {label:'Rede',items:[{name:'Favoritos',href:`${base}/favoritos`,icon:Heart},{name:'A Seguir',href:`${base}/seguidores`,icon:UserRound},{name:'Comunidades',href:`${base}/comunidades`,icon:Users}]},
     {label:'Conta',items:[{name:'O Meu Perfil',href:`${base}/perfil`,icon:User},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
   ],
   professional:[
