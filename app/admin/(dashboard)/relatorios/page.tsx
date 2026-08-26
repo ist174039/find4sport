@@ -1,60 +1,25 @@
 import { redirect } from 'next/navigation'
-import { Building2, Calendar, Star, Users } from 'lucide-react'
+import { Activity, Building2, Calendar, CreditCard, Star, TrendingUp, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
-export default async function AdminReportsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/admin/login')
-  const access = await resolveSessionAccess(supabase, user)
-  if (!access?.canAccessAdmin) redirect('/admin/login?error=unauthorized')
-
-  const admin = createAdminClient()
-  const [users, professionals, spaces, events, reviews, reservations, completedReservations] = await Promise.all([
-    admin.from('platform_users').select('id', { count: 'exact', head: true }),
-    admin.from('professionals').select('id', { count: 'exact', head: true }),
-    admin.from('sport_spaces').select('id', { count: 'exact', head: true }),
-    admin.from('events').select('id', { count: 'exact', head: true }),
-    admin.from('reviews').select('id', { count: 'exact', head: true }),
-    admin.from('reservations').select('id', { count: 'exact', head: true }),
-    admin.from('reservations').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
-  ])
-
-  const totalReservations = reservations.count || 0
-  const completed = completedReservations.count || 0
-  const completionRate = totalReservations > 0 ? (completed / totalReservations) * 100 : null
-
-  return (
-    <DashboardPage>
-      <DashboardPageHeader title="Relatórios" description="Indicadores factuais calculados a partir da base de dados. Esta página não produz conclusões automáticas sem evidência." />
-
-      <DashboardStatGrid>
-        <DashboardStat label="Utilizadores" value={users.count || 0} icon={<Users className="h-5 w-5" />} />
-        <DashboardStat label="Profissionais" value={professionals.count || 0} icon={<Users className="h-5 w-5" />} />
-        <DashboardStat label="Espaços" value={spaces.count || 0} icon={<Building2 className="h-5 w-5" />} />
-        <DashboardStat label="Eventos" value={events.count || 0} icon={<Calendar className="h-5 w-5" />} />
-      </DashboardStatGrid>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <DashboardSection title="Atividade" description="Volumes acumulados registados na plataforma.">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reservas</p><p className="mt-2 text-2xl font-bold">{totalReservations}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Concluídas</p><p className="mt-2 text-2xl font-bold">{completed}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Taxa conclusão</p><p className="mt-2 text-2xl font-bold">{completionRate === null ? '—' : `${completionRate.toFixed(1)}%`}</p></div>
-            <div className="rounded-xl border border-border p-4"><p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Star className="h-3.5 w-3.5" />Avaliações</p><p className="mt-2 text-2xl font-bold">{reviews.count || 0}</p></div>
-          </div>
-        </DashboardSection>
-
-        <DashboardSection title="Leitura dos dados" description="O painel apresenta métricas; interpretações de negócio devem ser feitas com contexto temporal e financeiro.">
-          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-            <p>Os números apresentados são totais atuais da base de dados e não representam, por si só, crescimento, retenção ou saúde do negócio.</p>
-            <p>Para análise de tendência será necessário adicionar séries temporais confiáveis, coortes e métricas financeiras reconciliadas.</p>
-          </div>
-        </DashboardSection>
-      </div>
-    </DashboardPage>
-  )
+const money=(value:number)=>new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(value)
+export default async function AdminReportsPage(){
+ const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/admin/login');const access=await resolveSessionAccess(supabase,user);if(!access?.canAccessAdmin)redirect('/admin/login?error=unauthorized')
+ const admin=createAdminClient() as any,since=new Date();since.setMonth(since.getMonth()-11);since.setDate(1);since.setHours(0,0,0,0)
+ const [users,professionals,spaces,events,reviews,reservations,transactions,claims,communities]=await Promise.all([
+  admin.from('platform_users').select('id,created_at,type'),admin.from('professionals').select('id,is_verified'),admin.from('sport_spaces').select('id,is_verified'),admin.from('events').select('id,status'),admin.from('reviews').select('id,rating'),admin.from('reservations').select('id,status,created_at'),admin.from('transactions').select('id,status,gross_amount,amount,platform_net_amount,created_at').gte('created_at',since.toISOString()),admin.from('space_claims').select('id,status'),admin.from('communities').select('id')
+ ])
+ const rows=transactions.data||[],completed=rows.filter((x:any)=>x.status==='completed'),revenue=completed.reduce((s:number,x:any)=>s+Number(x.gross_amount??x.amount??0),0),net=completed.reduce((s:number,x:any)=>s+Number(x.platform_net_amount??0),0),reservationRows=reservations.data||[],done=reservationRows.filter((x:any)=>x.status==='completed').length,ratings=(reviews.data||[]).map((x:any)=>Number(x.rating)).filter(Number.isFinite),average=ratings.length?ratings.reduce((a:number,b:number)=>a+b,0)/ratings.length:0
+ const months=Array.from({length:12},(_,index)=>{const date=new Date(since);date.setMonth(since.getMonth()+index);const key=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;return {key,label:date.toLocaleDateString('pt-PT',{month:'short'}),users:0,reservations:0,revenue:0}})
+ for(const row of users.data||[]){const bucket=months.find(m=>row.created_at?.startsWith(m.key));if(bucket)bucket.users++}for(const row of reservationRows){const bucket=months.find(m=>row.created_at?.startsWith(m.key));if(bucket)bucket.reservations++}for(const row of completed){const bucket=months.find(m=>row.created_at?.startsWith(m.key));if(bucket)bucket.revenue+=Number(row.gross_amount??row.amount??0)}
+ const max=Math.max(1,...months.map(m=>m.revenue)),userCounts:Record<string,number>=(users.data||[]).reduce((acc:Record<string,number>,row:any)=>{acc[row.type||'outro']=(acc[row.type||'outro']||0)+1;return acc},{})
+ const userTypes=Object.entries(userCounts).sort((a,b)=>b[1]-a[1])
+ return <DashboardPage><DashboardPageHeader title="Relatórios avançados" description="Visão operacional, financeira, crescimento, qualidade e moderação com série temporal dos últimos 12 meses."/><DashboardStatGrid><DashboardStat label="Volume processado" value={money(revenue)} icon={<CreditCard className="h-5 w-5"/>}/><DashboardStat label="Receita líquida" value={money(net)} icon={<TrendingUp className="h-5 w-5"/>}/><DashboardStat label="Reservas concluídas" value={done} icon={<Activity className="h-5 w-5"/>}/><DashboardStat label="Avaliação média" value={average?average.toFixed(2):'—'} icon={<Star className="h-5 w-5"/>}/></DashboardStatGrid>
+ <DashboardSection title="Evolução financeira" description="Volume bruto mensal de transações concluídas."><div className="flex h-64 items-end gap-2 overflow-x-auto border-b px-2 pt-6">{months.map(month=><div key={month.key} className="flex min-w-12 flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-medium">{month.revenue?money(month.revenue):'—'}</span><div className="w-full rounded-t bg-primary" style={{height:`${Math.max(month.revenue?8:2,(month.revenue/max)*170)}px`}}/><span className="text-xs capitalize text-muted-foreground">{month.label}</span></div>)}</div></DashboardSection>
+ <div className="grid gap-6 xl:grid-cols-2"><DashboardSection title="Crescimento e atividade" description="Novos utilizadores e reservas por mês."><div className="space-y-3">{months.slice(-6).map(month=><div key={month.key} className="grid grid-cols-[60px_1fr_auto] items-center gap-3"><span className="text-xs capitalize">{month.label}</span><div className="h-2 overflow-hidden rounded bg-muted"><div className="h-full bg-teal-500" style={{width:`${Math.max(2,month.users/Math.max(1,...months.map(m=>m.users))*100)}%`}}/></div><span className="text-xs font-semibold">{month.users} novos · {month.reservations} reservas</span></div>)}</div></DashboardSection><DashboardSection title="Distribuição de utilizadores"><div className="space-y-3">{userTypes.map(([type,count])=><div key={type} className="flex items-center justify-between rounded-xl border p-3"><span className="text-sm">{type.replaceAll('_',' ')}</span><span className="font-bold">{count}</span></div>)}</div></DashboardSection></div>
+ <DashboardSection title="Inventário e controlo"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Mini icon={<Users/>} label="Profissionais" value={professionals.data?.length||0} detail={`${(professionals.data||[]).filter((x:any)=>x.is_verified).length} verificados`}/><Mini icon={<Building2/>} label="Espaços" value={spaces.data?.length||0} detail={`${(spaces.data||[]).filter((x:any)=>x.is_verified).length} verificados`}/><Mini icon={<Calendar/>} label="Eventos" value={events.data?.length||0} detail={`${(events.data||[]).filter((x:any)=>x.status==='published').length} publicados`}/><Mini icon={<Users/>} label="Comunidades" value={communities.data?.length||0} detail={`${(claims.data||[]).filter((x:any)=>x.status==='pending').length} reivindicações pendentes`}/></div></DashboardSection></DashboardPage>
 }
+function Mini({icon,label,value,detail}:{icon:React.ReactNode;label:string;value:number;detail:string}){return <div className="rounded-xl border p-4"><div className="mb-3 h-5 w-5 text-primary">{icon}</div><p className="text-xs uppercase text-muted-foreground">{label}</p><p className="text-2xl font-bold">{value}</p><p className="text-xs text-muted-foreground">{detail}</p></div>}

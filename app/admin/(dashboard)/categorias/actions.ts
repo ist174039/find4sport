@@ -12,14 +12,21 @@ function sanitizeColor(value: string) {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#14b8a6'
 }
 
-export async function createCategoryAction(input: { name: string; slug?: string; emoji?: string; color?: string }) {
+type CategoryInput = { name: string; slug?: string; emoji?: string; color?: string; parentId?: string | null; iconKey?: string; taxonomyType?: string; code?: string; isActive?: boolean }
+
+function categoryPayload(input: CategoryInput, name: string, slug: string) {
+  return { name, slug, emoji: input.emoji?.trim() || null, color: sanitizeColor(input.color || ''), parent_id: input.parentId || null, icon_key: input.iconKey?.trim() || null, taxonomy_type: input.taxonomyType?.trim() || 'sport', code: input.code?.trim() || null, is_active: input.isActive !== false }
+}
+
+export async function createCategoryAction(input: CategoryInput) {
   const { user, admin } = await requireAdmin()
   const name = input.name.trim()
   if (!name) throw new Error('O nome é obrigatório.')
   const slug = normalizeSlug(input.slug?.trim() || name)
   if (!slug) throw new Error('Não foi possível gerar um slug válido.')
 
-  const { data, error } = await admin.from('categories').insert({ name, slug, emoji: input.emoji?.trim() || null, color: sanitizeColor(input.color || '') }).select('id,name,slug,emoji,color,created_at').single()
+  if (input.parentId) { const { data: parent } = await admin.from('categories').select('id').eq('id', input.parentId).maybeSingle(); if (!parent) throw new Error('O nó-pai selecionado já não existe.') }
+  const { data, error } = await admin.from('categories').insert(categoryPayload(input, name, slug)).select('*').single()
   if (error) {
     if ((error as any).code === '23505') throw new Error('Já existe uma categoria com este nome ou slug.')
     throw new Error(error.message)
@@ -29,7 +36,7 @@ export async function createCategoryAction(input: { name: string; slug?: string;
   return data
 }
 
-export async function updateCategoryAction(id: string, input: { name: string; slug?: string; emoji?: string; color?: string }) {
+export async function updateCategoryAction(id: string, input: CategoryInput) {
   const { user, admin } = await requireAdmin()
   if (!id) throw new Error('Categoria inválida.')
   const name = input.name.trim()
@@ -37,7 +44,8 @@ export async function updateCategoryAction(id: string, input: { name: string; sl
   const slug = normalizeSlug(input.slug?.trim() || name)
   if (!slug) throw new Error('Não foi possível gerar um slug válido.')
 
-  const { data, error } = await admin.from('categories').update({ name, slug, emoji: input.emoji?.trim() || null, color: sanitizeColor(input.color || '') }).eq('id', id).select('id,name,slug,emoji,color,created_at').single()
+  if (input.parentId === id) throw new Error('Uma categoria não pode ser filha de si própria.')
+  const { data, error } = await admin.from('categories').update(categoryPayload(input, name, slug)).eq('id', id).select('*').single()
   if (error) {
     if ((error as any).code === '23505') throw new Error('Já existe uma categoria com este nome ou slug.')
     throw new Error(error.message)

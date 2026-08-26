@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
+import { PlanFlyerDownload } from '@/components/admin/plan-flyer-download'
 
 type PlanEntitlement = {
   id: string
@@ -209,7 +210,7 @@ export default async function AdminPlanosPage() {
                         </div>
                       </div>
 
-                      <Button type="submit" className="min-h-11 w-full">Guardar plano</Button>
+                      <div className="grid gap-2"><Button type="submit" className="min-h-11 w-full">Guardar plano</Button><PlanFlyerDownload plan={{name:plan.name,description:plan.description,monthly_price:plan.monthly_price,annual_price:plan.annual_price,audience:plan.audience,features:(plan.plan_entitlements||[]).map(item=>labelForFeature(item.feature_key,item.description))}}/></div>
                     </CardContent>
                   </Card>
                 </form>

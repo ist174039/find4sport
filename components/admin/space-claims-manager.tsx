@@ -5,6 +5,9 @@ import { Check, Clock3, MapPin, Search, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { TablePagination } from '@/components/ui/table-pagination'
 import { useModal } from '@/components/providers/modal-provider'
 import { decideSpaceClaimAction } from '@/app/admin/(dashboard)/reivindicacoes/actions'
@@ -19,6 +22,8 @@ export function SpaceClaimsManager({ initialClaims }: { initialClaims: Claim[] }
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [decision, setDecision] = useState<{ claim: Claim; value: 'approved' | 'rejected' } | null>(null)
+  const [reason, setReason] = useState('')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -43,13 +48,12 @@ export function SpaceClaimsManager({ initialClaims }: { initialClaims: Claim[] }
     setPage(1)
   }
 
-  async function decide(claim: Claim, decision: 'approved' | 'rejected') {
-    const reason = window.prompt(decision === 'approved' ? 'Justificação para aceitar a reivindicação:' : 'Justificação para rejeitar a reivindicação:') || ''
-    if (reason.trim().length < 10) { showAlert('Justificação obrigatória', 'Indique pelo menos 10 caracteres para registar a decisão.', 'error'); return }
-    const confirmed = await showConfirm(decision === 'approved' ? 'Aprovar reivindicação' : 'Rejeitar reivindicação', decision === 'approved' ? `Atribuir “${claim.space_name}” a ${claim.user_name}? O espaço ficará verificado e associado a este gestor.` : `Rejeitar a reivindicação de ${claim.user_name} para “${claim.space_name}”?`, { confirmLabel: decision === 'approved' ? 'Aprovar' : 'Rejeitar', destructive: decision === 'rejected' })
+  async function decide(claim: Claim, value: 'approved' | 'rejected') {
+    if (reason.trim().length < 10) { setDecision({ claim, value }); return }
+    const confirmed = await showConfirm(value === 'approved' ? 'Aprovar reivindicação' : 'Rejeitar reivindicação', value === 'approved' ? `Atribuir “${claim.space_name}” a ${claim.user_name}? O espaço ficará verificado e associado a este gestor.` : `Rejeitar a reivindicação de ${claim.user_name} para “${claim.space_name}”?`, { confirmLabel: value === 'approved' ? 'Aprovar' : 'Rejeitar', destructive: value === 'rejected' })
     if (!confirmed) return
     setBusyId(claim.id)
-    try { const result = await decideSpaceClaimAction(claim.id, decision, reason); setClaims(prev => prev.map(item => item.id === claim.id ? { ...item, status: result.status } : item)); showAlert(decision === 'approved' ? 'Reivindicação aprovada' : 'Reivindicação rejeitada', 'A decisão foi guardada e registada no Audit Log.', 'success') }
+    try { const result = await decideSpaceClaimAction(claim.id, value, reason); setClaims(prev => prev.map(item => item.id === claim.id ? { ...item, status: result.status, decision_reason: reason.trim() } : item)); setDecision(null); setReason(''); showAlert(value === 'approved' ? 'Reivindicação aprovada' : 'Reivindicação rejeitada', 'A decisão foi guardada e registada no Audit Log.', 'success') }
     catch (error) { showAlert('Não foi possível concluir', error instanceof Error ? error.message : 'Erro inesperado.', 'error') }
     finally { setBusyId(null) }
   }
@@ -63,6 +67,7 @@ export function SpaceClaimsManager({ initialClaims }: { initialClaims: Claim[] }
       <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><label className="relative min-w-0"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={event => changeQuery(event.target.value)} placeholder="Pesquisar espaço, requerente ou justificação" className="min-h-11 w-full pl-10" /></label><Button variant="outline" onClick={() => changeFilter('all')} className="min-h-11">Ver todas</Button></div>
       {visible.length === 0 ? <div className="rounded-2xl border border-dashed bg-card p-10 text-center"><ShieldCheck className="mx-auto h-10 w-10 text-muted-foreground/35" /><h2 className="mt-3 font-semibold">Sem reivindicações neste estado</h2></div> : <div className="space-y-3">{visible.map(claim => <article key={claim.id} className="min-w-0 rounded-2xl border bg-card p-4 shadow-sm sm:p-5"><div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2">{statusBadge(claim.status)}<span className="text-xs text-muted-foreground"><Clock3 className="mr-1 inline h-3.5 w-3.5" />{new Date(claim.created_at).toLocaleString('pt-PT')}</span></div><h2 className="mt-3 break-words text-lg font-semibold">{claim.space_name}</h2>{claim.space_address && <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{claim.space_address}</span></p>}<div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2"><div className="min-w-0 rounded-xl bg-muted/30 p-3"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Requerente</p><p className="mt-1 break-words text-sm font-medium">{claim.user_name}</p>{claim.user_email && <p className="mt-0.5 break-all text-xs text-muted-foreground">{claim.user_email}</p>}</div><div className="min-w-0 rounded-xl bg-muted/30 p-3"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Justificação</p><p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{claim.message || 'Sem justificação registada.'}</p></div></div>{claim.document_url && <a href={claim.document_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-sm font-medium text-primary hover:underline">Ver documento comprovativo</a>}{claim.decision_reason && <p className="mt-3 rounded-lg bg-primary/5 p-3 text-sm"><span className="font-semibold">Justificação da decisão:</span> {claim.decision_reason}</p>}</div>{claim.status === 'pending' && <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0"><Button variant="outline" disabled={busyId === claim.id} onClick={() => void decide(claim, 'rejected')} className="text-destructive"><X className="mr-2 h-4 w-4" />Rejeitar</Button><Button disabled={busyId === claim.id} onClick={() => void decide(claim, 'approved')}><Check className="mr-2 h-4 w-4" />Aprovar</Button></div>}</div></article>)}</div>}
       <TablePagination currentPage={safePage} totalPages={totalPages} totalItems={filtered.length} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
+      <Dialog open={Boolean(decision)} onOpenChange={value => { if (!value) { setDecision(null); setReason('') } }}><DialogContent><DialogHeader><DialogTitle>{decision?.value === 'approved' ? 'Aprovar reivindicação' : 'Rejeitar reivindicação'}</DialogTitle></DialogHeader><div className="space-y-4"><div className="rounded-xl bg-muted/40 p-3 text-sm"><p className="font-semibold">{decision?.claim.space_name}</p><p className="text-muted-foreground">{decision?.claim.user_name}</p></div><div><Label htmlFor="decision-reason">Justificação da decisão</Label><Textarea id="decision-reason" className="mt-2 min-h-28" maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} placeholder="Registe os elementos verificados e o motivo da decisão..."/><p className="mt-1 text-right text-xs text-muted-foreground">{reason.length}/2000</p></div><Button className="w-full" variant={decision?.value === 'rejected' ? 'destructive' : 'default'} disabled={!decision || reason.trim().length < 10 || busyId === decision.claim.id} onClick={() => decision && void decide(decision.claim, decision.value)}>Confirmar decisão</Button></div></DialogContent></Dialog>
     </div>
   )
 }

@@ -18,8 +18,27 @@ export async function getRealAdminSettingsAction() {
   const settings = isJsonObject(config?.settings) ? config.settings : {}
   return {
     manualProfileApproval: typeof settings.manual_profile_approval === 'boolean' ? settings.manual_profile_approval : true,
+    operational: {
+      maintenanceMode: settings.maintenance_mode === true,
+      registrationsEnabled: settings.registrations_enabled !== false,
+      claimsEnabled: settings.space_claims_enabled !== false,
+      eventsRequireApproval: settings.events_require_approval === true,
+      supportEmail: typeof settings.support_email === 'string' ? settings.support_email : '',
+      maxUploadMb: typeof settings.max_upload_mb === 'number' ? settings.max_upload_mb : 10,
+      claimReviewDays: typeof settings.claim_review_days === 'number' ? settings.claim_review_days : 5,
+    },
     slides: slides || [],
   }
+}
+
+export async function saveOperationalSettingsAction(input: { maintenanceMode:boolean; registrationsEnabled:boolean; claimsEnabled:boolean; eventsRequireApproval:boolean; supportEmail:string; maxUploadMb:number; claimReviewDays:number }) {
+  const { user, admin } = await requireGeneralAdmin()
+  const { data: existing } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
+  const current = isJsonObject(existing?.settings) ? existing.settings : {}
+  const settings: Json = { ...current, maintenance_mode: input.maintenanceMode, registrations_enabled: input.registrationsEnabled, space_claims_enabled: input.claimsEnabled, events_require_approval: input.eventsRequireApproval, support_email: input.supportEmail.trim(), max_upload_mb: Math.min(50,Math.max(1,Number(input.maxUploadMb)||10)), claim_review_days: Math.min(60,Math.max(1,Number(input.claimReviewDays)||5)) }
+  const { error } = await admin.from('system_config').upsert({ id:'global',settings,updated_at:new Date().toISOString() }); if(error)throw error
+  await writeAdminAudit(admin as any,{action:'UPDATE',tableName:'system_config',userEmail:user.email||'admin',message:'Parâmetros operacionais atualizados'})
+  revalidatePath('/admin/definicoes')
 }
 
 export async function saveRegistrationApprovalAction(enabled: boolean) {

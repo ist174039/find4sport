@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, ExternalLink, Printer, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ExternalLink, ShieldCheck } from 'lucide-react'
+import { PrintReceiptButton } from '@/components/admin/print-receipt-button'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
@@ -12,10 +13,10 @@ function money(value: unknown, currency = 'EUR') { const n=Number(value); return
 function value(v: unknown) { return v == null || v === '' ? '—' : String(v) }
 function eventLabel(type:string){return ({settlement_released:'Settlement libertado',dispute_created:'Disputa criada',dispute_updated:'Disputa atualizada',dispute_closed:'Disputa encerrada',refund_recorded:'Reembolso registado',auto_confirmed:'Serviço auto-confirmado'} as Record<string,string>)[type]||type.replaceAll('_',' ')}
 
-export default async function AdminTransactionPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminTransactionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ print?: string }> }) {
   const supabase=await createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user) redirect('/admin/login')
   const access=await resolveSessionAccess(supabase,user); if(!access?.canAccessAdmin) redirect('/admin/login?error=unauthorized')
-  const {id}=await params; const db=createAdminClient() as any
+  const {id}=await params; const query=await searchParams; const db=createAdminClient() as any
   const {data:tx,error}=await db.from('transactions').select('*').eq('id',id).maybeSingle(); if(error) throw new Error(`Erro ao carregar transação: ${error.message}`); if(!tx) notFound()
   const ids=[tx.user_id,tx.provider_user_id].filter(Boolean); const users=new Map<string,any>()
   if(ids.length){const {data}=await db.from('platform_users').select('id,full_name,email,type').in('id',ids);for(const u of data||[])users.set(u.id,u)}
@@ -32,7 +33,7 @@ export default async function AdminTransactionPage({ params }: { params: Promise
   const stripeDashboard=tx.stripe_payment_intent_id?`https://dashboard.stripe.com/payments/${tx.stripe_payment_intent_id}`:tx.stripe_charge_id?.startsWith('ch_')?`https://dashboard.stripe.com/payments/${tx.stripe_charge_id}`:null
   const isNegative=['refund','dispute','transfer_reversal'].includes(String(tx.type)); const receiptRef=`F4S-${String(tx.id).slice(0,8).toUpperCase()}`
   return <DashboardPage>
-    <div className="flex flex-wrap items-center justify-between gap-2"><Button asChild variant="ghost" size="sm"><Link href="/admin/faturacao"><ArrowLeft className="mr-2 h-4 w-4"/>Voltar à faturação</Link></Button><div className="flex gap-2"><Button asChild variant="outline" size="sm"><Link href={`?print=1`}><Printer className="mr-2 h-4 w-4"/>Comprovativo</Link></Button>{stripeDashboard&&<Button asChild variant="outline" size="sm"><a href={stripeDashboard} target="_blank" rel="noreferrer">Stripe <ExternalLink className="ml-2 h-4 w-4"/></a></Button>}</div></div>
+    <div className="flex flex-wrap items-center justify-between gap-2 print:hidden"><Button asChild variant="ghost" size="sm"><Link href="/admin/faturacao"><ArrowLeft className="mr-2 h-4 w-4"/>Voltar à faturação</Link></Button><div className="flex gap-2"><PrintReceiptButton autoPrint={query.print==='1'}/>{stripeDashboard&&<Button asChild variant="outline" size="sm"><a href={stripeDashboard} target="_blank" rel="noreferrer">Stripe <ExternalLink className="ml-2 h-4 w-4"/></a></Button>}</div></div>
     <DashboardPageHeader title="Detalhe da transação" description="Consola de auditoria financeira. Estados e montantes não podem ser alterados diretamente pelo administrador." />
     <div className="rounded-xl border bg-muted/30 p-4"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5"/><div><p className="font-semibold">Operação protegida</p><p className="text-sm text-muted-foreground">Refunds, disputas e settlements devem ser executados pelos respetivos fluxos de domínio/Stripe. Esta vista nunca escreve diretamente estado financeiro.</p></div></div></div>
     <DashboardSection title="Comprovativo da operação" description="Documento operacional da plataforma; não substitui uma fatura ou documento fiscal legalmente exigível."><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Info label="Referência" text={receiptRef}/><Info label="Data" text={new Date(tx.created_at).toLocaleString('pt-PT')}/><Info label="Operação" text={tx.type}/><Money label={isNegative?'Valor do movimento':'Total pago'} amount={tx.gross_amount??tx.amount} currency={tx.currency}/></div></DashboardSection>

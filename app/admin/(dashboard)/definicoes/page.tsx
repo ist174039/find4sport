@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useModal } from '@/components/providers/modal-provider'
 import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
-import { createCarouselSlideAction, deleteCarouselSlideAction, getRealAdminSettingsAction, saveRegistrationApprovalAction, toggleCarouselSlideAction } from './actions'
+import { createCarouselSlideAction, deleteCarouselSlideAction, getRealAdminSettingsAction, saveOperationalSettingsAction, saveRegistrationApprovalAction, toggleCarouselSlideAction } from './actions'
 
 type Slide = {
   id: string
@@ -33,12 +33,15 @@ export default function AdminSettingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ imageUrl: '', title: '', subtitle: '', buttonText: '', buttonLink: '', displayOrder: 0 })
+  const [operational,setOperational]=useState({maintenanceMode:false,registrationsEnabled:true,claimsEnabled:true,eventsRequireApproval:false,supportEmail:'',maxUploadMb:10,claimReviewDays:5})
+  const [savingOperational,setSavingOperational]=useState(false)
 
   useEffect(() => {
     getRealAdminSettingsAction()
       .then(result => {
         setManualApproval(result.manualProfileApproval)
         setSlides(result.slides as Slide[])
+        setOperational(result.operational)
       })
       .catch(error => showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível carregar as definições.', 'error'))
       .finally(() => setLoading(false))
@@ -92,6 +95,7 @@ export default function AdminSettingsPage() {
       showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível eliminar o slide.', 'error')
     }
   }
+  async function saveOperational(){setSavingOperational(true);try{await saveOperationalSettingsAction(operational);showAlert('Guardado','Os parâmetros operacionais foram atualizados.','success')}catch(error){showAlert('Erro',error instanceof Error?error.message:'Não foi possível guardar.','error')}finally{setSavingOperational(false)}}
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
 
@@ -108,6 +112,10 @@ export default function AdminSettingsPage() {
         </Card>
       </DashboardSection>
 
+      <DashboardSection title="Operação da plataforma" description="Controlo central de disponibilidade, registos, moderação e limites operacionais.">
+        <Card><CardContent className="grid gap-5 p-4 sm:grid-cols-2 sm:p-5"><SettingToggle label="Modo de manutenção" description="Assinala a plataforma como temporariamente indisponível." value={operational.maintenanceMode} onChange={value=>setOperational(current=>({...current,maintenanceMode:value}))}/><SettingToggle label="Novos registos" description="Permite a criação de novas contas." value={operational.registrationsEnabled} onChange={value=>setOperational(current=>({...current,registrationsEnabled:value}))}/><SettingToggle label="Reivindicações de espaços" description="Permite novos pedidos de gestão." value={operational.claimsEnabled} onChange={value=>setOperational(current=>({...current,claimsEnabled:value}))}/><SettingToggle label="Aprovação de eventos" description="Exige validação administrativa antes de publicar." value={operational.eventsRequireApproval} onChange={value=>setOperational(current=>({...current,eventsRequireApproval:value}))}/><div><Label>Email de suporte</Label><Input className="mt-2" type="email" value={operational.supportEmail} onChange={event=>setOperational(current=>({...current,supportEmail:event.target.value}))}/></div><div className="grid grid-cols-2 gap-3"><div><Label>Upload máximo (MB)</Label><Input className="mt-2" type="number" min={1} max={50} value={operational.maxUploadMb} onChange={event=>setOperational(current=>({...current,maxUploadMb:Number(event.target.value)}))}/></div><div><Label>Prazo de análise (dias)</Label><Input className="mt-2" type="number" min={1} max={60} value={operational.claimReviewDays} onChange={event=>setOperational(current=>({...current,claimReviewDays:Number(event.target.value)}))}/></div></div><Button className="sm:col-span-2" disabled={savingOperational} onClick={()=>void saveOperational()}>Guardar parâmetros operacionais</Button></CardContent></Card>
+      </DashboardSection>
+
       <DashboardSection
         title="Carrossel da homepage"
         description="Estes slides são lidos diretamente pela página inicial. Não existem slides fictícios ou configuração paralela."
@@ -118,3 +126,5 @@ export default function AdminSettingsPage() {
     </DashboardPage>
   )
 }
+
+function SettingToggle({label,description,value,onChange}:{label:string;description:string;value:boolean;onChange:(value:boolean)=>void}){return <label className="flex items-center justify-between gap-4 rounded-xl border p-3"><span><span className="block font-medium">{label}</span><span className="block text-xs text-muted-foreground">{description}</span></span><Switch checked={value} onCheckedChange={onChange}/></label>}
