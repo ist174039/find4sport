@@ -9,7 +9,7 @@ export function EntityHero({ coverUrl, coverAlt, avatar, title, subtitle, badges
   return (
     <section className="relative border-b border-border bg-card">
       <div className="relative h-48 overflow-hidden bg-muted sm:h-64 lg:h-72">
-        {coverUrl ? <AppImage src={coverUrl} alt={coverAlt} fill sizes="100vw" className="object-cover" priority /> : <div className="h-full w-full bg-gradient-to-br from-primary/35 via-slate-700/35 to-slate-950/70" />}
+        <AppImage src={coverUrl || '/placeholder.jpg'} alt={coverAlt} fill sizes="100vw" className="object-cover" priority />
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/15" />
       </div>

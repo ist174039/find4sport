@@ -35,6 +35,12 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      { source: '/comunidade', destination: '/comunidades', permanent: true },
+      { source: '/comunidade/:path*', destination: '/comunidades/:path*', permanent: true },
+    ]
+  },
   experimental: {
     workerThreads: false,
     cpus: 1,
