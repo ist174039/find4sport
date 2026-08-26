@@ -1,36 +1,139 @@
+import type { Metadata } from 'next'
 import { Search } from 'lucide-react'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { PesquisaFiltros } from '@/components/pesquisa-filtros'
 import { PesquisaMapWrapper } from '@/components/pesquisa-map-wrapper'
 import { PesquisaLayout } from '@/components/pesquisa-layout'
 import { SearchResultsList } from '@/components/search-results-list'
+import { DiscoveryPagination } from '@/components/patterns/discovery-pagination'
 import type { TaxonomyOption } from '@/components/taxonomy-combobox'
 import { parseSearchFilters } from '@/lib/search/filters'
-import { distanceFrom, parseGeoCookie } from '@/lib/geo'
+import { parseGeoCookie } from '@/lib/geo'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+const PAGE_SIZE = 24
 
-export interface UnifiedResultItem { id:string;itemType:'space'|'professional'|'event'|'community';title:string;subtitle:string;address:string;mapAddress?:string|null;rating_avg:number|null;review_count:number|null;is_verified:boolean;image_url?:string|null;link:string;created_at?:string|null;start_date?:string|null;latitude?:number|null;longitude?:number|null;distanceKm?:number|null }
-type CategoryRow=TaxonomyOption
-function branchIds(categories:CategoryRow[],selectedId:string){const ids=new Set<string>([selectedId]);let changed=true;while(changed){changed=false;for(const c of categories)if(c.parent_id&&ids.has(c.parent_id)&&!ids.has(c.id)){ids.add(c.id);changed=true}}return[...ids]}
-function textRank(item:UnifiedResultItem,query:string){if(!query)return 0;const title=item.title.toLowerCase(),q=query.toLowerCase();return title===q?3:title.startsWith(q)?2:title.includes(q)?1:0}
+export const metadata: Metadata = {
+  title: 'Pesquisa',
+  description: 'Pesquise profissionais, espaços, eventos e comunidades desportivas.',
+  alternates: { canonical: '/pesquisa' },
+  robots: { index: false, follow: true },
+}
 
-export default async function PesquisaPage({searchParams:promise}:{searchParams?:Promise<Record<string,string|string[]|undefined>>}){
-  const admin=createAdminClient();const cookieStore=await cookies();const userLocation=parseGeoCookie(cookieStore.get('f4s_geo')?.value);const searchParams=promise?await promise:{}
-  const{category:categoryParam,query,location:locationParam,type:typeParam,rating:ratingParam,sort:sortParam,radius,dateFrom,dateTo}=parseSearchFilters(searchParams);const includeAll=typeParam==='todos';let results:UnifiedResultItem[]=[]
-  const{data:rawCategories}=await admin.from('categories').select('*').order('name');const categories:CategoryRow[]=(rawCategories||[]).map(row=>{const r=row as unknown as Record<string,unknown>;return{id:String(r.id),name:String(r.name||''),slug:String(r.slug||''),emoji:null,parent_id:typeof r.parent_id==='string'?r.parent_id:null}})
-  const selectedCategory=categoryParam?categories.find(c=>c.slug===categoryParam||c.id===categoryParam||c.name.toLowerCase()===categoryParam.toLowerCase()):null;const categoryIds=selectedCategory?branchIds(categories,selectedCategory.id):[];const categoryNames=selectedCategory?categories.filter(c=>categoryIds.includes(c.id)).map(c=>c.name):[]
-  let professionalIds:string[]|null=null,spaceIds:string[]|null=null
-  if(selectedCategory){const[p,s]=await Promise.all([admin.from('professional_categories').select('professional_id').in('category_id',categoryIds),admin.from('space_categories').select('space_id').in('category_id',categoryIds)]);professionalIds=[...new Set((p.data||[]).map(x=>x.professional_id))];spaceIds=[...new Set((s.data||[]).map(x=>x.space_id))]}
+export interface UnifiedResultItem {
+  id: string
+  itemType: 'space' | 'professional' | 'event' | 'community'
+  title: string
+  subtitle: string
+  address: string
+  mapAddress?: string | null
+  rating_avg: number | null
+  review_count: number | null
+  is_verified: boolean
+  image_url?: string | null
+  link: string
+  created_at?: string | null
+  start_date?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  distanceKm?: number | null
+  averagePrice?: number | null
+  price_min?: number | null
+  memberCount?: number | null
+}
 
-  if(includeAll||typeParam==='profissionais'){let db=admin.from('professionals').select('id,full_name,professional_name,public_slug,address,bio,rating_avg,review_count,is_verified,avatar_url,created_at,latitude,longitude,status').eq('status','active');if(query)db=db.or(`full_name.ilike.%${query}%,professional_name.ilike.%${query}%,address.ilike.%${query}%,bio.ilike.%${query}%`);if(locationParam)db=db.ilike('address',`%${locationParam}%`);if(ratingParam)db=db.gte('rating_avg',ratingParam);if(selectedCategory)db=professionalIds?.length?db.in('id',professionalIds):db.eq('id','00000000-0000-0000-0000-000000000000');const{data,error}=await db.limit(100);if(error)console.error('Public professional search:',error);results.push(...(data||[]).map(p=>({id:`pro-${p.id}`,itemType:'professional' as const,title:p.professional_name||p.full_name||'Profissional',subtitle:p.bio||'Profissional de desporto',address:p.address||'',mapAddress:p.address,rating_avg:p.rating_avg,review_count:p.review_count,is_verified:Boolean(p.is_verified),image_url:p.avatar_url,link:`/profissionais/${p.public_slug||p.id}`,created_at:p.created_at,latitude:p.latitude,longitude:p.longitude,distanceKm:distanceFrom(userLocation,p.latitude,p.longitude)})))}
-  if(includeAll||typeParam==='espacos'){let db=admin.from('sport_spaces').select('id,name,slug,address,description,rating_avg,review_count,is_verified,gallery_urls,cover_url,created_at,latitude,longitude,status').eq('status','active');if(query)db=db.or(`name.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`);if(locationParam)db=db.ilike('address',`%${locationParam}%`);if(ratingParam)db=db.gte('rating_avg',ratingParam);if(selectedCategory)db=spaceIds?.length?db.in('id',spaceIds):db.eq('id','00000000-0000-0000-0000-000000000000');const{data,error}=await db.limit(100);if(error)console.error('Public space search:',error);results.push(...(data||[]).map(s=>({id:`space-${s.id}`,itemType:'space' as const,title:s.name,subtitle:s.description||'Espaço desportivo',address:s.address||'',mapAddress:s.address,rating_avg:s.rating_avg,review_count:s.review_count,is_verified:Boolean(s.is_verified),image_url:s.cover_url||s.gallery_urls?.[0]||null,link:`/espacos/${s.slug||s.id}`,created_at:s.created_at,latitude:s.latitude,longitude:s.longitude,distanceKm:distanceFrom(userLocation,s.latitude,s.longitude)})))}
-  if(includeAll||typeParam==='eventos'){let db=admin.from('events').select('id,title,address,description,image_url,created_at,start_date,latitude,longitude,status,category_id').eq('status','published').gte('start_date',new Date().toISOString());if(query)db=db.or(`title.ilike.%${query}%,address.ilike.%${query}%,description.ilike.%${query}%`);if(locationParam)db=db.ilike('address',`%${locationParam}%`);if(selectedCategory)db=db.in('category_id',categoryIds);if(dateFrom)db=db.gte('start_date',`${dateFrom}T00:00:00`);if(dateTo)db=db.lte('start_date',`${dateTo}T23:59:59`);const{data,error}=await db.limit(100);if(error)console.error('Public event search:',error);results.push(...(data||[]).map(e=>({id:`event-${e.id}`,itemType:'event' as const,title:e.title,subtitle:e.description||'Evento desportivo',address:e.address||'',mapAddress:e.address,rating_avg:null,review_count:null,is_verified:false,image_url:e.image_url,link:`/eventos/${e.id}`,created_at:e.created_at,start_date:e.start_date,latitude:e.latitude,longitude:e.longitude,distanceKm:distanceFrom(userLocation,e.latitude,e.longitude)})))}
-  if(includeAll||typeParam==='comunidades'){let db=admin.from('communities').select('id,name,slug,description,sport_category,cover_url,is_private,created_at,location_scope,address,latitude,longitude').eq('is_private',false);if(query)db=db.or(`name.ilike.%${query}%,description.ilike.%${query}%,sport_category.ilike.%${query}%`);if(selectedCategory&&categoryNames.length)db=db.or(categoryNames.map(value=>`sport_category.ilike.%${value}%`).join(','));const{data,error}=await db.limit(100);if(error)console.error('Public community search:',error);results.push(...(data||[]).map(c=>({id:`community-${c.id}`,itemType:'community' as const,title:c.name,subtitle:c.description||c.sport_category||'Comunidade desportiva',address:c.location_scope==='online'?'Online':(c.address||c.sport_category||''),mapAddress:c.location_scope==='online'?null:c.address,rating_avg:null,review_count:null,is_verified:false,image_url:c.cover_url,link:`/comunidades/${c.slug||c.id}`,created_at:c.created_at,latitude:c.location_scope==='online'?null:c.latitude,longitude:c.location_scope==='online'?null:c.longitude,distanceKm:c.location_scope==='online'?null:distanceFrom(userLocation,c.latitude,c.longitude)})))}
+type SearchRow = { item: UnifiedResultItem; total_count: number | string }
+type RpcResult = { data: unknown; error: { message: string } | null }
 
-  if(userLocation&&radius)results=results.filter(item=>item.distanceKm!=null&&item.distanceKm<=radius)
-  if(sortParam==='rating')results.sort((a,b)=>Number(b.rating_avg||0)-Number(a.rating_avg||0));else if(sortParam==='newest')results.sort((a,b)=>new Date(b.start_date||b.created_at||0).getTime()-new Date(a.start_date||a.created_at||0).getTime());else results.sort((a,b)=>{const text=textRank(b,query)-textRank(a,query);if(text)return text;if(userLocation){const da=a.distanceKm??Infinity,db=b.distanceKm??Infinity;if(da!==db)return da-db}return Number(b.rating_avg||0)-Number(a.rating_avg||0)})
-  const mapItems=results.filter(item=>(Number.isFinite(Number(item.latitude))&&Number.isFinite(Number(item.longitude)))||Boolean(item.mapAddress))
-  return <PesquisaLayout resultsPane={<><PesquisaFiltros initialQuery={query} totalResults={results.length} initialSort={sortParam} categories={categories}/><div className="flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4">{!results.length?<div className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><Search className="mb-4 h-8 w-8 text-primary"/><h2 className="text-lg font-semibold">Nenhum resultado encontrado</h2><p className="mt-2 text-sm text-muted-foreground">Reduz os filtros, o raio ou experimenta outra modalidade/localização.</p></div>:<SearchResultsList items={results}/>}</div></>} mapPane={<PesquisaMapWrapper items={mapItems} userLocation={userLocation}/>}/>
+function branchIds(categories: TaxonomyOption[], selectedId: string) {
+  const ids = new Set<string>([selectedId])
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const category of categories) {
+      if (category.parent_id && ids.has(category.parent_id) && !ids.has(category.id)) {
+        ids.add(category.id)
+        changed = true
+      }
+    }
+  }
+  return [...ids]
+}
+
+function pageHref(searchParams: Record<string, string | string[] | undefined>, page: number) {
+  const params = new URLSearchParams()
+  for (const [key, rawValue] of Object.entries(searchParams)) {
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue
+    if (value && key !== 'page') params.set(key, value)
+  }
+  if (page > 1) params.set('page', String(page))
+  return params.size ? `/pesquisa?${params}` : '/pesquisa'
+}
+
+export default async function PesquisaPage({ searchParams: promise }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const supabase = await createClient()
+  const cookieStore = await cookies()
+  const userLocation = parseGeoCookie(cookieStore.get('f4s_geo')?.value)
+  const searchParams = promise ? await promise : {}
+  const filters = parseSearchFilters(searchParams)
+  const pageRaw = Array.isArray(searchParams.page) ? searchParams.page[0] : searchParams.page
+  const page = Math.max(1, Number.parseInt(pageRaw || '1', 10) || 1)
+
+  const { data: rawCategories, error: categoryError } = await supabase
+    .from('categories')
+    .select('id,name,slug,parent_id')
+    .eq('taxonomy_type', 'modality')
+    .eq('is_active', true)
+    .order('name')
+  if (categoryError) throw new Error('Não foi possível carregar as modalidades.')
+
+  const categories: TaxonomyOption[] = (rawCategories || []).map(row => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    emoji: null,
+    parent_id: row.parent_id,
+  }))
+  const selectedCategory = filters.category
+    ? categories.find(category => category.slug === filters.category || category.id === filters.category || category.name.toLowerCase() === filters.category.toLowerCase())
+    : null
+  const categoryIds = selectedCategory ? branchIds(categories, selectedCategory.id) : null
+  const dateFrom = filters.dateFrom ? `${filters.dateFrom}T00:00:00+00:00` : null
+  const dateTo = filters.dateTo ? `${filters.dateTo}T23:59:59+00:00` : null
+
+  const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
+  const { data, error } = await rpc('search_public_entities', {
+    p_q: filters.query || null,
+    p_entity_type: filters.type,
+    p_category_ids: categoryIds,
+    p_location: filters.location || null,
+    p_rating: filters.rating,
+    p_lat: userLocation?.latitude ?? null,
+    p_lng: userLocation?.longitude ?? null,
+    p_radius: filters.radius,
+    p_date_from: dateFrom,
+    p_date_to: dateTo,
+    p_sort: filters.sort,
+    p_offset: (page - 1) * PAGE_SIZE,
+    p_limit: PAGE_SIZE,
+  })
+  if (error) throw new Error(`Não foi possível executar a pesquisa: ${error.message}`)
+
+  const rows = (Array.isArray(data) ? data : []) as SearchRow[]
+  const results = rows.map(row => row.item)
+  const total = Number(rows[0]?.total_count || 0)
+  const mapItems = results.filter(item => (Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))) || Boolean(item.mapAddress))
+
+  return <PesquisaLayout
+    resultsPane={<>
+      <PesquisaFiltros initialQuery={filters.query} totalResults={total} initialSort={filters.sort} categories={categories} />
+      <div className="flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4">
+        {!results.length
+          ? <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><Search className="mb-4 h-8 w-8 text-primary" /><h2 className="text-lg font-semibold">Nenhum resultado encontrado</h2><p className="mt-2 max-w-md text-sm text-muted-foreground">Reduza os filtros, aumente o raio ou experimente outra modalidade ou localização.</p></div>
+          : <><SearchResultsList items={results} /><DiscoveryPagination page={page} pageSize={PAGE_SIZE} total={total} href={nextPage => pageHref(searchParams, nextPage)} /></>}
+      </div>
+    </>}
+    mapPane={<PesquisaMapWrapper items={mapItems} userLocation={userLocation} />}
+  />
 }

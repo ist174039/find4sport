@@ -3,7 +3,7 @@ import { Calendar, Clock, MapPin, Ticket, UserRound, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { JoinEventBtn } from '@/components/join-event-btn'
 import { DetailSection, DetailStat, EntityDetailLayout, EntityHero, MobileActionBar } from '@/components/patterns/entity-detail'
 import { EntityGallery } from '@/components/patterns/entity-gallery'
@@ -28,10 +28,10 @@ function ticketSummary(tickets: TicketType[], fallbackMin: number, fallbackMax: 
 }
 
 export default async function EventProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const admin = createAdminClient()
+  const admin = await createClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
-  const select = '*, professionals(id,user_id,full_name,professional_name,avatar_url,public_slug)'
+  const select = 'id,slug,title,description,image_url,gallery_urls,start_date,end_date,address,latitude,longitude,status,organizer_name,price_min,price_max,capacity,professionals(id,user_id,full_name,professional_name,avatar_url,public_slug)'
   let event: Event | null = null
   if (isUuid) event = (await admin.from('events').select(select).eq('id', rawId).maybeSingle()).data as Event | null
   if (!event) event = (await admin.from('events').select(select).eq('slug', rawId).maybeSingle()).data as Event | null

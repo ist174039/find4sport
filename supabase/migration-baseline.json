@@ -17,6 +17,7 @@
     { "version": "20260823193452", "name": "seed_professional_specialties_services" },
     { "version": "20260823193820", "name": "normalize_legacy_taxonomy_entries" },
     { "version": "20260823233822", "name": "add_event_categories_taxonomy_relation" },
-    { "version": "20260826034331", "name": "harden_private_community_post_visibility" }
+    { "version": "20260826034331", "name": "harden_private_community_post_visibility" },
+    { "version": "20260826042410", "name": "secure_public_discovery_contracts" }
   ]
 }

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { Award, BadgeCheck, Building2, Dumbbell, ExternalLink, Globe2, MapPin, MessageSquare, Star, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { ContactarProfissionalBtn } from '@/components/professional-actions'
 import { ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
@@ -48,13 +47,14 @@ function safeExternalUrl(value?: string | null) { if (!value) return null; try {
 
 export default async function ProfessionalProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const admin = createAdminClient()
+  const admin = supabase
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
   let professional: Professional | null = null
-  if (isUuid) professional = (await admin.from('professionals').select('*').eq('id', rawId).maybeSingle()).data as Professional | null
-  if (!professional) professional = (await admin.from('professionals').select('*').eq('public_slug', rawId).maybeSingle()).data as Professional | null
+  const publicFields = 'id,user_id,status,full_name,professional_name,bio,address,latitude,longitude,rating_avg,review_count,avatar_url,cover_url,gallery_urls,is_verified,is_premium,social_links,website,whatsapp'
+  if (isUuid) professional = (await admin.from('professionals').select(publicFields).eq('id', rawId).maybeSingle()).data as Professional | null
+  if (!professional) professional = (await admin.from('professionals').select(publicFields).eq('public_slug', rawId).maybeSingle()).data as Professional | null
   if (!professional || professional.status !== PUBLIC_PROFESSIONAL_STATUS) notFound()
 
   const rpc = admin.rpc.bind(admin) as unknown as RpcCall
