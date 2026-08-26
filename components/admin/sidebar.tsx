@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
-import { LayoutDashboard, Users, Building2, Calendar, Star, Shield, ShieldCheck, Settings, Menu, LogOut, FileText, Flag, BarChart, Database, Tags, CreditCard, FileEdit, Layers3, ClipboardCheck, Scale } from 'lucide-react'
+import { LayoutDashboard, Users, Building2, Calendar, Star, Shield, ShieldCheck, Settings, Menu, LogOut, FileText, Flag, BarChart, Database, Tags, CreditCard, FileEdit, Layers3, ClipboardCheck, Scale, UsersRound } from 'lucide-react'
 
 const navigationGroups = [
   { label: 'Operação', items: [
@@ -16,6 +16,7 @@ const navigationGroups = [
     { title: 'Profissionais', href: '/admin/profissionais', icon: Users },
     { title: 'Espaços', href: '/admin/espacos', icon: Building2 },
     { title: 'Eventos', href: '/admin/eventos', icon: Calendar },
+    { title: 'Comunidades', href: '/admin/comunidades', icon: UsersRound },
     { title: 'Validação de serviços', href: '/admin/servicos', icon: ClipboardCheck },
     { title: 'Utilizadores da plataforma', href: '/admin/utilizadores', icon: Users },
     { title: 'Administradores', href: '/admin/administradores', icon: ShieldCheck, generalOnly: true },
