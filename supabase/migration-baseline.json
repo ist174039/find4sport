@@ -9,6 +9,7 @@
     { "version": "20260819211802", "name": "consolidate_reservation_read_policy" },
     { "version": "20260819211835", "name": "consolidate_space_professional_policies" },
     { "version": "20260819211854", "name": "consolidate_admin_read_policy" },
-    { "version": "20260822005025", "name": "harden_platform_users_column_updates" }
+    { "version": "20260822005025", "name": "harden_platform_users_column_updates" },
+    { "version": "20260826034331", "name": "harden_private_community_post_visibility" }
   ]
 }
