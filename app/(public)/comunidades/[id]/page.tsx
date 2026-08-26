@@ -2,7 +2,6 @@ import type { ComponentProps } from 'react'
 import { Globe, Lock, MapPin, MessageSquare, ShieldCheck, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import PostCard from '@/components/post-card'
 import { JoinCommunityBtn } from '@/components/join-community-btn'
 import { CreateCommunityPostBox } from '@/components/create-community-post-box'
@@ -50,7 +49,7 @@ export default async function CommunityProfilePage({
   searchParams: Promise<{ page?: string }>
 }) {
   const supabase = await createClient()
-  const admin = createAdminClient()
+  const admin = supabase
   const { id: rawId } = await params
   const { page: pageRaw } = await searchParams
   const page = Math.max(1, Number.parseInt(pageRaw || '1', 10) || 1)
@@ -58,11 +57,12 @@ export default async function CommunityProfilePage({
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
   let community: Community | null = null
+  const publicFields = 'id,slug,name,description,cover_url,is_private,posting_policy,address,location_scope'
   if (isUuid) {
-    community = (await admin.from('communities').select('*').eq('id', rawId).maybeSingle()).data as Community | null
+    community = (await admin.from('communities').select(publicFields).eq('id', rawId).maybeSingle()).data as Community | null
   }
   if (!community) {
-    community = (await admin.from('communities').select('*').eq('slug', rawId).maybeSingle()).data as Community | null
+    community = (await admin.from('communities').select(publicFields).eq('slug', rawId).maybeSingle()).data as Community | null
   }
   if (!community) notFound()
 

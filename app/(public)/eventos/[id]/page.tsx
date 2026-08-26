@@ -3,7 +3,7 @@ import { Calendar, Clock, MapPin, Ticket, UserRound, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { pt } from 'date-fns/locale'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { JoinEventBtn } from '@/components/join-event-btn'
 import { DetailSection, DetailStat, EntityDetailLayout, EntityHero, MobileActionBar } from '@/components/patterns/entity-detail'
 import { EntityGallery } from '@/components/patterns/entity-gallery'
@@ -28,18 +28,18 @@ function ticketSummary(tickets: TicketType[], fallbackMin: number, fallbackMax: 
 }
 
 export default async function EventProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const admin = createAdminClient()
+  const admin = await createClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
-  const select = '*, professionals(id,user_id,full_name,professional_name,avatar_url,public_slug)'
+  const select = 'id,slug,title,description,image_url,gallery_urls,start_date,end_date,address,latitude,longitude,status,organizer_name,price_min,price_max,capacity,professionals(id,user_id,full_name,professional_name,avatar_url,public_slug)'
   let event: Event | null = null
   if (isUuid) event = (await admin.from('events').select(select).eq('id', rawId).maybeSingle()).data as Event | null
   if (!event) event = (await admin.from('events').select(select).eq('slug', rawId).maybeSingle()).data as Event | null
   if (!event || !['published', 'completed'].includes(String(event.status))) notFound()
 
-  const [{ data: tickets }, { count: participantCount }] = await Promise.all([
+  const [{ data: tickets }, { data: participantCount }] = await Promise.all([
     admin.from('event_ticket_types').select('id,name,description,price,capacity,is_active,sort_order').eq('event_id', event.id).eq('is_active', true).order('sort_order'),
-    admin.from('event_participants').select('id', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['confirmed', 'paid']),
+    admin.rpc('public_event_participant_count', { p_event_id: event.id }),
   ])
   const activeTickets = (tickets || []) as TicketType[]
   const startDate = event.start_date ? new Date(event.start_date) : null

@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { BadgeCheck, Building2, Dumbbell, Images, Mail, MapPin, Phone, Star, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
@@ -52,13 +51,14 @@ type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcR
 
 export default async function SpaceProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const admin = createAdminClient()
+  const admin = supabase
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
   let space: Space | null = null
-  if (isUuid) space = (await admin.from('sport_spaces').select('*').eq('id', rawId).maybeSingle()).data as Space | null
-  if (!space) space = (await admin.from('sport_spaces').select('*').eq('slug', rawId).maybeSingle()).data as Space | null
+  const publicFields = 'id,slug,owner_user_id,status,name,description,cover_url,logo_url,gallery_urls,amenities,is_verified,address,latitude,longitude,rating_avg,review_count,phone,email'
+  if (isUuid) space = (await admin.from('sport_spaces').select(publicFields).eq('id', rawId).maybeSingle()).data as Space | null
+  if (!space) space = (await admin.from('sport_spaces').select(publicFields).eq('slug', rawId).maybeSingle()).data as Space | null
   if (!space || space.status !== PUBLIC_SPACE_STATUS) notFound()
 
   const rpc = admin.rpc.bind(admin) as unknown as RpcCall
