@@ -1,0 +1,16 @@
+alter table public.categories add column if not exists taxonomy_type text not null default 'modality';
+alter table public.categories add column if not exists code text;
+alter table public.categories add column if not exists is_active boolean not null default true;
+alter table public.categories drop constraint if exists categories_taxonomy_type_check;
+alter table public.categories add constraint categories_taxonomy_type_check check (taxonomy_type in ('modality','profession','specialty','service'));
+create unique index if not exists categories_code_unique on public.categories(code) where code is not null;
+create index if not exists categories_taxonomy_type_idx on public.categories(taxonomy_type,is_active,name);
+comment on column public.categories.taxonomy_type is 'Taxonomy dimension: modality, profession, specialty, or service. Public modality pages must only expose modality.';
+comment on column public.categories.code is 'Stable business taxonomy code managed from Admin Categorias.';
+comment on column public.categories.is_active is 'Allows taxonomy entries to be retired without destructive deletion.';
+
+update public.categories set taxonomy_type='profession'
+where lower(name) ~ '^(treinador|instrutor|professor|coach)( |$)'
+   or lower(name) in ('personal trainer','preparador físico','fisioterapeuta','médico do desporto','ortopedista','osteopata','quiroprático','enfermeiro','enfermeiro do desporto','podologista','terapeuta ocupacional','terapeuta manual','massagista desportivo','acupunturista','técnico de reabilitação','técnico de exercício clínico','nutricionista','dietista','nutricionista desportivo','consultor de nutrição','consultor de suplementação','psicólogo','psicólogo do desporto','recovery specialist','crioterapeuta','hidroterapeuta','formador','docente universitário','tutor','mentor desportivo','árbitro','árbitro assistente','juiz','cronometrista','delegado técnico','observador','comissário de prova','diretor desportivo','gestor de clube','gestor de ginásio','gestor de academia','gestor de instalações','coordenador técnico','organizador de eventos','gestor comercial','gestor de patrocínios','jornalista desportivo','fotógrafo desportivo','videógrafo','criador de conteúdo','influenciador digital','podcaster','comentador','narrador','social media manager','guia de montanha','guia de caminhadas','guia de trail','guia de btt','monitor de atividades de natureza','nadador-salvador','coreógrafo','fisiologista do exercício','biomecânico','analista de performance','analista de vídeo','cientista do desporto','investigador','especialista em wearables','bike fitter','diretor de evento','coordenador de evento','gestor de competição','diretor de prova','secretário técnico','segurança desportivo','coordenador de segurança','técnico de primeiros socorros','socorrista','consultor de marketing desportivo','consultor de gestão desportiva','consultor de performance','scout','agente de atletas','talent manager');
+update public.categories set taxonomy_type='specialty' where lower(name) in ('especialista em performance mental','especialista em gestão de stress','especialista em compressão','especialista em sono');
+update public.categories set taxonomy_type='service' where lower(name)='coach online';
