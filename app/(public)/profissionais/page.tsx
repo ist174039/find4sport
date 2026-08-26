@@ -1,4 +1,4 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { SearchBar } from '@/components/search-bar'
 import { ProfessionalGrid } from '@/components/professional-card'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
@@ -18,8 +18,8 @@ function branchIds(categories:Category[],selectedId:string){const ids=new Set<st
 function buildHref(base:string,filters:Record<string,string|undefined>,updates:Record<string,string|undefined|null>){const p=new URLSearchParams();Object.entries({...filters,...updates}).forEach(([k,v])=>{if(!v||(k==='sort'&&v==='relevance')||(k==='page'&&v==='1'))return;p.set(k,v)});return p.size?`${base}?${p}`:base}
 
 export default async function ProfissionaisPage({searchParams}:PageProps){
-  const filters=await searchParams;const admin=createAdminClient();const cookieStore=await cookies();const loc=parseGeoCookie(cookieStore.get('f4s_geo')?.value)
-  const{data:categoryRows,error}=await admin.from('categories').select('*').order('name');if(error)throw new Error('Não foi possível carregar as modalidades.')
+  const filters=await searchParams;const admin=await createClient();const cookieStore=await cookies();const loc=parseGeoCookie(cookieStore.get('f4s_geo')?.value)
+  const{data:categoryRows,error}=await admin.from('categories').select('id,name,slug,parent_id,icon_key,taxonomy_type,is_active').eq('taxonomy_type','modality').eq('is_active',true).order('name');if(error)throw new Error('Não foi possível carregar as modalidades.')
   const categories=(categoryRows||[]) as Category[];const selected=filters.category?categories.find(c=>c.slug===filters.category||c.id===filters.category):undefined
   const page=Math.max(1,Number.parseInt(filters.page||'1',10)||1);const sort=filters.sort||'relevance';const categoryIds=selected?branchIds(categories,selected.id):null
   const num=(value?:string)=>{const n=Number(value);return Number.isFinite(n)&&n>0?n:null}

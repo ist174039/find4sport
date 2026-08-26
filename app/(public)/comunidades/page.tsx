@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Globe, Lock, MapPin, Navigation, Plus, Users } from 'lucide-react'
 import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
 import { DiscoveryPagination } from '@/components/patterns/discovery-pagination'
 import { SearchBar } from '@/components/search-bar'
@@ -55,7 +55,7 @@ function href(filters: Record<string, string | undefined>, updates: Record<strin
 const scopeLabel: Record<string, string> = { online: 'Online', local: 'Local', regional: 'Regional', national: 'Nacional' }
 
 export default async function CommunitiesPage({ searchParams }: { searchParams: Promise<{ category?: string; q?: string; sort?: string; page?: string }> }) {
-  const admin = createAdminClient()
+  const admin = await createClient()
   const cookieStore = await cookies()
   const userLocation = parseGeoCookie(cookieStore.get('f4s_geo')?.value)
   const filters = await searchParams
@@ -63,7 +63,7 @@ export default async function CommunitiesPage({ searchParams }: { searchParams: 
   const page = Math.max(1, Number.parseInt(filters.page || '1', 10) || 1)
 
   const [{ data: categoryRows }, { data: categoryLinks }] = await Promise.all([
-    admin.from('categories').select('*').order('name'),
+    admin.from('categories').select('id,name,slug,parent_id,icon_key,taxonomy_type,is_active').eq('taxonomy_type', 'modality').eq('is_active', true).order('name'),
     admin.from('community_categories').select('category_id'),
   ])
   const categories = (categoryRows || []) as Category[]

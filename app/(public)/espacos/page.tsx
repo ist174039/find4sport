@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { SearchBar } from '@/components/search-bar'
 import { SpaceGrid } from '@/components/space-card'
 import { DiscoveryEmptyState, DiscoveryPage } from '@/components/patterns/discovery-page'
@@ -20,10 +20,10 @@ function buildHref(base: string, filters: Record<string, string | undefined>, up
 
 export default async function EspacosPage({ searchParams }: PageProps) {
   const filters = await searchParams
-  const admin = createAdminClient()
+  const admin = await createClient()
   const cookieStore = await cookies()
   const loc = parseGeoCookie(cookieStore.get('f4s_geo')?.value)
-  const { data: categoryRows, error } = await admin.from('categories').select('*').order('name')
+  const { data: categoryRows, error } = await admin.from('categories').select('id,name,slug,parent_id,icon_key,taxonomy_type,is_active').eq('taxonomy_type', 'modality').eq('is_active', true).order('name')
   if (error) throw new Error('Não foi possível carregar as modalidades.')
   const categories = (categoryRows || []) as Category[]
   const selected = filters.category ? categories.find(category => category.slug === filters.category || category.id === filters.category) : undefined
