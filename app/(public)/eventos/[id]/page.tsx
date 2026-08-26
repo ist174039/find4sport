@@ -37,9 +37,9 @@ export default async function EventProfilePage({ params }: { params: Promise<{ i
   if (!event) event = (await admin.from('events').select(select).eq('slug', rawId).maybeSingle()).data as Event | null
   if (!event || !['published', 'completed'].includes(String(event.status))) notFound()
 
-  const [{ data: tickets }, { count: participantCount }] = await Promise.all([
+  const [{ data: tickets }, { data: participantCount }] = await Promise.all([
     admin.from('event_ticket_types').select('id,name,description,price,capacity,is_active,sort_order').eq('event_id', event.id).eq('is_active', true).order('sort_order'),
-    admin.from('event_participants').select('id', { count: 'exact', head: true }).eq('event_id', event.id).in('status', ['confirmed', 'paid']),
+    admin.rpc('public_event_participant_count', { p_event_id: event.id }),
   ])
   const activeTickets = (tickets || []) as TicketType[]
   const startDate = event.start_date ? new Date(event.start_date) : null
