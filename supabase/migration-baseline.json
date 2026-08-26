@@ -9,6 +9,14 @@
     { "version": "20260819211802", "name": "consolidate_reservation_read_policy" },
     { "version": "20260819211835", "name": "consolidate_space_professional_policies" },
     { "version": "20260819211854", "name": "consolidate_admin_read_policy" },
-    { "version": "20260822005025", "name": "harden_platform_users_column_updates" }
+    { "version": "20260822005025", "name": "harden_platform_users_column_updates" },
+    { "version": "20260822015406", "name": "add_processing_reservation_settlement_status" },
+    { "version": "20260822222924", "name": "category_professional_icons" },
+    { "version": "20260823185415", "name": "category_taxonomy_dimensions" },
+    { "version": "20260823185717", "name": "seed_canonical_sport_modalities" },
+    { "version": "20260823193452", "name": "seed_professional_specialties_services" },
+    { "version": "20260823193820", "name": "normalize_legacy_taxonomy_entries" },
+    { "version": "20260823233822", "name": "add_event_categories_taxonomy_relation" },
+    { "version": "20260826034331", "name": "harden_private_community_post_visibility" }
   ]
 }

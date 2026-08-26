@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
 type PublicIdentity = {
   userId: string
@@ -79,8 +80,8 @@ async function resolveIdentities(userIds: string[]) {
 
 export async function loadPostCommentsAction(postId: string): Promise<PublicPostComment[]> {
   if (!postId) return []
-  const admin = createAdminClient()
-  const { data: comments, error } = await admin.from('post_comments').select('id,user_id,content,created_at').eq('post_id', postId).order('created_at', { ascending: true }).limit(200)
+  const supabase = await createClient()
+  const { data: comments, error } = await supabase.from('post_comments').select('id,user_id,content,created_at').eq('post_id', postId).order('created_at', { ascending: true }).limit(200)
   if (error) {
     console.error('Load post comments error:', error)
     throw new Error('Não foi possível carregar os comentários.')
@@ -96,8 +97,8 @@ export async function loadPostCommentsAction(postId: string): Promise<PublicPost
 
 export async function loadPostLikesAction(postId: string): Promise<PublicPostLike[]> {
   if (!postId) return []
-  const admin = createAdminClient()
-  const { data: likes, error } = await admin.from('post_likes').select('id,user_id').eq('post_id', postId).limit(500)
+  const supabase = await createClient()
+  const { data: likes, error } = await supabase.from('post_likes').select('id,user_id').eq('post_id', postId).limit(500)
   if (error) {
     console.error('Load post likes error:', error)
     throw new Error('Não foi possível carregar os gostos.')

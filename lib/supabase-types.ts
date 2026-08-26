@@ -31,9 +31,9 @@ export type Database = {
         Relationships: []
       }
       categories: {
-        Row: { color: string | null; created_at: string; emoji: string | null; id: string; name: string; parent_id: string | null; slug: string }
-        Insert: { color?: string | null; created_at?: string; emoji?: string | null; id?: string; name: string; parent_id?: string | null; slug: string }
-        Update: { color?: string | null; created_at?: string; emoji?: string | null; id?: string; name?: string; parent_id?: string | null; slug?: string }
+        Row: { code: string | null; color: string | null; created_at: string; emoji: string | null; icon_key: string | null; id: string; is_active: boolean; name: string; parent_id: string | null; slug: string; taxonomy_type: string }
+        Insert: { code?: string | null; color?: string | null; created_at?: string; emoji?: string | null; icon_key?: string | null; id?: string; is_active?: boolean; name: string; parent_id?: string | null; slug: string; taxonomy_type?: string }
+        Update: { code?: string | null; color?: string | null; created_at?: string; emoji?: string | null; icon_key?: string | null; id?: string; is_active?: boolean; name?: string; parent_id?: string | null; slug?: string; taxonomy_type?: string }
         Relationships: [{ foreignKeyName: "categories_parent_id_fkey"; columns: ["parent_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] }]
       }
       cms_pages: {
@@ -93,6 +93,15 @@ export type Database = {
         Insert: { created_at?: string; details?: string | null; id?: string; reason?: string; reporter_user_id: string; reviewed_at?: string | null; reviewed_by?: string | null; status?: string; target_id: string; target_type: string; updated_at?: string }
         Update: { created_at?: string; details?: string | null; id?: string; reason?: string; reporter_user_id?: string; reviewed_at?: string | null; reviewed_by?: string | null; status?: string; target_id?: string; target_type?: string; updated_at?: string }
         Relationships: [{ foreignKeyName: "content_reports_reporter_user_id_fkey"; columns: ["reporter_user_id"]; isOneToOne: false; referencedRelation: "platform_users"; referencedColumns: ["id"] }]
+      }
+      event_categories: {
+        Row: { category_id: string; created_at: string; event_id: string }
+        Insert: { category_id: string; created_at?: string; event_id: string }
+        Update: { category_id?: string; created_at?: string; event_id?: string }
+        Relationships: [
+          { foreignKeyName: "event_categories_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] },
+          { foreignKeyName: "event_categories_event_id_fkey"; columns: ["event_id"]; isOneToOne: false; referencedRelation: "events"; referencedColumns: ["id"] }
+        ]
       }
       event_participants: {
         Row: { amount: number | null; created_at: string; event_id: string; id: string; payment_status: string; status: string; ticket_type_id: string | null; updated_at: string; user_id: string }
