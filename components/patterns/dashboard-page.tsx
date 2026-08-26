@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { Loader2, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -72,12 +73,13 @@ export function DashboardStatGrid({ children }: { children: ReactNode }) {
   return <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>
 }
 
-export function DashboardStat({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode }) {
-  return (
-    <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+export function DashboardStat({ label, value, hint, icon, href }: { label: string; value: ReactNode; hint?: string; icon?: ReactNode; href?: string }) {
+  const content = (
+    <div className={cn('min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5', href && 'h-full transition hover:border-primary/40 hover:shadow-md')}>
       <div className="flex min-w-0 items-start justify-between gap-3"><p className="min-w-0 break-words text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>{icon && <div className="shrink-0 text-primary">{icon}</div>}</div>
       <div className="mt-2 min-w-0 break-words text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{value}</div>
       {hint && <p className="mt-1 break-words text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
+  return href ? <Link href={href} className="min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{content}</Link> : content
 }
