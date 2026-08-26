@@ -22,7 +22,7 @@ export default async function ProfilePage() {
 
   const [{ data: platformUser }, { data: categories }] = await Promise.all([
     supabase.from('platform_users').select('id, full_name, avatar_url, banner_url, location, language').eq('id', user.id).maybeSingle(),
-    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji').order('name') : Promise.resolve({ data: [] as any[] }),
+    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji, icon_key, slug, parent_id').order('name') : Promise.resolve({ data: [] as any[] }),
   ])
 
   let professional: any = null

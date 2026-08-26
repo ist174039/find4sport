@@ -17,7 +17,7 @@ function eventDayPt(date?:string|null){if(!date)return'';return new Date(date).t
 function timeRange(start?:string|null,end?:string|null){if(!start)return'';return `${String(start).slice(0,5)}${end?` – ${String(end).slice(0,5)}`:''}`}
 function eventTimeRange(start?:string|null,end?:string|null){if(!start)return'';const s=new Date(start);const e=end?new Date(end):null;const fmt=(d:Date)=>d.toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'});return `${fmt(s)}${e?` – ${fmt(e)}`:''}`}
 
-export default async function MensagensPage(){
+export default async function MensagensPage({searchParams}:{searchParams:Promise<{space?:string}>}){
   const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)redirect('/auth/login')
   const admin=createAdminClient();const db=admin as any;const nowKey=lisbonNowKey()
   const {data:profile}=await admin.from('platform_users').select('id,type').eq('id',user.id).maybeSingle();const role=profile?.type
@@ -29,7 +29,7 @@ export default async function MensagensPage(){
   if(messageError)throw new Error(`Não foi possível carregar as mensagens: ${messageError.message}`)
   const threads=(threadRows||[]) as any[];const messages=(messageRows||[]) as Message[]
 
-  let reservations:any[]=[];let participants:any[]=[]
+  const params=await searchParams;let reservations:any[]=[];let participants:any[]=[]
   if(role==='athlete'){
     const [{data:r},{data:p}]=await Promise.all([
       admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('user_id',user.id),
@@ -40,15 +40,15 @@ export default async function MensagensPage(){
     if(prof?.id){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('professional_id',prof.id);reservations=r||[]}
     const {data:ownedEvents}=await admin.from('events').select('id').eq('created_by',user.id);const ids=(ownedEvents||[]).map(e=>e.id);if(ids.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',ids);participants=p||[]}
   }else if(role==='venue_manager'){
-    const {data:ownedSpaces}=await admin.from('sport_spaces').select('id').eq('owner_user_id',user.id);const ids=(ownedSpaces||[]).map(s=>s.id)
-    if(ids.length){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').in('space_id',ids);reservations=r||[]}
-    const {data:ownedEvents}=await admin.from('events').select('id').eq('created_by',user.id);const eventIds=(ownedEvents||[]).map(e=>e.id);if(eventIds.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',eventIds);participants=p||[]}
+    const {data:ownedSpaces}=await admin.from('sport_spaces').select('id,name').eq('owner_user_id',user.id).order('created_at');const selectedSpace=(ownedSpaces||[]).find((s:any)=>s.id===params.space)||(ownedSpaces||[])[0]||null
+    if(selectedSpace){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('space_id',selectedSpace.id);reservations=r||[]}
+    const {data:ownedEvents}=selectedSpace?await admin.from('events').select('id').eq('created_by',user.id).eq('space_id',selectedSpace.id):{data:[]};const eventIds=(ownedEvents||[]).map(e=>e.id);if(eventIds.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',eventIds);participants=p||[]}
   }
 
   const missingReservationIds=threads.map(t=>t.reservation_id).filter(Boolean).filter((id:string)=>!reservations.some(r=>r.id===id))
-  if(missingReservationIds.length){const {data}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').in('id',missingReservationIds);reservations=[...reservations,...(data||[])]}
+  if(role!=='venue_manager'&&missingReservationIds.length){const {data}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').in('id',missingReservationIds);reservations=[...reservations,...(data||[])]}
   const missingParticipantIds=threads.map(t=>t.event_participant_id).filter(Boolean).filter((id:string)=>!participants.some(p=>p.id===id))
-  if(missingParticipantIds.length){const {data}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('id',missingParticipantIds);participants=[...participants,...(data||[])]}
+  if(role!=='venue_manager'&&missingParticipantIds.length){const {data}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('id',missingParticipantIds);participants=[...participants,...(data||[])]}
 
   const professionalIds=[...new Set(reservations.map(r=>r.professional_id).filter(Boolean))] as string[]
   const serviceIds=[...new Set(reservations.map(r=>r.service_id).filter(Boolean))] as string[]

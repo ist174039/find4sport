@@ -28,10 +28,11 @@ const formFromSpace = (space?: ManagedSpace | null): SpaceForm => space ? {
   amenities: Array.isArray(space.amenities) ? space.amenities.join(', ') : '',
 } : emptyForm
 
-export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSpace[] }) {
+export function ManagedSpaceEditor({ initialSpaces, initialSpaceId }: { initialSpaces: ManagedSpace[]; initialSpaceId?: string }) {
   const { showAlert } = useModal()
+  const initialSpace = initialSpaces.find(space => space.id === initialSpaceId) || initialSpaces[0]
   const [spaces, setSpaces] = useState(initialSpaces)
-  const [spaceId, setSpaceId] = useState(initialSpaces[0]?.id || '')
+  const [spaceId, setSpaceId] = useState(initialSpace?.id || '')
   const [saving, setSaving] = useState(false)
   const [query, setQuery] = useState('')
   const [claimResults, setClaimResults] = useState<ClaimSpace[]>([])
@@ -39,7 +40,7 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
   const [claimOpen, setClaimOpen] = useState(false)
   const [searching, startSearchTransition] = useTransition()
   const selected = spaces.find(space => space.id === spaceId) || null
-  const [form, setForm] = useState<SpaceForm>(() => formFromSpace(initialSpaces[0]))
+  const [form, setForm] = useState<SpaceForm>(() => formFromSpace(initialSpace))
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -55,6 +56,7 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
     if (!next) return
     setSpaceId(value)
     setForm(formFromSpace(next))
+    window.history.replaceState(null, '', `/dashboard/espaco?space=${encodeURIComponent(value)}`)
   }
 
   async function save(event: React.FormEvent) {
@@ -74,7 +76,7 @@ export function ManagedSpaceEditor({ initialSpaces }: { initialSpaces: ManagedSp
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">O meu espaço</h1><p className="mt-1 text-sm text-muted-foreground">Informação pública e contactos do espaço. Salas/campos são geridos no módulo próprio.</p></div>
+        <div className="min-w-0"><h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">Os meus espaços</h1><p className="mt-1 text-sm text-muted-foreground">Selecione um espaço para gerir informação, contactos e presença pública. Salas/campos e avaliações respeitam este contexto.</p></div>
         {spaces.length > 1 && <Select value={spaceId} onValueChange={value => value && selectSpace(value)}><SelectTrigger className="w-full sm:w-64"><SelectValue /></SelectTrigger><SelectContent>{spaces.map(space => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent></Select>}
       </div>
 

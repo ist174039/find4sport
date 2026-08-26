@@ -17,16 +17,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (access.role === 'professional' && !access.hasProfessionalProfile) redirect('/auth/registar/profissional')
   if (access.role === 'venue_manager' && !access.hasManagedSpace) redirect('/auth/registar/espaco')
 
-  const [professionalResult, spaceResult] = await Promise.all([
+  const [professionalResult, spacesResult] = await Promise.all([
     access.role === 'professional'
       ? supabase.from('professionals').select('*').eq('user_id', user.id).maybeSingle()
       : Promise.resolve({ data: null }),
     access.role === 'venue_manager'
-      ? supabase.from('sport_spaces').select('*').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
-      : Promise.resolve({ data: null }),
+      ? supabase.from('sport_spaces').select('id,name,logo_url').eq('owner_user_id', user.id).order('created_at', { ascending: true })
+      : Promise.resolve({ data: [] }),
   ])
 
   const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('read_at', null)
 
-  return <div className="min-h-screen w-full overflow-x-hidden bg-muted/30"><div className="flex w-full"><DashboardSidebar role={access.role} professional={professionalResult.data} space={spaceResult.data} user={user} notificationCount={count || 0} /><DashboardContentShell>{children}</DashboardContentShell></div></div>
+  return <div className="min-h-screen w-full overflow-x-hidden bg-muted/30"><div className="flex w-full"><DashboardSidebar role={access.role} professional={professionalResult.data} spaces={spacesResult.data || []} user={user} notificationCount={count || 0} /><DashboardContentShell>{children}</DashboardContentShell></div></div>
 }

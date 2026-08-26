@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -33,9 +33,10 @@ function effectiveAmount(tx:Transaction,direction:'in'|'out'){if(direction==='in
 function csvCell(v:any){const s=String(v??'').replaceAll('"','""');return `"${s}"`}
 
 export default function FaturacaoPage(){
-  const router=useRouter(); const {showAlert}=useModal()
+  const router=useRouter(); const searchParams=useSearchParams(); const {showAlert}=useModal()
   const [loading,setLoading]=useState(true); const [changing,setChanging]=useState<string|null>(null); const [cycle,setCycle]=useState<'monthly'|'annual'>('monthly')
   const [subscription,setSubscription]=useState<Subscription>({tier:'free',status:'active'}); const [plans,setPlans]=useState<Plan[]>([]); const [transactions,setTransactions]=useState<Transaction[]>([]); const [reservations,setReservations]=useState<any[]>([]); const [audience,setAudience]=useState<string|null>(null); const [userId,setUserId]=useState<string|null>(null)
+  const [spaces,setSpaces]=useState<{id:string;name:string}[]>([])
   const [connectStatus,setConnectStatus]=useState<ConnectStatus|null>(null); const [connectLoading,setConnectLoading]=useState(false)
   const [ledgerOpen,setLedgerOpen]=useState(false); const [ledgerFilter,setLedgerFilter]=useState<LedgerFilter>('all'); const [selectedTx,setSelectedTx]=useState<Transaction|null>(null)
 
@@ -46,21 +47,24 @@ export default function FaturacaoPage(){
       supabase.from('user_subscriptions').select('*').eq('user_id',user.id).maybeSingle(),
       supabase.from('transactions').select('*').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
       supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),
-      supabase.from('sport_spaces').select('id').eq('owner_user_id',user.id),
+      supabase.from('sport_spaces').select('id,name').eq('owner_user_id',user.id).order('created_at'),
     ])
-    setSubscription((sub as Subscription)||{tier:'free',status:'active'});setTransactions((tx||[]) as Transaction[])
+    setSubscription((sub as Subscription)||{tier:'free',status:'active'});setTransactions((tx||[]) as Transaction[]);setSpaces((spaces||[]) as {id:string;name:string}[])
     if(role){const [{data,error},connectRes]=await Promise.all([supabase.from('subscription_plans').select('*,entitlements:plan_entitlements(*)').eq('audience',role).eq('is_active',true).eq('is_public',true).order('sort_order'),fetch('/api/stripe/connect',{method:'GET',cache:'no-store'})]);if(error)throw error;setPlans((data||[]) as Plan[]);if(connectRes.ok)setConnectStatus(await connectRes.json())}
-    const ors:string[]=[];if(prof?.id)ors.push(`professional_id.eq.${prof.id}`);if(spaces?.length)ors.push(`space_id.in.(${spaces.map((s:any)=>s.id).join(',')})`);if(ors.length){const {data}=await supabase.from('reservations').select('id,amount,status,date,start_time').or(ors.join(',')).order('date',{ascending:false}).limit(100);setReservations(data||[])}
+    const ors:string[]=[];if(prof?.id)ors.push(`professional_id.eq.${prof.id}`);if(spaces?.length)ors.push(`space_id.in.(${spaces.map((s:any)=>s.id).join(',')})`);if(ors.length){const {data}=await supabase.from('reservations').select('id,space_id,amount,status,date,start_time').or(ors.join(',')).order('date',{ascending:false}).limit(100);setReservations(data||[])}
   }catch(e:any){showAlert('Faturação',e?.message||'Não foi possível carregar a faturação.','error')}finally{setLoading(false)}})()},[router,showAlert])
 
+  const selectedSpace=spaces.find(space=>space.id===searchParams.get('space'))||spaces[0]||null
+  const selectedReservationIds=useMemo(()=>new Set(reservations.filter(row=>!selectedSpace||row.space_id===selectedSpace.id).map(row=>row.id)),[reservations,selectedSpace])
+  const scopedTransactions=useMemo(()=>audience==='venue_manager'&&selectedSpace?transactions.filter(tx=>sourceGroup(tx)!=='reservation'||Boolean(tx.source_id&&selectedReservationIds.has(tx.source_id))):transactions,[audience,selectedReservationIds,selectedSpace,transactions])
   const current=useMemo(()=>plans.find(p=>p.id===subscription.plan_id)||plans.find(p=>p.code===subscription.tier),[plans,subscription])
-  const entries=useMemo(()=>transactions.filter(tx=>tx.provider_user_id===userId&&['paid','succeeded','completed','available','transferred'].includes(String(tx.status||'').toLowerCase())),[transactions,userId])
-  const exits=useMemo(()=>transactions.filter(tx=>tx.user_id===userId&&tx.provider_user_id!==userId&&['paid','succeeded','completed','refunded','transferred'].includes(String(tx.status||'').toLowerCase())),[transactions,userId])
+  const entries=useMemo(()=>scopedTransactions.filter(tx=>tx.provider_user_id===userId&&['paid','succeeded','completed','available','transferred'].includes(String(tx.status||'').toLowerCase())),[scopedTransactions,userId])
+  const exits=useMemo(()=>scopedTransactions.filter(tx=>tx.user_id===userId&&tx.provider_user_id!==userId&&['paid','succeeded','completed','refunded','transferred'].includes(String(tx.status||'').toLowerCase())),[scopedTransactions,userId])
   const cashIn=entries.reduce((s,tx)=>s+effectiveAmount(tx,'in'),0);const cashOut=exits.reduce((s,tx)=>s+effectiveAmount(tx,'out'),0);const net=cashIn-cashOut
   const reservationFallback=reservations.filter(r=>['paid','completed'].includes(r.status)).reduce((s,r)=>s+Number(r.amount||0),0)
   const receivedDisplay=transactions.length?cashIn:reservationFallback
   const connectReady=Boolean(connectStatus?.connected&&connectStatus.detailsSubmitted&&connectStatus.chargesEnabled&&connectStatus.payoutsEnabled)
-  const filteredTransactions=useMemo(()=>transactions.filter(tx=>{const direction=tx.provider_user_id===userId?'in':'out';if(ledgerFilter==='in'||ledgerFilter==='out')return direction===ledgerFilter;if(['reservation','service','event'].includes(ledgerFilter))return sourceGroup(tx)===ledgerFilter;return true}),[transactions,ledgerFilter,userId])
+  const filteredTransactions=useMemo(()=>scopedTransactions.filter(tx=>{const direction=tx.provider_user_id===userId?'in':'out';if(ledgerFilter==='in'||ledgerFilter==='out')return direction===ledgerFilter;if(['reservation','service','event'].includes(ledgerFilter))return sourceGroup(tx)===ledgerFilter;return true}),[scopedTransactions,ledgerFilter,userId])
 
   async function checkout(plan:Plan){if(plan.code==='free'||plan.id===current?.id)return;setChanging(plan.id);try{const res=await fetch('/api/stripe/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planCode:plan.code,billingCycle:cycle})});const data=await res.json();if(!res.ok||!data.url)throw new Error(data.error||'Checkout indisponível');window.location.assign(data.url)}catch(e:any){showAlert('Não foi possível alterar o plano',e?.message||'Erro inesperado','error');setChanging(null)}}
   async function connect(){setConnectLoading(true);try{const res=await fetch('/api/stripe/connect',{method:'POST'});const data=await res.json();if(!res.ok||!data.url)throw new Error(data.error||'Stripe Connect indisponível');window.location.assign(data.url)}catch(e:any){showAlert('Stripe Connect',e?.message||'Não foi possível configurar recebimentos.','error');setConnectLoading(false)}}
@@ -72,6 +76,7 @@ export default function FaturacaoPage(){
   if(!audience)return <Card><CardContent className="p-8 text-center"><h1 className="text-xl font-bold">Planos comerciais</h1><p className="mt-2 text-sm text-muted-foreground">Disponíveis para profissionais e gestores de espaço.</p></CardContent></Card>
 
   return <div className="space-y-8 pb-8">
+    {audience==='venue_manager'&&selectedSpace&&<section className="rounded-2xl border bg-card p-4"><label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Informação financeira do espaço</label><select value={selectedSpace.id} onChange={event=>router.push(`/dashboard/faturacao?space=${event.target.value}`)} className="mt-2 min-h-11 w-full rounded-xl border bg-background px-3 font-semibold sm:max-w-sm">{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><p className="mt-2 text-sm text-muted-foreground">Os movimentos e totais de reservas estão filtrados por este espaço. O plano e a conta Stripe pertencem à conta gestora.</p></section>}
     <section className="overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-8"><div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div className="max-w-2xl"><Badge variant="outline" className="mb-3 bg-background/70"><Sparkles className="mr-1 h-3.5 w-3.5"/>Planos FIND4SPORT</Badge><h1 className="text-2xl font-bold tracking-tight sm:text-4xl">Faturação e pagamentos</h1><p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">Planos, recebimentos, pagamentos, comissões e movimentos financeiros num único lugar.</p></div><div className="inline-flex w-full rounded-2xl border border-border bg-background p-1 sm:w-auto"><button onClick={()=>setCycle('monthly')} className={`min-h-11 flex-1 rounded-xl px-5 text-sm font-semibold sm:flex-none ${cycle==='monthly'?'bg-primary text-primary-foreground':'text-muted-foreground'}`}>Mensal</button><button onClick={()=>setCycle('annual')} className={`min-h-11 flex-1 rounded-xl px-5 text-sm font-semibold sm:flex-none ${cycle==='annual'?'bg-primary text-primary-foreground':'text-muted-foreground'}`}>Anual</button></div></div></section>
 
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,8 +1,9 @@
 'use client'
 
 import { groupSports } from '@/lib/sports-taxonomy'
+import { ModalityIcon } from '@/components/modality-icon'
 
-type Category = { id: string; name: string; emoji?: string | null; slug?: string | null }
+type Category = { id: string; name: string; emoji?: string | null; icon_key?: string | null; slug?: string | null }
 
 export function GroupedSportSelect({
   categories,
@@ -58,7 +59,8 @@ export function GroupedSportCheckboxes({ categories, name, selectedIds = [] }: {
             {group.sports.map(category => (
               <label key={category.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm transition hover:border-primary/35">
                 <input type="checkbox" name={name} value={category.id} defaultChecked={selectedIds.includes(category.id)} className="h-5 w-5 shrink-0" />
-                <span className="min-w-0 break-words">{category.emoji ? `${category.emoji} ` : ''}{category.name}</span>
+                <ModalityIcon iconKey={category.icon_key} className="h-5 w-5 shrink-0 text-primary" />
+                <span className="min-w-0 break-words">{category.name}</span>
               </label>
             ))}
           </div>

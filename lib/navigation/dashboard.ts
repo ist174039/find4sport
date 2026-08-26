@@ -26,7 +26,7 @@ const configs:Record<PlatformRole,DashboardNavGroup[]>={
   ],
   venue_manager:[
     {label:'Operação',items:[{name:'Visão Geral',href:base,icon:LayoutDashboard},{name:'Agenda',href:`${base}/agenda`,icon:Calendar},{name:'Reservas',href:`${base}/reservas`,icon:CalendarCheck},{name:'Entregas e pagamentos',href:`${base}/entregas`,icon:HandCoins},{name:'Salas / Campos',href:`${base}/espacos/salas`,icon:Building2},{name:'Clientes',href:`${base}/clientes`,icon:Users}]},
-    {label:'Presença',items:[{name:'O Meu Espaço',href:`${base}/espaco`,icon:Building2},{name:'Galeria',href:`${base}/galeria`,icon:Camera},{name:'Seguidores',href:`${base}/seguidores`,icon:UserRound},{name:'Avaliações',href:`${base}/avaliacoes`,icon:Star}]},
+    {label:'Presença',items:[{name:'Os Meus Espaços',href:`${base}/espaco`,icon:Building2},{name:'Galeria principal',href:`${base}/galeria`,icon:Camera},{name:'Seguidores',href:`${base}/seguidores`,icon:UserRound},{name:'Avaliações por espaço',href:`${base}/avaliacoes`,icon:Star}]},
     {label:'Conta',items:[{name:'Minhas compras',href:`${base}/compras`,icon:ReceiptText},{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
   ],
 }

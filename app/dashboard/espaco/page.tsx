@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ManagedSpaceEditor } from '@/components/dashboard/managed-space-editor'
 
-export default async function EspacoPage() {
+export default async function EspacoPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/dashboard/espaco')
@@ -14,5 +14,6 @@ export default async function EspacoPage() {
     .order('created_at', { ascending: true })
 
   if (error) throw new Error(`Não foi possível carregar os espaços: ${error.message}`)
-  return <ManagedSpaceEditor initialSpaces={(data || []) as any} />
+  const params = await searchParams
+  return <ManagedSpaceEditor initialSpaces={(data || []) as any} initialSpaceId={params.space} />
 }
