@@ -43,7 +43,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
 
   let listQuery = admin
     .from('communities')
-    .select('id,name,slug,description,address,is_private,posting_policy,created_at,created_by,platform_users!communities_created_by_fkey(full_name,email)', { count: 'exact' })
+    .select('id,name,slug,description,address,is_private,posting_policy,created_at,created_by,platform_users!communities_created_by_fkey(full_name)', { count: 'exact' })
     .order('created_at', { ascending: false })
   if (q) listQuery = listQuery.or(`name.ilike.%${q}%,description.ilike.%${q}%,address.ilike.%${q}%`)
   if (filter === 'public') listQuery = listQuery.eq('is_private', false)
@@ -91,7 +91,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
         {rows.map(community => {
           const owner = Array.isArray(community.platform_users) ? community.platform_users[0] : community.platform_users
           return <article key={community.id} className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border p-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-semibold">{community.name}</h3><Badge variant={community.is_private ? 'secondary' : 'outline'}>{community.is_private ? 'Privada' : 'Pública'}</Badge><Badge variant="outline">{community.posting_policy === 'admins' ? 'Publicação por admins' : 'Publicação por membros'}</Badge></div><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{community.description || 'Sem descrição'}{community.address ? ` · ${community.address}` : ''}</p><p className="mt-2 text-xs text-muted-foreground">Responsável: {owner?.full_name || owner?.email || 'Conta não identificada'} · {memberCounts.get(community.id) || 0} membros · {requestCounts.get(community.id) || 0} pedidos pendentes</p></div>
+            <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-semibold">{community.name}</h3><Badge variant={community.is_private ? 'secondary' : 'outline'}>{community.is_private ? 'Privada' : 'Pública'}</Badge><Badge variant="outline">{community.posting_policy === 'admin_only' ? 'Publicação por admins' : community.posting_policy === 'reactions_only' ? 'Membros apenas reagem' : 'Publicação por membros'}</Badge></div><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{community.description || 'Sem descrição'}{community.address ? ` · ${community.address}` : ''}</p><p className="mt-2 text-xs text-muted-foreground">Responsável: {owner?.full_name || 'Conta não identificada'} · {memberCounts.get(community.id) || 0} membros · {requestCounts.get(community.id) || 0} pedidos pendentes</p></div>
             <div className="grid grid-cols-2 gap-2 sm:flex"><Button asChild className="min-h-11"><Link href={`/admin/comunidades/${community.id}`}>Administrar</Link></Button><Button asChild variant="outline" className="min-h-11"><Link href={`/comunidades/${community.slug || community.id}`} target="_blank"><Eye className="mr-2 h-4 w-4" />Ver</Link></Button></div>
           </article>
         })}
