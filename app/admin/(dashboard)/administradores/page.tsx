@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { AdministratorsManager } from '@/components/admin/administrators-manager'
+import { AdminPasswordRecoveryList } from '@/components/admin/admin-password-recovery-list'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
@@ -36,6 +37,6 @@ export default async function AdministradoresPage() {
   }))
 
   return (
-    <DashboardPage><AdministratorsManager initialRows={rows as any} /></DashboardPage>
+    <DashboardPage><AdministratorsManager initialRows={rows as any} /><AdminPasswordRecoveryList rows={rows.map(row => ({ id: row.id, email: row.email }))} /></DashboardPage>
   )
 }

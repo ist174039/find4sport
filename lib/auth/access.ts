@@ -62,8 +62,8 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
     adminType: null,
     canAccessDashboard: true,
     canAccessAdmin: false,
-    canManageProfessionals: role === 'professional' && hasProfessionalProfile,
-    canManageSpaces: role === 'venue_manager' && hasManagedSpace,
+    canManageProfessionals: hasProfessionalProfile,
+    canManageSpaces: hasManagedSpace,
     hasProfessionalProfile,
     hasManagedSpace,
   }

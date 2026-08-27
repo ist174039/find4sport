@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardErrorState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 import { ServerPagination } from '@/components/patterns/server-pagination'
+import { UserModerationControls } from '@/components/admin/user-moderation-controls'
 
 const PAGE_SIZE = 20
 type UserRole = NonNullable<Tables<'platform_users'>['type']>
 type RoleFilter = 'all' | UserRole
-type AdminUserRow = Pick<Tables<'platform_users'>, 'id' | 'full_name' | 'type' | 'avatar_url' | 'created_at'> & { email: string | null }
+type AdminUserRow = Pick<Tables<'platform_users'>, 'id' | 'full_name' | 'type' | 'avatar_url' | 'created_at'> & { email: string | null; account_status: string; moderation_reason: string | null; suspended_until: string | null }
 const roleLabels: Record<UserRole, string> = { athlete: 'Atleta', professional: 'Profissional', venue_manager: 'Gestor de espaço' }
 const roleOptions: Array<{ value: RoleFilter; label: string }> = [
   { value: 'all', label: 'Todos os tipos' },
@@ -54,9 +55,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const to = from + PAGE_SIZE - 1
 
   const admin = createAdminClient()
-  let query = admin
+  let query = (admin as any)
     .from('platform_users')
-    .select('id, full_name, type, avatar_url, created_at', { count: 'exact' })
+    .select('id, full_name, type, avatar_url, created_at, account_status, moderation_reason, suspended_until', { count: 'exact' })
     .order('created_at', { ascending: false })
 
   if (role !== 'all') query = query.eq('type', role)
@@ -75,7 +76,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     )
   }
 
-  const rows: AdminUserRow[] = await Promise.all((profiles || []).map(async profile => {
+  const rows: AdminUserRow[] = await Promise.all((profiles || []).map(async (profile: Omit<AdminUserRow, 'email'>) => {
     const { data } = await admin.auth.admin.getUserById(profile.id)
     return { ...profile, email: data?.user?.email || null }
   }))
@@ -119,7 +120,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{row.avatar_url ? <img src={row.avatar_url} alt="" className="h-full w-full object-cover" /> : (row.full_name || row.email || 'U').charAt(0).toUpperCase()}</div>
                   <div className="min-w-0"><p className="truncate text-sm font-semibold">{row.full_name || 'Sem nome'}</p><p className="truncate text-xs text-muted-foreground">{row.email || row.id}</p><p className="mt-1 text-xs text-muted-foreground">Registo: {row.created_at ? new Date(row.created_at).toLocaleDateString('pt-PT') : '—'}</p></div>
                 </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant="outline">{row.type ? roleLabels[row.type] : 'Sem tipo'}</Badge><Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/utilizadores/${row.id}`} target="_blank">Perfil público</Link></Button>{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant={row.account_status === 'active' ? 'outline' : 'destructive'}>{row.account_status === 'blocked' ? 'Bloqueado' : row.account_status === 'suspended' ? 'Suspenso' : row.type ? roleLabels[row.type] : 'Ativo'}</Badge><Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/utilizadores/${row.id}`} target="_blank">Perfil público</Link></Button><UserModerationControls userId={row.id} initialStatus={row.account_status} />{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>
               </article>
             ))}
           </div>

@@ -44,7 +44,7 @@ export default async function EventProfilePage({ params }: { params: Promise<{ i
   const activeTickets = (tickets || []) as TicketType[]
   const startDate = event.start_date ? new Date(event.start_date) : null
   const endDate = event.end_date ? new Date(event.end_date) : null
-  const finished = event.status === 'completed'
+  const finished = event.status === 'completed' || Boolean((endDate || startDate) && Number(endDate || startDate) <= Date.now())
   const professional = event.professionals
   const organizerName = event.organizer_name || professional?.professional_name || professional?.full_name || null
   const profileHref = professional ? `/profissionais/${professional.public_slug || professional.id}` : null

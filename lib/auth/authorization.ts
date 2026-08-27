@@ -75,7 +75,7 @@ export async function requireProfessional() {
 
 export async function requireVenueManager() {
   const session = await requireAccess()
-  if (session.access.role !== 'venue_manager' || !session.access.canManageSpaces) {
+  if (!session.access.canManageSpaces) {
     throw new Error('Sem permissões de gestor de espaço')
   }
   return session

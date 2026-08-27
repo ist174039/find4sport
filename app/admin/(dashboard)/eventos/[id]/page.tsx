@@ -4,18 +4,19 @@ import { ArrowLeft, Calendar, Eye, Star, TicketCheck, Users } from 'lucide-react
 import { requireAdminPermission } from '@/lib/auth/authorization'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
+import { DashboardEmptyState, DashboardErrorState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
 export default async function AdminEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { admin } = await requireAdminPermission('events.manage')
   const [eventResult, participantsResult, reviewsResult, ticketsResult] = await Promise.all([
-    admin.from('events').select('*,categories(name,icon_key),professionals(full_name,professional_name),sport_spaces(name)').eq('id', id).maybeSingle(),
+    admin.from('events').select('*,categories!events_category_id_fkey(name,icon_key),professionals!events_professional_id_fkey(full_name,professional_name),sport_spaces!events_space_id_fkey(name)').eq('id', id).maybeSingle(),
     admin.from('event_participants').select('id,status,payment_status,amount,user_id,ticket_type_id,created_at').eq('event_id', id).order('created_at', { ascending: false }).limit(50),
     admin.from('reviews').select('id,rating,title,comment,status,created_at').eq('event_id', id).order('created_at', { ascending: false }).limit(20),
     admin.from('event_ticket_types').select('id,name,price,capacity,is_active').eq('event_id', id).order('price'),
   ])
-  if (eventResult.error || !eventResult.data) notFound()
+  if (eventResult.error) return <DashboardPage><DashboardPageHeader title="Detalhe do evento" description="Informação administrativa do evento." /><DashboardErrorState title="Não foi possível carregar o evento" description={eventResult.error.message} /></DashboardPage>
+  if (!eventResult.data) notFound()
   const event = { ...eventResult.data, categories: Array.isArray(eventResult.data.categories) ? eventResult.data.categories[0] : eventResult.data.categories, professionals: Array.isArray(eventResult.data.professionals) ? eventResult.data.professionals[0] : eventResult.data.professionals, sport_spaces: Array.isArray(eventResult.data.sport_spaces) ? eventResult.data.sport_spaces[0] : eventResult.data.sport_spaces }, participants = participantsResult.data || [], reviews = reviewsResult.data || [], tickets = ticketsResult.data || []
   const soldByTicket = new Map<string, number>()
   for (const participant of participants) if (participant.ticket_type_id) soldByTicket.set(participant.ticket_type_id, (soldByTicket.get(participant.ticket_type_id) || 0) + 1)

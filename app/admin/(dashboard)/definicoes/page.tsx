@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useModal } from '@/components/providers/modal-provider'
 import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
+import { CarouselDirectUpload } from '@/components/admin/carousel-direct-upload'
 import { createCarouselSlideAction, deleteCarouselSlideAction, getRealAdminSettingsAction, saveOperationalSettingsAction, saveRegistrationApprovalAction, toggleCarouselSlideAction } from './actions'
 
 type Slide = {
@@ -95,6 +96,7 @@ export default function AdminSettingsPage() {
       showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível eliminar o slide.', 'error')
     }
   }
+
   async function saveOperational(){setSavingOperational(true);try{await saveOperationalSettingsAction(operational);showAlert('Guardado','Os parâmetros operacionais foram atualizados.','success')}catch(error){showAlert('Erro',error instanceof Error?error.message:'Não foi possível guardar.','error')}finally{setSavingOperational(false)}}
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -102,6 +104,7 @@ export default function AdminSettingsPage() {
   return (
     <DashboardPage>
       <DashboardPageHeader title="Definições" description="Apenas configurações que têm efeito real no runtime da plataforma são apresentadas aqui." />
+      <DashboardSection title="Adicionar slide do computador" description="Carregamento direto para o armazenamento público do carrossel."><CarouselDirectUpload /></DashboardSection>
 
       <DashboardSection title="Aprovação de perfis" description="Esta regra é consumida diretamente pelo registo de profissionais e gestores de espaço.">
         <Card>

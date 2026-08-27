@@ -70,6 +70,9 @@ export async function submitSpaceClaimAction(spaceId: string, message: string, f
   if (!spaceId) throw new Error('Espaço inválido.')
   if (cleanMessage.length < 20) throw new Error('Explique a sua relação com o espaço com pelo menos 20 caracteres.')
   if (cleanMessage.length > 3000) throw new Error('A justificação não pode exceder 3000 caracteres.')
+  const { data: config } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
+  const settings = config?.settings && typeof config.settings === 'object' && !Array.isArray(config.settings) ? config.settings : {}
+  if (settings.space_claims_enabled === false) throw new Error('As reivindicações de espaços estão temporariamente desativadas.')
   const { data: space } = await admin.from('sport_spaces').select('id,owner_user_id,name').eq('id', spaceId).maybeSingle()
   if (!space || space.owner_user_id) throw new Error('Este espaço já tem gestor ou deixou de estar disponível para reivindicação.')
   const { data: pending } = await admin.from('space_claims').select('id').eq('space_id', spaceId).eq('user_id', user.id).eq('status', 'pending').maybeSingle()
@@ -77,7 +80,8 @@ export async function submitSpaceClaimAction(spaceId: string, message: string, f
   let documentPath: string | null = null
   const file = formData?.get('document')
   if (file instanceof File && file.size > 0) {
-    if (file.size > 10 * 1024 * 1024) throw new Error('O documento não pode exceder 10 MB.')
+    const maxMb = typeof settings.max_upload_mb === 'number' ? settings.max_upload_mb : 10
+    if (file.size > maxMb * 1024 * 1024) throw new Error(`O documento não pode exceder ${maxMb} MB.`)
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) throw new Error('Formato inválido. Utilize PDF, JPG ou PNG.')
     documentPath = `${user.id}/${spaceId}/${crypto.randomUUID()}.${file.name.split('.').pop()?.toLowerCase() || 'bin'}`
     const upload = await admin.storage.from('claim-documents').upload(documentPath, await file.arrayBuffer(), { contentType: file.type, upsert: false })

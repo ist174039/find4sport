@@ -49,3 +49,14 @@ export async function setAdministratorActiveAction(id: string, active: boolean) 
   revalidatePath('/admin/administradores')
   return { success: true }
 }
+
+export async function sendAdministratorPasswordRecoveryAction(id: string) {
+  const { user, admin } = await requireGeneralAdmin()
+  const { data: current } = await admin.from('admins').select('email').eq('id', id).maybeSingle()
+  if (!current?.email) throw new Error('Administrador sem email associado.')
+  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://find4sport.vercel.app'}/auth/atualizar-password`
+  const { error } = await admin.auth.resetPasswordForEmail(current.email, { redirectTo })
+  if (error) throw new Error(error.message)
+  await writeAdminAudit(admin as any, { action: 'UPDATE', tableName: 'admins', userEmail: user.email || 'admin', message: `Recuperação de palavra-passe enviada para ${current.email}`, data: { admin_id: id } })
+  return { success: true }
+}

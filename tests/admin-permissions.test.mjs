@@ -43,7 +43,10 @@ test('operational admin cannot manage administrators or financial/platform confi
 test('admin type parser fails closed for unknown or missing values', () => {
   assert.equal(parseAdminType('general'), 'general')
   assert.equal(parseAdminType('operacional'), 'operacional')
-  assert.equal(parseAdminType('finance'), null)
+  assert.equal(parseAdminType('content'), 'content')
+  assert.equal(parseAdminType('support'), 'support')
+  assert.equal(parseAdminType('finance'), 'finance')
+  assert.equal(parseAdminType('owner'), null)
   assert.equal(parseAdminType(''), null)
   assert.equal(parseAdminType(null), null)
   assert.equal(parseAdminType(undefined), null)

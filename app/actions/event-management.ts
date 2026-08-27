@@ -32,8 +32,10 @@ function validateDate(value: string, label: string) {
 
 function manualApprovalEnabled(settings: Json | null | undefined) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true
-  const eventValue = settings.manual_event_approval
+  const eventValue = settings.events_require_approval
   if (typeof eventValue === 'boolean') return eventValue
+  const previousValue = settings.manual_event_approval
+  if (typeof previousValue === 'boolean') return previousValue
   const legacyValue = settings.manual_profile_approval
   return typeof legacyValue === 'boolean' ? legacyValue : true
 }

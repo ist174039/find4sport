@@ -75,6 +75,22 @@ export async function createCarouselSlideAction(input: { imageUrl: string; title
   return data
 }
 
+export async function uploadCarouselImageAction(formData: FormData) {
+  const { admin } = await requireGeneralAdmin()
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) throw new Error('Selecione uma imagem.')
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Use uma imagem JPG, PNG ou WebP.')
+  const { data: config } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
+  const settings = isJsonObject(config?.settings) ? config.settings : {}
+  const maxMb = typeof settings.max_upload_mb === 'number' ? settings.max_upload_mb : 8
+  if (file.size > maxMb * 1024 * 1024) throw new Error(`A imagem excede o limite de ${maxMb} MB.`)
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `carousel/${crypto.randomUUID()}.${extension}`
+  const { error } = await admin.storage.from('events').upload(path, file, { contentType: file.type, upsert: false })
+  if (error) throw new Error(error.message)
+  return admin.storage.from('events').getPublicUrl(path).data.publicUrl
+}
+
 export async function toggleCarouselSlideAction(id: string, isActive: boolean) {
   const { user, admin } = await requireGeneralAdmin()
   const { error } = await admin.from('carousel_slides').update({ is_active: isActive }).eq('id', id)
