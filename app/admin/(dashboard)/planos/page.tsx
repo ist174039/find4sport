@@ -89,6 +89,7 @@ export default async function AdminPlanosPage() {
   const groups = [
     { key: 'professional', title: 'Profissionais', description: 'Planos e limites aplicados a perfis profissionais.' },
     { key: 'venue_manager', title: 'Gestores de Espaço', description: 'Planos e limites aplicados à gestão de espaços.' },
+    { key: 'event_manager', title: 'Gestores de Eventos', description: 'Plano único gratuito, comissão e limites aplicados à gestão de eventos e comunidades.' },
   ]
 
   return (
