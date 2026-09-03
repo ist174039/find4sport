@@ -40,6 +40,10 @@ function manualApprovalEnabled(settings: Json | null | undefined) {
   return typeof legacyValue === 'boolean' ? legacyValue : true
 }
 
+function paidEventsEnabled(settings: Json | null | undefined) {
+  return !settings || typeof settings !== 'object' || Array.isArray(settings) || settings.paid_events_enabled !== false
+}
+
 async function geocodeAddress(address: string) {
   const value = address.trim()
   if (value.length < 4) return null
@@ -156,6 +160,8 @@ export async function createEventAction(formData: FormData) {
 
   const fields = validateEventFields(formData)
   const admin = createAdminClient()
+  const { data: configData } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
+  if (!paidEventsEnabled(configData?.settings) && (Number(fields.priceMin || 0) > 0 || Number(fields.priceMax || 0) > 0)) throw new Error('A criação de eventos pagos está desativada pela administração.')
   await validateCategory(admin, fields.categoryId)
   const coordinates = fields.address ? await geocodeAddress(fields.address) : null
 
@@ -168,13 +174,12 @@ export async function createEventAction(formData: FormData) {
     if (professional.status !== 'active') throw new Error('O perfil profissional tem de estar ativo para criar eventos.')
     professionalId = professional.id
     organizerName = professional.professional_name || professional.full_name || organizerName
-  } else {
+  } else if (access.role === 'venue_manager') {
     const { data: space } = await admin.from('sport_spaces').select('id,name,status').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
     if (!space) throw new Error('Não existe um espaço associado a esta conta.')
     organizerName = space.name || organizerName
   }
 
-  const { data: configData } = await admin.from('system_config').select('settings').maybeSingle()
   const status: NonNullable<TablesInsert<'events'>['status']> = manualApprovalEnabled(configData?.settings) ? 'pending' : 'published'
 
   const banner = formData.get('banner')
@@ -248,6 +253,8 @@ export async function updateEventAction(eventId: string, formData: FormData) {
   if (!current) throw new Error('Evento não encontrado ou sem permissão para editar.')
 
   const fields = validateEventFields(formData)
+  const { data: configData } = await admin.from('system_config').select('settings').eq('id', 'global').maybeSingle()
+  if (!paidEventsEnabled(configData?.settings) && (Number(fields.priceMin || 0) > 0 || Number(fields.priceMax || 0) > 0)) throw new Error('Os eventos pagos estão desativados pela administração.')
   await validateCategory(admin, fields.categoryId)
   const addressChanged = String(current.address || '').trim() !== String(fields.address || '').trim()
   const coordinates = addressChanged && fields.address ? await geocodeAddress(fields.address) : null

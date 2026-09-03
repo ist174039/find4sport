@@ -20,9 +20,11 @@ interface HeroCarouselProps {
   spacesCount: number
   profsCount: number
   eventsCount: number
+  athletesCount: number
+  communitiesCount: number
 }
 
-export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: HeroCarouselProps) {
+export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount, athletesCount, communitiesCount }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0)
 
   useEffect(() => {
@@ -40,10 +42,12 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount }: H
         <Button asChild size="sm" variant="secondary" className="min-h-10 shrink-0 rounded-full"><Link href="/comunidades">Comunidades</Link></Button>
       </div>
       <HomeSearchForm />
-      <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs font-medium text-white/85 sm:mx-auto sm:max-w-lg">
+      <div className="mt-6 grid grid-cols-3 gap-3 text-center text-xs font-medium text-white/85 sm:mx-auto sm:max-w-3xl sm:grid-cols-5">
         <span><strong className="block text-lg text-white">{spacesCount}</strong>Espaços</span>
         <span><strong className="block text-lg text-white">{profsCount}</strong>Profissionais</span>
         <span><strong className="block text-lg text-white">{eventsCount}</strong>Eventos</span>
+        <span><strong className="block text-lg text-white">{athletesCount}</strong>Atletas ativos</span>
+        <span><strong className="block text-lg text-white">{communitiesCount}</strong>Comunidades</span>
       </div>
     </div>
   )

@@ -12,7 +12,10 @@ export default async function CriarEventoPage() {
   const access = await resolveSessionAccess(supabase, user)
   if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) redirect('/dashboard/eventos')
 
-  const { data: categoryRows, error } = await supabase.from('categories').select('*').order('name')
+  const [{ data: categoryRows, error }, { data: config }] = await Promise.all([
+    supabase.from('categories').select('*').order('name'),
+    supabase.from('system_config').select('settings').eq('id', 'global').maybeSingle(),
+  ])
   if (error) throw new Error('Não foi possível carregar as modalidades.')
 
   const categories: TaxonomyOption[] = (categoryRows || []).map(row => {
@@ -26,5 +29,6 @@ export default async function CriarEventoPage() {
     }
   })
 
-  return <EventCreateForm categories={categories} />
+  const settings = config?.settings && typeof config.settings === 'object' && !Array.isArray(config.settings) ? config.settings : {}
+  return <EventCreateForm categories={categories} paidEventsEnabled={settings.paid_events_enabled !== false} />
 }

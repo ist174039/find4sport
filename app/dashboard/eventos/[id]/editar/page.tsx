@@ -3,7 +3,6 @@ import { Users } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { resolveSessionAccess } from '@/lib/auth/access'
-import { isProviderRole } from '@/lib/auth/roles'
 import { Button } from '@/components/ui/button'
 import { EventEditForm } from './event-edit-form'
 import type { TaxonomyOption } from '@/components/taxonomy-combobox'
@@ -15,7 +14,7 @@ export default async function EditarEventoPage({ params }: { params: Promise<{ i
   if (!user) redirect(`/auth/login?redirect=${encodeURIComponent(`/dashboard/eventos/${id}/editar`)}`)
 
   const access = await resolveSessionAccess(supabase, user)
-  if (!access || !isProviderRole(access.role)) redirect('/dashboard/eventos')
+  if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) redirect('/dashboard/eventos')
 
   const [{ data: event, error: eventError }, { data: categoryRows, error: categoriesError }] = await Promise.all([
     supabase.from('events').select('id,title,description,category_id,address,start_date,end_date,capacity,price_min,price_max,image_url,gallery_urls,status,created_by').eq('id', id).eq('created_by', user.id).maybeSingle(),

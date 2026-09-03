@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Image as ImageIcon, Loader2, Plus, Settings, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Plus, Settings, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useModal } from '@/components/providers/modal-provider'
 import { DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
 import { CarouselDirectUpload } from '@/components/admin/carousel-direct-upload'
-import { createCarouselSlideAction, deleteCarouselSlideAction, getRealAdminSettingsAction, saveOperationalSettingsAction, saveRegistrationApprovalAction, toggleCarouselSlideAction } from './actions'
+import { createCarouselSlideAction, deleteCarouselSlideAction, getRealAdminSettingsAction, saveOperationalSettingsAction, saveRegistrationApprovalAction, toggleCarouselSlideAction, updateCarouselSlideAction, uploadCarouselImageAction } from './actions'
 
 type Slide = {
   id: string
@@ -34,7 +34,9 @@ export default function AdminSettingsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ imageUrl: '', title: '', subtitle: '', buttonText: '', buttonLink: '', displayOrder: 0 })
-  const [operational,setOperational]=useState({maintenanceMode:false,registrationsEnabled:true,claimsEnabled:true,eventsRequireApproval:false,supportEmail:'',maxUploadMb:10,claimReviewDays:5})
+  const [operational,setOperational]=useState({maintenanceMode:false,registrationsEnabled:true,claimsEnabled:true,eventsRequireApproval:false,paidEventsEnabled:true,supportEmail:'',maxUploadMb:10,claimReviewDays:5})
+  const [editingId,setEditingId]=useState<string|null>(null)
+  const [uploading,setUploading]=useState(false)
   const [savingOperational,setSavingOperational]=useState(false)
 
   useEffect(() => {
@@ -64,16 +66,35 @@ export default function AdminSettingsPage() {
   async function createSlide() {
     setCreating(true)
     try {
-      const slide = await createCarouselSlideAction(form)
-      setSlides(current => [...current, slide as Slide].sort((a, b) => a.display_order - b.display_order))
+      const slide = editingId ? await updateCarouselSlideAction(editingId, form) : await createCarouselSlideAction(form)
+      setSlides(current => (editingId ? current.map(item => item.id === editingId ? slide as Slide : item) : [...current, slide as Slide]).sort((a, b) => a.display_order - b.display_order))
       setForm({ imageUrl: '', title: '', subtitle: '', buttonText: '', buttonLink: '', displayOrder: 0 })
       setDialogOpen(false)
-      showAlert('Criado', 'Slide adicionado à homepage.', 'success')
+      showAlert('Guardado', editingId ? 'Conteúdo do slide atualizado.' : 'Slide adicionado à homepage.', 'success')
+      setEditingId(null)
     } catch (error) {
       showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível criar o slide.', 'error')
     } finally {
       setCreating(false)
     }
+  }
+
+  function editSlide(slide: Slide) {
+    setEditingId(slide.id)
+    setForm({ imageUrl: slide.image_url, title: slide.title || '', subtitle: slide.subtitle || '', buttonText: slide.button_text || '', buttonLink: slide.button_link || '', displayOrder: slide.display_order })
+    setDialogOpen(true)
+  }
+
+  async function uploadForForm(file: File) {
+    setUploading(true)
+    try {
+      const data = new FormData(); data.set('file', file)
+      const imageUrl = await uploadCarouselImageAction(data)
+      setForm(current => ({ ...current, imageUrl }))
+      showAlert('Imagem carregada', 'A imagem ficou associada ao formulário do slide.', 'success')
+    } catch (error) {
+      showAlert('Erro no upload', error instanceof Error ? error.message : 'Não foi possível carregar a imagem.', 'error')
+    } finally { setUploading(false) }
   }
 
   async function toggleSlide(slide: Slide, enabled: boolean) {
@@ -116,15 +137,15 @@ export default function AdminSettingsPage() {
       </DashboardSection>
 
       <DashboardSection title="Operação da plataforma" description="Controlo central de disponibilidade, registos, moderação e limites operacionais.">
-        <Card><CardContent className="grid gap-5 p-4 sm:grid-cols-2 sm:p-5"><SettingToggle label="Modo de manutenção" description="Assinala a plataforma como temporariamente indisponível." value={operational.maintenanceMode} onChange={value=>setOperational(current=>({...current,maintenanceMode:value}))}/><SettingToggle label="Novos registos" description="Permite a criação de novas contas." value={operational.registrationsEnabled} onChange={value=>setOperational(current=>({...current,registrationsEnabled:value}))}/><SettingToggle label="Reivindicações de espaços" description="Permite novos pedidos de gestão." value={operational.claimsEnabled} onChange={value=>setOperational(current=>({...current,claimsEnabled:value}))}/><SettingToggle label="Aprovação de eventos" description="Exige validação administrativa antes de publicar." value={operational.eventsRequireApproval} onChange={value=>setOperational(current=>({...current,eventsRequireApproval:value}))}/><div><Label>Email de suporte</Label><Input className="mt-2" type="email" value={operational.supportEmail} onChange={event=>setOperational(current=>({...current,supportEmail:event.target.value}))}/></div><div className="grid grid-cols-2 gap-3"><div><Label>Upload máximo (MB)</Label><Input className="mt-2" type="number" min={1} max={50} value={operational.maxUploadMb} onChange={event=>setOperational(current=>({...current,maxUploadMb:Number(event.target.value)}))}/></div><div><Label>Prazo de análise (dias)</Label><Input className="mt-2" type="number" min={1} max={60} value={operational.claimReviewDays} onChange={event=>setOperational(current=>({...current,claimReviewDays:Number(event.target.value)}))}/></div></div><Button className="sm:col-span-2" disabled={savingOperational} onClick={()=>void saveOperational()}>Guardar parâmetros operacionais</Button></CardContent></Card>
+        <Card><CardContent className="grid gap-5 p-4 sm:grid-cols-2 sm:p-5"><SettingToggle label="Modo de manutenção" description="Assinala a plataforma como temporariamente indisponível." value={operational.maintenanceMode} onChange={value=>setOperational(current=>({...current,maintenanceMode:value}))}/><SettingToggle label="Novos registos" description="Permite a criação de novas contas." value={operational.registrationsEnabled} onChange={value=>setOperational(current=>({...current,registrationsEnabled:value}))}/><SettingToggle label="Reivindicações de espaços" description="Permite novos pedidos de gestão." value={operational.claimsEnabled} onChange={value=>setOperational(current=>({...current,claimsEnabled:value}))}/><SettingToggle label="Aprovação de eventos" description="Exige validação administrativa antes de publicar." value={operational.eventsRequireApproval} onChange={value=>setOperational(current=>({...current,eventsRequireApproval:value}))}/><SettingToggle label="Permitir eventos pagos" description="Autoriza profissionais, gestores de espaço e gestores de eventos a definir preços e vender bilhetes." value={operational.paidEventsEnabled} onChange={value=>setOperational(current=>({...current,paidEventsEnabled:value}))}/><div><Label>Email de suporte</Label><Input className="mt-2" type="email" value={operational.supportEmail} onChange={event=>setOperational(current=>({...current,supportEmail:event.target.value}))}/></div><div className="grid grid-cols-2 gap-3"><div><Label>Upload máximo (MB)</Label><Input className="mt-2" type="number" min={1} max={50} value={operational.maxUploadMb} onChange={event=>setOperational(current=>({...current,maxUploadMb:Number(event.target.value)}))}/></div><div><Label>Prazo de análise (dias)</Label><Input className="mt-2" type="number" min={1} max={60} value={operational.claimReviewDays} onChange={event=>setOperational(current=>({...current,claimReviewDays:Number(event.target.value)}))}/></div></div><Button className="sm:col-span-2" disabled={savingOperational} onClick={()=>void saveOperational()}>Guardar parâmetros operacionais</Button></CardContent></Card>
       </DashboardSection>
 
       <DashboardSection
         title="Carrossel da homepage"
         description="Estes slides são lidos diretamente pela página inicial. Não existem slides fictícios ou configuração paralela."
-        action={<Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogTrigger render={<Button className="min-h-11"><Plus className="mr-2 h-4 w-4" />Adicionar slide</Button>} /><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>Novo slide</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><div className="space-y-2"><Label>URL da imagem *</Label><Input className="min-h-11 text-base" value={form.imageUrl} onChange={e => setForm(v => ({ ...v, imageUrl: e.target.value }))} /></div><div className="space-y-2"><Label>Título</Label><Input className="min-h-11 text-base" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} /></div><div className="space-y-2"><Label>Subtítulo</Label><Textarea className="min-h-24 text-base" value={form.subtitle} onChange={e => setForm(v => ({ ...v, subtitle: e.target.value }))} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Texto do botão</Label><Input className="min-h-11 text-base" value={form.buttonText} onChange={e => setForm(v => ({ ...v, buttonText: e.target.value }))} /></div><div className="space-y-2"><Label>Link do botão</Label><Input className="min-h-11 text-base" value={form.buttonLink} onChange={e => setForm(v => ({ ...v, buttonLink: e.target.value }))} placeholder="/profissionais" /></div></div><div className="space-y-2"><Label>Ordem</Label><Input type="number" className="min-h-11 text-base" value={form.displayOrder} onChange={e => setForm(v => ({ ...v, displayOrder: Number(e.target.value) }))} /></div><Button onClick={createSlide} disabled={creating} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Guardar slide</Button></div></DialogContent></Dialog>}
+        action={<Dialog open={dialogOpen} onOpenChange={open=>{setDialogOpen(open);if(!open)setEditingId(null)}}><DialogTrigger render={<Button className="min-h-11" onClick={()=>{setEditingId(null);setForm({imageUrl:'',title:'',subtitle:'',buttonText:'',buttonLink:'',displayOrder:0})}}><Plus className="mr-2 h-4 w-4" />Adicionar slide</Button>} /><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>{editingId?'Editar slide':'Novo slide'}</DialogTitle></DialogHeader><div className="grid gap-4 pt-2"><label className="flex min-h-24 cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed p-4"><Upload className="h-5 w-5 text-primary"/><span>{uploading?'A carregar…':'Carregar imagem do computador'}</span><Input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={event=>{const file=event.target.files?.[0];if(file)void uploadForForm(file)}}/></label>{form.imageUrl&&<img src={form.imageUrl} alt="Pré-visualização" className="aspect-video w-full rounded-xl object-cover"/>}<div className="space-y-2"><Label>URL da imagem *</Label><Input className="min-h-11 text-base" value={form.imageUrl} onChange={e => setForm(v => ({ ...v, imageUrl: e.target.value }))} /></div><div className="space-y-2"><Label>Título</Label><Input className="min-h-11 text-base" value={form.title} onChange={e => setForm(v => ({ ...v, title: e.target.value }))} /></div><div className="space-y-2"><Label>Subtítulo</Label><Textarea className="min-h-24 text-base" value={form.subtitle} onChange={e => setForm(v => ({ ...v, subtitle: e.target.value }))} /></div><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Texto do botão</Label><Input className="min-h-11 text-base" value={form.buttonText} onChange={e => setForm(v => ({ ...v, buttonText: e.target.value }))} /></div><div className="space-y-2"><Label>Link do botão</Label><Input className="min-h-11 text-base" value={form.buttonLink} onChange={e => setForm(v => ({ ...v, buttonLink: e.target.value }))} placeholder="/profissionais" /></div></div><div className="space-y-2"><Label>Ordem</Label><Input type="number" className="min-h-11 text-base" value={form.displayOrder} onChange={e => setForm(v => ({ ...v, displayOrder: Number(e.target.value) }))} /></div><Button onClick={createSlide} disabled={creating||uploading} className="min-h-11">{creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editingId?'Guardar alterações':'Guardar slide'}</Button></div></DialogContent></Dialog>}
       >
-        {slides.length === 0 ? <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Sem slides configurados. A homepage deve apresentar um estado vazio próprio.</div> : <div className="grid gap-4 md:grid-cols-2">{slides.map(slide => <Card key={slide.id} className="overflow-hidden"><div className="aspect-[16/8] bg-muted"><img src={slide.image_url} alt={slide.title || ''} className="h-full w-full object-cover" /></div><CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="truncate text-base">{slide.title || 'Sem título'}</CardTitle><CardDescription className="line-clamp-2">{slide.subtitle || 'Sem subtítulo'}</CardDescription></div><Switch checked={slide.is_active} onCheckedChange={enabled => toggleSlide(slide, enabled)} /></div></CardHeader><CardContent className="flex items-center justify-between gap-2 pt-0"><p className="text-xs text-muted-foreground">Ordem {slide.display_order}</p><Button variant="ghost" size="icon" className="h-11 w-11 text-destructive" onClick={() => removeSlide(slide)} aria-label="Eliminar slide"><Trash2 className="h-4 w-4" /></Button></CardContent></Card>)}</div>}
+        {slides.length === 0 ? <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Sem slides configurados. A homepage deve apresentar um estado vazio próprio.</div> : <div className="grid gap-4 md:grid-cols-2">{slides.map(slide => <Card key={slide.id} className="overflow-hidden"><div className="aspect-[16/8] bg-muted"><img src={slide.image_url} alt={slide.title || ''} className="h-full w-full object-cover" /></div><CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><CardTitle className="truncate text-base">{slide.title || 'Sem título'}</CardTitle><CardDescription className="line-clamp-2">{slide.subtitle || 'Sem subtítulo'}</CardDescription></div><Switch checked={slide.is_active} onCheckedChange={enabled => toggleSlide(slide, enabled)} /></div></CardHeader><CardContent className="flex items-center justify-between gap-2 pt-0"><p className="text-xs text-muted-foreground">Ordem {slide.display_order}</p><div className="flex gap-1"><Button variant="ghost" size="icon" className="h-11 w-11" onClick={() => editSlide(slide)} aria-label="Editar slide"><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-11 w-11 text-destructive" onClick={() => removeSlide(slide)} aria-label="Eliminar slide"><Trash2 className="h-4 w-4" /></Button></div></CardContent></Card>)}</div>}
       </DashboardSection>
     </DashboardPage>
   )
