@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   if (!user) redirect('/auth/login?redirect=/dashboard/definicoes')
   const access = await resolveSessionAccess(supabase, user)
   if (!access?.role) redirect('/auth/resolve')
-  const hasCommercialPlan = access.role === 'professional' || access.role === 'venue_manager'
+  const hasCommercialPlan = access.role === 'professional' || access.role === 'venue_manager' || access.role === 'event_manager'
 
   return (
     <DashboardPage>

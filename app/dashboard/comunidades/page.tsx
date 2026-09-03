@@ -24,7 +24,7 @@ export default async function DashboardCommunitiesPage({ searchParams }: { searc
 
   const access = await resolveSessionAccess(supabase, user)
   if (!access?.canAccessDashboard) redirect('/auth/login?redirect=/dashboard/comunidades')
-  if (!['athlete', 'professional'].includes(access.role)) redirect('/dashboard')
+  if (!['athlete', 'professional', 'event_manager'].includes(access.role)) redirect('/dashboard')
   const isAthlete = access.role === 'athlete'
 
   const params = await searchParams

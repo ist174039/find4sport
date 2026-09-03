@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { requireAdminPermission } from '@/lib/auth/authorization'
 
 function requireReason(formData: FormData) {
@@ -71,4 +72,27 @@ export async function transferCommunityOwnershipAction(communityId: string, form
   if (error) throw new Error('Não foi possível transferir a responsabilidade.')
   await writeAudit(admin, user.id, user.email, communityId, 'community.ownership.transferred', reason, { old_owner_id: community.created_by, new_owner_id: newOwnerId })
   revalidateCommunity(communityId)
+}
+
+export async function setAdminCommunityStatusAction(communityId: string, status: 'active' | 'inactive', formData: FormData) {
+  const reason = requireReason(formData)
+  const { user, admin } = await requireAdminPermission('communities.manage')
+  const { data: community } = await admin.from('communities').select('id,status').eq('id', communityId).maybeSingle()
+  if (!community) throw new Error('Comunidade não encontrada.')
+  const { error } = await admin.from('communities').update({ status, updated_at: new Date().toISOString() }).eq('id', communityId)
+  if (error) throw new Error('Não foi possível alterar o estado da comunidade.')
+  await writeAudit(admin, user.id, user.email, communityId, `community.${status === 'active' ? 'reactivated' : 'deactivated'}`, reason, { old_status: community.status, new_status: status })
+  revalidateCommunity(communityId)
+}
+
+export async function deleteAdminCommunityAction(communityId: string, formData: FormData) {
+  const reason = requireReason(formData)
+  const { user, admin } = await requireAdminPermission('communities.manage')
+  const { data: community } = await admin.from('communities').select('id,name').eq('id', communityId).maybeSingle()
+  if (!community) throw new Error('Comunidade não encontrada.')
+  const { error } = await admin.from('communities').delete().eq('id', communityId)
+  if (error) throw new Error(`Não foi possível apagar a comunidade: ${error.message}`)
+  await writeAudit(admin, user.id, user.email, communityId, 'community.deleted', reason, { name: community.name })
+  revalidatePath('/admin/comunidades'); revalidatePath('/comunidades')
+  redirect('/admin/comunidades')
 }

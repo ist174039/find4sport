@@ -151,7 +151,7 @@ export async function createEventAction(formData: FormData) {
   if (!user) throw new Error('Autenticação necessária.')
 
   const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Apenas profissionais e gestores de espaço podem criar eventos.')
+  if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) throw new Error('Apenas profissionais e gestores podem criar eventos.')
   await requireFeature(user.id, 'events.create.enabled')
 
   const fields = validateEventFields(formData)
@@ -236,7 +236,7 @@ export async function updateEventAction(eventId: string, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Autenticação necessária.')
   const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role)) throw new Error('Sem permissão para editar eventos.')
+  if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) throw new Error('Sem permissão para editar eventos.')
 
   const admin = createAdminClient()
   const { data: current } = await admin

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ArrowDownLeft, ArrowUpRight, Check, ChevronRight, CreditCard, Crown, Download, History, Loader2, ReceiptText, Sparkles, Wallet } from 'lucide-react'
 import { useModal } from '@/components/providers/modal-provider'
 
-type Plan = { id:string; code:'free'|'pro'|'premium'; name:string; description:string|null; monthly_price:number; annual_price:number; commission_rate:number; customer_service_fee_rate:number; audience:'professional'|'venue_manager'; entitlements?: any[] }
+type Plan = { id:string; code:'free'|'pro'|'premium'; name:string; description:string|null; monthly_price:number; annual_price:number; commission_rate:number; customer_service_fee_rate:number; audience:'professional'|'venue_manager'|'event_manager'; entitlements?: any[] }
 type Subscription = { tier:'free'|'pro'|'premium'; status:string; plan_id?:string|null; current_period_end?:string|null; cancel_at_period_end?:boolean; stripe_customer_id?:string|null }
 type ConnectStatus = { connected:boolean; accountId:string|null; detailsSubmitted:boolean; chargesEnabled:boolean; payoutsEnabled:boolean; requirementsDue:string[] }
 type LedgerFilter = 'all'|'in'|'out'|'reservation'|'service'|'event'
@@ -42,7 +42,7 @@ export default function FaturacaoPage(){
 
   useEffect(()=>{void(async()=>{try{
     const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.push('/auth/login');return}setUserId(user.id)
-    const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'?profile.type:null;setAudience(role)
+    const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'||profile?.type==='event_manager'?profile.type:null;setAudience(role)
     const [{data:sub},{data:tx},{data:prof},{data:spaces}]=await Promise.all([
       supabase.from('user_subscriptions').select('*').eq('user_id',user.id).maybeSingle(),
       supabase.from('transactions').select('*').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
@@ -73,7 +73,7 @@ export default function FaturacaoPage(){
   function exportCsv(){const rows=filteredTransactions.map(tx=>{const direction=tx.provider_user_id===userId?'cash_in':'cash_out';return [tx.created_at,direction,sourceLabel(tx),tx.source_type,tx.source_id,tx.status,tx.currency,effectiveAmount(tx,direction==='cash_in'?'in':'out'),tx.gross_amount,tx.base_amount,tx.customer_fee_amount,tx.platform_commission_amount,tx.stripe_processing_fee_amount,tx.provider_net_amount,tx.platform_net_amount,tx.stripe_payment_intent_id,tx.stripe_transfer_id]});const header=['data','direcao','origem','source_type','source_id','estado','moeda','valor_movimento','bruto','base','taxa_cliente','comissao_plataforma','fee_stripe','liquido_provider','liquido_plataforma','payment_intent','transfer_id'];const csv='\uFEFF'+[header,...rows].map(r=>r.map(csvCell).join(';')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`find4sport-financeiro-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url)}
 
   if(loading)return <div className="flex min-h-72 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary"/></div>
-  if(!audience)return <Card><CardContent className="p-8 text-center"><h1 className="text-xl font-bold">Planos comerciais</h1><p className="mt-2 text-sm text-muted-foreground">Disponíveis para profissionais e gestores de espaço.</p></CardContent></Card>
+  if(!audience)return <Card><CardContent className="p-8 text-center"><h1 className="text-xl font-bold">Planos comerciais</h1><p className="mt-2 text-sm text-muted-foreground">Disponíveis para profissionais, gestores de espaço e gestores de eventos.</p></CardContent></Card>
 
   return <div className="space-y-8 pb-8">
     {audience==='venue_manager'&&selectedSpace&&<section className="rounded-2xl border bg-card p-4"><label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Informação financeira do espaço</label><select value={selectedSpace.id} onChange={event=>router.push(`/dashboard/faturacao?space=${event.target.value}`)} className="mt-2 min-h-11 w-full rounded-xl border bg-background px-3 font-semibold sm:max-w-sm">{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><p className="mt-2 text-sm text-muted-foreground">Os movimentos e totais de reservas estão filtrados por este espaço. O plano e a conta Stripe pertencem à conta gestora.</p></section>}

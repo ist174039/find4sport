@@ -16,16 +16,17 @@ const PAGE_SIZE = 20
 type UserRole = NonNullable<Tables<'platform_users'>['type']>
 type RoleFilter = 'all' | UserRole
 type AdminUserRow = Pick<Tables<'platform_users'>, 'id' | 'full_name' | 'type' | 'avatar_url' | 'created_at'> & { email: string | null; account_status: string; moderation_reason: string | null; suspended_until: string | null }
-const roleLabels: Record<UserRole, string> = { athlete: 'Atleta', professional: 'Profissional', venue_manager: 'Gestor de espaço' }
+const roleLabels: Record<UserRole, string> = { athlete: 'Atleta', professional: 'Profissional', venue_manager: 'Gestor de espaço', event_manager: 'Gestor de eventos' }
 const roleOptions: Array<{ value: RoleFilter; label: string }> = [
   { value: 'all', label: 'Todos os tipos' },
   { value: 'athlete', label: 'Atletas' },
   { value: 'professional', label: 'Profissionais' },
   { value: 'venue_manager', label: 'Gestores de espaço' },
+  { value: 'event_manager', label: 'Gestores de eventos' },
 ]
 
 function parseRole(value: string | undefined): RoleFilter {
-  return value === 'athlete' || value === 'professional' || value === 'venue_manager' ? value : 'all'
+  return value === 'athlete' || value === 'professional' || value === 'venue_manager' || value === 'event_manager' ? value : 'all'
 }
 
 function pageHref(page: number, q: string, role: RoleFilter) {

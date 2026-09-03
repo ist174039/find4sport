@@ -15,6 +15,7 @@ export function getUserRoleLabel(type: string | null | undefined): string {
   const role = parsePlatformRole(type)
   if (role === 'professional') return 'Profissional'
   if (role === 'venue_manager') return 'Gestor de espaço'
+  if (role === 'event_manager') return 'Gestor de eventos'
   return 'Atleta'
 }
 
@@ -28,6 +29,8 @@ export function getUserDisplayName(input: UserDisplayInput): string {
   if (role === 'venue_manager') {
     return input.space_name || input.full_name || 'Espaço'
   }
+
+  if (role === 'event_manager') return input.full_name || 'Gestor de eventos'
 
   return input.full_name || 'Atleta'
 }

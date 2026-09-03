@@ -43,9 +43,9 @@ export type Database = {
         Relationships: []
       }
       communities: {
-        Row: { address: string | null; cover_url: string | null; created_at: string; created_by: string | null; description: string | null; id: string; is_private: boolean | null; latitude: number | null; location_scope: string; longitude: number | null; name: string; posting_policy: string; slug: string; sport_category: string | null; updated_at: string }
-        Insert: { address?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; description?: string | null; id?: string; is_private?: boolean | null; latitude?: number | null; location_scope?: string; longitude?: number | null; name: string; posting_policy?: string; slug: string; sport_category?: string | null; updated_at?: string }
-        Update: { address?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; description?: string | null; id?: string; is_private?: boolean | null; latitude?: number | null; location_scope?: string; longitude?: number | null; name?: string; posting_policy?: string; slug?: string; sport_category?: string | null; updated_at?: string }
+        Row: { address: string | null; cover_url: string | null; created_at: string; created_by: string | null; description: string | null; id: string; is_private: boolean | null; latitude: number | null; location_scope: string; longitude: number | null; name: string; posting_policy: string; slug: string; sport_category: string | null; status: string; updated_at: string }
+        Insert: { address?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; description?: string | null; id?: string; is_private?: boolean | null; latitude?: number | null; location_scope?: string; longitude?: number | null; name: string; posting_policy?: string; slug: string; sport_category?: string | null; status?: string; updated_at?: string }
+        Update: { address?: string | null; cover_url?: string | null; created_at?: string; created_by?: string | null; description?: string | null; id?: string; is_private?: boolean | null; latitude?: number | null; location_scope?: string; longitude?: number | null; name?: string; posting_policy?: string; slug?: string; sport_category?: string | null; status?: string; updated_at?: string }
         Relationships: [{ foreignKeyName: "communities_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "platform_users"; referencedColumns: ["id"] }]
       }
       community_categories: {
@@ -452,7 +452,7 @@ export type Database = {
       space_status: "pending" | "active" | "suspended" | "rejected"
       subscription_status: "active" | "canceled" | "past_due" | "trialing" | "incomplete" | "incomplete_expired" | "unpaid" | "paused"
       subscription_tier: "free" | "pro" | "premium"
-      user_role: "athlete" | "professional" | "venue_manager"
+        user_role: "athlete" | "professional" | "venue_manager" | "event_manager"
     }
     CompositeTypes: { [_ in never]: never }
   }
@@ -513,7 +513,7 @@ export const Constants = {
       space_status: ["pending", "active", "suspended", "rejected"],
       subscription_status: ["active", "canceled", "past_due", "trialing", "incomplete", "incomplete_expired", "unpaid", "paused"],
       subscription_tier: ["free", "pro", "premium"],
-      user_role: ["athlete", "professional", "venue_manager"],
+      user_role: ["athlete", "professional", "venue_manager", "event_manager"],
     },
   },
 } as const

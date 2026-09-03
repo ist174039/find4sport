@@ -16,6 +16,7 @@ const navigationGroups = [
     { title: 'Profissionais', href: '/admin/profissionais', icon: Users },
     { title: 'Espaços', href: '/admin/espacos', icon: Building2 },
     { title: 'Eventos', href: '/admin/eventos', icon: Calendar },
+    { title: 'Gestores de Eventos', href: '/admin/eventmanager', icon: Calendar },
     { title: 'Comunidades', href: '/admin/comunidades', icon: UsersRound },
     { title: 'Validação de serviços', href: '/admin/servicos', icon: ClipboardCheck },
     { title: 'Utilizadores da plataforma', href: '/admin/utilizadores', icon: Users },

@@ -59,7 +59,7 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
   const page = Math.max(1, Number(Array.isArray(params.page) ? params.page[0] : params.page) || 1)
   const q = String(Array.isArray(params.q) ? params.q[0] : params.q || '').trim().replace(/[,%]/g, '').slice(0, 100)
   const status = String(Array.isArray(params.status) ? params.status[0] : params.status || 'all')
-  const isCreator = ['professional', 'venue_manager'].includes(access.role)
+  const isCreator = ['professional', 'venue_manager', 'event_manager'].includes(access.role)
   const from = (page - 1) * PAGE_SIZE
 
   let rows: Array<Record<string, unknown>> = []

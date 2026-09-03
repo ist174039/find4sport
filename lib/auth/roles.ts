@@ -1,4 +1,4 @@
-export const PLATFORM_ROLES = ['athlete', 'professional', 'venue_manager'] as const
+export const PLATFORM_ROLES = ['athlete', 'professional', 'venue_manager', 'event_manager'] as const
 
 export type PlatformRole = (typeof PLATFORM_ROLES)[number]
 export type ProviderRole = Extract<PlatformRole, 'professional' | 'venue_manager'>
@@ -23,5 +23,5 @@ export function normalizePlatformRole(value: unknown): PlatformRole {
 }
 
 export function canCreatePostForRole(role: PlatformRole): boolean {
-  return isProviderRole(role)
+  return isProviderRole(role) || role === 'event_manager'
 }

@@ -10,7 +10,7 @@ export default async function CriarEventoPage() {
   if (!user) redirect('/auth/login?redirect=/dashboard/eventos/criar')
 
   const access = await resolveSessionAccess(supabase, user)
-  if (!access || !['professional', 'venue_manager'].includes(access.role)) redirect('/dashboard/eventos')
+  if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) redirect('/dashboard/eventos')
 
   const { data: categoryRows, error } = await supabase.from('categories').select('*').order('name')
   if (error) throw new Error('Não foi possível carregar as modalidades.')

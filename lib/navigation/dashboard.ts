@@ -29,6 +29,10 @@ const configs:Record<PlatformRole,DashboardNavGroup[]>={
     {label:'Presença',items:[{name:'Os Meus Espaços',href:`${base}/espaco`,icon:Building2},{name:'Galeria principal',href:`${base}/galeria`,icon:Camera},{name:'Seguidores',href:`${base}/seguidores`,icon:UserRound},{name:'Avaliações por espaço',href:`${base}/avaliacoes`,icon:Star}]},
     {label:'Conta',items:[{name:'Minhas compras',href:`${base}/compras`,icon:ReceiptText},{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
   ],
+  event_manager:[
+    {label:'Gestão',items:[{name:'Visão Geral',href:base,icon:LayoutDashboard},{name:'Eventos',href:`${base}/eventos`,icon:CalendarCheck},{name:'Comunidades',href:`${base}/comunidades`,icon:Users}]},
+    {label:'Conta',items:[{name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},{name:'Faturação e plano',href:`${base}/faturacao`,icon:DollarSign},{name:'Notificações',href:`${base}/notificacoes`,icon:Bell,badge:'notifications'},{name:'O Meu Perfil',href:`${base}/perfil`,icon:User},{name:'Definições',href:`${base}/definicoes`,icon:Settings}]},
+  ],
 }
 export function getDashboardNavigation(role:PlatformRole){return configs[role]}
 export function getDashboardPrimaryNavigation(role:PlatformRole):DashboardNavItem[]{
@@ -36,6 +40,12 @@ export function getDashboardPrimaryNavigation(role:PlatformRole):DashboardNavIte
     {name:'Início',href:base,icon:LayoutDashboard},
     {name:'Agenda',href:`${base}/agenda`,icon:Calendar},
     {name:'Confirmar',href:`${base}/confirmacoes`,icon:ClipboardCheck},
+    {name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},
+  ]
+  if(role==='event_manager')return[
+    {name:'Início',href:base,icon:LayoutDashboard},
+    {name:'Eventos',href:`${base}/eventos`,icon:CalendarCheck},
+    {name:'Comunidades',href:`${base}/comunidades`,icon:Users},
     {name:'Mensagens',href:`${base}/mensagens`,icon:MessageSquare},
   ]
   return[

@@ -16,13 +16,13 @@ export default async function CreateCommunityPage() {
     supabase.from('categories').select('*').order('name'),
   ])
 
-  if (profile?.type !== 'professional') {
+  if (!profile?.type || !['professional', 'event_manager'].includes(profile.type)) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center p-4">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive"><ShieldAlert className="h-8 w-8" /></div>
           <h1 className="mb-4 text-2xl font-bold text-foreground">Acesso restrito</h1>
-          <p className="mb-8 text-muted-foreground">A criação de comunidades desportivas é exclusiva para perfis profissionais.</p>
+          <p className="mb-8 text-muted-foreground">A criação de comunidades é exclusiva para profissionais e gestores de eventos.</p>
           <div className="flex flex-col gap-3">
             <Link href="/auth/registar/profissional" className="block w-full rounded-xl bg-primary py-3 text-center font-bold text-primary-foreground transition hover:bg-primary/90">Tornar-me profissional</Link>
             <Link href="/comunidades" className="block w-full rounded-xl bg-muted py-3 text-center font-bold text-muted-foreground transition hover:bg-muted/80">Voltar ao diretório</Link>

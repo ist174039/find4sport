@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Trophy, User } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Building2, CalendarDays, Check, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck, Trophy, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { User as AuthUser } from '@supabase/supabase-js'
 import type { PlatformRole } from '@/lib/auth/roles'
@@ -13,6 +13,7 @@ const ACCOUNT_TYPES: Array<{ id: PlatformRole; label: string; description: strin
   { id: 'athlete', label: 'Utilizador', description: 'Descobrir, reservar e participar.', detail: 'Pesquisa, favoritos, eventos, comunidades e mensagens.', icon: User },
   { id: 'professional', label: 'Profissional', description: 'Promover serviços e gerir clientes.', detail: 'Perfil profissional, serviços, agenda, eventos e comunidades.', icon: Trophy },
   { id: 'venue_manager', label: 'Espaço', description: 'Gerir instalações e reservas.', detail: 'Espaço público, salas/campos, horários, reservas e equipa.', icon: Building2 },
+  { id: 'event_manager', label: 'Gestor de Eventos', description: 'Criar eventos e desenvolver comunidades.', detail: 'Eventos, participantes, bilhetes, comunidades e faturação com comissão de 15%.', icon: CalendarDays },
 ]
 
 function safeNext(value: string | null) {
@@ -80,7 +81,7 @@ function RegisterForm() {
       const supabase = createClient()
       const { error: upsertError } = await supabase.from('platform_users').upsert({
         id: existingUser.id,
-        type: 'athlete',
+        type: selectedType,
         full_name: existingUser.user_metadata?.full_name || existingUser.email?.split('@')[0] || 'Utilizador',
       })
       if (upsertError) throw upsertError

@@ -43,7 +43,7 @@ export default async function AdminCommunitiesPage({ searchParams }: { searchPar
 
   let listQuery = admin
     .from('communities')
-    .select('id,name,slug,description,address,is_private,posting_policy,created_at,created_by,platform_users!communities_created_by_fkey(full_name)', { count: 'exact' })
+    .select('id,name,slug,description,address,is_private,posting_policy,status,created_at,created_by,platform_users!communities_created_by_fkey(full_name)', { count: 'exact' })
     .order('created_at', { ascending: false })
   if (q) listQuery = listQuery.or(`name.ilike.%${q}%,description.ilike.%${q}%,address.ilike.%${q}%`)
   if (filter === 'public') listQuery = listQuery.eq('is_private', false)

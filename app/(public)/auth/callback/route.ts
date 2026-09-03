@@ -37,6 +37,11 @@ export async function GET(request: NextRequest) {
       if (existingRole === 'athlete' && explicitRequestedRole === 'venue_manager') {
         return NextResponse.redirect(setupUrl(origin, '/auth/registar/espaco', next))
       }
+      if (existingRole === 'athlete' && explicitRequestedRole === 'event_manager') {
+        const { error: roleError } = await supabase.from('platform_users').update({ type: 'event_manager' }).eq('id', user.id)
+        if (roleError) return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(roleError.message)}`)
+        return NextResponse.redirect(new URL(next, origin))
+      }
 
       if (existingRole) {
         const resolveUrl = new URL('/auth/resolve', origin)
@@ -46,6 +51,11 @@ export async function GET(request: NextRequest) {
 
       if (explicitRequestedRole === 'professional') return NextResponse.redirect(setupUrl(origin, '/auth/registar/profissional', next))
       if (explicitRequestedRole === 'venue_manager') return NextResponse.redirect(setupUrl(origin, '/auth/registar/espaco', next))
+      if (explicitRequestedRole === 'event_manager') {
+        const { error: profileError } = await supabase.from('platform_users').upsert({ id: user.id, type: 'event_manager', full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Gestor de eventos' })
+        if (profileError) return NextResponse.redirect(`${origin}/auth/error?error=${encodeURIComponent(profileError.message)}`)
+        return NextResponse.redirect(new URL(next, origin))
+      }
 
       if (explicitRequestedRole === 'athlete') {
         const { error: profileError } = await supabase.from('platform_users').upsert({

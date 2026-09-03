@@ -43,6 +43,8 @@ export default async function MensagensPage({searchParams}:{searchParams:Promise
     const {data:ownedSpaces}=await admin.from('sport_spaces').select('id,name').eq('owner_user_id',user.id).order('created_at');const selectedSpace=(ownedSpaces||[]).find((s:any)=>s.id===params.space)||(ownedSpaces||[])[0]||null
     if(selectedSpace){const {data:r}=await admin.from('reservations').select('id,user_id,professional_id,service_id,space_id,space_room_id,date,start_time,end_time,status,payment_status,amount,created_at').eq('space_id',selectedSpace.id);reservations=r||[]}
     const {data:ownedEvents}=selectedSpace?await admin.from('events').select('id').eq('created_by',user.id).eq('space_id',selectedSpace.id):{data:[]};const eventIds=(ownedEvents||[]).map(e=>e.id);if(eventIds.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',eventIds);participants=p||[]}
+  }else if(role==='event_manager'){
+    const {data:ownedEvents}=await admin.from('events').select('id').eq('created_by',user.id);const ids=(ownedEvents||[]).map(e=>e.id);if(ids.length){const {data:p}=await admin.from('event_participants').select('id,event_id,user_id,status,payment_status,created_at').in('event_id',ids);participants=p||[]}
   }
 
   const missingReservationIds=threads.map(t=>t.reservation_id).filter(Boolean).filter((id:string)=>!reservations.some(r=>r.id===id))

@@ -53,6 +53,8 @@ export function DashboardSidebar({ role, professional, spaces = [], user, notifi
 
   const identity: Identity = role === 'venue_manager'
     ? { name: selectedSpace?.name || 'Espaços', label: spaces.length > 1 ? `Gestor · ${spaces.length} espaços` : 'Gestor de espaço', avatar: selectedSpace?.logo_url || null, fallback: selectedSpace?.name?.charAt(0) || 'E' }
+    : role === 'event_manager'
+      ? { name: user?.user_metadata?.full_name || 'Gestor de eventos', label: 'Gestor de eventos', avatar: user?.user_metadata?.avatar_url || null, fallback: user?.user_metadata?.full_name?.charAt(0) || 'E' }
     : role === 'professional'
       ? { name: professional?.full_name || professional?.professional_name || 'Profissional', label: 'Profissional', avatar: professional?.avatar_url || null, fallback: professional?.full_name?.charAt(0) || professional?.professional_name?.charAt(0) || 'P' }
       : { name: user?.user_metadata?.full_name || 'Atleta', label: 'Atleta', avatar: user?.user_metadata?.avatar_url || null, fallback: user?.user_metadata?.full_name?.charAt(0) || 'A' }
