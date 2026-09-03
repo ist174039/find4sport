@@ -56,6 +56,8 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
   if (isUuid) professional = (await admin.from('professionals').select(publicFields).eq('id', rawId).maybeSingle()).data as Professional | null
   if (!professional) professional = (await admin.from('professionals').select(publicFields).eq('public_slug', rawId).maybeSingle()).data as Professional | null
   if (!professional || professional.status !== PUBLIC_PROFESSIONAL_STATUS) notFound()
+  const { data: publicOwner } = await admin.from('platform_users').select('id').eq('id', professional.user_id).eq('account_status', 'active').maybeSingle()
+  if (!publicOwner) notFound()
 
   const rpc = admin.rpc.bind(admin) as unknown as RpcCall
   void rpc('increment_professional_views', { prof_id: professional.id })

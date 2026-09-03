@@ -23,11 +23,10 @@ export default async function DisponibilidadePage() {
     )
   }
 
-  const { data: availability } = await supabase
-    .from('professional_availability')
-    .select('*')
-    .eq('professional_id', prof.id)
-    .order('day_of_week', { ascending: true })
+  const [{ data: availability }, { data: unavailable }] = await Promise.all([
+    supabase.from('professional_availability').select('*').eq('professional_id', prof.id).order('day_of_week', { ascending: true }),
+    supabase.from('professional_unavailability').select('id,date,start_time,end_time').eq('professional_id', prof.id).gte('date', new Date().toISOString().slice(0, 10)).order('date').order('start_time'),
+  ])
 
   const normalizedAvailability = (availability || []).map(slot => ({
     id: slot.id,
@@ -47,7 +46,7 @@ export default async function DisponibilidadePage() {
         </div>
       </div>
 
-      <AvailabilityClient initialAvailability={normalizedAvailability} professionalId={prof.id} />
+      <AvailabilityClient initialAvailability={normalizedAvailability} initialUnavailable={unavailable || []} professionalId={prof.id} />
     </div>
   )
 }

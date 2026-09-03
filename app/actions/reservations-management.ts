@@ -138,3 +138,32 @@ export async function saveProfessionalAvailabilityAction(items: Array<{ day_of_w
   revalidatePath('/dashboard/reservas'); revalidatePath('/dashboard/agenda')
   return { success: true }
 }
+
+export async function createProfessionalUnavailabilityAction(input: { date: string; startTime: string; endTime: string }) {
+  const { user, role, admin } = await getProviderContext()
+  if (role !== 'professional') throw new Error('Esta operação aplica-se apenas a profissionais.')
+  const { data: professional } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+  if (!professional) throw new Error('Perfil profissional não encontrado.')
+  const date = String(input.date || ''), startTime = String(input.startTime || '').slice(0, 5), endTime = String(input.endTime || '').slice(0, 5)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime) || startTime >= endTime) throw new Error('Indique uma data e um intervalo válidos.')
+  if (date < new Date().toISOString().slice(0, 10)) throw new Error('Não é possível bloquear uma data passada.')
+  const { data: reservation } = await admin.from('reservations').select('id').eq('professional_id', professional.id).eq('date', date).in('status', ['pending', 'paid', 'confirmed']).lt('start_time', endTime).gt('end_time', startTime).limit(1).maybeSingle()
+  if (reservation) throw new Error('Já existe uma reserva neste intervalo. Altere primeiro essa reserva.')
+  const { data: overlap } = await admin.from('professional_unavailability').select('id').eq('professional_id', professional.id).eq('date', date).lt('start_time', endTime).gt('end_time', startTime).limit(1).maybeSingle()
+  if (overlap) throw new Error('Este intervalo já está abrangido por outro bloco.')
+  const { data, error } = await admin.from('professional_unavailability').insert({ professional_id: professional.id, date, start_time: startTime, end_time: endTime }).select('id,date,start_time,end_time').single()
+  if (error || !data) throw new Error('Não foi possível criar o bloco de indisponibilidade.')
+  revalidatePath('/dashboard/agenda/disponibilidade')
+  return data
+}
+
+export async function deleteProfessionalUnavailabilityAction(id: string) {
+  const { user, role, admin } = await getProviderContext()
+  if (role !== 'professional') throw new Error('Esta operação aplica-se apenas a profissionais.')
+  const { data: professional } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+  if (!professional) throw new Error('Perfil profissional não encontrado.')
+  const { error } = await admin.from('professional_unavailability').delete().eq('id', id).eq('professional_id', professional.id)
+  if (error) throw new Error('Não foi possível remover o bloco.')
+  revalidatePath('/dashboard/agenda/disponibilidade')
+  return { success: true }
+}

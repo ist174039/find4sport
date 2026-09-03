@@ -182,9 +182,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "plan_entitlements_plan_id_fkey"; columns: ["plan_id"]; isOneToOne: false; referencedRelation: "subscription_plans"; referencedColumns: ["id"] }]
       }
       platform_users: {
-        Row: { avatar_url: string | null; banner_url: string | null; created_at: string; full_name: string | null; id: string; language: string | null; location: string | null; preferences: Json | null; type: Database["public"]["Enums"]["user_role"] | null; updated_at: string }
-        Insert: { avatar_url?: string | null; banner_url?: string | null; created_at?: string; full_name?: string | null; id: string; language?: string | null; location?: string | null; preferences?: Json | null; type?: Database["public"]["Enums"]["user_role"] | null; updated_at?: string }
-        Update: { avatar_url?: string | null; banner_url?: string | null; created_at?: string; full_name?: string | null; id?: string; language?: string | null; location?: string | null; preferences?: Json | null; type?: Database["public"]["Enums"]["user_role"] | null; updated_at?: string }
+        Row: { account_status: string; avatar_url: string | null; banner_url: string | null; created_at: string; full_name: string | null; id: string; language: string | null; location: string | null; moderated_at: string | null; moderated_by: string | null; moderation_reason: string | null; preferences: Json | null; suspended_until: string | null; type: Database["public"]["Enums"]["user_role"] | null; updated_at: string }
+        Insert: { account_status?: string; avatar_url?: string | null; banner_url?: string | null; created_at?: string; full_name?: string | null; id: string; language?: string | null; location?: string | null; moderated_at?: string | null; moderated_by?: string | null; moderation_reason?: string | null; preferences?: Json | null; suspended_until?: string | null; type?: Database["public"]["Enums"]["user_role"] | null; updated_at?: string }
+        Update: { account_status?: string; avatar_url?: string | null; banner_url?: string | null; created_at?: string; full_name?: string | null; id?: string; language?: string | null; location?: string | null; moderated_at?: string | null; moderated_by?: string | null; moderation_reason?: string | null; preferences?: Json | null; suspended_until?: string | null; type?: Database["public"]["Enums"]["user_role"] | null; updated_at?: string }
         Relationships: []
       }
       post_comments: {
@@ -218,6 +218,12 @@ export type Database = {
         Insert: { created_at?: string; day_of_week: number; end_time: string; id?: string; is_active?: boolean | null; professional_id?: string | null; start_time: string }
         Update: { created_at?: string; day_of_week?: number; end_time?: string; id?: string; is_active?: boolean | null; professional_id?: string | null; start_time?: string }
         Relationships: [{ foreignKeyName: "professional_availability_professional_id_fkey"; columns: ["professional_id"]; isOneToOne: false; referencedRelation: "professionals"; referencedColumns: ["id"] }]
+      }
+      professional_unavailability: {
+        Row: { created_at: string; date: string; end_time: string; id: string; professional_id: string; start_time: string }
+        Insert: { created_at?: string; date: string; end_time: string; id?: string; professional_id: string; start_time: string }
+        Update: { created_at?: string; date?: string; end_time?: string; id?: string; professional_id?: string; start_time?: string }
+        Relationships: [{ foreignKeyName: "professional_unavailability_professional_id_fkey"; columns: ["professional_id"]; isOneToOne: false; referencedRelation: "professionals"; referencedColumns: ["id"] }]
       }
       professional_categories: {
         Row: { category_id: string; professional_id: string }

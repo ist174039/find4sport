@@ -25,8 +25,10 @@ export async function GET(request: NextRequest) {
   const { data: admin } = await supabase.from('admins').select('id').eq('auth_user_id', user.id).maybeSingle()
   if (admin) return NextResponse.redirect(new URL('/admin', origin))
 
-  const { data: profile } = await supabase.from('platform_users').select('id, type').eq('id', user.id).maybeSingle()
+  const { data: profile } = await supabase.from('platform_users').select('id, type, account_status, suspended_until').eq('id', user.id).maybeSingle()
   if (!profile || !profile.type) return NextResponse.redirect(new URL('/auth/registar', origin))
+  const restrictionActive = profile.account_status === 'blocked' || (profile.account_status === 'suspended' && (!profile.suspended_until || new Date(profile.suspended_until).getTime() > Date.now()))
+  if (restrictionActive) return NextResponse.redirect(new URL('/conta/restrita', origin))
 
   const next = safeInternalPath(request.nextUrl.searchParams.get('next'), '/dashboard')
   return NextResponse.redirect(new URL(next, origin))

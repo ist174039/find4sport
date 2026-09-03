@@ -12,6 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/auth/login?redirect=/dashboard')
 
   const access = await resolveSessionAccess(supabase, user)
+  if (access?.isRestricted) redirect('/conta/restrita')
   if (!access || !access.canAccessDashboard) redirect('/auth/login?redirect=/dashboard')
   if (access.role === 'admin') redirect('/admin')
   if (access.role === 'professional' && !access.hasProfessionalProfile) redirect('/auth/registar/profissional')

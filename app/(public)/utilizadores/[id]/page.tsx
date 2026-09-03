@@ -40,11 +40,12 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
 
   const { data: profile } = await supabase
     .from('platform_users')
-    .select('id,full_name,avatar_url,banner_url,location,language,type,created_at')
+    .select('id,full_name,avatar_url,banner_url,location,language,type,created_at,account_status,suspended_until')
     .eq('id', id)
     .maybeSingle()
 
-  if (!profile) return notFound()
+  const publiclyActive = profile?.account_status === 'active' || (profile?.account_status === 'suspended' && profile.suspended_until && new Date(profile.suspended_until).getTime() <= Date.now())
+  if (!profile || !publiclyActive) return notFound()
 
   const [{ data: memberData }, { data: participantData }, { count: followersCount }, { count: followingCount }, { data: authData }] = await Promise.all([
     supabase.from('community_members').select('community:communities(id,slug,name,cover_url,sport_category,description)').eq('user_id', id).order('joined_at', { ascending: false }),

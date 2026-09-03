@@ -35,6 +35,10 @@ async function assertProfessionalSlot(admin: ReturnType<typeof createAdminClient
   if (error) throw new Error('Não foi possível validar a disponibilidade do profissional.')
   if (!(availability || []).some(slot => slotContains(startTime, endTime, slot))) throw new Error('O horário escolhido está fora da disponibilidade do profissional.')
 
+  const { data: unavailable, error: unavailableError } = await admin.from('professional_unavailability').select('id').eq('professional_id', professionalId).eq('date', date).lt('start_time', endTime).gt('end_time', startTime).limit(1)
+  if (unavailableError) throw new Error('Não foi possível validar as indisponibilidades do profissional.')
+  if (unavailable?.length) throw new Error('O profissional está indisponível neste horário.')
+
   const { data: conflicts, error: conflictError } = await admin
     .from('reservations')
     .select('id')
@@ -162,6 +166,9 @@ export async function createFreeReservationAction(input: { serviceId?: string | 
     const { data: availability, error } = await admin.from('professional_availability').select('start_time,end_time').eq('professional_id', professionalId).eq('day_of_week', dayOfWeek).eq('is_active', true)
     if (error) throw new Error('Não foi possível validar a disponibilidade do profissional.')
     if (!(availability || []).some(slot => slotContains(startTime, endTime, slot))) throw new Error('O horário escolhido está fora da disponibilidade do profissional.')
+    const { data: unavailable, error: unavailableError } = await admin.from('professional_unavailability').select('id').eq('professional_id', professionalId).eq('date', date).lt('start_time', endTime).gt('end_time', startTime).limit(1)
+    if (unavailableError) throw new Error('Não foi possível validar as indisponibilidades do profissional.')
+    if (unavailable?.length) throw new Error('O profissional está indisponível neste horário.')
   }
   if (roomId) {
     const { data: availability, error } = await admin.from('space_room_availability').select('start_time,end_time').eq('room_id', roomId).eq('day_of_week', dayOfWeek).eq('is_active', true)

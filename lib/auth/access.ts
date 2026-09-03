@@ -13,6 +13,10 @@ export type SessionAccess = {
   canManageSpaces: boolean
   hasProfessionalProfile: boolean
   hasManagedSpace: boolean
+  accountStatus: 'active' | 'suspended' | 'blocked'
+  moderationReason: string | null
+  suspendedUntil: string | null
+  isRestricted: boolean
 }
 
 type Supabase = SupabaseClient<Database>
@@ -38,16 +42,18 @@ export function getAccountStatus(user: User) {
 export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
   const adminUser = await resolveAdminRecord(supabase, user)
   if (adminUser) {
-    return { role: 'admin', profileId: adminUser.id, adminType: adminUser.adminType, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false }
+    return { role: 'admin', profileId: adminUser.id, adminType: adminUser.adminType, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false, accountStatus: 'active', moderationReason: null, suspendedUntil: null, isRestricted: false }
   }
 
   const accountStatus = getAccountStatus(user)
   if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') return null
 
-  const { data: platformUser } = await supabase.from('platform_users').select('id, type').eq('id', user.id).maybeSingle()
+  const { data: platformUser } = await supabase.from('platform_users').select('id, type, account_status, moderation_reason, suspended_until').eq('id', user.id).maybeSingle()
   if (!platformUser?.id) return null
   const role = parsePlatformRole(platformUser.type)
   if (!role) return null
+  const dbStatus = platformUser.account_status === 'blocked' || platformUser.account_status === 'suspended' ? platformUser.account_status : 'active'
+  const isRestricted = dbStatus !== 'active' && !(dbStatus === 'suspended' && platformUser.suspended_until && new Date(platformUser.suspended_until).getTime() <= Date.now())
 
   const [{ count: professionalCount }, { count: spaceCount }] = await Promise.all([
     supabase.from('professionals').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -60,11 +66,15 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
     role,
     profileId: platformUser.id,
     adminType: null,
-    canAccessDashboard: true,
+    canAccessDashboard: !isRestricted,
     canAccessAdmin: false,
     canManageProfessionals: hasProfessionalProfile,
     canManageSpaces: hasManagedSpace,
     hasProfessionalProfile,
     hasManagedSpace,
+    accountStatus: isRestricted ? dbStatus : 'active',
+    moderationReason: isRestricted ? platformUser.moderation_reason : null,
+    suspendedUntil: isRestricted ? platformUser.suspended_until : null,
+    isRestricted,
   }
 }

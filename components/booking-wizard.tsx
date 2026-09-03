@@ -15,6 +15,7 @@ import { createFreeReservationAction, createPackageReservationAction } from '@/a
 
 interface BookingWizardProps { open: boolean; onOpenChange: (open: boolean) => void; service?: Service | null; professionalId?: string | null; spaceId?: string | null }
 type AvailabilitySlot = { day_of_week: number; start_time: string; end_time: string; is_active: boolean }
+type UnavailableBlock = { date: string; start_time: string; end_time: string }
 type PackageCredit = { id: string; sessions_remaining: number; expires_at: string | null; package_name: string }
 type PackagePayload = { purchases?: unknown }
 type CheckoutPayload = { url?: string; error?: string }
@@ -39,6 +40,7 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
   const [step, setStep] = useState(spaceId ? 1 : 2)
   const [loading, setLoading] = useState(false)
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([])
+  const [unavailable, setUnavailable] = useState<UnavailableBlock[]>([])
   const [rooms, setRooms] = useState<SpaceRoom[]>([])
   const [selectedRoom, setSelectedRoom] = useState<SpaceRoom | null>(null)
   const [selectedDate, setSelectedDate] = useState('')
@@ -51,7 +53,7 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
   const computedEndTime = selectedTime ? addMinutesToTime(selectedTime, durationMinutes) : ''
   const selectedDay = selectedDate ? new Date(`${selectedDate}T12:00:00`).getDay() : null
   const selectedDaySlots = selectedDay === null ? [] : availability.filter(slot => slot.day_of_week === selectedDay)
-  const availableStartTimes = buildStartTimes(selectedDaySlots, durationMinutes)
+  const availableStartTimes = buildStartTimes(selectedDaySlots, durationMinutes).filter(time => { const end = addMinutesToTime(time, durationMinutes); return !unavailable.some(block => block.date === selectedDate && String(block.start_time).slice(0,5) < end && String(block.end_time).slice(0,5) > time) })
 
   useEffect(() => {
     if (!open) return
@@ -67,10 +69,12 @@ export function BookingWizard({ open, onOpenChange, service, professionalId, spa
       }
       if (professionalId) {
         const availabilityPromise = supabase.from('professional_availability').select('day_of_week,start_time,end_time,is_active').eq('professional_id', professionalId).eq('is_active', true).order('day_of_week').order('start_time')
+        const unavailablePromise = supabase.from('professional_unavailability').select('date,start_time,end_time').eq('professional_id', professionalId).gte('date', new Date().toISOString().slice(0,10)).order('date')
         const packagesPromise = service?.id ? fetch(`/api/services/${encodeURIComponent(service.id)}/package-credits`, { cache: 'no-store' }).then(response => response.ok ? response.json() as Promise<PackagePayload> : { purchases: [] }).catch(() => ({ purchases: [] })) : Promise.resolve<PackagePayload>({ purchases: [] })
-        const [availabilityResult, packagePayload] = await Promise.all([availabilityPromise, packagesPromise])
+        const [availabilityResult, unavailableResult, packagePayload] = await Promise.all([availabilityPromise, unavailablePromise, packagesPromise])
         if (cancelled) return
         if (availabilityResult.error) { setAvailability([]); setErrorMsg('Não foi possível carregar a disponibilidade.') } else setAvailability((availabilityResult.data || []) as AvailabilitySlot[])
+        setUnavailable(unavailableResult.error ? [] : (unavailableResult.data || []) as UnavailableBlock[])
         const credits = Array.isArray(packagePayload.purchases) ? packagePayload.purchases.filter(isPackageCredit) : []
         setPackageCredits(credits)
         if (credits.length > 0) { setUsePackage(true); setSelectedPackagePurchaseId(credits[0].id) }
