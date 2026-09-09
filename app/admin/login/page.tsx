@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
         .eq('auth_user_id', user.id)
         .maybeSingle()
 
-      if (adminUser) router.replace('/admin')
+      if (adminUser) router.replace('/admin/mfa')
     }
 
     void checkCurrentSession()
@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
         throw new Error('A tua conta não tem permissões de administração.')
       }
 
-      router.replace('/admin')
+      router.replace('/admin/mfa')
       router.refresh()
     } catch (err: unknown) {
       console.error('Admin Login Error:', err)
