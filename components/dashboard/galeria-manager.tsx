@@ -1,10 +1,9 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useState, useRef } from 'react'
-import { 
-  Camera, Upload, X, Image as ImageIcon, Loader2, Save, Trash2, 
-  Eye, EyeOff, User, LayoutTemplate, Star, CheckCircle2, Shield
-} from 'lucide-react'
+import { Camera, Upload, Loader2, Trash2, Eye, EyeOff, User, LayoutTemplate } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useModal } from '@/components/providers/modal-provider'
 
@@ -300,9 +299,9 @@ export function GaleriaManager({ initialEntity }: GaleriaManagerProps) {
               >
                 {/* Photo Preview Container */}
                 <div className="relative aspect-square w-full overflow-hidden bg-black/5">
-                  <img 
-                    src={url} 
-                    alt={`Foto ${index + 1}`} 
+                  <AppImage
+                    src={url}
+                    alt={`Foto ${index + 1}`}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/300x300/e2e8f0/94a3b8?text=Imagem' }}
                   />

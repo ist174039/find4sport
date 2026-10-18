@@ -6,6 +6,7 @@ import { PesquisaMapWrapper } from '@/components/pesquisa-map-wrapper'
 import { PesquisaLayout } from '@/components/pesquisa-layout'
 import { SearchResultsList } from '@/components/search-results-list'
 import { DiscoveryPagination } from '@/components/patterns/discovery-pagination'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { TaxonomyOption } from '@/components/taxonomy-combobox'
 import { parseSearchFilters } from '@/lib/search/filters'
 import { parseGeoCookie } from '@/lib/geo'
@@ -135,7 +136,7 @@ export default async function PesquisaPage({ searchParams: promise }: { searchPa
       <PesquisaFiltros initialQuery={filters.query} totalResults={total} initialSort={filters.sort} categories={categories} />
       <div className="flex-1 overflow-y-auto bg-muted/10 p-3 sm:p-4">
         {!results.length
-          ? <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center"><Search className="mb-4 h-8 w-8 text-primary" /><h2 className="text-lg font-semibold">Nenhum resultado encontrado</h2><p className="mt-2 max-w-md text-sm text-muted-foreground">Reduza os filtros, aumente o raio ou experimente outra modalidade ou localização.</p></div>
+          ? <EmptyState icon={Search} title="Nenhum resultado encontrado" description="Reduza os filtros, aumente o raio ou experimente outra modalidade ou localização." className="min-h-72 border-0 bg-transparent" />
           : <><SearchResultsList items={results} /><DiscoveryPagination page={page} pageSize={PAGE_SIZE} total={total} href={nextPage => pageHref(searchParams, nextPage)} /></>}
       </div>
     </>}

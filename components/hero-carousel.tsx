@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { HomeSearchForm } from '@/components/home-search-form'
 import { Button } from '@/components/ui/button'
+import { AppImage } from '@/components/ui/app-image'
 
 interface Slide {
   id: string
@@ -26,12 +27,21 @@ interface HeroCarouselProps {
 
 export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount, athletesCount, communitiesCount }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
 
   useEffect(() => {
-    if (slides.length <= 1) return
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updatePreference = () => setPrefersReducedMotion(media.matches)
+    updatePreference()
+    media.addEventListener('change', updatePreference)
+    return () => media.removeEventListener('change', updatePreference)
+  }, [])
+
+  useEffect(() => {
+    if (slides.length <= 1 || prefersReducedMotion) return
     const timer = window.setInterval(() => setCurrent(prev => (prev + 1) % slides.length), 6000)
     return () => window.clearInterval(timer)
-  }, [slides.length])
+  }, [slides.length, prefersReducedMotion])
 
   const discovery = (
     <div className="mx-auto w-full max-w-4xl">
@@ -67,7 +77,16 @@ export function HeroCarousel({ slides, spacesCount, profsCount, eventsCount, ath
   return (
     <section className="relative flex min-h-[540px] items-center justify-center overflow-hidden border-b border-border sm:min-h-[620px]">
       <div className="absolute inset-0">
-        {slides.map((slide, index) => <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${index === current ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><img src={slide.image_url} alt={slide.title || ''} className="h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/30 to-black/70" /></div>)}
+        {slides.map((slide, index) => {
+          // Keep only the visible slide and its successor mounted. Every slide
+          // occupies the viewport, so rendering all images makes the browser
+          // download the entire carousel during initial page load.
+          const isCurrent = index === current
+          const isNext = index === (current + 1) % slides.length
+          if (!isCurrent && !isNext) return null
+
+          return <div key={slide.id} className={`absolute inset-0 transition-opacity duration-700 ${isCurrent ? 'opacity-100' : 'pointer-events-none opacity-0'}`}><AppImage src={slide.image_url} alt={slide.title || ''} fill sizes="100vw" priority={index === 0} className="object-cover" /><div className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/30 to-black/70" /></div>
+        })}
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 text-center sm:px-6">

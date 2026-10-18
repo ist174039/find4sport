@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { TablesUpdate } from '@/lib/supabase-types'
+import { cleanText, optionalContact } from '@/lib/data-quality/inputs'
 
 async function geocodeAddress(address: string) {
   const value = address.trim()
@@ -34,17 +35,17 @@ async function requireVenueManager() {
 
 export async function updateManagedSpaceAction(spaceId: string, input: { name: string; description?: string; email?: string; phone?: string; website?: string; address?: string; amenities?: string[] }) {
   const { user, admin } = await requireVenueManager()
-  const name = input.name.trim()
-  if (!spaceId || !name) throw new Error('Nome e espaço são obrigatórios.')
+  const name = cleanText(input.name, 160)
+  if (!spaceId || name.length < 2) throw new Error('Indica um nome válido e um espaço.')
   if (name.length > 160) throw new Error('O nome é demasiado longo.')
-  const description = input.description?.trim() || null
-  if (description && description.length > 5000) throw new Error('A descrição não pode exceder 5000 caracteres.')
-  const website = input.website?.trim() || null
-  if (website) { try { new URL(website) } catch { throw new Error('Website inválido.') } }
-  const amenities = (input.amenities || []).map(item => item.trim()).filter(Boolean).slice(0, 100)
-  const address = input.address?.trim() || ''
+  const description = cleanText(input.description, 5000) || null
+  const website = optionalContact(input.website, 'url', 'Website', 300)
+  const email = optionalContact(input.email, 'email', 'Email')
+  const phone = optionalContact(input.phone, 'phone', 'Telefone', 30)
+  const amenities = [...new Set((input.amenities || []).map(item => cleanText(item, 80)).filter(Boolean))].slice(0, 30)
+  const address = cleanText(input.address, 300)
   const coordinates = address ? await geocodeAddress(address) : null
-  const patch: TablesUpdate<'sport_spaces'> = { name, description, email: input.email?.trim() || null, phone: input.phone?.trim() || null, website, address: address || null, amenities, updated_at: new Date().toISOString() }
+  const patch: TablesUpdate<'sport_spaces'> = { name, description, email, phone, website, address: address || null, amenities, updated_at: new Date().toISOString() }
   if (coordinates) { patch.latitude = coordinates.latitude; patch.longitude = coordinates.longitude }
   else if (!address) { patch.latitude = null; patch.longitude = null }
 

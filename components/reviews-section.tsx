@@ -1,8 +1,10 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { pt } from 'date-fns/locale'
 import { Loader2, MessageSquare, Star, User } from 'lucide-react'
@@ -37,8 +39,9 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     if (targetType === 'event') return
+    await Promise.resolve()
     setLoading(true)
     try {
       const result = await getReviewsAction(targetType, targetId)
@@ -51,12 +54,11 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
     } finally {
       setLoading(false)
     }
-  }
+  }, [showAlert, targetId, targetType])
 
   useEffect(() => {
     if (targetType !== 'event') void fetchReviews()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetType, targetId])
+  }, [fetchReviews, targetType])
 
   if (targetType === 'event') return null
 
@@ -103,7 +105,7 @@ export function ReviewsSection({ targetType, targetId }: { targetType: TargetTyp
             return <div key={review.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
               <div className="flex items-start justify-between gap-3">
                 <Link href={href} className="group flex min-w-0 items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border transition group-hover:ring-primary/50">{review.reviewer.avatar_url ? <img src={review.reviewer.avatar_url} alt={reviewerName} className="h-full w-full object-cover" /> : <User className="h-5 w-5 text-muted-foreground" />}</div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border transition group-hover:ring-primary/50">{review.reviewer.avatar_url ? <AppImage src={review.reviewer.avatar_url} alt={reviewerName} className="h-full w-full object-cover" /> : <User className="h-5 w-5 text-muted-foreground" />}</div>
                   <div className="min-w-0"><h4 className="truncate text-sm font-bold group-hover:text-primary group-hover:underline">{reviewerName}</h4><p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(review.created_at), { addSuffix: true, locale: pt })}</p></div>
                 </Link>
                 <div className="flex shrink-0 text-amber-500">{[0,1,2,3,4].map(i => <Star key={i} className="h-3.5 w-3.5" fill={i < review.rating ? 'currentColor' : 'none'} />)}</div>

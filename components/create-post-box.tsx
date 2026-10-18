@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useEffect, useState } from 'react'
 import { createPostAction } from '@/app/actions/feed'
 import { Image as ImageIcon, Loader2, PenLine, Send, X } from 'lucide-react'
@@ -48,10 +50,10 @@ export function CreatePostBox({ currentUserType, currentUserName, currentUserAva
       </div>
 
       <div className="flex min-w-0 gap-2.5 sm:gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary sm:h-10 sm:w-10">{currentUserAvatar ? <img src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" /> : (currentUserName?.charAt(0)?.toUpperCase() || 'F')}</div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary sm:h-10 sm:w-10">{currentUserAvatar ? <AppImage src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" /> : (currentUserName?.charAt(0)?.toUpperCase() || 'F')}</div>
         <form onSubmit={handleSubmit} className="min-w-0 flex-1 space-y-3">
           <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Partilha uma novidade..." className="min-h-20 w-full max-w-full resize-none rounded-xl border border-border bg-background px-3 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 sm:min-h-24" rows={3} maxLength={5000} disabled={loading} />
-          {mediaPreview && <div className="relative max-w-full overflow-hidden rounded-xl border border-border bg-muted/30">{mediaFile?.type.startsWith('video/') ? <video src={mediaPreview} className="max-h-72 w-full bg-black object-contain" controls /> : <img src={mediaPreview} alt="Pré-visualização" className="max-h-72 w-full object-contain" />}<button type="button" onClick={clearMedia} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 shadow-sm" aria-label="Remover ficheiro"><X className="h-4 w-4" /></button></div>}
+          {mediaPreview && <div className="relative max-w-full overflow-hidden rounded-xl border border-border bg-muted/30">{mediaFile?.type.startsWith('video/') ? <video src={mediaPreview} className="max-h-72 w-full bg-black object-contain" controls /> : <AppImage src={mediaPreview} alt="Pré-visualização" className="max-h-72 w-full object-contain" />}<button type="button" onClick={clearMedia} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 shadow-sm" aria-label="Remover ficheiro"><X className="h-4 w-4" /></button></div>}
           <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between">
             <label className="flex min-h-11 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-border px-2 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:text-primary sm:px-3"><ImageIcon className="h-4 w-4 shrink-0" /><span className="truncate">Foto/Vídeo</span><input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" className="hidden" onChange={handleMediaChange} disabled={loading} /></label>
             <button type="submit" disabled={loading || (!content.trim() && !mediaFile)} className="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-bold text-primary-foreground disabled:opacity-50">{loading ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Send className="h-4 w-4 shrink-0" />}<span className="truncate">Publicar</span></button>

@@ -1,16 +1,10 @@
 import { syncReservationDispute } from './sync-reservation-dispute'
+import type Stripe from 'stripe'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-type DbClient = any
+type DbClient = ReturnType<typeof createAdminClient>
 
-type DisputeLike = {
-  id: string
-  amount: number
-  currency?: string | null
-  status?: string | null
-  reason?: string | null
-  charge?: string | { id?: string | null } | null
-  payment_intent?: string | { id?: string | null } | null
-}
+type DisputeLike = Stripe.Dispute
 
 function moneyFromCents(value: unknown) {
   const amount = Number(value)

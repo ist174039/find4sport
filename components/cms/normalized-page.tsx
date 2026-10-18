@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import Link from 'next/link'
 import { ArrowLeft, FileText, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,7 +40,7 @@ export function NormalizedContentPage({ title, description, content, loading, er
         {blocks.length > 0 ? blocks.map((block: any) => {
           if (block.type === 'hero') return <section key={block.id} className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm sm:p-10">{block.data?.title && <h2 className="text-2xl font-bold sm:text-3xl">{block.data.title}</h2>}{block.data?.subtitle && <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">{block.data.subtitle}</p>}{block.data?.ctaText && block.data?.ctaLink && <Button asChild className="mt-6 min-h-11"><Link href={block.data.ctaLink}>{block.data.ctaText}</Link></Button>}</section>
           if (block.type === 'text') return <section key={block.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8"><div className="prose prose-slate max-w-none dark:prose-invert"><ReactMarkdown remarkPlugins={[remarkGfm]}>{block.data?.content || ''}</ReactMarkdown></div></section>
-          if (block.type === 'image' && block.data?.url) return <figure key={block.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"><img src={block.data.url} alt={block.data?.alt || ''} className="h-auto max-h-[640px] w-full object-cover" /></figure>
+          if (block.type === 'image' && block.data?.url) return <figure key={block.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"><AppImage src={block.data.url} alt={block.data?.alt || ''} className="h-auto max-h-[640px] w-full object-cover" /></figure>
           return null
         }) : <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8"><div className="prose prose-slate max-w-none dark:prose-invert"><ReactMarkdown remarkPlugins={[remarkGfm]}>{legacyBody || ''}</ReactMarkdown></div></section>}
 

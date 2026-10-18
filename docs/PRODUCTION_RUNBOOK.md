@@ -102,3 +102,56 @@ Until the platform reaches the agreed production maturity target, work is limite
 - architecture simplification and removal of dead/fake behavior.
 
 New product functionality remains out of scope.
+
+## Continuity and recovery record (ISO 22301)
+
+This runbook is the operational continuity procedure for application incidents. The service owner must approve and maintain the recovery objectives below; do not infer them from platform defaults.
+
+| Continuity item | Current record | Required evidence / owner |
+| --- | --- | --- |
+| Recovery time objective (RTO) | Not agreed | Product and operations must set a maximum restoration time |
+| Recovery point objective (RPO) | Not agreed | Product and operations must set acceptable data loss for each critical data class |
+| Supabase backup and point-in-time recovery | Not verified in this repository | Supabase project owner records plan, retention, restore point and last restore exercise |
+| Vercel recovery | Documented as deployment rollback, subject to database compatibility | Release operator records deployment IDs and rollback decision |
+| Stripe financial recovery | Reconcile events, reservations, transfers and ledger; never replay blindly | Finance/operations preserves Stripe event IDs and reconciliation output |
+| Communications and incident owner | Not assigned | Service owner names incident lead, technical lead and customer communications owner |
+| Exercise cadence | Not established | Service owner schedules and records a tabletop plus restore exercise at least annually |
+
+### Continuity response
+
+1. Declare the incident, record start time, severity, incident lead and affected flows.
+2. Preserve deployment IDs, Vercel runtime error groups, Supabase logs and relevant Stripe event IDs before remediation.
+3. Restore application availability by rollback only after checking database compatibility. For data recovery, use the Supabase owner's approved restore procedure and record the chosen recovery point and expected data loss.
+4. Reconcile reservations, payments, refunds and payouts against Stripe before reopening affected financial flows.
+5. Confirm the health endpoint, critical public routes and role-based smoke suite; record timestamps and results.
+6. Close only after the incident lead records impact, recovery time, data loss, customer communications, follow-up owner and corrective action.
+
+## Operational evidence to retain
+
+For each release or incident, retain the commit SHA, Quality workflow URL/result, E2E Smoke workflow URL/result, Vercel production deployment ID/status, health endpoint response, unresolved runtime error groups, Supabase migration/security review, and (for payment changes) Stripe Test Mode evidence. A passing repository check does not prove production migration parity; confirm the Supabase migration history and schema/security state through the authorized project operator.
+
+The repository's current migration gate checks filename and baseline consistency only. It does not query the live database. Do not add a migration to `supabase/migration-baseline.json` until its production version and name have been verified against Supabase migration history.
+
+### Find4Sport project review (2026-10-18)
+
+The authorized project is `bqjwsllnhvnxrfojftjb` (`supabase-bronze-magnet`), running PostgreSQL 17.6.1.127. The remote history contains 81 migration rows. Seven strict local migration files have same-name remote counterparts with different versions; the live schema alone cannot prove SQL, grants, or backfill equivalence. Local-only and remote-only entries also remain unresolved. Keep the migration gate blocked, do not replay or rename these migrations, and recover the exact deployment SQL/logs before reconciling the baseline.
+
+The Security Advisor reports leaked-password protection disabled and `public.public_event_participant_count(uuid)` executable by `anon` and `authenticated` as a SECURITY DEFINER function. Its current body returns only an aggregate of confirmed/paid participants for published/completed events, and the migration documents the intended public capacity aggregate. Treat exposure as an explicit accepted-risk decision and review the function's grant/search-path behavior; enable leaked-password protection in Supabase Auth settings. The Performance Advisor also reports one unindexed FK, 65 unused-index notices, and 10 groups of permissive policies. Review policies and workload before any index removal; advisor findings alone are not sufficient evidence to drop indexes.
+
+Vercel read-only inspection found the latest production deployment READY on commit `d38f4c1dbd35a7c94f33a51d92b9857fd4d57d4c`, while the project `live` field was false. Confirm the serving deployment and production domain with the release operator. Stripe account access required reauthentication, so no account settings or Test Mode evidence were reviewed.
+
+## Observability coverage and gaps
+
+`GET /api/health` is the current readiness probe. It performs a read against `subscription_plans`, reports whether the Stripe secret and webhook secret are configured in production, returns a commit/deployment identifier, and disables caching. A healthy response is useful for dependency reachability, but it is not a full service-level objective or a synthetic transaction.
+
+Until dedicated metrics and alert rules are configured, the on-call operator must review these signals in the provider dashboards after release and during incidents:
+
+| Signal | Source | Escalate when |
+| --- | --- | --- |
+| HTTP 5xx and latency/error groups | Vercel runtime logs and deployment insights | New unexplained cluster or sustained failure on a critical route |
+| Database/API/Auth errors and migration history | Supabase logs, migration history and Security Advisor | RLS/security finding, schema mismatch, or sustained query/auth failures |
+| Checkout, webhook delivery and ledger reconciliation | Stripe event delivery plus Find4Sport transaction/audit records | Failed or delayed critical event, duplicate effect, or ledger mismatch |
+| Chat, notification and settlement jobs | Supabase Realtime/Edge Function logs and Vercel cron logs | Persistent delivery failure, retry buildup, or partial settlement failure |
+| Public and mobile user journeys | Scheduled E2E Smoke workflow artifacts | Any critical route, authentication boundary or mobile viewport check fails |
+
+No quantitative availability, latency, webhook-delivery or recovery alert thresholds are approved yet. The service owner must define those targets, alert routing and dashboard ownership before claiming continuous operational monitoring.

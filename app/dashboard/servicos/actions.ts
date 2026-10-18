@@ -41,7 +41,7 @@ async function requireProfessional() {
   if (platformUser?.type !== 'professional') throw new Error('Apenas profissionais podem gerir serviços')
   const { data: professional } = await admin.from('professionals').select('id,status,is_verified').eq('user_id', user.id).maybeSingle()
   if (!professional) throw new Error('Perfil profissional não encontrado')
-  return { user, admin: admin as any, professionalId: professional.id as string, professional }
+  return { user, admin, professionalId: professional.id, professional }
 }
 
 function revalidateServiceSurfaces() {

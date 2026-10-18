@@ -82,6 +82,6 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error('Package checkout error:', error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível iniciar a compra do pacote.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível iniciar a compra do pacote.' }, { status: 500 })
   }
 }

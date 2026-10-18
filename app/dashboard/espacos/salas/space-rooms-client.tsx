@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useRef, useState } from 'react'
 import { CalendarDays, Camera, Image as ImageIcon, MoreVertical, Pencil, Plus, Power, Trash2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -137,7 +139,7 @@ export function SpaceRoomsClient({ initialRooms, spaceId, maxPhotos }: { initial
 
                 <div className="mt-4 border-t pt-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h4 className="flex items-center gap-2 text-sm font-semibold"><Camera className="h-4 w-4 text-primary" />Fotos ({gallery.length}{maxPhotos !== null ? `/${maxPhotos}` : ''})</h4><Button variant="outline" size="sm" disabled={busy || (maxPhotos !== null && gallery.length >= maxPhotos)} onClick={() => { setPhotoRoomId(room.id); fileInputRef.current?.click() }}><Upload className="mr-2 h-4 w-4" />Carregar</Button></div>
-                  {gallery.length > 0 && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">{gallery.map((url, index) => <div key={`${url}-${index}`} className="relative aspect-square overflow-hidden rounded-xl border bg-muted"><img src={url} alt={`${room.name} ${index + 1}`} className="h-full w-full object-cover" /><button type="button" onClick={() => void removePhoto(room, url)} disabled={busy} className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-destructive shadow-sm" aria-label="Remover foto"><X className="h-4 w-4" /></button></div>)}</div>}
+                  {gallery.length > 0 && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6">{gallery.map((url, index) => <div key={`${url}-${index}`} className="relative aspect-square overflow-hidden rounded-xl border bg-muted"><AppImage src={url} alt={`${room.name} ${index + 1}`} className="h-full w-full object-cover" /><button type="button" onClick={() => void removePhoto(room, url)} disabled={busy} className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full bg-background/90 text-destructive shadow-sm" aria-label="Remover foto"><X className="h-4 w-4" /></button></div>)}</div>}
                   <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]"><Input type="url" placeholder="URL HTTPS opcional" value={photoRoomId === room.id ? photoUrl : ''} onFocus={() => setPhotoRoomId(room.id)} onChange={event => { setPhotoRoomId(room.id); setPhotoUrl(event.target.value) }} /><Button variant="secondary" disabled={busy || photoRoomId !== room.id || !photoUrl.trim()} onClick={() => void addUrl(room)}><ImageIcon className="mr-2 h-4 w-4" />Adicionar URL</Button></div>
                 </div>
               </CardContent></Card>

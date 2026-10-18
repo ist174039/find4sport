@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Users, X, ChevronRight } from 'lucide-react'
+import { X, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { isPlatformRole } from '@/lib/auth/roles'
 import { UserAvatar } from '@/components/user-avatar'

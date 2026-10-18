@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { requireFeature } from '@/lib/billing/entitlements'
 import type { Json, TablesInsert, TablesUpdate } from '@/lib/supabase-types'
+import { cleanText, parseEventDate } from '@/lib/data-quality/inputs'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -13,21 +14,20 @@ const MAX_GALLERY_FILES = 12
 const DEFAULT_TICKET_NAME = 'Bilhete geral'
 
 function text(formData: FormData, key: string, max: number) {
-  return String(formData.get(key) || '').trim().slice(0, max)
+  return cleanText(formData.get(key), max)
 }
 
 function optionalNumber(formData: FormData, key: string) {
   const raw = text(formData, key, 30)
   if (!raw) return null
+  if (!/^(?:\d+\.?\d*|\.\d+)$/.test(raw)) throw new Error(`Valor inválido em ${key}.`)
   const value = Number(raw)
   if (!Number.isFinite(value) || value < 0) throw new Error(`Valor inválido em ${key}.`)
   return value
 }
 
 function validateDate(value: string, label: string) {
-  const date = new Date(value)
-  if (!value || Number.isNaN(date.getTime())) throw new Error(`${label} inválida.`)
-  return date
+  return parseEventDate(value, label)
 }
 
 function manualApprovalEnabled(settings: Json | null | undefined) {
@@ -87,7 +87,7 @@ function storagePathForEvent(url: string, userId: string, eventFolderId: string)
 
 function validateEventFields(formData: FormData) {
   const title = text(formData, 'title', 180)
-  if (!title) throw new Error('O título é obrigatório.')
+  if (title.length < 3) throw new Error('O título deve ter pelo menos 3 caracteres.')
   const description = text(formData, 'description', 5000) || null
   const categoryId = text(formData, 'category_id', 60) || null
   const address = text(formData, 'address', 300) || null

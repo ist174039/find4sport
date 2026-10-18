@@ -1,3 +1,4 @@
+import { AppImage } from '@/components/ui/app-image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { BadgeCheck, Building2, ChevronLeft, ChevronRight, Dumbbell, Search, UserRound, Users } from 'lucide-react'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection, DashboardStat, DashboardStatGrid } from '@/components/patterns/dashboard-page'
 
 const PAGE_SIZE=20
-function RoleAvatar({item}:{item:any}){const rounded=item.type==='venue_manager'?'rounded-xl':'rounded-full';return <div className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border bg-muted ${rounded}`}>{item.avatar?<img src={item.avatar} alt={item.name} className="h-full w-full object-cover"/>:item.type==='venue_manager'?<Building2 className="h-5 w-5 text-primary"/>:item.type==='professional'?<Dumbbell className="h-5 w-5 text-primary"/>:<UserRound className="h-5 w-5 text-primary"/>}</div>}
+function RoleAvatar({item}:{item:any}){const rounded=item.type==='venue_manager'?'rounded-xl':'rounded-full';return <div className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden border bg-muted ${rounded}`}>{item.avatar?<AppImage src={item.avatar} alt={item.name} className="h-full w-full object-cover"/>:item.type==='venue_manager'?<Building2 className="h-5 w-5 text-primary"/>:item.type==='professional'?<Dumbbell className="h-5 w-5 text-primary"/>:<UserRound className="h-5 w-5 text-primary"/>}</div>}
 function roleLabel(role:string){return role==='professional'?'Profissional':role==='venue_manager'?'Gestor de espaço':'Atleta'}
 function href(fp:number,rp:number,q:string,type:string){const p=new URLSearchParams();if(fp>1)p.set('followingPage',String(fp));if(rp>1)p.set('followersPage',String(rp));if(q)p.set('q',q);if(type!=='all')p.set('type',type);return `/dashboard/seguidores${p.toString()?`?${p}`:''}`}
 

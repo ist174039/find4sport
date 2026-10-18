@@ -1,3 +1,4 @@
+import { AppImage } from '@/components/ui/app-image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Activity, Calendar, Edit, ExternalLink, MapPin, Plus, Search, Users } from 'lucide-react'
@@ -8,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { DashboardEmptyState, DashboardPage, DashboardPageHeader, DashboardSection } from '@/components/patterns/dashboard-page'
 import { EventParticipationCancelDialog } from '@/components/dashboard/event-participation-cancel-dialog'
+import { getCurrentTimeMs } from '@/lib/current-time'
 
 const PAGE_SIZE = 20
 const eventStatuses = ['draft', 'pending', 'published', 'cancelled', 'completed'] as const
@@ -151,13 +153,13 @@ export default async function DashboardEventosPage({ searchParams }: { searchPar
         const paymentStatus = String(row.payment_status || '')
         const statusText = isCreator ? eventStatusLabel[eventStatus(rowStatus) || 'draft'] : participationStatusLabel[participationStatus(rowStatus) || 'pending']
         const capacity = typeof row.capacity === 'number' ? row.capacity : null
-        const eventHasStarted = eventStart ? new Date(eventStart).getTime() <= Date.now() : false
+        const eventHasStarted = eventStart ? new Date(eventStart).getTime() <= getCurrentTimeMs() : false
         const cancellableParticipation = !isCreator && !eventHasStarted && !['pending', 'cancelled', 'attended'].includes(rowStatus) && ['free', 'paid'].includes(paymentStatus)
         const paidParticipation = paymentStatus === 'paid'
 
         return <article key={String(row.id)} className="flex min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 gap-3">
-            {eventImage && <img src={eventImage} alt="" className="h-20 w-24 shrink-0 rounded-xl object-cover" />}
+            {eventImage && <AppImage src={eventImage} alt="" className="h-20 w-24 shrink-0 rounded-xl object-cover" />}
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-semibold">{eventTitle}</h3><Badge variant="outline">{statusText}</Badge></div>
               <p className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"><Calendar className="h-4 w-4 shrink-0" />{eventStart ? new Date(eventStart).toLocaleString('pt-PT') : 'Data indisponível'}</p>

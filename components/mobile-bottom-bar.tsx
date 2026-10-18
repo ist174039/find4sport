@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -24,7 +26,7 @@ export function MobileBottomBar({ userProfile }: { userProfile: UserProfile }) {
           return (
             <Link key={item.name} href={href} aria-current={isActive ? 'page' : undefined} className={cn('flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-medium transition-colors', isActive ? 'text-primary' : 'text-muted-foreground active:text-foreground')}>
               {isProfile && userProfile?.avatar_url ? (
-                <div className={cn('h-6 w-6 overflow-hidden rounded-full border-2', isActive ? 'border-primary' : 'border-transparent')}><img src={userProfile.avatar_url} alt="" className="h-full w-full object-cover" /></div>
+                <div className={cn('h-6 w-6 overflow-hidden rounded-full border-2', isActive ? 'border-primary' : 'border-transparent')}><AppImage src={userProfile.avatar_url} alt="" className="h-full w-full object-cover" /></div>
               ) : <Icon className={cn('h-5 w-5', isActive && 'stroke-[2.5]')} />}
               <span className="max-w-full truncate">{item.name}</span>
             </Link>

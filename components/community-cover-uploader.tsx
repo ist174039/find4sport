@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useRef, useState } from 'react'
 import { Camera, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -37,7 +39,7 @@ export function CommunityCoverUploader({ communityId, userId, initialUrl }: { co
   }
 
   return <div className="grid gap-3 sm:grid-cols-[180px_1fr] sm:items-center">
-    <div className="aspect-[16/9] overflow-hidden rounded-xl border border-border bg-muted">{url ? <img src={url} alt="Capa da comunidade" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Camera className="h-8 w-8 text-muted-foreground" /></div>}</div>
+    <div className="aspect-[16/9] overflow-hidden rounded-xl border border-border bg-muted">{url ? <AppImage src={url} alt="Capa da comunidade" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Camera className="h-8 w-8 text-muted-foreground" /></div>}</div>
     <div><input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event => void upload(event.target.files?.[0])} /><Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto" disabled={saving} onClick={() => inputRef.current?.click()}><Upload className="mr-2 h-4 w-4" />{saving ? 'A carregar…' : 'Alterar capa'}</Button><p className="mt-2 text-xs text-muted-foreground">JPEG, PNG ou WebP · máximo 5 MB.</p></div>
   </div>
 }

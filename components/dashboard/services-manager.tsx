@@ -13,20 +13,9 @@ import { Badge } from '@/components/ui/badge'
 import { useModal } from '@/components/providers/modal-provider'
 import { createService, deleteService, toggleServiceActive, updateService } from '@/app/dashboard/servicos/actions'
 
-type ModerationStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'suspended'
-type ServiceRow = {
-  id: string
-  name: string
-  description: string | null
-  duration_minutes: number | null
-  price: number | null
-  price_unit: string | null
-  modality: string | null
-  is_active: boolean | null
-  moderation_status?: ModerationStatus | null
-  moderation_reason?: string | null
-  created_at?: string
-}
+import type { Tables } from '@/lib/supabase-types'
+
+type ServiceRow = Tables<'services'>
 
 type FormState = { name: string; description: string; duration_minutes: number; price: string; price_unit: string; modality: string }
 const emptyForm: FormState = { name: '', description: '', duration_minutes: 60, price: '', price_unit: 'sessao', modality: 'presencial' }

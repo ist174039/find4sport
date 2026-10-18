@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import {
   ArrowUpRight,
   Building2,
@@ -11,7 +13,7 @@ import {
   UserRound,
   UsersRound,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMap, ZoomControl } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
@@ -69,6 +71,8 @@ const userMarker = L.divIcon({
   iconSize: [24, 24],
   iconAnchor: [12, 12],
 })
+
+const subscribeToNothing = () => () => {}
 
 function FitBounds({ items, userLocation }: { items: MapItem[]; userLocation: UserLocation }) {
   const map = useMap()
@@ -153,7 +157,7 @@ function EntityPopup({ item }: { item: MapItem }) {
     <div className="w-full overflow-hidden bg-card text-card-foreground">
       <div className="relative h-[150px] w-full overflow-hidden bg-muted sm:h-[158px]">
         {item.image_url ? (
-          <img src={item.image_url} alt={item.title} className="h-full w-full object-cover" />
+          <AppImage src={item.image_url} alt={item.title} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/60">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-background/80 text-primary shadow-sm">
@@ -228,13 +232,12 @@ function EntityPopup({ item }: { item: MapItem }) {
 }
 
 export function PesquisaMap({ items = [], userLocation = null }: { items: MapItem[]; userLocation?: UserLocation }) {
-  const [mounted, setMounted] = useState(false)
-  const [resolvedItems, setResolvedItems] = useState<MapItem[]>(items)
+  const mounted = useSyncExternalStore(subscribeToNothing, () => true, () => false)
+  const [geocodedCoordinates, setGeocodedCoordinates] = useState<Record<string, { latitude: number; longitude: number }>>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const markerRefs = useRef<Record<string, L.Marker>>({})
 
-  useEffect(() => setMounted(true), [])
-  useEffect(() => setResolvedItems(items), [items])
+  const resolvedItems = useMemo(() => items.map((item) => geocodedCoordinates[item.id] ? { ...item, ...geocodedCoordinates[item.id] } : item), [items, geocodedCoordinates])
   useEffect(() => {
     const handler = (event: Event) => setSelectedId((event as CustomEvent<{ id?: string }>).detail?.id || null)
     window.addEventListener('f4s-map-focus', handler)
@@ -251,9 +254,9 @@ export function PesquisaMap({ items = [], userLocation = null }: { items: MapIte
         const key = `f4s_geocode:${address.toLowerCase()}`
         try {
           const cached = sessionStorage.getItem(key)
-          if (cached) return { id: item.id, ...JSON.parse(cached) }
+          if (cached) return { id: item.id, ...(JSON.parse(cached) as { latitude: number; longitude: number }) }
           const response = await fetch(`/api/geocode?address=${encodeURIComponent(address)}`)
-          const data = await response.json()
+          const data: { found?: boolean; latitude?: unknown; longitude?: unknown } = await response.json()
           if (response.ok && data.found) {
             const value = { latitude: Number(data.latitude), longitude: Number(data.longitude) }
             sessionStorage.setItem(key, JSON.stringify(value))
@@ -263,8 +266,11 @@ export function PesquisaMap({ items = [], userLocation = null }: { items: MapIte
         return null
       }))
       if (cancelled) return
-      const byId = new Map(updates.filter(Boolean).map((update: any) => [update.id, update]))
-      setResolvedItems(items.map((item) => byId.has(item.id) ? { ...item, ...byId.get(item.id) } : item))
+      const byId: Record<string, { latitude: number; longitude: number }> = {}
+      for (const update of updates) {
+        if (update) byId[update.id] = { latitude: Number(update.latitude), longitude: Number(update.longitude) }
+      }
+      setGeocodedCoordinates((current) => ({ ...current, ...byId }))
     }
     void resolveMissing()
     return () => { cancelled = true }

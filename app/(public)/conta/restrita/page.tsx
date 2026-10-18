@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { AlertTriangle, CalendarClock, ShieldX } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
+import { getCurrentTimeMs } from '@/lib/current-time'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,7 @@ export default async function RestrictedAccountPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/conta/restrita')
   const { data: profile } = await supabase.from('platform_users').select('full_name,account_status,moderation_reason,suspended_until').eq('id', user.id).maybeSingle()
-  const active = profile?.account_status === 'blocked' || (profile?.account_status === 'suspended' && (!profile.suspended_until || new Date(profile.suspended_until).getTime() > Date.now()))
+  const active = profile?.account_status === 'blocked' || (profile?.account_status === 'suspended' && (!profile.suspended_until || new Date(profile.suspended_until).getTime() > getCurrentTimeMs()))
   if (!active) redirect('/dashboard')
   const blocked = profile.account_status === 'blocked'
 

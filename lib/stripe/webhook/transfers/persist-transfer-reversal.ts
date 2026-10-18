@@ -1,10 +1,9 @@
-type DbClient = any
+import type Stripe from 'stripe'
+import type { createAdminClient } from '@/lib/supabase/admin'
 
-type TransferLike = {
-  id: string
-  amount_reversed?: number | null
-  currency?: string | null
-}
+type DbClient = ReturnType<typeof createAdminClient>
+
+type TransferLike = Stripe.Transfer
 
 function moneyFromCents(value: unknown) {
   const amount = Number(value)

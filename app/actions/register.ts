@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Json, TablesInsert } from '@/lib/supabase-types'
+import { cleanText, optionalContact } from '@/lib/data-quality/inputs'
 
 type QualificationInput = { title: string; issuer?: string | null; issue_date?: string | null }
 type ProfessionalInput = {
@@ -77,25 +78,27 @@ export async function registerProfessionalInitial(
       issue_date: item.issue_date || null,
     })).filter(item => item.title)
 
-    const fullName = String(profPayload.full_name || '').trim()
+    const fullName = cleanText(profPayload.full_name, 160)
     if (fullName.length < 2 || fullName.length > 160) throw new Error('Indica um nome válido.')
-    const email = String(user.email || profPayload.email || '').trim()
+    const email = optionalContact(user.email || profPayload.email, 'email', 'Email')
     if (!email) throw new Error('A conta autenticada não tem um email válido associado.')
+    const serviceRadius = profPayload.service_radius_km
+    if (serviceRadius !== undefined && (!Number.isFinite(serviceRadius) || serviceRadius < 0 || serviceRadius > 500)) throw new Error('O raio de serviço deve estar entre 0 e 500 km.')
 
     const requiresApproval = await manualProfileApprovalEnabled()
     const safeProfessionalPayload: TablesInsert<'professionals'> = {
       user_id: user.id,
       email,
       full_name: fullName,
-      professional_name: profPayload.professional_name ?? null,
-      bio: profPayload.bio ?? null,
-      phone: profPayload.phone ?? null,
-      whatsapp: profPayload.whatsapp ?? null,
-      address: profPayload.address ?? null,
-      website: profPayload.website ?? null,
-      service_radius_km: profPayload.service_radius_km,
-      nif: profPayload.nif ?? null,
-      gallery_urls: profPayload.gallery_urls ?? null,
+      professional_name: cleanText(profPayload.professional_name, 160) || null,
+      bio: cleanText(profPayload.bio, 5000) || null,
+      phone: optionalContact(profPayload.phone, 'phone', 'Telefone', 30),
+      whatsapp: optionalContact(profPayload.whatsapp, 'phone', 'WhatsApp', 30),
+      address: cleanText(profPayload.address, 300) || null,
+      website: optionalContact(profPayload.website, 'url', 'Website', 300),
+      service_radius_km: serviceRadius ?? null,
+      nif: cleanText(profPayload.nif, 30) || null,
+      gallery_urls: Array.isArray(profPayload.gallery_urls) ? profPayload.gallery_urls.filter(url => typeof url === 'string' && /^https:\/\//i.test(url)).slice(0, 12) : null,
       status: requiresApproval ? 'pending' : 'active',
       is_verified: requiresApproval ? false : true,
     }
@@ -149,19 +152,23 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
     const user = await requireAuthenticatedUser()
     const admin = createAdminClient()
     const categories = await validateCategoryIds(categoryIds)
-    const cleanName = String(name || spacePayload.name || '').trim()
+    const cleanName = cleanText(name || spacePayload.name, 180)
     if (cleanName.length < 2 || cleanName.length > 180) throw new Error('Indica um nome válido para o espaço.')
-    if (String(spacePayload.address || '').trim().length < 5) throw new Error('Indica uma morada válida.')
+    const address = cleanText(spacePayload.address, 300)
+    if (address.length < 5) throw new Error('Indica uma morada válida.')
+    const phone = optionalContact(spacePayload.phone, 'phone', 'Telefone', 30)
+    const email = optionalContact(spacePayload.email || user.email, 'email', 'Email')
+    const website = optionalContact(spacePayload.website, 'url', 'Website', 300)
 
     const requiresApproval = await manualProfileApprovalEnabled()
     const safeSpacePayload: TablesInsert<'sport_spaces'> = {
       name: cleanName,
-      description: spacePayload.description ?? null,
-      address: spacePayload.address,
-      phone: spacePayload.phone ?? null,
-      email: spacePayload.email ?? user.email ?? null,
-      website: spacePayload.website ?? null,
-      amenities: spacePayload.amenities ?? [],
+      description: cleanText(spacePayload.description, 5000) || null,
+      address,
+      phone,
+      email,
+      website,
+      amenities: Array.isArray(spacePayload.amenities) ? [...new Set(spacePayload.amenities.map(item => cleanText(item, 80)).filter(Boolean))].slice(0, 30) : [],
       status: requiresApproval ? 'pending' : 'active',
       is_verified: requiresApproval ? false : true,
       created_by: user.id,

@@ -79,6 +79,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url, mode: 'checkout' })
   } catch (error: unknown) {
     console.error('Stripe checkout error:', error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao iniciar checkout' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao iniciar checkout' }, { status: 500 })
   }
 }

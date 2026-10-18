@@ -79,7 +79,7 @@ export async function GET() {
     })
   } catch (error: unknown) {
     console.error('Stripe connect status error:', error)
-    return NextResponse.json({ error: errorMessage(error) || 'Não foi possível obter o estado do Stripe Connect.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível obter o estado do Stripe Connect.' }, { status: 500 })
   }
 }
 
@@ -143,6 +143,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: accountLink.url })
   } catch (error: unknown) {
     console.error('Stripe connect error:', error)
-    return NextResponse.json({ error: errorMessage(error) || 'Não foi possível iniciar o onboarding Stripe Connect.' }, { status: 500 })
+    return NextResponse.json({ error: 'Não foi possível iniciar o onboarding Stripe Connect.' }, { status: 500 })
   }
 }

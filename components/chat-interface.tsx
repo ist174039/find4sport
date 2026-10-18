@@ -32,12 +32,13 @@ export function ChatInterface({initialContacts,initialMessages,currentUserId}:{i
   const messagesEndRef=useRef<HTMLDivElement>(null);const messagesContainerRef=useRef<HTMLDivElement>(null);const activeConversationRef=useRef(activeConversationId)
   useEffect(()=>{activeConversationRef.current=activeConversationId},[activeConversationId])
   const activeContact=contacts.find(c=>c.id===activeConversationId)
-  const activeMessages=useMemo(()=>messages.filter(m=>activeContact?.threadId&&m.thread_id===activeContact.threadId).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)),[messages,activeContact?.threadId])
+  const activeContactId=activeContact?.id
+  const activeMessages=useMemo(()=>messages.filter(m=>activeContact?.threadId&&m.thread_id===activeContact.threadId).sort((a,b)=>Date.parse(a.created_at)-Date.parse(b.created_at)),[messages,activeContact])
   const filteredContacts=useMemo(()=>contacts.filter(c=>{const q=contactSearch.trim().toLowerCase();return !q||`${c.name} ${c.role} ${c.contextKind||''} ${c.contextTitle||''} ${c.contextDetail||''} ${c.lastMsg}`.toLowerCase().includes(q)}).sort((a,b)=>Number(Boolean(a.archived))-Number(Boolean(b.archived))||Date.parse(b.lastMsgDate)-Date.parse(a.lastMsgDate)),[contacts,contactSearch])
   const unreadTotal=contacts.reduce((n,c)=>n+c.unread,0)
 
   useEffect(()=>{const el=messagesContainerRef.current;if(!el)return;const distance=el.scrollHeight-el.scrollTop-el.clientHeight;if(distance<180)messagesEndRef.current?.scrollIntoView({behavior:'smooth'})},[activeMessages])
-  useEffect(()=>{if(!activeContact)return;const unread=activeMessages.filter(m=>m.receiver_id===currentUserId&&!m.read_at);if(!unread.length)return;void markAsRead(unread.map(m=>m.id)).then(()=>{const now=new Date().toISOString();setMessages(prev=>prev.map(m=>unread.some(u=>u.id===m.id)?{...m,read_at:now}:m));setContacts(prev=>prev.map(c=>c.id===activeContact.id?{...c,unread:0}:c))})},[activeContact?.id,currentUserId,activeMessages])
+  useEffect(()=>{if(!activeContactId)return;const unread=activeMessages.filter(m=>m.receiver_id===currentUserId&&!m.read_at);if(!unread.length)return;void markAsRead(unread.map(m=>m.id)).then(()=>{const now=new Date().toISOString();setMessages(prev=>prev.map(m=>unread.some(u=>u.id===m.id)?{...m,read_at:now}:m));setContacts(prev=>prev.map(c=>c.id===activeContactId?{...c,unread:0}:c))})},[activeContactId,currentUserId,activeMessages])
 
   useEffect(()=>{
     const supabase=createClient()

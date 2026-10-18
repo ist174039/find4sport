@@ -2,6 +2,7 @@ import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
 import { parseAdminType, type AdminType } from '@/lib/auth/admin-permissions'
+import { isAccountUnavailable } from '@/lib/auth/account-status'
 
 export type SessionAccess = {
   role: AccessRole
@@ -35,18 +36,15 @@ export async function resolveAdminSidebarUser(supabase: Supabase, user: User): P
   return { role: adminRecord.adminType }
 }
 
-export function getAccountStatus(user: User) {
-  return String(user.app_metadata?.account_status || user.user_metadata?.account_status || '')
-}
-
 export async function resolveSessionAccess(supabase: Supabase, user: User): Promise<SessionAccess | null> {
+  // Account lifecycle restrictions apply to administrators too. Check before
+  // resolving the admin record so a deactivated admin cannot retain access.
+  if (isAccountUnavailable(user)) return null
+
   const adminUser = await resolveAdminRecord(supabase, user)
   if (adminUser) {
     return { role: 'admin', profileId: adminUser.id, adminType: adminUser.adminType, canAccessDashboard: false, canAccessAdmin: true, canManageProfessionals: false, canManageSpaces: false, hasProfessionalProfile: false, hasManagedSpace: false, accountStatus: 'active', moderationReason: null, suspendedUntil: null, isRestricted: false }
   }
-
-  const accountStatus = getAccountStatus(user)
-  if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') return null
 
   const { data: platformUser } = await supabase.from('platform_users').select('id, type, account_status, moderation_reason, suspended_until').eq('id', user.id).maybeSingle()
   if (!platformUser?.id) return null

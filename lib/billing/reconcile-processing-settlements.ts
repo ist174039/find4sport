@@ -27,7 +27,7 @@ function message(error: unknown) {
  * retry remains protected even if a previous HTTP response was lost.
  */
 export async function reconcileProcessingSettlements(staleMinutes = 15, limit = 25): Promise<ReconcileResult[]> {
-  const db = createAdminClient() as any
+  const db = createAdminClient()
   const secret = process.env.STRIPE_SECRET_KEY
   if (!secret) throw new Error('Stripe não está configurado.')
   const stripe = new Stripe(secret)

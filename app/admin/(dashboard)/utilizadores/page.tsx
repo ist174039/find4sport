@@ -1,3 +1,4 @@
+import { AppImage } from '@/components/ui/app-image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Building2, Dumbbell, Search, UserRound, Users } from 'lucide-react'
@@ -118,7 +119,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
             {rows.map(row => (
               <article key={row.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{row.avatar_url ? <img src={row.avatar_url} alt="" className="h-full w-full object-cover" /> : (row.full_name || row.email || 'U').charAt(0).toUpperCase()}</div>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-bold text-primary">{row.avatar_url ? <AppImage src={row.avatar_url} alt="" className="h-full w-full object-cover" /> : (row.full_name || row.email || 'U').charAt(0).toUpperCase()}</div>
                   <div className="min-w-0"><p className="truncate text-sm font-semibold">{row.full_name || 'Sem nome'}</p><p className="truncate text-xs text-muted-foreground">{row.email || row.id}</p><p className="mt-1 text-xs text-muted-foreground">Registo: {row.created_at ? new Date(row.created_at).toLocaleDateString('pt-PT') : '—'}</p></div>
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center gap-2 self-start sm:justify-end sm:self-center"><Badge variant={row.account_status === 'active' ? 'outline' : 'destructive'}>{row.account_status === 'blocked' ? 'Bloqueado' : row.account_status === 'suspended' ? 'Suspenso' : row.type ? roleLabels[row.type] : 'Ativo'}</Badge><Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/utilizadores/${row.id}`} target="_blank">Perfil público</Link></Button><UserModerationControls userId={row.id} initialStatus={row.account_status} />{row.type === 'professional' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/profissionais?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver profissional</Link></Button>}{row.type === 'venue_manager' && <Button asChild variant="outline" size="sm" className="min-h-11"><Link href={`/admin/espacos?q=${encodeURIComponent(row.full_name || row.id)}`}>Ver espaços</Link></Button>}</div>

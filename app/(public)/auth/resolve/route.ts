@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-
-function safeInternalPath(value: string | null, fallback: string) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback
-  return value
-}
+import { getAccountStatus } from '@/lib/auth/account-status'
+import { safeInternalPath } from '@/lib/http/safe-internal-path'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -17,7 +14,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  const accountStatus = String(user.user_metadata?.account_status || '')
+  const accountStatus = getAccountStatus(user)
   if (accountStatus === 'deactivated' || accountStatus === 'deletion_requested') {
     return NextResponse.redirect(new URL('/auth/reactivar', origin))
   }

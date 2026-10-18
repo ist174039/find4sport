@@ -37,7 +37,7 @@ export function PageShell({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header user={user} notificationCount={notificationCount} />
-      <main className={cn('flex-1', className)}>
+      <main id="main-content" tabIndex={-1} className={cn('flex-1', className)}>
         {children}
       </main>
       {!hideFooter && <Footer />}

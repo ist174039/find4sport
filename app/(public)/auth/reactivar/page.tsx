@@ -3,13 +3,14 @@ import { RotateCcw, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { reactivateAccountAction } from '@/app/actions/account-lifecycle'
 import { Button } from '@/components/ui/button'
+import { getAccountStatus } from '@/lib/auth/account-status'
 
 export default async function ReactivateAccountPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/auth/reactivar')
 
-  const status = String(user.user_metadata?.account_status || '')
+  const status = getAccountStatus(user)
   if (!['deactivated', 'deletion_requested'].includes(status)) redirect('/dashboard')
 
   return (

@@ -64,6 +64,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ModalProvider>
+            <a className="skip-link" href="#main-content">Saltar para o conteúdo principal</a>
             {children}
             {process.env.NODE_ENV === 'production' && <Analytics />}
           </ModalProvider>

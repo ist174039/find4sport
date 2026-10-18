@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { Building2, CheckCircle, Clock, Search, User, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,8 +25,8 @@ export function SpaceProfessionalLink({ mode, targetId }: { mode: Mode; targetId
   const [busyId, setBusyId] = useState<string | null>(null)
   const [searching, startSearch] = useTransition()
 
-  async function loadLinks() { setLoading(true); try { setLinks(await listSpaceProfessionalLinksAction(mode, targetId)) } catch (error: any) { showAlert('Erro', error?.message || 'Não foi possível carregar associações.', 'error') } finally { setLoading(false) } }
-  useEffect(() => { void loadLinks() }, [mode, targetId])
+  const loadLinks = useCallback(async () => { try { setLinks(await listSpaceProfessionalLinksAction(mode, targetId)) } catch (error: any) { showAlert('Erro', error?.message || 'Não foi possível carregar associações.', 'error') } finally { setLoading(false) } }, [mode, targetId, showAlert])
+  useEffect(() => { void loadLinks() }, [loadLinks])
   function handleSearch() { const query=searchQuery.trim(); if(query.length<2)return; startSearch(async()=>{try{setSearchResults(await searchSpaceProfessionalTargetsAction(mode,targetId,query))}catch(error:any){showAlert('Erro',error?.message||'Pesquisa indisponível.','error')}}) }
   async function requestLink(result: SearchResult) { setBusyId(result.id); try { await requestSpaceProfessionalLinkAction(mode,targetId,result.id); setSearchResults([]); setSearchQuery(''); showAlert('Pedido enviado',mode==='professional'?'O espaço terá de aprovar a associação.':'O profissional terá de aceitar o convite.','success'); await loadLinks() } catch(error:any){showAlert('Não foi possível associar',error?.message||'Tenta novamente.','error')} finally{setBusyId(null)} }
   async function decide(linkId:string,decision:'active'|'rejected'){setBusyId(linkId);try{await decideSpaceProfessionalLinkAction(mode,targetId,linkId,decision);await loadLinks()}catch(error:any){showAlert('Erro',error?.message||'Não foi possível processar o pedido.','error')}finally{setBusyId(null)}}

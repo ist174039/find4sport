@@ -19,7 +19,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen w-full overflow-x-hidden bg-muted/30">
       <div className="flex w-full">
         <AdminSidebar adminUser={adminUser || { role: 'general' }} />
-        <main className="ml-0 w-full min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:ml-64 lg:p-8">
+        <main id="main-content" tabIndex={-1} className="ml-0 w-full min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:ml-64 lg:p-8">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>

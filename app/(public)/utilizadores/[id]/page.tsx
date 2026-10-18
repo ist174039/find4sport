@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AppImage } from '@/components/ui/app-image'
 import { formatDate } from '@/lib/utils'
+import { getCurrentTimeMs } from '@/lib/current-time'
 import { InstagramPhotoGallery } from '@/components/instagram-photo-gallery'
 
 type Community = {
@@ -44,7 +45,7 @@ export default async function UserProfilePage({ params }: { params: Promise<{ id
     .eq('id', id)
     .maybeSingle()
 
-  const publiclyActive = profile?.account_status === 'active' || (profile?.account_status === 'suspended' && profile.suspended_until && new Date(profile.suspended_until).getTime() <= Date.now())
+  const publiclyActive = profile?.account_status === 'active' || (profile?.account_status === 'suspended' && profile.suspended_until && new Date(profile.suspended_until).getTime() <= getCurrentTimeMs())
   if (!profile || !publiclyActive) return notFound()
 
   const [{ data: memberData }, { data: participantData }, { count: followersCount }, { count: followingCount }, { data: authData }] = await Promise.all([

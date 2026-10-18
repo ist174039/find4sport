@@ -35,9 +35,6 @@ jobs:
       - name: Install application dependencies
         run: npm ci
 
-      - name: Install Playwright runner
-        run: npm install --no-save --package-lock=false @playwright/test@1.62.1
-
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -58,6 +55,11 @@ jobs:
           done
           echo "Production healthcheck did not become healthy"
           exit 1
+
+      - name: Run public production smoke suite
+        env:
+          E2E_BASE_URL: https://find4sport.vercel.app
+        run: npx playwright test e2e/public-smoke.spec.mjs --project=${{ matrix.project }} --workers=1
 
       - name: Require authenticated E2E coverage
         env:
@@ -115,7 +117,7 @@ jobs:
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           E2E_OPERATIONAL_ADMIN_EMAIL: ${{ secrets.E2E_OPERATIONAL_ADMIN_EMAIL }}
           E2E_OPERATIONAL_ADMIN_PASSWORD: ${{ secrets.E2E_OPERATIONAL_ADMIN_PASSWORD }}
-        run: npx playwright test e2e/public-smoke.spec.mjs e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }}
+        run: npx playwright test e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }}
 
       - name: Upload Playwright report
         if: always()

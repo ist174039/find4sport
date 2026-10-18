@@ -36,6 +36,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url })
   } catch (error: unknown) {
     console.error('Stripe portal error:', error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao abrir faturação Stripe.' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao abrir faturação Stripe.' }, { status: 500 })
   }
 }

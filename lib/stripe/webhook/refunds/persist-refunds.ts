@@ -1,5 +1,8 @@
 import type Stripe from 'stripe'
 import { syncReservationRefund } from './sync-reservation-refund'
+import type { createAdminClient } from '@/lib/supabase/admin'
+
+type DbClient = ReturnType<typeof createAdminClient>
 
 const money = (value: unknown) => Number(value || 0) / 100
 
@@ -7,7 +10,7 @@ function status(value: string | null | undefined): 'pending' | 'completed' | 'fa
   return value === 'succeeded' ? 'completed' : value === 'pending' ? 'pending' : 'failed'
 }
 
-async function findOriginal(db: any, chargeId: string, paymentIntentId: string | null) {
+async function findOriginal(db: DbClient, chargeId: string, paymentIntentId: string | null) {
   const select = 'id,user_id,provider_user_id,amount,gross_amount,base_amount,provider_net_amount,platform_net_amount,currency,source_type,source_id,stripe_charge_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id,financial_metadata'
   if (paymentIntentId) {
     const { data } = await db.from('transactions').select(select).eq('stripe_payment_intent_id', paymentIntentId).in('type', ['service_reservation_payment','space_reservation_payment','service_package_payment','event_payment']).maybeSingle()
@@ -17,7 +20,7 @@ async function findOriginal(db: any, chargeId: string, paymentIntentId: string |
   return data || null
 }
 
-export async function persistRefunds(db: any, charge: Stripe.Charge) {
+export async function persistRefunds(db: DbClient, charge: Stripe.Charge) {
   const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id || null
   const original = await findOriginal(db, charge.id, paymentIntentId)
   if (!original) return

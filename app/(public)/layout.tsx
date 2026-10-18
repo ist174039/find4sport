@@ -1,7 +1,6 @@
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
 import { MobileBottomBar } from '@/components/mobile-bottom-bar'
-import { LocationSync } from '@/components/location-sync'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
@@ -22,9 +21,8 @@ export default async function PublicLayout({ children }: { children: React.React
   }
 
   return <>
-    <LocationSync />
     <Header user={userProfile} notificationCount={notificationCount} />
-    <main className="flex min-h-screen flex-col overflow-hidden bg-background pb-16 text-foreground md:pb-0">{children}</main>
+    <main id="main-content" tabIndex={-1} className="flex min-h-screen flex-col overflow-hidden bg-background pb-16 text-foreground md:pb-0">{children}</main>
     <Footer />
     <MobileBottomBar userProfile={userProfile} />
   </>

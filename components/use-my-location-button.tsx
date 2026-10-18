@@ -18,7 +18,7 @@ export function UseMyLocationButton({ className, compact = false }: { className?
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       const latitude = Math.round(coords.latitude * 100000) / 100000
       const longitude = Math.round(coords.longitude * 100000) / 100000
-      document.cookie = `f4s_geo=${latitude},${longitude}; Path=/; Max-Age=1800; SameSite=Lax`
+      document.cookie = `f4s_geo=${latitude},${longitude}; Path=/; Max-Age=1800; SameSite=Lax; Secure`
       localStorage.setItem('f4s_geo_updated_at', String(Date.now()))
       setLoading(false)
       router.refresh()

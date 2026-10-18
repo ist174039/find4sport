@@ -29,9 +29,6 @@ jobs:
       - name: Migration repository gate
         run: node scripts/check-migrations.mjs
 
-      - name: Install lint tooling
-        run: npm install --no-save --package-lock=false eslint@9.39.1 eslint-config-next@16.3.1
-
       - name: Dependency audit
         run: npm audit --audit-level=low
 

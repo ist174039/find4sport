@@ -3,7 +3,6 @@ import { Gavel, Search, ShieldAlert } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { dismissContentReportAction, removeReportedContentAction } from '@/app/admin/actions/moderation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 
 const PAGE_SIZE = 20
 const reasonLabel: Record<string, string> = { spam: 'Spam', harassment: 'Assédio', hate: 'Discurso de ódio', nudity: 'Conteúdo sexual/nudez', violence: 'Violência', fraud: 'Fraude', other: 'Outro' }

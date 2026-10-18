@@ -34,20 +34,21 @@ for (const route of publicRoutes) {
   })
 }
 
-test('readiness healthcheck reports healthy dependencies', async ({ request }) => {
-  const response = await request.get('/api/health')
-  expect(response.status()).toBe(200)
-  const payload = await response.json()
+test('readiness healthcheck reports healthy dependencies', async ({ page }) => {
+  const response = await page.goto('/api/health')
+  expect(response?.status()).toBe(200)
+  const payload = await response?.json()
 
   expect(payload.status).toBe('ok')
   expect(payload.checks?.database).toBe('ok')
   expect(payload.checks?.stripe).toBe('configured')
   expect(typeof payload.version).toBe('string')
-  expect(response.headers()['cache-control']).toContain('no-store')
+  expect(response?.headers()['cache-control']).toContain('no-store')
 })
 
-test('baseline security headers are present', async ({ request }) => {
-  const response = await request.get('/')
+test('baseline security headers are present', async ({ page }) => {
+  const response = await page.goto('/')
+  if (!response) throw new Error('Expected an HTTP response for /')
   const headers = response.headers()
 
   expect(headers['x-content-type-options']).toBe('nosniff')
@@ -59,11 +60,11 @@ test('login rejects invalid credentials with a user-facing error', async ({ page
   await page.goto('/auth/login')
 
   await page.getByLabel('E-mail').fill('e2e-invalid-user@example.invalid')
-  await page.getByLabel('Palavra-passe').fill('invalid-password-for-smoke-test')
+  await page.locator('input[type="password"]').first().fill('invalid-password-for-smoke-test')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await expect(page.getByRole('alert')).toBeVisible()
-  await expect(page.getByRole('alert')).toContainText(/incorretos|não foi possível/i)
+  await expect(page.locator('[role="alert"]').filter({ hasText: /incorretos|não foi possível/i })).toBeVisible()
 })
 
 test('login redirect input cannot escape the application origin', async ({ page }) => {
@@ -88,16 +89,22 @@ test('anonymous users are denied across sensitive admin surface', async ({ page 
   }
 })
 
-test('checkout endpoints reject anonymous requests without server errors', async ({ request }) => {
-  for (const route of ['/api/checkout_sessions', '/api/package-checkout', '/api/stripe/checkout']) {
-    const response = await request.post(route, { data: {} })
-    expect(response.status(), `${route} unexpectedly accepted an anonymous checkout`).toBeGreaterThanOrEqual(400)
-    expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
+test('checkout endpoints reject anonymous requests without server errors', async ({ page }) => {
+  await page.goto('/')
+  const responses = await page.evaluate(async (routes) => Promise.all(routes.map(async route => {
+    const response = await fetch(route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+    return { route, status: response.status }
+  })), ['/api/checkout_sessions', '/api/package-checkout', '/api/stripe/checkout'])
+
+  for (const { route, status } of responses) {
+    expect(status, `${route} unexpectedly accepted an anonymous checkout`).toBeGreaterThanOrEqual(400)
+    expect(status, `${route} returned a server error`).toBeLessThan(500)
   }
 })
 
-test('unknown public route returns a controlled client error, not a server failure', async ({ request }) => {
-  const response = await request.get('/e2e-route-that-must-not-exist')
+test('unknown public route returns a controlled client error, not a server failure', async ({ page }) => {
+  const response = await page.goto('/e2e-route-that-must-not-exist')
+  if (!response) throw new Error('Expected an HTTP response for the missing route')
   expect(response.status()).toBeGreaterThanOrEqual(400)
   expect(response.status()).toBeLessThan(500)
 })

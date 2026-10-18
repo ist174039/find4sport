@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getFollowersList, getFollowingList } from '@/app/actions/follow'
@@ -41,12 +43,16 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setLoading(true)
-    setLoadError(false)
     const fn = mode === 'followers' ? getFollowersList : getFollowingList
-    void fn(targetUserId)
+    void Promise.resolve()
+      .then(() => {
+        if (cancelled) return null
+        setLoading(true)
+        setLoadError(false)
+        return fn(targetUserId)
+      })
       .then(res => {
-        if (cancelled) return
+        if (cancelled || !res) return
         setItems((res.list || []) as FollowItem[])
         setCurrentUserId(res.currentUserId)
       })
@@ -99,7 +105,7 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
                   <Link href={item.href} onClick={onClose} className="flex items-center gap-3 min-w-0 flex-1 group">
                     <div className={`w-11 h-11 shrink-0 overflow-hidden border border-border bg-muted ${item.type === 'venue_manager' ? 'rounded-xl' : 'rounded-full'}`}>
                       {item.avatar ? (
-                        <img src={item.avatar} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <AppImage src={item.avatar} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-primary font-bold text-sm">
                           {item.type === 'venue_manager' ? <Building2 className="w-5 h-5" /> : item.type === 'professional' ? <Dumbbell className="w-5 h-5" /> : <UserRound className="w-5 h-5" />}

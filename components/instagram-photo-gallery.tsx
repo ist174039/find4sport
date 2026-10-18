@@ -1,3 +1,4 @@
+import { AppImage } from '@/components/ui/app-image'
 import Link from 'next/link'
 import { Images } from 'lucide-react'
 
@@ -68,7 +69,7 @@ export function InstagramPhotoGallery({
 
           const imageCard = (
             <div className="group relative aspect-square overflow-hidden rounded-xl border border-border/60 bg-muted/30">
-              <img
+              <AppImage
                 src={item.url}
                 alt={item.alt}
                 className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"

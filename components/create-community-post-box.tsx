@@ -1,5 +1,7 @@
 'use client'
 
+import { AppImage } from '@/components/ui/app-image'
+
 import { useState } from 'react'
 import { createCommunityPostAction } from '@/app/actions/community-feed'
 import { Loader2, Send } from 'lucide-react'
@@ -38,10 +40,10 @@ export function CreateCommunityPostBox({
     <div className="bg-card border border-border rounded-xl p-4 mb-6 shadow-sm">
       <div className="flex gap-4">
         {currentUserAvatar ? (
-          <img 
-            src={currentUserAvatar} 
-            alt={currentUserName} 
-            className="w-10 h-10 rounded-full object-cover shrink-0 border border-border" 
+          <AppImage
+            src={currentUserAvatar}
+            alt={currentUserName}
+            className="w-10 h-10 rounded-full object-cover shrink-0 border border-border"
           />
         ) : (
           <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center font-bold text-muted-foreground shrink-0 uppercase">

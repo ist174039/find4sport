@@ -22,7 +22,7 @@ function errorMessage(error: unknown) {
 }
 
 export async function releaseReservationSettlement(reservationId: string) {
-  const db = createAdminClient() as any
+  const db = createAdminClient()
   const { data: reservation, error: reservationError } = await db.from('reservations').select('id,payment_status,settlement_status,service_delivery_status').eq('id', reservationId).maybeSingle()
   if (reservationError) throw reservationError
   if (!reservation) throw new Error('Reserva não encontrada para liquidação.')
@@ -109,7 +109,7 @@ export async function releaseReservationSettlement(reservationId: string) {
 }
 
 export async function processDueAutoConfirmations(limit = 25): Promise<SettlementRunResult[]> {
-  const db = createAdminClient() as any
+  const db = createAdminClient()
   const now = new Date().toISOString()
   const results: SettlementRunResult[] = []
 

@@ -288,6 +288,12 @@ export type Database = {
         Update: { actor_user_id?: string | null; created_at?: string; from_status?: string | null; id?: string; reason?: string | null; service_id?: string; to_status?: string }
         Relationships: [{ foreignKeyName: "service_moderation_history_service_id_fkey"; columns: ["service_id"]; isOneToOne: false; referencedRelation: "services"; referencedColumns: ["id"] }]
       }
+      service_moderation_events: {
+        Row: { actor_user_id: string | null; created_at: string; event_type: string; id: string; metadata: Json; note: string | null; service_id: string }
+        Insert: { actor_user_id?: string | null; created_at?: string; event_type: string; id?: string; metadata?: Json; note?: string | null; service_id: string }
+        Update: { actor_user_id?: string | null; created_at?: string; event_type?: string; id?: string; metadata?: Json; note?: string | null; service_id?: string }
+        Relationships: [{ foreignKeyName: "service_moderation_events_service_id_fkey"; columns: ["service_id"]; isOneToOne: false; referencedRelation: "services"; referencedColumns: ["id"] }]
+      }
       service_package_purchases: {
         Row: { created_at: string; currency: string; expires_at: string | null; id: string; package_id: string; price_paid: number; professional_id: string; purchased_at: string | null; service_id: string; sessions_remaining: number; sessions_total: number; status: string; stripe_payment_intent_id: string | null; stripe_session_id: string | null; updated_at: string; user_id: string }
         Insert: { created_at?: string; currency?: string; expires_at?: string | null; id?: string; package_id: string; price_paid: number; professional_id: string; purchased_at?: string | null; service_id: string; sessions_remaining: number; sessions_total: number; status?: string; stripe_payment_intent_id?: string | null; stripe_session_id?: string | null; updated_at?: string; user_id: string }
@@ -311,7 +317,7 @@ export type Database = {
       services: {
         Row: { created_at: string; description: string | null; duration_minutes: number | null; id: string; is_active: boolean | null; modality: string | null; moderation_reason: string | null; moderation_status: string; name: string; price: number | null; price_unit: string | null; professional_id: string; reviewed_at: string | null; reviewed_by: string | null; submitted_at: string | null }
         Insert: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string | null; moderation_status?: string; name: string; price?: number | null; price_unit?: string | null; professional_id: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
-        Update: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string; moderation_status?: string; name?: string; price?: number | null; price_unit?: string | null; professional_id?: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
+        Update: { created_at?: string; description?: string | null; duration_minutes?: number | null; id?: string; is_active?: boolean | null; modality?: string | null; moderation_reason?: string | null; moderation_status?: string; name?: string; price?: number | null; price_unit?: string | null; professional_id?: string; reviewed_at?: string | null; reviewed_by?: string | null; submitted_at?: string | null }
         Relationships: [{ foreignKeyName: "services_professional_id_fkey"; columns: ["professional_id"]; isOneToOne: false; referencedRelation: "professionals"; referencedColumns: ["id"] }]
       }
       space_categories: {

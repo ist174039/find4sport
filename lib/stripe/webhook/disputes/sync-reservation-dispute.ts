@@ -1,4 +1,6 @@
-type DbClient = any
+import type { createAdminClient } from '@/lib/supabase/admin'
+
+type DbClient = ReturnType<typeof createAdminClient>
 
 type OriginalTransaction = {
   source_type?: string | null
