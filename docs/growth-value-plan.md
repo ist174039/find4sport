@@ -1,5 +1,7 @@
 # Find4Sport — Growth and valuation evidence
 
+Source of truth: [Notion implementation plan](https://app.notion.com/p/39cbe9392b60831cbbc28143e5462ab7) and [growth task](https://app.notion.com/p/400be9392b6081779373ee7702a0efec). This file is a technical snapshot; priorities and decisions are maintained in Notion.
+
 Goal confirmed on 2026-10-21: acquire customers and generate revenue over the next three months across venues, professionals and events. Existing users are confirmed. The owner clarified that users currently join free and revenue is a later goal; active counts and actual revenue remain unverified. This is a proposed delivery sequence, not a valuation guarantee.
 
 | ID | Priority | Delivery and acceptance | Dependency / status |

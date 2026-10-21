@@ -23,3 +23,7 @@ vercel-logs.txt
 
 # Temporary scratch files
 scratch/
+
+# Browser test artifacts
+playwright-report/
+test-results/
