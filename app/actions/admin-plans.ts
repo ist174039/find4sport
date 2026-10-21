@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import Stripe from 'stripe'
 import { requireAdminPermission } from '@/lib/auth/authorization'
+import type { Database } from '@/lib/supabase-types'
 
 function decimal(formData: FormData, key: string, min = 0, max = Number.MAX_SAFE_INTEGER) {
   const value = Number(formData.get(key))
@@ -22,7 +23,10 @@ export async function saveSubscriptionPlan(formData: FormData) {
   const { data: currentPlan } = await admin.from('subscription_plans').select('*').eq('id', planId).single()
   if (!currentPlan) throw new Error('Plano não encontrado')
 
-  const planUpdate: any = {
+  const planUpdate: Database['public']['Tables']['subscription_plans']['Update'] & {
+    monthly_price: number
+    annual_price: number
+  } = {
     name: String(formData.get('name') || '').trim(),
     description: String(formData.get('description') || '').trim() || null,
     monthly_price: decimal(formData, 'monthlyPrice'),
@@ -113,7 +117,7 @@ export async function saveSubscriptionPlan(formData: FormData) {
   }
 
   const { data: entitlements } = await admin.from('plan_entitlements').select('*').eq('plan_id', planId)
-  const history: any[] = [{
+  const history: Database['public']['Tables']['plan_change_history']['Insert'][] = [{
     plan_id: planId,
     changed_by: adminUser.id,
     change_type: 'plan_update',
@@ -125,7 +129,7 @@ export async function saveSubscriptionPlan(formData: FormData) {
     const prefix = `ent_${entitlement.id}`
     const unlimited = formData.get(`${prefix}_unlimited`) === 'on'
     const raw = formData.get(`${prefix}_value`)
-    const update: any = { is_unlimited: unlimited, updated_at: new Date().toISOString() }
+    const update: Database['public']['Tables']['plan_entitlements']['Update'] = { is_unlimited: unlimited, updated_at: new Date().toISOString() }
 
     if (entitlement.value_type === 'boolean') {
       update.boolean_value = formData.get(`${prefix}_boolean`) === 'on'

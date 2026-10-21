@@ -18,6 +18,8 @@
     { "version": "20260823193820", "name": "normalize_legacy_taxonomy_entries" },
     { "version": "20260823233822", "name": "add_event_categories_taxonomy_relation" },
     { "version": "20260826034331", "name": "harden_private_community_post_visibility" },
-    { "version": "20260826042410", "name": "secure_public_discovery_contracts" }
+    { "version": "20260826042410", "name": "secure_public_discovery_contracts" },
+    { "version": "20260826043325", "name": "add_public_event_participant_count", "sha256": "5536f7a280c95b27dec18f446d7c8f465bd6be9530c6568a11ce1be33f605f28", "provenance": "migration-provenance.json" },
+    { "version": "20260827030638", "name": "allow_multi_provider_capabilities", "sha256": "7b431f1da49ff323b2ee8354bd8b218f86069cd5216bdd2bc860d36a78984b90", "provenance": "migration-provenance.json" }
   ]
 }

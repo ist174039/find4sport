@@ -1,13 +1,13 @@
 # Find4Sport — Growth and valuation evidence
 
-Source of truth: [Notion implementation plan](https://app.notion.com/p/39cbe9392b60831cbbc28143e5462ab7) and [growth task](https://app.notion.com/p/400be9392b6081779373ee7702a0efec). This file is a technical snapshot; priorities and decisions are maintained in Notion.
+Integrated code source of truth: GitHub `main`. Requirements, architecture, priorities, tasks and evidence source of truth: [Notion implementation plan](https://app.notion.com/p/39cbe9392b60831cbbc28143e5462ab7) and [growth task](https://app.notion.com/p/400be9392b6081779373ee7702a0efec). This file is a technical snapshot; priorities and decisions are maintained in Notion.
 
 Goal confirmed on 2026-10-21: acquire customers and generate revenue over the next three months across venues, professionals and events. Existing users are confirmed. The owner clarified that users currently join free and revenue is a later goal; active counts and actual revenue remain unverified. This is a proposed delivery sequence, not a valuation guarantee.
 
 | ID | Priority | Delivery and acceptance | Dependency / status |
 | --- | --- | --- | --- |
-| V01 | P0 | Independent Quality checks after successful install; SHA and per-check outcome in run summary; any failure still fails Quality | Implemented locally; remote execution pending |
-| V02 | P0 | Reconcile seven migrations with exact deployment SQL/history, reviewed ACLs and schema effects | External provenance missing; retain gate |
+| V01 | P0 | Independent Quality checks after successful install; SHA and per-check outcome in run summary; any failure still fails Quality | Verified in CI run 39665221015; Quality correctly failed on migration/audit checks |
+| V02 | P0 | Reconcile seven migrations with exact deployment SQL/history, reviewed ACLs and schema effects | Recorded SQL recovered on 2026-10-21; seven version mismatches and two unrecorded baseline entries remain; retain gate |
 | V03 | P0 | Isolated Preview fixtures, role accounts, protected secrets and repeatable reset | Test services/configuration required |
 | V04 | P0 | Booking, event capacity, package ownership/credits, concurrent conflict and cancellation tests pass with consistent data | V02–V03 |
 | V05 | P0 | Test checkout, Connect, duplicate/out-of-order webhooks, refunds and reconciliation with consistent ledger | V02–V03 and Stripe test access |

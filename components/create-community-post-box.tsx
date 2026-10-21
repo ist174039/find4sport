@@ -29,8 +29,8 @@ export function CreateCommunityPostBox({
       await createCommunityPostAction(communityId, content)
       setContent('')
       showAlert('Sucesso', 'Publicação feita com sucesso!', 'success')
-    } catch (err: any) {
-      showAlert('Erro', err.message || 'Erro ao publicar.', 'error')
+    } catch (err: unknown) {
+      showAlert('Erro', err instanceof Error ? err.message : 'Erro ao publicar.', 'error')
     } finally {
       setLoading(false)
     }

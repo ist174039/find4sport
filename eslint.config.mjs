@@ -22,6 +22,7 @@ export default defineConfig([
   globalIgnores([
     ".next/**",
     "node_modules/**",
+    "tooling/braces-depth-guard/**", // Vendored upstream CommonJS; verified by dedicated security contract tests.
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
