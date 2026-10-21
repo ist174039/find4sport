@@ -24,22 +24,64 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Migration repository gate
+        id: migrations
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: node scripts/check-migrations.mjs
 
       - name: Dependency audit
+        id: audit
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm audit --audit-level=low
 
       - name: Lint
+        id: lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run lint
 
       - name: Typecheck
+        id: types
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run typecheck
 
       - name: Automated tests
+        id: tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm test
 
       - name: Production build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build
+
+      - name: Publish quality evidence
+        if: always()
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          INSTALL_RESULT: ${{ steps.install.outcome }}
+          MIGRATION_RESULT: ${{ steps.migrations.outcome }}
+          AUDIT_RESULT: ${{ steps.audit.outcome }}
+          LINT_RESULT: ${{ steps.lint.outcome }}
+          TYPECHECK_RESULT: ${{ steps.types.outcome }}
+          TEST_RESULT: ${{ steps.tests.outcome }}
+          BUILD_RESULT: ${{ steps.build.outcome }}
+        run: |
+          {
+            echo "## Quality evidence"
+            echo "Commit: $COMMIT_SHA"
+            echo ""
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| Install | $INSTALL_RESULT |"
+            echo "| Migrations | $MIGRATION_RESULT |"
+            echo "| Dependency audit | $AUDIT_RESULT |"
+            echo "| Lint | $LINT_RESULT |"
+            echo "| Typecheck | $TYPECHECK_RESULT |"
+            echo "| Tests | $TEST_RESULT |"
+            echo "| Build | $BUILD_RESULT |"
+            echo ""
+            echo "Every required check must succeed. A failed check keeps Quality failed."
+          } >> "$GITHUB_STEP_SUMMARY"
