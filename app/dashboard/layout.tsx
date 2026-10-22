@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { DashboardContentShell } from '@/components/dashboard/content-shell'
 import { resolveSessionAccess } from '@/lib/auth/access'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,12 +19,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (access.role === 'professional' && !access.hasProfessionalProfile) redirect('/auth/registar/profissional')
   if (access.role === 'venue_manager' && !access.hasManagedSpace) redirect('/auth/registar/espaco')
 
+  const ownerDb = createAdminClient()
   const [professionalResult, spacesResult] = await Promise.all([
     access.role === 'professional'
-      ? supabase.from('professionals').select('full_name,professional_name,avatar_url').eq('user_id', user.id).maybeSingle()
+      ? ownerDb.from('professionals').select('full_name,professional_name,avatar_url').eq('user_id', user.id).maybeSingle()
       : Promise.resolve({ data: null }),
     access.role === 'venue_manager'
-      ? supabase.from('sport_spaces').select('id,name,logo_url').eq('owner_user_id', user.id).order('created_at', { ascending: true })
+      ? ownerDb.from('sport_spaces').select('id,name,logo_url,created_at').eq('owner_user_id', user.id).order('created_at', { ascending: true })
       : Promise.resolve({ data: [] }),
   ])
 
