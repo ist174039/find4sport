@@ -114,3 +114,9 @@ The community policy gap was closed forward, not by repairing or fabricating the
 - Local checks: focused public-data-exposure tests 11/11; `node scripts/check-migrations.mjs --release` passed with zero pending migration records and 45 non-blocking legacy-name warnings. CI on the changed SHA has not run yet.
 - Readiness remains 35/100, Red / NO-GO. PR #33 is draft and these changes are not in `main`; no production deploy.
 - Vercel Preview for SHA `3ffb00ea105bf34fd85b1a9008651f261ba595d8` reached `READY`; authenticated `GET /api/health` returned HTTP 200 with `database=ok` and `stripe=missing`. CI Quality #39764173023 completed successfully: migration integrity, dependency audit, lint, typecheck, automated tests, PostgreSQL discovery contract, production build and evidence publication all passed.
+
+## Profile table SELECT audit — 2026-10-22
+
+Read-only catalog query confirmed table-level `SELECT` for `anon` and `authenticated` on both `professionals` and `sport_spaces`. Existing RLS permits public access to active rows; it does not restrict columns. Both tables contain non-public contact/identity, private-gallery, and Stripe-account fields. Initial source inventory found session-client reads, including broad `select('*')`, in owner dashboards/profile/gallery/billing/reviews/favorites. No data values were accessed, and no grants or policies were changed.
+
+Remediation is tracked in Notion as F4S-NFR-SEC-DB-SELECT-01 / F4S-SEC-DB-SELECT-01. Complete callsite/column inventory and introduce owner-authorized server reads before revoking direct grants; preserve explicit public projections; validate denial and regression in CI and staging. The design is not implemented, so overall readiness remains 35/100 — Red / NO-GO. Quality run `39764768966` passed for docs commit `299e5162376405642579514c277ba301bdad93a7`; it is not remediation evidence.
