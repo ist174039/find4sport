@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
-const migration = new URL('../supabase/migrations/20261022002606_revoke_legacy_public_radius_search.sql', import.meta.url)
+const migration = new URL('../supabase/migrations/20261022101506_revoke_legacy_public_radius_search.sql', import.meta.url)
 const discoveryMigration = new URL('../supabase/migrations/20261022003244_secure_public_discovery_allowlist.sql', import.meta.url)
 const homePage = new URL('../app/(public)/page.tsx', import.meta.url)
 const feedPage = new URL('../app/(public)/feed/page.tsx', import.meta.url)
@@ -35,7 +35,8 @@ test('public discovery RPCs use explicit projections and a fixed search path', a
 
   assert.equal((sql.match(/\(/g) || []).length, (sql.match(/\)/g) || []).length, 'discovery migration must have balanced parentheses')
   assert.equal((sql.match(/create or replace function public\.discover_(?:professionals|spaces)\(/g) || []).length, 2)
-  assert.equal((sql.match(/security definer set search_path=pg_catalog,public/g) || []).length, 2)
+  assert.equal((sql.match(/security invoker set search_path=pg_catalog,public/g) || []).length, 2)
+  assert.doesNotMatch(sql, /security definer/)
   assert.doesNotMatch(sql, /select\s+[ps]\.\*|to_jsonb\s*\(\s*[ps]\s*\)/)
   assert.equal((sql.match(/pu\.account_status='active' or \(pu\.account_status='suspended' and pu\.suspended_until<=now\(\)\)/g) || []).length, 2)
   assert.match(sql, /s\.owner_user_id is not null and exists \([\s\S]{0,260}pu\.id=s\.owner_user_id/)

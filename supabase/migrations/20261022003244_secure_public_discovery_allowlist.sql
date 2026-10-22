@@ -10,7 +10,7 @@ create or replace function public.discover_professionals(
   p_price_min numeric default null, p_price_max numeric default null,
   p_sort text default 'relevance', p_offset integer default 0, p_limit integer default 24
 ) returns table(item jsonb,total_count bigint)
-language sql stable security definer set search_path=pg_catalog,public as $$
+language sql stable security invoker set search_path=pg_catalog,public as $$
 with base as (
  select p.id,p.full_name,p.professional_name,p.bio,p.avatar_url,p.address,p.latitude,p.longitude,
   p.status,p.public_slug,p.rating_avg,p.review_count,p.views_count,p.is_verified,p.is_premium,
@@ -58,7 +58,7 @@ create or replace function public.discover_spaces(
   p_price_min numeric default null, p_price_max numeric default null,
   p_sort text default 'relevance', p_offset integer default 0, p_limit integer default 24
 ) returns table(item jsonb,total_count bigint)
-language sql stable security definer set search_path=pg_catalog,public as $$
+language sql stable security invoker set search_path=pg_catalog,public as $$
 with base as (
  select s.id,s.name,s.slug,s.description,s.address,s.latitude,s.longitude,s.status,s.is_verified,
   s.rating_avg,s.review_count,s.gallery_urls,s.cover_url,s.created_at,

@@ -31,6 +31,10 @@ CREATE TABLE public.space_categories(space_id uuid, category_id uuid);
 CREATE FUNCTION public.search_professionals_by_radius(double precision,double precision,double precision) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 CREATE FUNCTION public.search_spaces_by_radius(double precision,double precision,double precision) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 GRANT SELECT ON public.professionals, public.sport_spaces TO anon, authenticated;
+GRANT SELECT ON public.platform_users, public.services, public.categories, public.professional_categories, public.space_rooms, public.space_categories TO anon, authenticated;
+ALTER TABLE public.platform_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY platform_users_public_select ON public.platform_users FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY platform_users_restricted_select ON public.platform_users AS RESTRICTIVE FOR SELECT TO anon, authenticated USING (account_status = 'active' OR (account_status = 'suspended' AND suspended_until <= now()));
 `;
 
 const fixtureSql = `
@@ -78,7 +82,7 @@ try {
   await isolated.query(baselineSql);
 
   for (const filename of [
-    "20261022002606_revoke_legacy_public_radius_search.sql",
+    "20261022101506_revoke_legacy_public_radius_search.sql",
     "20261022003244_secure_public_discovery_allowlist.sql",
   ]) {
     await isolated.query(

@@ -140,21 +140,20 @@
       "name": "event_manager_role_and_community_status",
       "sha256": "72bf3cc2ead0048bde3689a21f3baf0798a0abaa445c3e5f8d29d3744da54956",
       "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20261022101506",
+      "name": "revoke_legacy_public_radius_search",
+      "sha256": "936db1d49b6f6ff7788c8ad8fc2f290a81f231af7294257f33fd42a8911c094d",
+      "provenance": "migration-provenance.json"
     }
   ],
   "pending_forward_migrations": [
     {
-      "version": "20261022002606",
-      "name": "revoke_legacy_public_radius_search",
-      "path": "supabase/migrations/20261022002606_revoke_legacy_public_radius_search.sql",
-      "sha256": "936db1d49b6f6ff7788c8ad8fc2f290a81f231af7294257f33fd42a8911c094d",
-      "status": "not_applied"
-    },
-    {
       "version": "20261022003244",
       "name": "secure_public_discovery_allowlist",
       "path": "supabase/migrations/20261022003244_secure_public_discovery_allowlist.sql",
-      "sha256": "fbd1757471516df34678c967e868d5b816edaa68434092019b66cc715581b850",
+      "sha256": "1323718856a6b5a7f0eb8e680b063f32160a747e96b7475e9ddb510ab58bfbcf",
       "status": "not_applied"
     }
   ],
