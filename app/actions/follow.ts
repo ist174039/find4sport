@@ -77,6 +77,8 @@ async function enrichUserIds(supabase: any, userIds: string[]): Promise<Enriched
     supabase.from('professionals').select('id, user_id, full_name, avatar_url, public_slug, is_verified').in('user_id', userIds),
     supabase.from('sport_spaces').select('id, owner_user_id, name, logo_url, slug, is_verified').in('owner_user_id', userIds),
   ])
+  const queryError = usersResult.error || profsResult.error || spacesResult.error
+  if (queryError) throw queryError
 
   const profByUserId = new Map<string, any>((profsResult.data || []).map((p: any) => [p.user_id, p]))
   const spaceByUserId = new Map<string, any>((spacesResult.data || []).map((s: any) => [s.owner_user_id, s]))
@@ -103,10 +105,58 @@ async function enrichUserIds(supabase: any, userIds: string[]): Promise<Enriched
   return result
 }
 
-async function getMyFollowingIds(supabase: any, userId: string | undefined) {
-  if (!userId) return [] as string[]
-  const { data } = await supabase.from('user_follows').select('following_id').eq('follower_id', userId)
+async function getMyFollowingIds(supabase: any, userId: string | undefined, candidateIds?: string[]) {
+  if (!userId || (candidateIds && candidateIds.length === 0)) return [] as string[]
+  let query = supabase.from('user_follows').select('following_id').eq('follower_id', userId)
+  if (candidateIds) query = query.in('following_id', candidateIds)
+  const { data, error } = await query
+  if (error) throw error
   return (data || []).map((f: any) => f.following_id)
+}
+
+const FOLLOW_LIST_PAGE_SIZE = 25
+
+async function getFollowListPage(targetUserId: string, relation: 'followers' | 'following', offset = 0) {
+  try {
+    if (!targetUserId || !Number.isSafeInteger(offset) || offset < 0 || offset > 100_000) {
+      throw new Error('Pedido de página inválido.')
+    }
+
+    const supabase = await createClient()
+    const column = relation === 'followers' ? 'follower_id' : 'following_id'
+    const filterColumn = relation === 'followers' ? 'following_id' : 'follower_id'
+    const { data: rows, error } = await supabase
+      .from('user_follows')
+      .select(column)
+      .eq(filterColumn, targetUserId)
+      .order(column, { ascending: true })
+      .range(offset, offset + FOLLOW_LIST_PAGE_SIZE)
+    if (error) throw error
+
+    const pageRows = (rows || []).slice(0, FOLLOW_LIST_PAGE_SIZE)
+    const ids = pageRows.map((row: Record<string, string>) => row[column])
+    const list = await enrichUserIds(supabase, ids)
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) throw authError
+    const myFollowingIds = await getMyFollowingIds(supabase, user?.id, ids)
+    return {
+      success: true,
+      list: list.map(item => ({ ...item, isFollowedByMe: myFollowingIds.includes(item.userId) })),
+      currentUserId: user?.id || null,
+      hasMore: (rows || []).length > FOLLOW_LIST_PAGE_SIZE,
+      nextOffset: offset + pageRows.length,
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Erro ao carregar lista.', list: [], currentUserId: null, hasMore: false, nextOffset: offset }
+  }
+}
+
+export async function getFollowingListPage(targetUserId: string, offset = 0) {
+  return getFollowListPage(targetUserId, 'following', offset)
+}
+
+export async function getFollowersListPage(targetUserId: string, offset = 0) {
+  return getFollowListPage(targetUserId, 'followers', offset)
 }
 
 export async function getFollowingList(targetUserId: string) {
