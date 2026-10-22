@@ -44,11 +44,18 @@ export async function POST(req: Request) {
     if (!stripe) return NextResponse.json({ error: 'Stripe ainda não está configurado no servidor' }, { status: 503 })
     if (!priceId) return NextResponse.json({ error: `O preço Stripe do plano ${plan.name} (${billingCycle}) ainda não está configurado` }, { status: 409 })
 
-    const { data: existingSubscription } = await admin
+    const { data: existingSubscription, error: subscriptionError } = await admin
       .from('user_subscriptions')
       .select('stripe_customer_id, stripe_subscription_id, status')
       .eq('user_id', user.id)
       .maybeSingle()
+    if (subscriptionError) {
+      console.error('Stripe subscription lookup error:', subscriptionError)
+      return NextResponse.json(
+        { error: 'Não foi possível verificar a subscrição atual. Tente novamente.' },
+        { status: 503 },
+      )
+    }
 
     const baseUrl = getTrustedApplicationOrigin(req)
     if (
