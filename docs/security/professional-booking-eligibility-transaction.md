@@ -43,12 +43,12 @@ The transaction order defines the boundary: a reservation whose trigger obtains 
 - Both lock orderings passed locally on PostgreSQL 17, alongside active, inactive, blocked, current suspension, and expired suspension cases.
 - The authenticated role test passes without direct SELECT grants on the sensitive tables.
 - Full local suite: 75/75 tests; typecheck passes; lint 0 errors and 350 warnings.
-- CI run 39707044191 passed audit, lint, typecheck, unit tests, synthetic PostgreSQL discovery contract, and build. The migration repository gate still fails on four unrelated provenance/reconciliation blockers.
+- CI run 39707978757 on commit `b3b5b32730c190906103ed230711e63de018eb77` passed audit, lint, typecheck, unit tests, synthetic PostgreSQL discovery/booking contract, and build. The migration repository gate still fails on four provenance/reconciliation blockers.
 
 ## Limitations and required validation
 
 - The fixture is synthetic and does not reproduce the complete Supabase schema, deployed RLS policies, extensions, trigger ordering, or production grants.
 - The SQL remains a proposal, not an applied migration. Do not register it as applied or move it into the executable migration directory until migration provenance policy and isolated Supabase review permit it.
-- Verify the actual owner moderation transaction order and trigger interaction on an isolated Supabase project.
+- Verify the SECURITY DEFINER function owner privileges, actual owner moderation transaction order, RLS, and trigger interaction on an isolated Supabase project.
 - Decide how to handle pending Stripe sessions created before a later suspension, and test checkout/webhook compensation.
 - Keep release NO-GO until isolated Supabase integration, authenticated E2E, and migration gate evidence pass.
