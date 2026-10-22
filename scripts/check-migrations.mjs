@@ -84,6 +84,17 @@ if (!Array.isArray(baseline.pending_forward_reconciliation)) {
       errors.push(`invalid pending reconciliation entry: ${JSON.stringify(entry)}`)
       continue
     }
+    if (!path.startsWith('supabase/reconciliation-proposals/')) {
+      errors.push(`pending reconciliation must be archived outside executable migrations: ${path}`)
+      continue
+    }
+    try {
+      const proposal = await readFile(new URL(`../${path}`, import.meta.url))
+      const hash = createHash('sha256').update(proposal).digest('hex')
+      if (hash !== entry.sha256) errors.push(`pending reconciliation checksum mismatch: ${path}`)
+    } catch {
+      errors.push(`pending reconciliation proposal missing from Git: ${path}`)
+    }
     if (version && remoteHistory.has(version)) errors.push(`pending reconciliation version is already present in remote history: ${version}`)
     errors.push(`forward reconciliation pending: ${path}${version && name ? ` (${version}_${name})` : ''}`)
   }

@@ -16,6 +16,10 @@ The gate therefore treats these as explicit pending reconciliations and fails. D
 
 ## Validation and release status
 
-`node scripts/check-migrations.mjs` now verifies both directions of the 23-row history snapshot, exact recorded SQL, checksums, and explicit pending reconciliation records. The focused gate tests pass 7/7. The migration gate still fails on exactly the two unrecorded history cases; it also emits 45 warnings for legacy timestamp filenames, which are not gate blockers but still need inventory review. No production SQL was executed, no remote migration history was changed, and no deployment was made.
+`node scripts/check-migrations.mjs` now verifies both directions of the 23-row history snapshot, exact recorded SQL, checksums, archived proposal checksums, and explicit pending reconciliation records. The focused gate tests pass 8/8. The migration gate still fails on exactly the two unrecorded history cases; it also emits 45 warnings for legacy timestamp filenames, which are not gate blockers but still need inventory review.
+
+On 2026-10-22 the authorized Supabase MCP connection re-read the remote migration list: the same two versions remain absent. A fresh read-only catalog query observed the community post/comment/like visibility policies and the expected discovery functions. Discovery functions use SECURITY INVOKER with restricted ACLs; the public participant aggregate remains SECURITY DEFINER with public-role execute grants and is a separate risk-register item. This query is point-in-time evidence, not history repair. The Supabase CLI 2.121.0 exposes the supported `migration repair --status applied` operation, but this workspace has no linked CLI config or access token, so no repair was run.
+
+No production SQL was executed, no remote migration history was changed, and no deployment was made.
 
 Release remains blocked until the two history exceptions are resolved through supported, reviewed evidence and the full CI/release gate passes on the candidate commit.

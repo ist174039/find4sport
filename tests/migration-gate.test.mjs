@@ -15,6 +15,7 @@ async function runGate(change) {
   try {
     await mkdir(join(root, 'scripts'))
     await mkdir(join(root, 'supabase', 'migrations'), { recursive: true })
+    await mkdir(join(root, 'supabase', 'reconciliation-proposals'), { recursive: true })
     await copyFile(new URL('../scripts/check-migrations.mjs', import.meta.url), join(root, 'scripts', 'check-migrations.mjs'))
     const fixture = {
       sql,
@@ -25,6 +26,9 @@ async function runGate(change) {
     await writeFile(join(root, 'supabase', 'migrations', `${version}_${name}.sql`), fixture.sql)
     await writeFile(join(root, 'supabase', 'migration-baseline.json'), JSON.stringify(fixture.baseline))
     await writeFile(join(root, 'supabase', 'migration-provenance.json'), JSON.stringify(fixture.provenance))
+    if (fixture.proposalPath) {
+      await writeFile(join(root, fixture.proposalPath), fixture.proposalSql)
+    }
     const result = spawnSync(process.execPath, [join(root, 'scripts', 'check-migrations.mjs')], { encoding: 'utf8' })
     return { status: result.status, output: result.stdout + result.stderr }
   } finally {
@@ -76,7 +80,25 @@ test('migration gate remains blocked while history reconciliation is pending', a
       remote_version: null,
       remote_name: null,
     }]
+    f.proposalPath = 'supabase/reconciliation-proposals/untracked.sql'
+    f.proposalSql = 'select 2;\n'
   })
   assert.equal(result.status, 1)
   assert.match(result.output, /forward reconciliation pending/)
+})
+
+test('migration gate detects edits to archived reconciliation proposals', async () => {
+  const result = await runGate(f => {
+    f.baseline.pending_forward_reconciliation = [{
+      path: 'supabase/reconciliation-proposals/untracked.sql',
+      sha256: createHash('sha256').update('select 2;\n').digest('hex'),
+      status: 'live_state_observed_without_history',
+      remote_version: null,
+      remote_name: null,
+    }]
+    f.proposalPath = 'supabase/reconciliation-proposals/untracked.sql'
+    f.proposalSql = 'select 3;\n'
+  })
+  assert.equal(result.status, 1)
+  assert.match(result.output, /pending reconciliation checksum mismatch/)
 })
