@@ -165,13 +165,6 @@
       "status": "live_state_observed_without_history",
       "remote_version": null,
       "remote_name": null
-    },
-    {
-      "path": "supabase/reconciliation-proposals/20260826042410_secure_public_discovery_contracts.sql",
-      "sha256": "2cbd6fc4010336588123ccace66b0e105632caef1fba0023a51edf609bc2a86d",
-      "status": "live_state_observed_without_history",
-      "remote_version": null,
-      "remote_name": null
     }
   ]
 }
