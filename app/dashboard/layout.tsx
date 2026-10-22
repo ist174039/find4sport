@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const [professionalResult, spacesResult] = await Promise.all([
     access.role === 'professional'
-      ? supabase.from('professionals').select('*').eq('user_id', user.id).maybeSingle()
+      ? supabase.from('professionals').select('full_name,professional_name,avatar_url').eq('user_id', user.id).maybeSingle()
       : Promise.resolve({ data: null }),
     access.role === 'venue_manager'
       ? supabase.from('sport_spaces').select('id,name,logo_url').eq('owner_user_id', user.id).order('created_at', { ascending: true })

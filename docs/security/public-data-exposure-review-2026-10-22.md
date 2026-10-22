@@ -50,6 +50,10 @@ The PostgreSQL harness itself now refuses remote hosts, requires an explicit des
 
 The review also found that generic user follows accept a target user ID without checking account eligibility, and follower/following enrichment does not filter restricted account owners. Track this separately; public follow behavior needs an explicit requirement before broadening the guard to every account type.
 
+## Dashboard identity minimization — 2026-10-22
+
+The authenticated dashboard layout previously selected the full professional row to render three sidebar values. It now selects only `full_name`, `professional_name`, and `avatar_url`, scoped to the authenticated session user's `user_id`. A static regression test guards both the projection and ownership predicate. This reduces server-rendered overfetch for this one consumer; it does not change the underlying `anon`/`authenticated` grants, prove PostgREST isolation, or reduce the remaining direct-read inventory. The existing grants finding remains open and release readiness remains NO-GO.
+
 ## Evidence and limitations
 
 Catalog evidence: table/column privileges, RLS policies, RPC ACLs, security modes, and function definitions were queried read-only in Supabase. Source evidence initially inspected at `dcbf3c0538b651c43f23ee73e990a0280fe5c2d1`; follow-up source review on 2026-10-22 corrected the discovery-function finding above and drafted two forward migrations. Neither migration was applied, production was not changed, and user data values were not retrieved. Supabase CLI authentication/configuration is unavailable in this workspace.
