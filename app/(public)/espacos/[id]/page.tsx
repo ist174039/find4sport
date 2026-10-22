@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { BadgeCheck, Building2, Dumbbell, Images, Mail, MapPin, Phone, Star, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 import { notFound } from 'next/navigation'
 import { ReserveSpaceBtn, ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
@@ -51,7 +53,7 @@ type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcR
 
 export default async function SpaceProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const admin = supabase
+  const admin = createAdminClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
@@ -60,6 +62,9 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
   if (isUuid) space = (await admin.from('sport_spaces').select(publicFields).eq('id', rawId).maybeSingle()).data as Space | null
   if (!space) space = (await admin.from('sport_spaces').select(publicFields).eq('slug', rawId).maybeSingle()).data as Space | null
   if (!space || space.status !== PUBLIC_SPACE_STATUS) notFound()
+  if (!space.owner_user_id) notFound()
+  const { data: owner, error: ownerError } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', space.owner_user_id).maybeSingle()
+  if (ownerError || !isPublicAccountEligible(owner?.account_status, owner?.suspended_until)) notFound()
 
   const rpc = admin.rpc.bind(admin) as unknown as RpcCall
   void rpc('increment_space_views', { space_id: space.id })
@@ -88,8 +93,8 @@ export default async function SpaceProfilePage({ params }: { params: Promise<{ i
   const publicPath = `/espacos/${space.slug || space.id}`
   const isFollowing = Boolean(followResult.data)
 
-  const followAction = <PublicFollowAction targetUserId={targetUserId} currentUserId={user?.id || null} initialIsFollowing={isFollowing} loginRedirect={publicPath} />
-  const reserveAction = <ReserveSpaceBtn spaceName={space.name} ownerUserId={targetUserId} spaceId={space.id} />
+  const followAction = <PublicFollowAction spaceId={space.id} hasEligibleOwner={Boolean(owner)} isOwnSpace={Boolean(user && user.id === targetUserId)} isAuthenticated={Boolean(user)} initialIsFollowing={isFollowing} loginRedirect={publicPath} />
+  const reserveAction = <ReserveSpaceBtn spaceId={space.id} />
   const directionsAction = <ObterDirecoesBtn address={space.address} name={space.name} latitude={space.latitude} longitude={space.longitude} />
 
   return (

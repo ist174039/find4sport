@@ -1,0 +1,539 @@
+{
+  "project": "bqjwsllnhvnxrfojftjb",
+  "source": "supabase_migrations.schema_migrations",
+  "retrieved_at": "2026-10-22 10:31",
+  "note": "Read-only remote history snapshot plus exact SQL submitted through Supabase apply_migration for the 2026-10-22 remediations. This remains point-in-time migration evidence, not proof that all current schema state matches history.",
+  "history": [
+    {
+      "version": "20260816005402",
+      "name": "normalize_platform_roles_enum"
+    },
+    {
+      "version": "20260816005410",
+      "name": "normalize_platform_role_data"
+    },
+    {
+      "version": "20260816005850",
+      "name": "harden_platform_roles_and_security_functions"
+    },
+    {
+      "version": "20260816010305",
+      "name": "consolidate_admin_authorization"
+    },
+    {
+      "version": "20260816010418",
+      "name": "align_auth_metadata_with_platform_roles"
+    },
+    {
+      "version": "20260816010613",
+      "name": "harden_public_search_and_admin_helper"
+    },
+    {
+      "version": "20260816012956",
+      "name": "create_plan_entitlement_engine"
+    },
+    {
+      "version": "20260816013150",
+      "name": "add_atomic_feature_usage"
+    },
+    {
+      "version": "20260816013858",
+      "name": "enforce_gallery_plan_limits"
+    },
+    {
+      "version": "20260816013927",
+      "name": "enforce_event_creation_entitlement"
+    },
+    {
+      "version": "20260816014309",
+      "name": "harden_storage_ownership_and_limits"
+    },
+    {
+      "version": "20260816180229",
+      "name": "create_service_packages"
+    },
+    {
+      "version": "20260816180239",
+      "name": "create_service_package_purchases"
+    },
+    {
+      "version": "20260816180247",
+      "name": "ensure_reservation_room_reference"
+    },
+    {
+      "version": "20260816180511",
+      "name": "ensure_atomic_reservation_slots"
+    },
+    {
+      "version": "20260816180519",
+      "name": "add_community_posting_policy"
+    },
+    {
+      "version": "20260816180528",
+      "name": "create_booking_message_threads"
+    },
+    {
+      "version": "20260816180538",
+      "name": "create_community_join_requests"
+    },
+    {
+      "version": "20260816180548",
+      "name": "create_community_media"
+    },
+    {
+      "version": "20260816180557",
+      "name": "marketplace_financial_audit"
+    },
+    {
+      "version": "20260816180605",
+      "name": "normalize_category_hierarchy_and_communities"
+    },
+    {
+      "version": "20260816180616",
+      "name": "production_hardening_20260808"
+    },
+    {
+      "version": "20260816180626",
+      "name": "create_content_reports_reconciled"
+    },
+    {
+      "version": "20260816183330",
+      "name": "expand_financial_transaction_ledger"
+    },
+    {
+      "version": "20260816183526",
+      "name": "expand_stripe_webhook_audit"
+    },
+    {
+      "version": "20260816190306",
+      "name": "create_reservation_change_requests"
+    },
+    {
+      "version": "20260816191254",
+      "name": "harden_admin_view_and_view_counters"
+    },
+    {
+      "version": "20260816191337",
+      "name": "restrict_postgis_estimated_extent_rpc"
+    },
+    {
+      "version": "20260816194012",
+      "name": "replace_postgis_geo_indexes_and_remove_extension"
+    },
+    {
+      "version": "20260816200448",
+      "name": "production_realtime_notifications_identity"
+    },
+    {
+      "version": "20260816200832",
+      "name": "chat_lifecycle_community_location_event_tickets"
+    },
+    {
+      "version": "20260816201001",
+      "name": "scalable_public_discovery"
+    },
+    {
+      "version": "20260816201407",
+      "name": "scalable_community_discovery"
+    },
+    {
+      "version": "20260816201853",
+      "name": "production_legacy_event_defaults"
+    },
+    {
+      "version": "20260816202324",
+      "name": "lock_internal_trigger_functions"
+    },
+    {
+      "version": "20260816202940",
+      "name": "production_critical_fk_indexes_v2"
+    },
+    {
+      "version": "20260816205627",
+      "name": "enforce_reservation_provider_integrity"
+    },
+    {
+      "version": "20260816205702",
+      "name": "fix_reservation_provider_precedence"
+    },
+    {
+      "version": "20260816213033",
+      "name": "fix_refund_ledger_from_stripe_events"
+    },
+    {
+      "version": "20260817002558",
+      "name": "close_p0_rls_and_refund_rpc"
+    },
+    {
+      "version": "20260817002722",
+      "name": "harden_realtime_rls_and_core_indexes"
+    },
+    {
+      "version": "20260817003112",
+      "name": "normalize_past_event_lifecycle"
+    },
+    {
+      "version": "20260817171600",
+      "name": "service_moderation_and_delivery_settlement"
+    },
+    {
+      "version": "20260817172042",
+      "name": "enforce_service_moderation_boundaries"
+    },
+    {
+      "version": "20260817172235",
+      "name": "lock_sensitive_reservation_transitions"
+    },
+    {
+      "version": "20260817173138",
+      "name": "require_approval_for_active_services"
+    },
+    {
+      "version": "20260817214855",
+      "name": "harden_transaction_and_space_professional_rls"
+    },
+    {
+      "version": "20260817220902",
+      "name": "make_internal_rls_denial_explicit"
+    },
+    {
+      "version": "20260818011550",
+      "name": "optimize_hot_path_indexes_and_rls"
+    },
+    {
+      "version": "20260818011640",
+      "name": "close_social_direct_write_bypasses"
+    },
+    {
+      "version": "20260818011734",
+      "name": "harden_event_participant_writes"
+    },
+    {
+      "version": "20260819023339",
+      "name": "optimize_owner_rls_and_hot_fks"
+    },
+    {
+      "version": "20260819024427",
+      "name": "optimize_availability_owner_rls"
+    },
+    {
+      "version": "20260819024526",
+      "name": "index_social_and_marketplace_foreign_keys"
+    },
+    {
+      "version": "20260819024609",
+      "name": "consolidate_sensitive_read_rls"
+    },
+    {
+      "version": "20260819024809",
+      "name": "close_remaining_rls_initplans_and_contact_boundary"
+    },
+    {
+      "version": "20260819024908",
+      "name": "make_contact_messages_direct_denial_explicit"
+    },
+    {
+      "version": "20260819193147",
+      "name": "include_past_events_discovery"
+    },
+    {
+      "version": "20260819211506",
+      "name": "prevent_reservation_overlap"
+    },
+    {
+      "version": "20260819211602",
+      "name": "enforce_event_registration_capacity"
+    },
+    {
+      "version": "20260819211724",
+      "name": "harden_booking_capacity_objects"
+    },
+    {
+      "version": "20260819211802",
+      "name": "consolidate_reservation_read_policy"
+    },
+    {
+      "version": "20260819211835",
+      "name": "consolidate_space_professional_policies"
+    },
+    {
+      "version": "20260819211854",
+      "name": "consolidate_admin_read_policy"
+    },
+    {
+      "version": "20260822005025",
+      "name": "harden_platform_users_column_updates"
+    },
+    {
+      "version": "20260822015406",
+      "name": "add_processing_reservation_settlement_status"
+    },
+    {
+      "version": "20260822222924",
+      "name": "category_professional_icons"
+    },
+    {
+      "version": "20260823185415",
+      "name": "category_taxonomy_dimensions"
+    },
+    {
+      "version": "20260823185717",
+      "name": "seed_canonical_sport_modalities"
+    },
+    {
+      "version": "20260823193452",
+      "name": "seed_professional_specialties_services"
+    },
+    {
+      "version": "20260823193820",
+      "name": "normalize_legacy_taxonomy_entries"
+    },
+    {
+      "version": "20260823233822",
+      "name": "add_event_categories_taxonomy_relation"
+    },
+    {
+      "version": "20260826043325",
+      "name": "add_public_event_participant_count"
+    },
+    {
+      "version": "20260826151143",
+      "name": "space_claim_review_fields"
+    },
+    {
+      "version": "20260827030106",
+      "name": "admin_roles_and_account_moderation"
+    },
+    {
+      "version": "20260827030544",
+      "name": "fix_provider_identity_role_variable"
+    },
+    {
+      "version": "20260827030638",
+      "name": "allow_multi_provider_capabilities"
+    },
+    {
+      "version": "20260903115029",
+      "name": "add_editable_event_manager_plan"
+    },
+    {
+      "version": "20260903120132",
+      "name": "restricted_accounts_and_professional_unavailability"
+    },
+    {
+      "version": "20260903120613",
+      "name": "expire_suspensions_automatically"
+    },
+    {
+      "version": "20260903122814",
+      "name": "event_manager_role_and_community_status"
+    },
+    {
+      "version": "20261022101506",
+      "name": "revoke_legacy_public_radius_search"
+    },
+    {
+      "version": "20261022101921",
+      "name": "secure_public_discovery_allowlist"
+    },
+    {
+      "version": "20261022102137",
+      "name": "enforce_community_post_visibility"
+    },
+    {
+      "version": "20261022103139",
+      "name": "revoke_public_event_participant_count"
+    }
+  ],
+  "migrations": [
+    {
+      "version": "20260819211506",
+      "name": "prevent_reservation_overlap",
+      "statements": [
+        "create extension if not exists btree_gist;\n\nalter table public.reservations\n  add constraint reservations_no_professional_overlap\n  exclude using gist (\n    professional_id with =,\n    tsrange(date + start_time, date + end_time, '[)') with &&\n  )\n  where (professional_id is not null and status in ('pending','paid','confirmed'));\n\nalter table public.reservations\n  add constraint reservations_no_room_overlap\n  exclude using gist (\n    space_room_id with =,\n    tsrange(date + start_time, date + end_time, '[)') with &&\n  )\n  where (space_room_id is not null and status in ('pending','paid','confirmed'));\n"
+      ]
+    },
+    {
+      "version": "20260819211602",
+      "name": "enforce_event_registration_capacity",
+      "statements": [
+        "create or replace function public.enforce_event_participant_capacity()\nreturns trigger\nlanguage plpgsql\nsecurity definer\nset search_path = public\nas $$\ndeclare\n  event_capacity integer;\n  ticket_capacity integer;\n  active_count integer;\nbegin\n  if new.status not in ('pending', 'confirmed') then\n    return new;\n  end if;\n\n  select capacity\n    into event_capacity\n  from public.events\n  where id = new.event_id\n  for update;\n\n  if event_capacity is not null and event_capacity > 0 then\n    select count(*)::integer\n      into active_count\n    from public.event_participants\n    where event_id = new.event_id\n      and status in ('pending', 'confirmed')\n      and (tg_op = 'INSERT' or id <> new.id);\n\n    if active_count >= event_capacity then\n      raise exception using errcode = 'P0001', message = 'EVENT_CAPACITY_EXCEEDED';\n    end if;\n  end if;\n\n  if new.ticket_type_id is not null then\n    select capacity\n      into ticket_capacity\n    from public.event_ticket_types\n    where id = new.ticket_type_id\n      and event_id = new.event_id\n    for update;\n\n    if ticket_capacity is not null and ticket_capacity > 0 then\n      select count(*)::integer\n        into active_count\n      from public.event_participants\n      where ticket_type_id = new.ticket_type_id\n        and status in ('pending', 'confirmed')\n        and (tg_op = 'INSERT' or id <> new.id);\n\n      if active_count >= ticket_capacity then\n        raise exception using errcode = 'P0001', message = 'TICKET_CAPACITY_EXCEEDED';\n      end if;\n    end if;\n  end if;\n\n  return new;\nend;\n$$;\n\ndrop trigger if exists enforce_event_participant_capacity on public.event_participants;\ncreate trigger enforce_event_participant_capacity\nbefore insert or update of event_id, ticket_type_id, status\non public.event_participants\nfor each row\nexecute function public.enforce_event_participant_capacity();"
+      ]
+    },
+    {
+      "version": "20260819211724",
+      "name": "harden_booking_capacity_objects",
+      "statements": [
+        "alter extension btree_gist set schema extensions;\n\nrevoke all on function public.enforce_event_participant_capacity() from public;\nrevoke all on function public.enforce_event_participant_capacity() from anon;\nrevoke all on function public.enforce_event_participant_capacity() from authenticated;\ngrant execute on function public.enforce_event_participant_capacity() to postgres;"
+      ]
+    },
+    {
+      "version": "20260819211802",
+      "name": "consolidate_reservation_read_policy",
+      "statements": [
+        "drop policy if exists reservations_customer_read on public.reservations;\ndrop policy if exists reservations_professional_read on public.reservations;\ndrop policy if exists reservations_space_owner_read on public.reservations;\n\ncreate policy reservations_participant_read\non public.reservations\nfor select\nto authenticated\nusing (\n  (select auth.uid()) = user_id\n  or exists (\n    select 1\n    from public.professionals p\n    where p.id = reservations.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1\n    from public.sport_spaces s\n    where s.id = reservations.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n);"
+      ]
+    },
+    {
+      "version": "20260819211835",
+      "name": "consolidate_space_professional_policies",
+      "statements": [
+        "drop policy if exists \"Professionals can manage their associations\" on public.space_professionals;\ndrop policy if exists \"Space owners can manage their associations\" on public.space_professionals;\ndrop policy if exists \"Public can read active space professionals\" on public.space_professionals;\n\ncreate policy space_professionals_public_read_active\non public.space_professionals\nfor select\nto anon\nusing (status = 'active');\n\ncreate policy space_professionals_authenticated_read\non public.space_professionals\nfor select\nto authenticated\nusing (\n  status = 'active'\n  or exists (\n    select 1 from public.professionals p\n    where p.id = space_professionals.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1 from public.sport_spaces s\n    where s.id = space_professionals.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n);\n\ncreate policy space_professionals_authenticated_insert\non public.space_professionals\nfor insert\nto authenticated\nwith check (\n  exists (\n    select 1 from public.professionals p\n    where p.id = space_professionals.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1 from public.sport_spaces s\n    where s.id = space_professionals.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n);\n\ncreate policy space_professionals_authenticated_update\non public.space_professionals\nfor update\nto authenticated\nusing (\n  exists (\n    select 1 from public.professionals p\n    where p.id = space_professionals.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1 from public.sport_spaces s\n    where s.id = space_professionals.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n)\nwith check (\n  exists (\n    select 1 from public.professionals p\n    where p.id = space_professionals.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1 from public.sport_spaces s\n    where s.id = space_professionals.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n);\n\ncreate policy space_professionals_authenticated_delete\non public.space_professionals\nfor delete\nto authenticated\nusing (\n  exists (\n    select 1 from public.professionals p\n    where p.id = space_professionals.professional_id\n      and p.user_id = (select auth.uid())\n  )\n  or exists (\n    select 1 from public.sport_spaces s\n    where s.id = space_professionals.space_id\n      and s.owner_user_id = (select auth.uid())\n  )\n);"
+      ]
+    },
+    {
+      "version": "20260819211854",
+      "name": "consolidate_admin_read_policy",
+      "statements": [
+        "drop policy if exists \"Admins can read own profile\" on public.admins;\ndrop policy if exists \"General admins can read all admins\" on public.admins;\n\ncreate policy admins_authenticated_read\non public.admins\nfor select\nto authenticated\nusing (\n  auth_user_id = (select auth.uid())\n  or private.is_admin_general()\n);"
+      ]
+    },
+    {
+      "version": "20260822005025",
+      "name": "harden_platform_users_column_updates",
+      "statements": [
+        "revoke update on table public.platform_users from authenticated;\ngrant update (full_name, avatar_url, banner_url, location, language, preferences) on table public.platform_users to authenticated;"
+      ]
+    },
+    {
+      "version": "20260822015406",
+      "name": "add_processing_reservation_settlement_status",
+      "statements": [
+        "alter table public.reservations drop constraint if exists reservations_settlement_status_check;\nalter table public.reservations add constraint reservations_settlement_status_check check (settlement_status = any (array['not_applicable'::text,'held'::text,'eligible'::text,'processing'::text,'transferred'::text,'blocked'::text,'refunded'::text]));"
+      ]
+    },
+    {
+      "version": "20260822222924",
+      "name": "category_professional_icons",
+      "statements": [
+        "alter table public.categories add column if not exists icon_key text;\n\ncomment on column public.categories.icon_key is 'Controlled design-system icon identifier. Emoji is legacy only and must not be rendered by the application.';\n\ncreate index if not exists categories_parent_id_idx on public.categories(parent_id);"
+      ]
+    },
+    {
+      "version": "20260823185415",
+      "name": "category_taxonomy_dimensions",
+      "statements": [
+        "alter table public.categories add column if not exists taxonomy_type text not null default 'modality';\nalter table public.categories add column if not exists code text;\nalter table public.categories add column if not exists is_active boolean not null default true;\nalter table public.categories drop constraint if exists categories_taxonomy_type_check;\nalter table public.categories add constraint categories_taxonomy_type_check check (taxonomy_type in ('modality','profession','specialty','service'));\ncreate unique index if not exists categories_code_unique on public.categories(code) where code is not null;\ncreate index if not exists categories_taxonomy_type_idx on public.categories(taxonomy_type,is_active,name);\ncomment on column public.categories.taxonomy_type is 'Taxonomy dimension: modality, profession, specialty, or service. Public modality pages must only expose modality.';\ncomment on column public.categories.code is 'Stable business taxonomy code managed from Admin Categorias.';\ncomment on column public.categories.is_active is 'Allows taxonomy entries to be retired without destructive deletion.';\n\nupdate public.categories set taxonomy_type='profession'\nwhere lower(name) ~ '^(treinador|instrutor|professor|coach)( |$)'\n   or lower(name) in ('personal trainer','preparador físico','fisioterapeuta','médico do desporto','ortopedista','osteopata','quiroprático','enfermeiro','enfermeiro do desporto','podologista','terapeuta ocupacional','terapeuta manual','massagista desportivo','acupunturista','técnico de reabilitação','técnico de exercício clínico','nutricionista','dietista','nutricionista desportivo','consultor de nutrição','consultor de suplementação','psicólogo','psicólogo do desporto','recovery specialist','crioterapeuta','hidroterapeuta','formador','docente universitário','tutor','mentor desportivo','árbitro','árbitro assistente','juiz','cronometrista','delegado técnico','observador','comissário de prova','diretor desportivo','gestor de clube','gestor de ginásio','gestor de academia','gestor de instalações','coordenador técnico','organizador de eventos','gestor comercial','gestor de patrocínios','jornalista desportivo','fotógrafo desportivo','videógrafo','criador de conteúdo','influenciador digital','podcaster','comentador','narrador','social media manager','guia de montanha','guia de caminhadas','guia de trail','guia de btt','monitor de atividades de natureza','nadador-salvador','coreógrafo','fisiologista do exercício','biomecânico','analista de performance','analista de vídeo','cientista do desporto','investigador','especialista em wearables','bike fitter','diretor de evento','coordenador de evento','gestor de competição','diretor de prova','secretário técnico','segurança desportivo','coordenador de segurança','técnico de primeiros socorros','socorrista','consultor de marketing desportivo','consultor de gestão desportiva','consultor de performance','scout','agente de atletas','talent manager');\nupdate public.categories set taxonomy_type='specialty' where lower(name) in ('especialista em performance mental','especialista em gestão de stress','especialista em compressão','especialista em sono');\nupdate public.categories set taxonomy_type='service' where lower(name)='coach online';"
+      ]
+    },
+    {
+      "version": "20260823185717",
+      "name": "seed_canonical_sport_modalities",
+      "statements": [
+        "insert into public.categories (name,slug,taxonomy_type,is_active,icon_key,code) values\n('Rugby','rugby','modality',true,'ball-sport','MOD-0001'),('Futsal','futsal','modality',true,'ball-sport','MOD-0002'),('Basquetebol','basquetebol','modality',true,'ball-sport','MOD-0003'),('Andebol','andebol','modality',true,'ball-sport','MOD-0004'),('Voleibol','voleibol','modality',true,'ball-sport','MOD-0005'),('Atletismo','atletismo','modality',true,'running','MOD-0006'),('Triatlo','triatlo','modality',true,'running','MOD-0007'),('Golfe','golfe','modality',true,'target','MOD-0008'),('Surf','surf','modality',true,'recovery','MOD-0009'),('Bodyboard','bodyboard','modality',true,'recovery','MOD-0010'),('Kitesurf','kitesurf','modality',true,'recovery','MOD-0011'),('Windsurf','windsurf','modality',true,'recovery','MOD-0012'),('Mergulho','mergulho','modality',true,'recovery','MOD-0013'),('Canoagem','canoagem','modality',true,'recovery','MOD-0014'),('Remo','remo','modality',true,'recovery','MOD-0015'),('Boxe','boxe','modality',true,'competition','MOD-0016'),('Kickboxing','kickboxing','modality',true,'competition','MOD-0017'),('Muay Thai','muay-thai','modality',true,'competition','MOD-0018'),('MMA','mma','modality',true,'competition','MOD-0019'),('Jiu-Jitsu','jiu-jitsu','modality',true,'competition','MOD-0020'),('Judo','judo','modality',true,'competition','MOD-0021'),('Karaté','karate','modality',true,'competition','MOD-0022'),('Taekwondo','taekwondo','modality',true,'competition','MOD-0023'),('Wrestling','wrestling','modality',true,'competition','MOD-0024'),('Krav Maga','krav-maga','modality',true,'competition','MOD-0025'),('Pilates','pilates','modality',true,'wellness','MOD-0026'),('Meditação','meditacao','modality',true,'wellness','MOD-0027'),('Tai Chi','tai-chi','modality',true,'wellness','MOD-0028'),('Chi Kung','chi-kung','modality',true,'wellness','MOD-0029'),('Dança','danca','modality',true,'activity','MOD-0030'),('Zumba','zumba','modality',true,'activity','MOD-0031'),('Escalada','escalada','modality',true,'activity','MOD-0032'),('BTT','btt','modality',true,'running','MOD-0033'),('Treino Funcional','treino-funcional','modality',true,'strength','MOD-0034'),('HIIT','hiit','modality',true,'strength','MOD-0035'),('Musculação','musculacao','modality',true,'strength','MOD-0036')\non conflict (slug) do update set taxonomy_type='modality',is_active=true;\n\nwith ranked as (select id,row_number() over(order by name,slug) rn from public.categories where taxonomy_type='modality' and code is null) update public.categories c set code='MOD-'||lpad((100+ranked.rn)::text,4,'0') from ranked where c.id=ranked.id;"
+      ]
+    },
+    {
+      "version": "20260823193452",
+      "name": "seed_professional_specialties_services",
+      "statements": [
+        "insert into public.categories (name,slug,taxonomy_type,is_active,code) values\n('Força e Potência','forca-potencia','specialty',true,'ESP-0001'),\n('Condicionamento Físico','condicionamento-fisico','specialty',true,'ESP-0002'),\n('Performance Desportiva','performance-desportiva','specialty',true,'ESP-0003'),\n('Prevenção de Lesões','prevencao-lesoes','specialty',true,'ESP-0004'),\n('Reabilitação Desportiva','reabilitacao-desportiva','specialty',true,'ESP-0005'),\n('Retorno ao Desporto','retorno-desporto','specialty',true,'ESP-0006'),\n('Mobilidade','mobilidade','specialty',true,'ESP-0007'),\n('Flexibilidade','flexibilidade','specialty',true,'ESP-0008'),\n('Resistência e Endurance','resistencia-endurance','specialty',true,'ESP-0009'),\n('Velocidade e Agilidade','velocidade-agilidade','specialty',true,'ESP-0010'),\n('Hipertrofia','hipertrofia','specialty',true,'ESP-0011'),\n('Perda de Peso','perda-peso','specialty',true,'ESP-0012'),\n('Composição Corporal','composicao-corporal','specialty',true,'ESP-0013'),\n('Nutrição Desportiva','nutricao-desportiva','specialty',true,'ESP-0014'),\n('Suplementação','suplementacao','specialty',true,'ESP-0015'),\n('Performance Mental','performance-mental','specialty',true,'ESP-0016'),\n('Gestão de Stress','gestao-stress','specialty',true,'ESP-0017'),\n('Sono e Recuperação','sono-recuperacao','specialty',true,'ESP-0018'),\n('Análise Técnica','analise-tecnica','specialty',true,'ESP-0019'),\n('Análise Tática','analise-tatica','specialty',true,'ESP-0020'),\n('Análise de Vídeo','analise-video','specialty',true,'ESP-0021'),\n('Scouting e Talento','scouting-talento','specialty',true,'ESP-0022'),\n('Formação Juvenil','formacao-juvenil','specialty',true,'ESP-0023'),\n('Desporto Adaptado','desporto-adaptado','specialty',true,'ESP-0024'),\n('Treino Individual','treino-individual','service',true,'SRV-0001'),\n('Treino de Grupo','treino-grupo','service',true,'SRV-0002'),\n('Treino de Equipa','treino-equipa','service',true,'SRV-0003'),\n('Consulta Presencial','consulta-presencial','service',true,'SRV-0004'),\n('Consulta Online','consulta-online','service',true,'SRV-0005'),\n('Plano de Treino','plano-treino','service',true,'SRV-0006'),\n('Plano Nutricional','plano-nutricional','service',true,'SRV-0007'),\n('Avaliação Física','avaliacao-fisica','service',true,'SRV-0008'),\n('Avaliação Funcional','avaliacao-funcional','service',true,'SRV-0009'),\n('Avaliação de Performance','avaliacao-performance','service',true,'SRV-0010'),\n('Sessão de Fisioterapia','sessao-fisioterapia','service',true,'SRV-0011'),\n('Massagem Desportiva','massagem-desportiva','service',true,'SRV-0012'),\n('Sessão de Recuperação','sessao-recuperacao','service',true,'SRV-0013'),\n('Acompanhamento de Competição','acompanhamento-competicao','service',true,'SRV-0014'),\n('Preparação para Competição','preparacao-competicao','service',true,'SRV-0015'),\n('Análise de Vídeo','servico-analise-video','service',true,'SRV-0016'),\n('Relatório de Performance','relatorio-performance','service',true,'SRV-0017'),\n('Mentoria','mentoria','service',true,'SRV-0018'),\n('Workshop','workshop','service',true,'SRV-0019'),\n('Formação','formacao','service',true,'SRV-0020')\non conflict (slug) do update set taxonomy_type=excluded.taxonomy_type,is_active=true,code=coalesce(public.categories.code,excluded.code);"
+      ]
+    },
+    {
+      "version": "20260823193820",
+      "name": "normalize_legacy_taxonomy_entries",
+      "statements": [
+        "insert into public.categories (name,slug,taxonomy_type,is_active,code) values ('Compressão e Recuperação','compressao-recuperacao','specialty',true,'ESP-0025') on conflict (slug) do update set taxonomy_type='specialty',is_active=true,code=coalesce(public.categories.code,excluded.code);\n\n-- Repoint any future/existing professional links defensively before retiring legacy entries.\nwith mappings(old_slug,new_slug) as (values\n ('coach-online','consulta-online'),\n ('especialista-sono','sono-recuperacao'),\n ('especialista-gestao-stress','gestao-stress'),\n ('especialista-performance-mental','performance-mental'),\n ('especialista-compressao','compressao-recuperacao')\n), ids as (\n select old.id old_id,new.id new_id from mappings m join public.categories old on old.slug=m.old_slug join public.categories new on new.slug=m.new_slug\n)\ninsert into public.professional_categories(professional_id,category_id)\nselect pc.professional_id,ids.new_id from public.professional_categories pc join ids on ids.old_id=pc.category_id\non conflict do nothing;\n\nwith mappings(old_slug,new_slug) as (values\n ('coach-online','consulta-online'),\n ('especialista-sono','sono-recuperacao'),\n ('especialista-gestao-stress','gestao-stress'),\n ('especialista-performance-mental','performance-mental'),\n ('especialista-compressao','compressao-recuperacao')\n), ids as (\n select old.id old_id,new.id new_id from mappings m join public.categories old on old.slug=m.old_slug join public.categories new on new.slug=m.new_slug\n)\ndelete from public.professional_categories pc using ids where pc.category_id=ids.old_id;\n\nupdate public.categories set is_active=false where slug in ('coach-online','especialista-sono','especialista-gestao-stress','especialista-performance-mental','especialista-compressao');"
+      ]
+    },
+    {
+      "version": "20260823233822",
+      "name": "add_event_categories_taxonomy_relation",
+      "statements": [
+        "create table if not exists public.event_categories (\n  event_id uuid not null references public.events(id) on delete cascade,\n  category_id uuid not null references public.categories(id) on delete cascade,\n  created_at timestamptz not null default now(),\n  primary key (event_id, category_id)\n);\n\ncreate index if not exists event_categories_category_id_idx on public.event_categories(category_id);\ncreate index if not exists event_categories_event_id_idx on public.event_categories(event_id);\n\nalter table public.event_categories enable row level security;\n\ndrop policy if exists \"event_categories_public_read\" on public.event_categories;\ncreate policy \"event_categories_public_read\" on public.event_categories for select using (true);\n\ninsert into public.event_categories (event_id, category_id)\nselect e.id, e.category_id\nfrom public.events e\njoin public.categories c on c.id = e.category_id\nwhere e.category_id is not null\n  and coalesce(c.taxonomy_type, 'modality') = 'modality'\non conflict do nothing;"
+      ]
+    },
+    {
+      "version": "20260826043325",
+      "name": "add_public_event_participant_count",
+      "statements": [
+        "create or replace function public.public_event_participant_count(p_event_id uuid)\nreturns bigint\nlanguage sql\nstable\nsecurity definer\nset search_path = pg_catalog, public\nas $$\n  select count(*)\n  from public.event_participants ep\n  where ep.event_id = p_event_id\n    and ep.status in ('confirmed', 'paid')\n    and exists (\n      select 1\n      from public.events e\n      where e.id = ep.event_id\n        and e.status in ('published', 'completed')\n    );\n$$;\n\nrevoke all on function public.public_event_participant_count(uuid) from public;\ngrant execute on function public.public_event_participant_count(uuid) to anon, authenticated;"
+      ]
+    },
+    {
+      "version": "20260826151143",
+      "name": "space_claim_review_fields",
+      "statements": [
+        "alter table public.space_claims add column if not exists decision_reason text;\ninsert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('claim-documents', 'claim-documents', false, 10485760, array['application/pdf','image/jpeg','image/png']) on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;"
+      ]
+    },
+    {
+      "version": "20260827030106",
+      "name": "admin_roles_and_account_moderation",
+      "statements": [
+        "alter table public.admins drop constraint if exists admins_admin_type_check;\nalter table public.admins add constraint admins_admin_type_check check (admin_type in ('general', 'operacional', 'content', 'support', 'finance'));\nalter table public.platform_users\n  add column if not exists account_status text not null default 'active',\n  add column if not exists moderation_reason text,\n  add column if not exists suspended_until timestamptz,\n  add column if not exists moderated_at timestamptz,\n  add column if not exists moderated_by uuid references auth.users(id) on delete set null;\nalter table public.platform_users drop constraint if exists platform_users_account_status_check;\nalter table public.platform_users add constraint platform_users_account_status_check check (account_status in ('active','suspended','blocked'));\ncreate index if not exists platform_users_account_status_idx on public.platform_users(account_status,suspended_until);"
+      ]
+    },
+    {
+      "version": "20260827030544",
+      "name": "fix_provider_identity_role_variable",
+      "statements": [
+        "create or replace function public.enforce_provider_identity()\nreturns trigger language plpgsql security definer set search_path=public as $$\ndeclare v_user_role public.user_role;\nbegin\n  if tg_table_name='professionals' then\n    select type into v_user_role from public.platform_users where id=new.user_id for update;\n    if v_user_role='venue_manager'::public.user_role then\n      raise exception 'A venue manager account cannot also own a professional profile';\n    end if;\n    if v_user_role is distinct from 'professional'::public.user_role then\n      update public.platform_users set type='professional',updated_at=now() where id=new.user_id;\n    end if;\n  elsif tg_table_name='sport_spaces' and new.owner_user_id is not null then\n    select type into v_user_role from public.platform_users where id=new.owner_user_id for update;\n    if v_user_role='professional'::public.user_role then\n      raise exception 'A professional account cannot also own a venue with the current single-role model';\n    end if;\n    if v_user_role is distinct from 'venue_manager'::public.user_role then\n      update public.platform_users set type='venue_manager',updated_at=now() where id=new.owner_user_id;\n    end if;\n  end if;\n  return new;\nend $$;\nrevoke all on function public.enforce_provider_identity() from public,anon,authenticated;\ngrant execute on function public.enforce_provider_identity() to postgres;"
+      ]
+    },
+    {
+      "version": "20260827030638",
+      "name": "allow_multi_provider_capabilities",
+      "statements": [
+        "create or replace function public.enforce_provider_identity()\nreturns trigger language plpgsql security definer set search_path=public as $$\ndeclare v_user_role public.user_role;\nbegin\n if tg_table_name='professionals' then\n  select type into v_user_role from public.platform_users where id=new.user_id for update;\n  if v_user_role::text='athlete' then update public.platform_users set type='professional',updated_at=now() where id=new.user_id; end if;\n elsif tg_table_name='sport_spaces' and new.owner_user_id is not null then\n  select type into v_user_role from public.platform_users where id=new.owner_user_id for update;\n  if v_user_role::text='athlete' then update public.platform_users set type='venue_manager',updated_at=now() where id=new.owner_user_id; end if;\n end if;\n return new;\nend $$;\nrevoke all on function public.enforce_provider_identity() from public,anon,authenticated;\ngrant execute on function public.enforce_provider_identity() to postgres;"
+      ]
+    },
+    {
+      "version": "20260903115029",
+      "name": "add_editable_event_manager_plan",
+      "statements": [
+        "alter table public.subscription_plans drop constraint if exists subscription_plans_audience_check;\nalter table public.subscription_plans add constraint subscription_plans_audience_check check (audience in ('professional','venue_manager','event_manager'));\ninsert into public.subscription_plans(code,name,audience,description,monthly_price,annual_price,commission_rate,customer_service_fee_rate,is_active,is_public,sort_order)\nvalues('free','Gratuito','event_manager','Plano único para gestores de eventos, sem mensalidade e com comissão por venda.',0,0,15,0,true,true,10)\non conflict(audience,code) do update set name=excluded.name,description=excluded.description,monthly_price=excluded.monthly_price,annual_price=excluded.annual_price,is_active=true,is_public=true,updated_at=now();\ninsert into public.plan_entitlements(plan_id,feature_key,value_type,boolean_value,integer_value,decimal_value,text_value,json_value,is_unlimited,description)\nselect target.id,se.feature_key,se.value_type,se.boolean_value,se.integer_value,se.decimal_value,se.text_value,se.json_value,se.is_unlimited,se.description\nfrom public.subscription_plans target join public.subscription_plans source on source.audience='venue_manager' and source.code='pro'\njoin public.plan_entitlements se on se.plan_id=source.id\nwhere target.audience='event_manager' and target.code='free'\non conflict(plan_id,feature_key) do nothing;\nupdate public.plan_entitlements e set boolean_value=false,updated_at=now() from public.subscription_plans p\nwhere e.plan_id=p.id and p.audience='event_manager' and e.feature_key in('feed.create.enabled','profile.featured.enabled');\nupdate public.plan_entitlements e set integer_value=0,is_unlimited=false,updated_at=now() from public.subscription_plans p\nwhere e.plan_id=p.id and p.audience='event_manager' and e.feature_key in('services.max','posts.monthly.max','posts.images_per_post.max','feed.posts_daily.max');"
+      ]
+    },
+    {
+      "version": "20260903120132",
+      "name": "restricted_accounts_and_professional_unavailability",
+      "statements": [
+        "-- Restricted accounts retain authentication so they can see the administrative decision,\n-- but are removed from every public profile query. Existing Auth bans are intentionally\n-- not changed in bulk; moderation actions clear the ban for the specific affected user.\n\ndrop policy if exists \"Restricted profiles are not public\" on public.platform_users;\ncreate policy \"Restricted profiles are not public\"\n  on public.platform_users as restrictive for select to anon, authenticated\n  using (account_status = 'active' or (select auth.uid()) = id);\n\ndrop policy if exists \"Restricted professionals are not public\" on public.professionals;\ncreate policy \"Restricted professionals are not public\"\n  on public.professionals as restrictive for select to anon, authenticated\n  using (exists (\n    select 1 from public.platform_users pu\n    where pu.id = professionals.user_id and pu.account_status = 'active'\n  ));\n\ncreate table if not exists public.professional_unavailability (\n  id uuid primary key default gen_random_uuid(),\n  professional_id uuid not null references public.professionals(id) on delete cascade,\n  date date not null,\n  start_time time without time zone not null,\n  end_time time without time zone not null,\n  created_at timestamptz not null default now(),\n  constraint professional_unavailability_valid_interval check (start_time < end_time)\n);\n\ncreate index if not exists professional_unavailability_lookup_idx\n  on public.professional_unavailability (professional_id, date, start_time, end_time);\n\nalter table public.professional_unavailability enable row level security;\ngrant select on public.professional_unavailability to anon, authenticated;\ngrant insert, update, delete on public.professional_unavailability to authenticated;\n\ncreate policy \"Unavailable blocks are publicly readable\"\n  on public.professional_unavailability for select to anon, authenticated using (true);\ncreate policy \"Professionals create own unavailable blocks\"\n  on public.professional_unavailability for insert to authenticated\n  with check (exists (select 1 from public.professionals p where p.id = professional_id and p.user_id = (select auth.uid())));\ncreate policy \"Professionals update own unavailable blocks\"\n  on public.professional_unavailability for update to authenticated\n  using (exists (select 1 from public.professionals p where p.id = professional_id and p.user_id = (select auth.uid())))\n  with check (exists (select 1 from public.professionals p where p.id = professional_id and p.user_id = (select auth.uid())));\ncreate policy \"Professionals delete own unavailable blocks\"\n  on public.professional_unavailability for delete to authenticated\n  using (exists (select 1 from public.professionals p where p.id = professional_id and p.user_id = (select auth.uid())));\n\ncreate or replace function public.prevent_reservation_during_professional_unavailability()\nreturns trigger language plpgsql set search_path = public as $$\nbegin\n  if new.professional_id is not null\n     and coalesce(new.status::text, 'pending') in ('pending', 'paid', 'confirmed')\n     and exists (\n       select 1 from public.professional_unavailability b\n       where b.professional_id = new.professional_id\n         and b.date = new.date\n         and b.start_time < new.end_time\n         and b.end_time > new.start_time\n     ) then\n    raise exception using errcode = 'P0001', message = 'PROFESSIONAL_UNAVAILABLE';\n  end if;\n  return new;\nend;\n$$;\n\ndrop trigger if exists reservations_professional_unavailability_guard on public.reservations;\ncreate trigger reservations_professional_unavailability_guard\n  before insert or update of professional_id, date, start_time, end_time, status\n  on public.reservations for each row\n  execute function public.prevent_reservation_during_professional_unavailability();\n\r\n"
+      ]
+    },
+    {
+      "version": "20260903120613",
+      "name": "expire_suspensions_automatically",
+      "statements": [
+        "\ndrop policy if exists \"Restricted profiles are not public\" on public.platform_users;\ncreate policy \"Restricted profiles are not public\"\n  on public.platform_users as restrictive for select to anon, authenticated\n  using (\n    account_status = 'active'\n    or (account_status = 'suspended' and suspended_until <= now())\n    or (select auth.uid()) = id\n  );\n\ndrop policy if exists \"Restricted professionals are not public\" on public.professionals;\ncreate policy \"Restricted professionals are not public\"\n  on public.professionals as restrictive for select to anon, authenticated\n  using (exists (\n    select 1 from public.platform_users pu\n    where pu.id = professionals.user_id\n      and (pu.account_status = 'active' or (pu.account_status = 'suspended' and pu.suspended_until <= now()))\n  ));\n\r\n"
+      ]
+    },
+    {
+      "version": "20260903122814",
+      "name": "event_manager_role_and_community_status",
+      "statements": [
+        "\nalter type public.user_role add value if not exists 'event_manager';\n\nalter table public.communities\n  add column if not exists status text not null default 'active'\n  check (status in ('active', 'inactive'));\n\ncreate index if not exists communities_status_idx on public.communities(status);\n\ndrop policy if exists \"Inactive communities are not public\" on public.communities;\ncreate policy \"Inactive communities are not public\"\n  on public.communities as restrictive for select to anon, authenticated\n  using (status = 'active');\n\nalter table public.posts drop constraint if exists posts_community_id_fkey;\nalter table public.posts add constraint posts_community_id_fkey foreign key (community_id) references public.communities(id) on delete set null;\n\r\n"
+      ]
+    },
+    {
+      "version": "20261022101506",
+      "name": "revoke_legacy_public_radius_search",
+      "statements": [
+        "-- These compatibility RPCs return complete entity rows and have no callers\n-- in the application repository. Keep them available only to trusted server\n-- code until a narrow, reviewed public contract is needed.\nbegin;\n\nrevoke execute on function public.search_professionals_by_radius(double precision, double precision, double precision)\n  from public, anon, authenticated;\nrevoke execute on function public.search_spaces_by_radius(double precision, double precision, double precision)\n  from public, anon, authenticated;\n\ngrant execute on function public.search_professionals_by_radius(double precision, double precision, double precision)\n  to service_role;\ngrant execute on function public.search_spaces_by_radius(double precision, double precision, double precision)\n  to service_role;\n\ncommit;"
+      ]
+    },
+    {
+      "version": "20261022101921",
+      "name": "secure_public_discovery_allowlist",
+      "statements": [
+        "-- Replace discovery functions that serialized entire table rows. Keep the\n-- public contract explicit and execute with the caller's RLS context, since direct\n-- table SELECT is intentionally broader today and is tracked for follow-up.\n-- Product decision: hide owned spaces while their owner is blocked or suspended.\n\ncreate or replace function public.discover_professionals(\n  p_lat double precision default null, p_lng double precision default null,\n  p_radius double precision default null, p_category_ids uuid[] default null,\n  p_q text default null, p_location text default null, p_rating numeric default null,\n  p_price_min numeric default null, p_price_max numeric default null,\n  p_sort text default 'relevance', p_offset integer default 0, p_limit integer default 24\n) returns table(item jsonb,total_count bigint)\nlanguage sql stable security invoker set search_path=pg_catalog,public as $$\nwith base as (\n select p.id,p.full_name,p.professional_name,p.bio,p.avatar_url,p.address,p.latitude,p.longitude,\n  p.status,p.public_slug,p.rating_avg,p.review_count,p.views_count,p.is_verified,p.is_premium,\n  p.gallery_urls,p.created_at,\n  (select avg(s.price) from public.services s where s.professional_id=p.id and s.is_active=true) avg_price,\n  case when p_lat is not null and p_lng is not null and p.latitude is not null and p.longitude is not null\n   then 6371*2*asin(sqrt(power(sin(radians(p.latitude-p_lat)/2),2)+cos(radians(p_lat))*cos(radians(p.latitude))*power(sin(radians(p.longitude-p_lng)/2),2))) end distance_km,\n  coalesce((select jsonb_agg(jsonb_build_object('id',c.id,'name',c.name,'slug',c.slug,'parent_id',c.parent_id,'icon_key',c.icon_key) order by c.name)\n   from public.professional_categories pc join public.categories c on c.id=pc.category_id\n   where pc.professional_id=p.id and c.is_active=true),'[]'::jsonb) categories\n from public.professionals p where p.status='active'\n  and exists (\n   select 1 from public.platform_users pu where pu.id=p.user_id\n    and (pu.account_status='active' or (pu.account_status='suspended' and pu.suspended_until<=now()))\n  )\n  and (p_category_ids is null or exists(select 1 from public.professional_categories pc where pc.professional_id=p.id and pc.category_id=any(p_category_ids)))\n  and (nullif(trim(left(coalesce(p_q,''),120)),'') is null or p.full_name ilike '%'||left(coalesce(p_q,''),120)||'%' or coalesce(p.professional_name,'') ilike '%'||left(coalesce(p_q,''),120)||'%' or coalesce(p.bio,'') ilike '%'||left(coalesce(p_q,''),120)||'%')\n  and (nullif(trim(left(coalesce(p_location,''),120)),'') is null or coalesce(p.address,'') ilike '%'||left(coalesce(p_location,''),120)||'%')\n  and (p_rating is null or coalesce(p.rating_avg,0)>=p_rating)\n), filtered as (\n select * from base where (p_radius is null or distance_km<=p_radius)\n  and (p_price_min is null or avg_price>=p_price_min) and (p_price_max is null or avg_price<=p_price_max)\n), ranked as (\n select *,count(*) over() cnt from filtered order by\n  case when p_sort='rating' then rating_avg end desc nulls last,\n  case when p_sort='reviews' then review_count end desc nulls last,\n  case when p_sort='newest' then extract(epoch from created_at) end desc nulls last,\n  case when p_sort='price_asc' then avg_price end asc nulls last,\n  case when p_sort='price_desc' then avg_price end desc nulls last,\n  case when p_sort in ('distance','relevance') and p_lat is not null then distance_km end asc nulls last,\n  case when p_sort='relevance' and p_lat is null then rating_avg end desc nulls last,id\n offset least(greatest(p_offset,0),10000) limit least(greatest(p_limit,1),100)\n)\nselect jsonb_build_object('id',id,'full_name',full_name,'professional_name',professional_name,'bio',bio,\n 'avatar_url',avatar_url,'address',address,'latitude',latitude,'longitude',longitude,'status',status,\n 'public_slug',public_slug,'rating_avg',rating_avg,'review_count',review_count,'views_count',views_count,\n 'is_verified',is_verified,'is_premium',is_premium,'gallery_urls',gallery_urls,'created_at',created_at,\n 'averagePrice',avg_price,'distanceKm',distance_km,'categories',categories),cnt from ranked;\n$$;\n\ncreate or replace function public.discover_spaces(\n  p_lat double precision default null, p_lng double precision default null,\n  p_radius double precision default null, p_category_ids uuid[] default null,\n  p_q text default null, p_location text default null, p_rating numeric default null,\n  p_price_min numeric default null, p_price_max numeric default null,\n  p_sort text default 'relevance', p_offset integer default 0, p_limit integer default 24\n) returns table(item jsonb,total_count bigint)\nlanguage sql stable security invoker set search_path=pg_catalog,public as $$\nwith base as (\n select s.id,s.name,s.slug,s.description,s.address,s.latitude,s.longitude,s.status,s.is_verified,\n  s.rating_avg,s.review_count,s.gallery_urls,s.cover_url,s.created_at,\n  (select avg(r.price_per_hour) from public.space_rooms r where r.space_id=s.id and r.is_active=true) avg_price,\n  case when p_lat is not null and p_lng is not null and s.latitude is not null and s.longitude is not null\n   then 6371*2*asin(sqrt(power(sin(radians(s.latitude-p_lat)/2),2)+cos(radians(p_lat))*cos(radians(s.latitude))*power(sin(radians(s.longitude-p_lng)/2),2))) end distance_km,\n  coalesce((select jsonb_agg(jsonb_build_object('id',c.id,'name',c.name,'slug',c.slug,'parent_id',c.parent_id,'icon_key',c.icon_key) order by c.name)\n   from public.space_categories sc join public.categories c on c.id=sc.category_id\n   where sc.space_id=s.id and c.is_active=true),'[]'::jsonb) categories\n from public.sport_spaces s where s.status='active'\n  and s.owner_user_id is not null and exists (\n   select 1 from public.platform_users pu where pu.id=s.owner_user_id\n    and (pu.account_status='active' or (pu.account_status='suspended' and pu.suspended_until<=now()))\n  )\n  and (p_category_ids is null or exists(select 1 from public.space_categories sc where sc.space_id=s.id and sc.category_id=any(p_category_ids)))\n  and (nullif(trim(left(coalesce(p_q,''),120)),'') is null or s.name ilike '%'||left(coalesce(p_q,''),120)||'%' or coalesce(s.description,'') ilike '%'||left(coalesce(p_q,''),120)||'%' or coalesce(s.address,'') ilike '%'||left(coalesce(p_q,''),120)||'%')\n  and (nullif(trim(left(coalesce(p_location,''),120)),'') is null or coalesce(s.address,'') ilike '%'||left(coalesce(p_location,''),120)||'%')\n  and (p_rating is null or coalesce(s.rating_avg,0)>=p_rating)\n), filtered as (\n select * from base where (p_radius is null or distance_km<=p_radius)\n  and (p_price_min is null or avg_price>=p_price_min) and (p_price_max is null or avg_price<=p_price_max)\n), ranked as (\n select *,count(*) over() cnt from filtered order by\n  case when p_sort='rating' then rating_avg end desc nulls last,\n  case when p_sort='reviews' then review_count end desc nulls last,\n  case when p_sort='newest' then extract(epoch from created_at) end desc nulls last,\n  case when p_sort='price_asc' then avg_price end asc nulls last,\n  case when p_sort='price_desc' then avg_price end desc nulls last,\n  case when p_sort in ('distance','relevance') and p_lat is not null then distance_km end asc nulls last,\n  case when p_sort='relevance' and p_lat is null then rating_avg end desc nulls last,id\n offset least(greatest(p_offset,0),10000) limit least(greatest(p_limit,1),100)\n)\nselect jsonb_build_object('id',id,'name',name,'slug',slug,'description',description,'address',address,\n 'latitude',latitude,'longitude',longitude,'status',status,'is_verified',is_verified,'rating_avg',rating_avg,\n 'review_count',review_count,'gallery_urls',gallery_urls,'cover_url',cover_url,'created_at',created_at,\n 'averagePrice',avg_price,'distanceKm',distance_km,'categories',categories),cnt from ranked;\n$$;\n\nrevoke all on function public.discover_professionals(double precision,double precision,double precision,uuid[],text,text,numeric,numeric,numeric,text,integer,integer) from public;\ngrant execute on function public.discover_professionals(double precision,double precision,double precision,uuid[],text,text,numeric,numeric,numeric,text,integer,integer) to anon,authenticated;\nrevoke all on function public.discover_spaces(double precision,double precision,double precision,uuid[],text,text,numeric,numeric,numeric,text,integer,integer) from public;\ngrant execute on function public.discover_spaces(double precision,double precision,double precision,uuid[],text,text,numeric,numeric,numeric,text,integer,integer) to anon,authenticated;"
+      ]
+    },
+    {
+      "version": "20261022102137",
+      "name": "enforce_community_post_visibility",
+      "statements": [
+        "-- Reassert the current community visibility contract as a forward migration.\n-- This replaces untracked historical provenance without claiming that the archived\n-- 20260826034331 proposal was previously applied.\nbegin;\n\ndrop policy if exists \"Public profiles are viewable by everyone.\" on public.posts;\ndrop policy if exists \"posts_visible_by_community\" on public.posts;\ncreate policy \"posts_visible_by_community\"\non public.posts\nfor select\nto anon, authenticated\nusing (\n  community_id is null\n  or app_private.can_view_community(community_id)\n);\n\ndrop policy if exists \"Comments are viewable by everyone\" on public.post_comments;\ndrop policy if exists \"post_comments_visible_by_post\" on public.post_comments;\ncreate policy \"post_comments_visible_by_post\"\non public.post_comments\nfor select\nto anon, authenticated\nusing (\n  exists (\n    select 1\n    from public.posts p\n    where p.id = post_comments.post_id\n      and (\n        p.community_id is null\n        or app_private.can_view_community(p.community_id)\n      )\n  )\n);\n\ndrop policy if exists \"Likes are viewable by everyone\" on public.post_likes;\ndrop policy if exists \"post_likes_visible_by_post\" on public.post_likes;\ncreate policy \"post_likes_visible_by_post\"\non public.post_likes\nfor select\nto anon, authenticated\nusing (\n  exists (\n    select 1\n    from public.posts p\n    where p.id = post_likes.post_id\n      and (\n        p.community_id is null\n        or app_private.can_view_community(p.community_id)\n      )\n  )\n);\n\ncommit;"
+      ]
+    },
+    {
+      "version": "20261022103139",
+      "name": "revoke_public_event_participant_count",
+      "statements": [
+        "-- This aggregate currently runs as the function owner and is exposed to every\n-- API role. No product client calls it; keep it internal until a narrowly\n-- scoped public event-count contract is designed and validated.\nrevoke execute on function public.public_event_participant_count(uuid)\n  from public, anon, authenticated;\n\ngrant execute on function public.public_event_participant_count(uuid)\n  to service_role;"
+      ]
+    }
+  ]
+}

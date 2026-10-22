@@ -1,5 +1,8 @@
+import 'server-only'
+
 import type { Database } from '@/lib/supabase-types'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { parsePlatformRole, type AccessRole } from '@/lib/auth/roles'
 import { parseAdminType, type AdminType } from '@/lib/auth/admin-permissions'
 import { isAccountUnavailable } from '@/lib/auth/account-status'
@@ -53,9 +56,12 @@ export async function resolveSessionAccess(supabase: Supabase, user: User): Prom
   const dbStatus = platformUser.account_status === 'blocked' || platformUser.account_status === 'suspended' ? platformUser.account_status : 'active'
   const isRestricted = dbStatus !== 'active' && !(dbStatus === 'suspended' && platformUser.suspended_until && new Date(platformUser.suspended_until).getTime() <= Date.now())
 
+  // These provider tables still have broad SELECT grants. Keep the owner check
+  // on the server and use the service client only with the authenticated ID.
+  const ownerDb = createAdminClient()
   const [{ count: professionalCount }, { count: spaceCount }] = await Promise.all([
-    supabase.from('professionals').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-    supabase.from('sport_spaces').select('id', { count: 'exact', head: true }).eq('owner_user_id', user.id),
+    ownerDb.from('professionals').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    ownerDb.from('sport_spaces').select('id', { count: 'exact', head: true }).eq('owner_user_id', user.id),
   ])
 
   const hasProfessionalProfile = Boolean(professionalCount)

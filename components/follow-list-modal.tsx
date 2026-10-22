@@ -4,7 +4,7 @@ import { AppImage } from '@/components/ui/app-image'
 
 import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { getFollowersList, getFollowingList } from '@/app/actions/follow'
+import { getFollowersListPage, getFollowingListPage } from '@/app/actions/follow'
 import { FollowButton } from '@/components/follow-button'
 import Link from 'next/link'
 import { BadgeCheck, Building2, Dumbbell, Loader2, UserRound, Users } from 'lucide-react'
@@ -37,24 +37,40 @@ function roleLabel(role: PlatformRole) {
 export function FollowListModal({ open, onClose, targetUserId, mode, title }: FollowListModalProps) {
   const [items, setItems] = useState<FollowItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    const fn = mode === 'followers' ? getFollowersList : getFollowingList
+    const fn = mode === 'followers' ? getFollowersListPage : getFollowingListPage
     void Promise.resolve()
       .then(() => {
         if (cancelled) return null
         setLoading(true)
         setLoadError(false)
-        return fn(targetUserId)
+        setLoadMoreError(false)
+        setItems([])
+        setHasMore(false)
+        setNextOffset(0)
+        return fn(targetUserId, 0)
       })
       .then(res => {
         if (cancelled || !res) return
+        if (res.error) {
+          setItems([])
+          setCurrentUserId(null)
+          setLoadError(true)
+          return
+        }
         setItems((res.list || []) as FollowItem[])
         setCurrentUserId(res.currentUserId)
+        setHasMore(res.hasMore)
+        setNextOffset(res.nextOffset)
       })
       .catch(() => {
         if (cancelled) return
@@ -67,6 +83,27 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
       })
     return () => { cancelled = true }
   }, [open, targetUserId, mode])
+
+  async function loadMore() {
+    if (loadingMore || !hasMore) return
+    const fn = mode === 'followers' ? getFollowersListPage : getFollowingListPage
+    setLoadingMore(true)
+    setLoadMoreError(false)
+    try {
+      const result = await fn(targetUserId, nextOffset)
+      if (result.error) {
+        setLoadMoreError(true)
+        return
+      }
+      setItems(current => [...current, ...(result.list || []) as FollowItem[]])
+      setHasMore(result.hasMore)
+      setNextOffset(result.nextOffset)
+    } catch {
+      setLoadMoreError(true)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const defaultTitle = mode === 'followers' ? 'Seguidores' : 'A Seguir'
 
@@ -129,6 +166,14 @@ export function FollowListModal({ open, onClose, targetUserId, mode, title }: Fo
                 </li>
               ))}
             </ul>
+          )}
+          {!loading && !loadError && hasMore && (
+            <div className="space-y-2 border-t border-border px-5 py-4 text-center">
+              {loadMoreError && <p role="alert" className="text-xs text-destructive">Não foi possível carregar mais resultados. Tenta novamente.</p>}
+              <button type="button" onClick={() => void loadMore()} disabled={loadingMore} className="min-h-11 rounded-lg px-4 text-sm font-semibold text-primary hover:bg-muted disabled:opacity-60" aria-busy={loadingMore}>
+                {loadingMore ? 'A carregar…' : 'Carregar mais'}
+              </button>
+            </div>
           )}
         </div>
       </DialogContent>

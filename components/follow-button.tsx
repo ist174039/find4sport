@@ -1,18 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { toggleFollowAction } from '@/app/actions/follow'
+import { toggleFollowAction, toggleFollowSpaceAction } from '@/app/actions/follow'
 import { Loader2 } from 'lucide-react'
 
-interface FollowButtonProps {
-  targetUserId: string
+type FollowButtonProps = {
+  targetUserId?: string
+  targetSpaceId?: string
   initialIsFollowing: boolean
   pathToRevalidate?: string
   className?: string
   variant?: 'default' | 'outline'
 }
 
-export function FollowButton({ targetUserId, initialIsFollowing, pathToRevalidate, className = '', variant = 'default' }: FollowButtonProps) {
+export function FollowButton({ targetUserId, targetSpaceId, initialIsFollowing, pathToRevalidate, className = '', variant = 'default' }: FollowButtonProps) {
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [loading, setLoading] = useState(false)
 
@@ -21,7 +22,11 @@ export function FollowButton({ targetUserId, initialIsFollowing, pathToRevalidat
     setLoading(true)
     const previous = isFollowing
     setIsFollowing(!previous)
-    const result = await toggleFollowAction(targetUserId, pathToRevalidate)
+    const result = targetSpaceId
+      ? await toggleFollowSpaceAction(targetSpaceId, pathToRevalidate)
+      : targetUserId
+        ? await toggleFollowAction(targetUserId, pathToRevalidate)
+        : { error: 'Destino inválido.' }
     if (result.error) { setIsFollowing(previous); console.error(result.error) }
     else setIsFollowing(result.isFollowing || false)
     setLoading(false)

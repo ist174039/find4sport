@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, Check, Loader2, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { registerSpaceInitial } from '@/app/actions/register'
+import { getProviderRegistrationBootstrap, registerSpaceInitial } from '@/app/actions/register'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,16 +16,17 @@ const safeNext=(value:string|null)=>!value||!value.startsWith('/')||value.starts
 
 export default function RegisterSpacePage(){
   const router=useRouter(); const searchParams=useSearchParams(); const next=safeNext(searchParams.get('next'))
-  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [error,setError]=useState<string|null>(null); const [userId,setUserId]=useState<string|null>(null)
+  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [bootstrapReady,setBootstrapReady]=useState(false); const [error,setError]=useState<string|null>(null)
   const [categories,setCategories]=useState<TaxonomyOption[]>([]); const [selectedCategories,setSelectedCategories]=useState<string[]>([])
   const [formData,setFormData]=useState({name:'',description:'',address:'',phone:'',email:'',website:'',amenities:''})
 
-  useEffect(()=>{void(async()=>{const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.replace(`/auth/registar?type=venue_manager&next=${encodeURIComponent(next)}`);return}
-    const [{data:existing},{data:categoryRows}]=await Promise.all([supabase.from('sport_spaces').select('id').eq('owner_user_id',user.id).limit(1).maybeSingle(),supabase.from('categories').select('*').order('name')]);if(existing){router.replace('/dashboard/espaco');return}
-    setUserId(user.id);setCategories((categoryRows||[]).map(row=>{const item=row as unknown as Record<string,unknown>;return{id:String(item.id),name:String(item.name||''),slug:String(item.slug||''),emoji:typeof item.emoji==='string'?item.emoji:null,parent_id:typeof item.parent_id==='string'?item.parent_id:null}}));setFormData(current=>({...current,email:user.email||''}));setLoading(false)})()},[next,router])
+  useEffect(()=>{void(async()=>{try{const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.replace(`/auth/registar?type=venue_manager&next=${encodeURIComponent(next)}`);return}
+    const bootstrap=await getProviderRegistrationBootstrap('space');if(!bootstrap.success)throw new Error(bootstrap.error);if(bootstrap.exists){router.replace('/dashboard/espaco');return}
+    setCategories(bootstrap.categories);setFormData(current=>({...current,email:bootstrap.email}));setBootstrapReady(true);setLoading(false)
+  }catch(err){setError(err instanceof Error?err.message:'Não foi possível preparar o registo.');setLoading(false)}})()},[next,router])
 
-  async function submit(event:React.FormEvent){event.preventDefault();if(!userId||saving)return;setError(null);if(formData.name.trim().length<2)return setError('Indica o nome do espaço.');if(formData.address.trim().length<5)return setError('Indica uma morada válida.');if(!selectedCategories.length)return setError('Seleciona pelo menos uma modalidade disponível no espaço.');setSaving(true)
-    try{const result=await registerSpaceInitial(userId,{name:formData.name.trim(),description:formData.description.trim()||null,address:formData.address.trim(),phone:formData.phone.trim()||null,email:formData.email.trim()||null,website:formData.website.trim()||null,amenities:formData.amenities?formData.amenities.split(',').map(item=>item.trim()).filter(Boolean):[],status:'pending'},formData.name.trim(),selectedCategories);if(result.error)throw new Error(result.error);router.replace(next==='/dashboard'?'/dashboard':next)}catch(err){setError(err instanceof Error?err.message:'Não foi possível registar o espaço.')}finally{setSaving(false)}}
+  async function submit(event:React.FormEvent){event.preventDefault();if(!bootstrapReady||saving)return;setError(null);if(formData.name.trim().length<2)return setError('Indica o nome do espaço.');if(formData.address.trim().length<5)return setError('Indica uma morada válida.');if(!selectedCategories.length)return setError('Seleciona pelo menos uma modalidade disponível no espaço.');setSaving(true)
+    try{const result=await registerSpaceInitial({name:formData.name.trim(),description:formData.description.trim()||null,address:formData.address.trim(),phone:formData.phone.trim()||null,email:formData.email.trim()||null,website:formData.website.trim()||null,amenities:formData.amenities?formData.amenities.split(',').map(item=>item.trim()).filter(Boolean):[],status:'pending'},formData.name.trim(),selectedCategories);if(result.error)throw new Error(result.error);router.replace(next==='/dashboard'?'/dashboard':next)}catch(err){setError(err instanceof Error?err.message:'Não foi possível registar o espaço.')}finally{setSaving(false)}}
 
   if(loading)return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary"/></div>
   return <main className="min-h-[calc(100dvh-4rem)] bg-muted/15 px-4 py-6 sm:px-6 sm:py-10"><div className="mx-auto max-w-3xl"><div className="mb-6"><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Onboarding · Espaço</p><h1 className="mt-2 text-3xl font-black tracking-tight">Configura o teu espaço</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">A conta já está criada. Agora só precisamos da informação necessária para publicar e validar o espaço.</p></div>
@@ -38,6 +39,6 @@ export default function RegisterSpacePage(){
       <label className="block space-y-2"><Label>Comodidades</Label><Input value={formData.amenities} onChange={e=>setFormData(current=>({...current,amenities:e.target.value}))} placeholder="Balneários, estacionamento, cafetaria…" className="min-h-11"/><p className="text-xs text-muted-foreground">Separa por vírgulas. Isto será convertido numa lista estruturada.</p></label>
       {error&&<div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       <div className="rounded-2xl border border-border bg-muted/20 p-4 text-sm"><p className="flex items-center gap-2 font-semibold"><Check className="h-4 w-4 text-primary"/>Depois deste passo</p><p className="mt-1 text-muted-foreground">O espaço fica pendente/ativo conforme a política de aprovação. Fotografias, campos/salas, preços e disponibilidade são geridos no dashboard.</p></div>
-      <Button type="submit" disabled={saving} className="min-h-12 w-full rounded-xl text-sm font-bold">{saving?<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>A guardar…</>:'Concluir configuração'}</Button>
+      <Button type="submit" disabled={saving||!bootstrapReady} className="min-h-12 w-full rounded-xl text-sm font-bold">{saving?<><Loader2 className="mr-2 h-4 w-4 animate-spin"/>A guardar…</>:'Concluir configuração'}</Button>
     </form></CardContent></Card></div></main>
 }

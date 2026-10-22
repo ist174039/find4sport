@@ -6,12 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Clock, Euro, HandCoins, CalendarCheck, Loader2 } from 'lucide-react'
 import { BookingWizard } from '@/components/booking-wizard'
 import { ServicePackageOffers, type PublicServicePackage } from '@/components/service-package-offers'
-import { createClient } from '@/lib/supabase/client'
 import type { Service } from '@/lib/types'
 
 interface ProfessionalServicesProps { services: Service[]; professionalId: string }
-type PaymentCapability = { stripe_account_id: string | null; status: string | null }
-function plausibleStripeAccountId(value: unknown) { return /^acct_[A-Za-z0-9]{16,}$/.test(String(value || '')) }
 
 export function ProfessionalServices({ services, professionalId }: ProfessionalServicesProps) {
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -21,20 +18,14 @@ export function ProfessionalServices({ services, professionalId }: ProfessionalS
 
   useEffect(() => {
     let cancelled = false
-    const supabase = createClient()
-    void Promise.all([
-      fetch(`/api/professionals/${encodeURIComponent(professionalId)}/packages`, { cache: 'no-store' })
-        .then(response => response.ok ? response.json() : { packages: [] })
-        .catch(() => ({ packages: [] })),
-      supabase.from('professionals').select('stripe_account_id,status').eq('id', professionalId).maybeSingle(),
-    ]).then(([packagePayload, professionalResult]) => {
-      if (cancelled) return
-      setPackages(Array.isArray(packagePayload.packages) ? packagePayload.packages : [])
-      const professional = professionalResult.data as PaymentCapability | null
-      setPaymentsEnabled(professional?.status === 'active' && plausibleStripeAccountId(professional?.stripe_account_id))
-    }).catch(() => {
-      if (!cancelled) { setPackages([]); setPaymentsEnabled(false) }
-    })
+    void fetch(`/api/professionals/${encodeURIComponent(professionalId)}/packages`, { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : { packages: [], paymentsEnabled: false })
+      .catch(() => ({ packages: [], paymentsEnabled: false }))
+      .then(packagePayload => {
+        if (cancelled) return
+        setPackages(Array.isArray(packagePayload.packages) ? packagePayload.packages : [])
+        setPaymentsEnabled(packagePayload.paymentsEnabled === true)
+      })
     return () => { cancelled = true }
   }, [professionalId])
 

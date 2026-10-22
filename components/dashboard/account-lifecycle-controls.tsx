@@ -15,7 +15,7 @@ export function AccountLifecycleControls() {
     if (!confirmed) return
     setBusy('deactivate')
     try { await deactivateAccountAction() }
-    catch (error: any) { setBusy(null); showAlert('Erro', error?.message || 'Não foi possível desativar a conta.', 'error') }
+    catch (error: unknown) { setBusy(null); showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível desativar a conta.', 'error') }
   }
 
   async function remove() {
@@ -23,7 +23,7 @@ export function AccountLifecycleControls() {
     if (!confirmed) return
     setBusy('delete')
     try { await deleteOrRequestAccountDeletionAction() }
-    catch (error: any) { setBusy(null); showAlert('Erro', error?.message || 'Não foi possível processar a eliminação da conta.', 'error') }
+    catch (error: unknown) { setBusy(null); showAlert('Erro', error instanceof Error ? error.message : 'Não foi possível processar a eliminação da conta.', 'error') }
   }
 
   return (

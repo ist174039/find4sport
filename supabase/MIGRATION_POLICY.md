@@ -26,6 +26,8 @@ The repository contains historical migrations whose filenames predate the exact 
 
 Legacy migrations must be reconciled by mapping production migration version/name to the existing Git file or to a reconciliation migration when the Git source is genuinely missing.
 
+When a local historical filename or SQL differs from the recorded production history, preserve the local proposal outside `supabase/migrations` and restore the exact recorded version, name, and SQL as the executable historical file. Do not replay the restored file. When observed live catalog state has no matching history row, keep it explicitly pending; never insert a historical row manually or claim that a new forward migration proves an older version. Resolve the gap only with a supported Supabase history-repair operation after exact catalog verification, or with a documented policy exception. Any drift must be handled by a new, reviewed forward migration and validated in an isolated database.
+
 ## Safety
 
 Never replay an already-applied production migration solely to align filenames. Never delete or squash production migration history. Destructive DDL requires an explicit data-preservation and rollback plan.

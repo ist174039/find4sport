@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { Search, Loader2, MessageSquarePlus } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { searchConversationContacts } from '@/app/actions/messages'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { getUserAvatarUrl, getUserDisplayName, getUserRoleLabel } from '@/lib/user-display'
+import { getUserRoleLabel } from '@/lib/user-display'
 import { UserAvatar } from '@/components/user-avatar'
 
 type SearchResult = {
@@ -28,112 +28,42 @@ export function NewConversationModal({
   open, 
   onClose,
   onSelectContact,
-  currentUserId,
 }: {
   open: boolean
   onClose: () => void
   onSelectContact: (contact: ConversationContact) => void
-  currentUserId: string
 }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    let active = true
     const searchContacts = async () => {
-      if (query.trim().length < 2) {
+      const trimmedQuery = query.trim()
+      if (trimmedQuery.length < 2 || trimmedQuery.length > 80) {
         setResults([])
+        setLoading(false)
         return
       }
 
       setLoading(true)
-      const supabase = createClient()
-
-      const [usersRes, professionalsRes, spacesRes] = await Promise.all([
-        supabase
-          .from('platform_users')
-          .select('id, full_name, avatar_url, type')
-          .ilike('full_name', `%${query}%`)
-          .limit(10),
-        supabase
-          .from('professionals')
-          .select('user_id, full_name, professional_name, avatar_url')
-          .or(`full_name.ilike.%${query}%,professional_name.ilike.%${query}%`)
-          .limit(10),
-        supabase
-          .from('sport_spaces')
-          .select('owner_user_id, name, logo_url')
-          .ilike('name', `%${query}%`)
-          .limit(10),
-      ])
-
-      const byUserId = new Map<string, SearchResult>()
-
-      ;(usersRes.data || [])
-        .filter((u) => u.id !== currentUserId)
-        .forEach((u) => {
-          byUserId.set(u.id, {
-            id: u.id,
-            full_name: u.full_name || 'Utilizador',
-            avatar_url: u.avatar_url || '',
-            type: u.type || 'athlete',
-          })
-        })
-
-      ;(professionalsRes.data || [])
-        .filter((p) => p.user_id && p.user_id !== currentUserId)
-        .forEach((p) => {
-          const id = p.user_id as string
-          const current = byUserId.get(id)
-          byUserId.set(id, {
-            id,
-            full_name: getUserDisplayName({
-              type: 'professional',
-              full_name: current?.full_name,
-              professional_name: p.professional_name,
-              professional_full_name: p.full_name,
-            }),
-            avatar_url: getUserAvatarUrl({
-              type: 'professional',
-              avatar_url: current?.avatar_url,
-              professional_avatar_url: p.avatar_url,
-            }),
-            type: 'professional',
-          })
-        })
-
-      ;(spacesRes.data || [])
-        .filter((s) => s.owner_user_id && s.owner_user_id !== currentUserId)
-        .forEach((s) => {
-          const id = s.owner_user_id as string
-          const current = byUserId.get(id)
-          byUserId.set(id, {
-            id,
-            full_name: getUserDisplayName({
-              type: 'venue_manager',
-              full_name: current?.full_name,
-              space_name: s.name,
-            }),
-            avatar_url: getUserAvatarUrl({
-              type: 'venue_manager',
-              avatar_url: current?.avatar_url,
-              space_logo_url: s.logo_url,
-            }),
-            type: 'venue_manager',
-          })
-        })
-
-      const sorted = [...byUserId.values()]
-        .sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt'))
-        .slice(0, 15)
-
-      setResults(sorted)
-      setLoading(false)
+      try {
+        const contacts = await searchConversationContacts(trimmedQuery)
+        if (active) setResults(contacts)
+      } catch {
+        if (active) setResults([])
+      } finally {
+        if (active) setLoading(false)
+      }
     }
 
     const timer = setTimeout(() => { void searchContacts() }, 400)
-    return () => clearTimeout(timer)
-  }, [query, currentUserId])
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [query])
 
   function closeModal() {
     setQuery('')
@@ -208,7 +138,7 @@ export function NewConversationModal({
               <MessageSquarePlus className="w-8 h-8 mb-3 opacity-20" />
               <p className="text-sm">Escreva o nome de quem procura para iniciar uma nova conversa.</p>
               <p className="text-xs mt-2 opacity-60 max-w-[250px]">
-                Pode contactar qualquer utilizador, profissional ou espaço desportivo na rede.
+                O envio de mensagens requer uma reserva ativa ou participação paga num evento ativo.
               </p>
             </div>
           )}

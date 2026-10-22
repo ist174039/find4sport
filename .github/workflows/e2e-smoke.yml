@@ -59,7 +59,7 @@ jobs:
       - name: Run public production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
-        run: npx playwright test e2e/public-smoke.spec.mjs --project=${{ matrix.project }} --workers=1
+        run: npx playwright test e2e/public-smoke.spec.mjs e2e/search-pagination.spec.mjs --project=${{ matrix.project }} --workers=1
 
       - name: Require authenticated E2E coverage
         env:

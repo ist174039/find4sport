@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 
 type Mode = 'professional' | 'space'
 
@@ -40,13 +41,19 @@ export async function searchSpaceProfessionalTargetsAction(mode: Mode, targetId:
   const q = raw.trim()
   if (q.length < 2) return []
   if (mode === 'professional') {
-    const { data, error } = await admin.from('sport_spaces').select('id,name,address,is_verified,status').ilike('name', `%${q}%`).limit(10)
+    const { data, error } = await admin.from('sport_spaces').select('id,name,address,is_verified,status,owner_user_id').ilike('name', `%${q}%`).eq('status', 'active').not('owner_user_id', 'is', null).limit(10)
     if (error) throw new Error('Não foi possível pesquisar espaços.')
-    return (data || []).filter((x: any) => x.is_verified || x.status === 'active').map((x: any) => ({ id: x.id, name: x.name, subtitle: x.address || 'Espaço desportivo' }))
+    const ownerIds = [...new Set((data || []).map(space => space.owner_user_id).filter((id): id is string => Boolean(id)))]
+    const { data: owners, error: ownersError } = ownerIds.length
+      ? await admin.from('platform_users').select('id,account_status,suspended_until').in('id', ownerIds)
+      : { data: [], error: null }
+    if (ownersError) throw new Error('Não foi possível validar a disponibilidade dos espaços.')
+    const eligibleOwnerIds = new Set((owners || []).filter(owner => isPublicAccountEligible(owner.account_status, owner.suspended_until)).map(owner => owner.id))
+    return (data || []).filter(space => space.owner_user_id && eligibleOwnerIds.has(space.owner_user_id)).map(space => ({ id: space.id, name: space.name, subtitle: space.address || 'Espaço desportivo' }))
   }
   const { data, error } = await admin.from('professionals').select('id,full_name,professional_name,is_verified').or(`full_name.ilike.%${q}%,professional_name.ilike.%${q}%`).limit(10)
   if (error) throw new Error('Não foi possível pesquisar profissionais.')
-  return (data || []).filter((x: any) => x.is_verified !== false).map((x: any) => ({ id: x.id, name: x.professional_name || x.full_name || 'Profissional', subtitle: x.full_name || 'Profissional' }))
+  return (data || []).filter(x => x.is_verified !== false).map(x => ({ id: x.id, name: x.professional_name || x.full_name || 'Profissional', subtitle: x.full_name || 'Profissional' }))
 }
 
 export async function requestSpaceProfessionalLinkAction(mode: Mode, targetId: string, otherId: string) {
