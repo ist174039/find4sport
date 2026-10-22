@@ -77,3 +77,10 @@ Limitations: this uses a minimal synthetic schema and fixtures, without the full
 ### CI evidence — PR #33, 2026-10-22
 
 GitHub Actions Quality run `39705924013` on immutable SHA `7d2f285ca868add408f82b16d36d3594cb8d95c7` passed dependency audit, lint, typecheck, all 68 tests, the PostgreSQL public-discovery contract and the production build. The workflow remains failed at the migration repository gate: two strict local migrations are absent from the baseline, and two historical reconciliation proposals remain pending. The snapshot contains 45 legacy migration warnings. This CI run proves the generic PostgreSQL contract in CI, not Supabase integration. PR #33 remains open/draft; no merge or production deployment occurred. The Vercel PR preview check completed successfully; it is not a production release.
+## Booking eligibility transaction follow-up — 2026-10-22
+
+CI run 39707044191 on `d0e51f18eecab75126bc2c0b23a0254289cb657e` passed dependency audit, lint, typecheck, automated tests, the PostgreSQL 17 disposable discovery contract, and production build. It failed only at the migration repository gate (2 unregistered local forward SQL files and 2 unresolved historical records); the gate also reports 45 legacy filename warnings.
+
+A database trigger proposal now serializes a professional booking insert with owner/profile moderation using row locks. It remains in `supabase/migration-proposals/`, outside the executable migration directory. PostgreSQL 17 local tests passed both lock orderings and the eligibility-state matrix. This is synthetic evidence only; RLS, actual trigger ordering, and Supabase schema remain unverified. The proposal is not deployed or registered as applied.
+
+Readiness remains **35/100 — NO-GO**. No Supabase remote changes, merge, or production deploy occurred. The pending reservation/Stripe behavior after a later suspension also needs a product and payment-flow decision.

@@ -57,3 +57,8 @@ Catalog evidence: table/column privileges, RLS policies, RPC ACLs, security mode
 ## Planned test cases
 
 See Notion page **10 — QA e Plano de Testes**, cases `SEC-PUB-01` through `SEC-PUB-06`. They remain planned until executed and linked to an immutable CI run.
+### Transactional professional booking eligibility — proposal only
+
+The application-level professional owner checks now cover paid service checkout, package checkout, package-session booking, and free booking. A concurrency review found a time-of-check/time-of-use window before the reservation INSERT. `supabase/migration-proposals/20261022_enforce_professional_booking_eligibility.sql` proposes a `SECURITY DEFINER` trigger with a fixed search path and `FOR SHARE` locks on the professional and owner rows. A local PostgreSQL 17 disposable harness passed both reservation-first and moderation-first lock orderings and rejects ineligible profiles/accounts.
+
+This proposal is not in `supabase/migrations/` and has not been tested on a Supabase schema or applied remotely. The product treatment of a pending Stripe checkout when moderation occurs after reservation commit remains unresolved. Existing direct SELECT grants and 24 authenticated table consumers are unchanged.

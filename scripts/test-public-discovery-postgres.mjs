@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { assertDisposablePostgresTarget } from "./lib/disposable-postgres-target.mjs";
+import { setTimeout as delay } from "node:timers/promises";
 
 const databaseUrl = process.env.PUBLIC_DISCOVERY_TEST_DATABASE_URL;
 const parsedUrl = assertDisposablePostgresTarget(
@@ -14,11 +15,13 @@ const databaseName = `f4s_public_discovery_${randomUUID().replaceAll("-", "")}`;
 const admin = new Client({ connectionString: databaseUrl });
 let isolated;
 let databaseCreated = false;
+let advisoryLockHeld = false;
 const createdRoles = [];
 
 const baselineSql = `
 CREATE TABLE public.platform_users(id uuid primary key, account_status text, suspended_until timestamptz);
 CREATE TABLE public.professionals(id uuid primary key, user_id uuid, full_name text, professional_name text, bio text, avatar_url text, address text, latitude double precision, longitude double precision, status text, public_slug text, rating_avg numeric, review_count integer, views_count integer, is_verified boolean, is_premium boolean, gallery_urls jsonb, created_at timestamptz, tax_id text, stripe_account_id text, email text, private_gallery_urls jsonb);
+CREATE TABLE public.reservations(id uuid primary key, professional_id uuid, date date not null, start_time time not null, end_time time not null, status text not null);
 CREATE TABLE public.services(id uuid primary key, professional_id uuid, price numeric, is_active boolean);
 CREATE TABLE public.categories(id uuid primary key, name text, slug text, parent_id uuid, icon_key text, is_active boolean);
 CREATE TABLE public.professional_categories(professional_id uuid, category_id uuid);
@@ -51,6 +54,8 @@ INSERT INTO public.professionals(id,user_id,full_name,status,rating_avg,review_c
 
 try {
   await admin.connect();
+  await admin.query("SELECT pg_advisory_lock(7146872533912201)");
+  advisoryLockHeld = true;
   for (const role of ["anon", "authenticated", "service_role"]) {
     const { rowCount } = await admin.query(
       "SELECT 1 FROM pg_roles WHERE rolname = $1",
@@ -126,8 +131,112 @@ try {
   assert.equal(professionalRows[0].names, "Active pro,Expired suspension pro");
   assert.equal(Number(professionalRows[0].total_count), 2);
   assert.equal(professionalRows[0].exposes_internal_owner_id, false);
+
+  const eligibilitySql = await readFile(
+    new URL("../supabase/migration-proposals/20261022_enforce_professional_booking_eligibility.sql", import.meta.url),
+    "utf8",
+  );
+  await isolated.query(eligibilitySql);
+
+  const reservationSql = `INSERT INTO public.reservations(id,professional_id,date,start_time,end_time,status)
+    VALUES ($1,$2,'2030-01-01','10:00','11:00','confirmed')`;
+  const reservationId = () => randomUUID();
+  const activeProfessional = "20000000-0000-4000-8000-000000000001";
+  const expiredSuspensionProfessional = "20000000-0000-4000-8000-000000000002";
+  const suspendedProfessional = "20000000-0000-4000-8000-000000000003";
+  const blockedProfessional = "20000000-0000-4000-8000-000000000004";
+
+  await isolated.query(reservationSql, [reservationId(), activeProfessional]);
+  await isolated.query(reservationSql, [reservationId(), expiredSuspensionProfessional]);
+  for (const professionalId of [suspendedProfessional, blockedProfessional]) {
+    await assert.rejects(
+      isolated.query(reservationSql, [reservationId(), professionalId]),
+      (error) => error.code === "23514" && error.message.includes("professional_booking_owner_ineligible"),
+    );
+  }
+  await isolated.query("UPDATE public.professionals SET status='inactive' WHERE id=$1", [activeProfessional]);
+  await assert.rejects(
+    isolated.query(reservationSql, [reservationId(), activeProfessional]),
+    (error) => error.code === "23514" && error.message.includes("professional_booking_owner_ineligible"),
+  );
+  await isolated.query("UPDATE public.professionals SET status='active' WHERE id=$1", [activeProfessional]);
+
+  await isolated.query("GRANT INSERT ON public.reservations TO authenticated");
+  await isolated.query("SET ROLE authenticated");
+  try {
+    await isolated.query(reservationSql, [reservationId(), expiredSuspensionProfessional]);
+  } finally {
+    await isolated.query("RESET ROLE");
+  }
+
+  const isolatedUrlForClient = new URL(parsedUrl.toString());
+  isolatedUrlForClient.pathname = `/${databaseName}`;
+  const bookingClient = new Client({ connectionString: isolatedUrlForClient.toString(), application_name: "f4s_booking_lock_test" });
+  const moderationClient = new Client({ connectionString: isolatedUrlForClient.toString(), application_name: "f4s_moderation_lock_test" });
+  try {
+    await Promise.all([bookingClient.connect(), moderationClient.connect()]);
+    await bookingClient.query("SET statement_timeout = '15s'");
+    await moderationClient.query("SET statement_timeout = '15s'");
+    await bookingClient.query("BEGIN");
+    await bookingClient.query(reservationSql, [reservationId(), activeProfessional]);
+    let moderationUpdateError;
+    const moderationUpdate = moderationClient
+      .query("UPDATE public.platform_users SET account_status='blocked' WHERE id='00000000-0000-4000-8000-000000000001'")
+      .catch((error) => { moderationUpdateError = error; });
+
+    let moderationIsBlocked = false;
+    for (let attempt = 0; attempt < 1000; attempt += 1) {
+      const { rows } = await admin.query(
+        `SELECT 1 FROM pg_stat_activity WHERE datname=$1 AND application_name='f4s_moderation_lock_test' AND wait_event_type='Lock' AND cardinality(pg_blocking_pids(pid)) > 0`,
+        [databaseName],
+      );
+      if (rows.length) {
+        moderationIsBlocked = true;
+        break;
+      }
+      await delay(10);
+    }
+    assert.equal(moderationIsBlocked, true, "moderation update should wait until the booking transaction commits; lock wait was not observed within 10 seconds");
+    await bookingClient.query("COMMIT");
+    await moderationUpdate;
+    assert.equal(moderationUpdateError, undefined, moderationUpdateError?.message);
+    assert.equal((await moderationClient.query("SELECT account_status FROM public.platform_users WHERE id='00000000-0000-4000-8000-000000000001'")).rows[0].account_status, "blocked");
+
+    await moderationClient.query("BEGIN");
+    await moderationClient.query("UPDATE public.platform_users SET account_status='active' WHERE id='00000000-0000-4000-8000-000000000001'");
+    let bookingError;
+    const bookingAttempt = bookingClient
+      .query(reservationSql, [reservationId(), activeProfessional])
+      .catch((error) => { bookingError = error; });
+    let bookingIsBlocked = false;
+    for (let attempt = 0; attempt < 1000; attempt += 1) {
+      const { rows } = await admin.query(
+        `SELECT 1 FROM pg_stat_activity WHERE datname=$1 AND application_name='f4s_booking_lock_test' AND wait_event_type='Lock' AND cardinality(pg_blocking_pids(pid)) > 0`,
+        [databaseName],
+      );
+      if (rows.length) {
+        bookingIsBlocked = true;
+        break;
+      }
+      await delay(10);
+    }
+    assert.equal(bookingIsBlocked, true, "booking should wait for a moderation update holding the owner row");
+    await moderationClient.query("UPDATE public.platform_users SET account_status='blocked' WHERE id='00000000-0000-4000-8000-000000000001'");
+    await moderationClient.query("COMMIT");
+    await bookingAttempt;
+    assert.equal(bookingError?.code, "23514", "booking should re-read the committed blocked state after waiting for moderation");
+  } finally {
+    await bookingClient.query("ROLLBACK").catch(() => {});
+    await moderationClient.query("ROLLBACK").catch(() => {});
+    await Promise.all([bookingClient.end(), moderationClient.end()]);
+  }
+
+  await assert.rejects(
+    isolated.query(reservationSql, [reservationId(), activeProfessional]),
+    (error) => error.code === "23514" && error.message.includes("professional_booking_owner_ineligible"),
+  );
   console.log(
-    "Public discovery PostgreSQL RPC contract passed. Owner filtering and DTO minimization passed; legacy direct table/column SELECT grants remain present and are NOT remediated by these migrations.",
+    "Public discovery and professional booking PostgreSQL contracts passed. Booking eligibility is serialized with account moderation in the tested proposal. Legacy direct table/column SELECT grants remain present and are NOT remediated by these migrations.",
   );
 } finally {
   if (isolated) await isolated.end().catch(() => {});
@@ -138,6 +247,8 @@ try {
         .catch(() => {});
     for (const role of createdRoles.reverse())
       await admin.query(`DROP ROLE IF EXISTS ${role}`).catch(() => {});
+    if (advisoryLockHeld)
+      await admin.query("SELECT pg_advisory_unlock(7146872533912201)").catch(() => {});
     await admin.end().catch(() => {});
   }
 }
