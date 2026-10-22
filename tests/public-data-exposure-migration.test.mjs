@@ -18,6 +18,8 @@ const followActions = new URL('../app/actions/follow.ts', import.meta.url)
 const followButton = new URL('../components/follow-button.tsx', import.meta.url)
 const publicFollowAction = new URL('../components/public-follow-action.tsx', import.meta.url)
 const spaceActions = new URL('../components/space-actions.tsx', import.meta.url)
+const packageCheckoutRoute = new URL('../app/api/package-checkout/route.ts', import.meta.url)
+const discoveryPostgresHarness = new URL('../scripts/test-public-discovery-postgres.mjs', import.meta.url)
 
 test('legacy radius search RPCs are unavailable to public Data API roles', async () => {
   const sql = (await readFile(migration, 'utf8')).toLowerCase()
@@ -105,6 +107,41 @@ test('space profile and both reservation creation paths enforce owner eligibilit
   assert.match(associationActions, /isPublicAccountEligible\(owner\.account_status, owner\.suspended_until\)/)
   assert.match(community, /eligibleSpaceIds/)
   assert.match(community, /candidatePosts\.filter\(post => !post\.sport_space_id \|\| eligibleSpaceIds\.has\(post\.sport_space_id\)\)/)
+})
+
+test('professional paid, free, and package booking paths validate owner account status', async () => {
+  const [checkout, actions, packageCheckout] = await Promise.all([
+    readFile(stripeCheckoutRoute, 'utf8'),
+    readFile(bookingActions, 'utf8'),
+    readFile(packageCheckoutRoute, 'utf8'),
+  ])
+
+  const paidServicePath = checkout.slice(checkout.indexOf('if(serviceId){'), checkout.indexOf("}else{const{data:room"))
+  assert.match(paidServicePath, /platform_users/)
+  assert.match(paidServicePath, /isPublicProfessionalEligible\(provider\.status,owner\?\.account_status,owner\?\.suspended_until\)/)
+  assert.ok(checkout.indexOf('isPublicProfessionalEligible') < checkout.indexOf("from('reservations').insert"))
+
+  const packageReservationPath = actions.slice(actions.indexOf('export async function createPackageReservationAction'), actions.indexOf('export async function createFreeReservationAction'))
+  assert.match(packageReservationPath, /await assertProfessionalOwnerEligible\(admin, service\.professional_id\)/)
+  assert.ok(packageReservationPath.indexOf('assertProfessionalOwnerEligible') < packageReservationPath.indexOf("from('reservations').insert"))
+
+  const freeReservationPath = actions.slice(actions.indexOf('export async function createFreeReservationAction'))
+  assert.match(freeReservationPath, /professionalId = service\.professional_id[\s\S]{0,150}assertProfessionalOwnerEligible\(admin, professionalId\)/)
+  assert.ok(freeReservationPath.indexOf('assertProfessionalOwnerEligible') < freeReservationPath.indexOf("from('reservations').insert"))
+
+  assert.match(packageCheckout, /isPublicProfessionalEligible\(pack\.professional\.status, owner\?\.account_status, owner\?\.suspended_until\)/)
+  assert.ok(packageCheckout.indexOf('isPublicProfessionalEligible') < packageCheckout.indexOf("from('service_package_purchases').insert"))
+})
+
+test('PostgreSQL harness is explicit about local destructive scope and legacy direct grants', async () => {
+  const harness = await readFile(discoveryPostgresHarness, 'utf8')
+  const targetGuard = await readFile(new URL('../scripts/lib/disposable-postgres-target.mjs', import.meta.url), 'utf8')
+  assert.match(harness, /PUBLIC_DISCOVERY_TEST_ALLOW_DESTRUCTIVE/)
+  assert.match(harness, /GRANT SELECT ON public\.professionals, public\.sport_spaces TO anon, authenticated/)
+  assert.match(harness, /anon_direct_space_select: true/)
+  assert.match(harness, /anon_direct_professional_tax_id_select: true/)
+  assert.match(targetGuard, /ALLOWED_HOSTS/)
+  assert.match(targetGuard, /non-loopback PostgreSQL host/)
 })
 
 test('public space controls resolve owner identity server-side instead of serializing owner ids', async () => {

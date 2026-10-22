@@ -2,30 +2,32 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
+import { assertDisposablePostgresTarget } from "./lib/disposable-postgres-target.mjs";
 
 const databaseUrl = process.env.PUBLIC_DISCOVERY_TEST_DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error(
-    "Set PUBLIC_DISCOVERY_TEST_DATABASE_URL to a disposable PostgreSQL 17 admin database.",
-  );
-}
+const parsedUrl = assertDisposablePostgresTarget(
+  databaseUrl,
+  process.env.PUBLIC_DISCOVERY_TEST_ALLOW_DESTRUCTIVE,
+);
 
 const databaseName = `f4s_public_discovery_${randomUUID().replaceAll("-", "")}`;
 const admin = new Client({ connectionString: databaseUrl });
 let isolated;
 let databaseCreated = false;
+const createdRoles = [];
 
 const baselineSql = `
 CREATE TABLE public.platform_users(id uuid primary key, account_status text, suspended_until timestamptz);
-CREATE TABLE public.professionals(id uuid primary key, user_id uuid, full_name text, professional_name text, bio text, avatar_url text, address text, latitude double precision, longitude double precision, status text, public_slug text, rating_avg numeric, review_count integer, views_count integer, is_verified boolean, is_premium boolean, gallery_urls jsonb, created_at timestamptz);
+CREATE TABLE public.professionals(id uuid primary key, user_id uuid, full_name text, professional_name text, bio text, avatar_url text, address text, latitude double precision, longitude double precision, status text, public_slug text, rating_avg numeric, review_count integer, views_count integer, is_verified boolean, is_premium boolean, gallery_urls jsonb, created_at timestamptz, tax_id text, stripe_account_id text, email text, private_gallery_urls jsonb);
 CREATE TABLE public.services(id uuid primary key, professional_id uuid, price numeric, is_active boolean);
 CREATE TABLE public.categories(id uuid primary key, name text, slug text, parent_id uuid, icon_key text, is_active boolean);
 CREATE TABLE public.professional_categories(professional_id uuid, category_id uuid);
-CREATE TABLE public.sport_spaces(id uuid primary key, name text, slug text, description text, address text, latitude double precision, longitude double precision, status text, is_verified boolean, rating_avg numeric, review_count integer, gallery_urls jsonb, cover_url text, created_at timestamptz, owner_user_id uuid);
+CREATE TABLE public.sport_spaces(id uuid primary key, name text, slug text, description text, address text, latitude double precision, longitude double precision, status text, is_verified boolean, rating_avg numeric, review_count integer, gallery_urls jsonb, cover_url text, created_at timestamptz, owner_user_id uuid, stripe_account_id text, email text, tax_id text, private_gallery_urls jsonb);
 CREATE TABLE public.space_rooms(id uuid primary key, space_id uuid, price_per_hour numeric, is_active boolean);
 CREATE TABLE public.space_categories(space_id uuid, category_id uuid);
 CREATE FUNCTION public.search_professionals_by_radius(double precision,double precision,double precision) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 CREATE FUNCTION public.search_spaces_by_radius(double precision,double precision,double precision) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
+GRANT SELECT ON public.professionals, public.sport_spaces TO anon, authenticated;
 `;
 
 const fixtureSql = `
@@ -54,17 +56,19 @@ try {
       "SELECT 1 FROM pg_roles WHERE rolname = $1",
       [role],
     );
-    if (!rowCount)
+    if (!rowCount) {
       await admin.query(
         `CREATE ROLE ${role} NOLOGIN${role === "service_role" ? " BYPASSRLS" : ""}`,
       );
+      createdRoles.push(role);
+    }
   }
 
   await admin.query(`CREATE DATABASE "${databaseName}"`);
   databaseCreated = true;
-  const parsedUrl = new URL(databaseUrl);
-  parsedUrl.pathname = `/${databaseName}`;
-  isolated = new Client({ connectionString: parsedUrl.toString() });
+  const isolatedUrl = new URL(parsedUrl.toString());
+  isolatedUrl.pathname = `/${databaseName}`;
+  isolated = new Client({ connectionString: isolatedUrl.toString() });
   await isolated.connect();
   await isolated.query(baselineSql);
 
@@ -87,14 +91,18 @@ try {
       has_function_privilege('authenticated','public.search_spaces_by_radius(double precision,double precision,double precision)','EXECUTE') AS authenticated_legacy_spaces,
       has_function_privilege('service_role','public.search_spaces_by_radius(double precision,double precision,double precision)','EXECUTE') AS service_legacy_spaces,
       has_function_privilege('anon','public.discover_spaces(double precision,double precision,double precision,uuid[],text,text,numeric,numeric,numeric,text,integer,integer)','EXECUTE') AS anon_discovery,
-      has_table_privilege('anon','public.sport_spaces','SELECT') AS anon_direct_space_select
+      has_table_privilege('anon','public.sport_spaces','SELECT') AS anon_direct_space_select,
+      has_column_privilege('anon','public.professionals','tax_id','SELECT') AS anon_direct_professional_tax_id_select,
+      has_column_privilege('authenticated','public.sport_spaces','stripe_account_id','SELECT') AS authenticated_direct_space_stripe_select
   `);
   assert.deepEqual(aclRows[0], {
     anon_legacy_professionals: false,
     authenticated_legacy_spaces: false,
     service_legacy_spaces: true,
     anon_discovery: true,
-    anon_direct_space_select: false,
+    anon_direct_space_select: true,
+    anon_direct_professional_tax_id_select: true,
+    authenticated_direct_space_stripe_select: true,
   });
 
   await isolated.query("SET ROLE anon");
@@ -119,7 +127,7 @@ try {
   assert.equal(Number(professionalRows[0].total_count), 2);
   assert.equal(professionalRows[0].exposes_internal_owner_id, false);
   console.log(
-    "Public discovery PostgreSQL contract passed: migration parse, RPC ACL, owner eligibility, and DTO minimization.",
+    "Public discovery PostgreSQL RPC contract passed. Owner filtering and DTO minimization passed; legacy direct table/column SELECT grants remain present and are NOT remediated by these migrations.",
   );
 } finally {
   if (isolated) await isolated.end().catch(() => {});
@@ -128,6 +136,8 @@ try {
       await admin
         .query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`)
         .catch(() => {});
+    for (const role of createdRoles.reverse())
+      await admin.query(`DROP ROLE IF EXISTS ${role}`).catch(() => {});
     await admin.end().catch(() => {});
   }
 }

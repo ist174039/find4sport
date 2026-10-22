@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { marketplaceLineItems, marketplacePaymentIntentData, resolveMarketplacePaymentQuote } from '@/lib/billing/marketplace-payment'
 import { getTrustedApplicationOrigin } from '@/lib/http/trusted-origin'
+import { isPublicProfessionalEligible } from '@/lib/auth/public-account-eligibility'
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +21,9 @@ export async function POST(request: Request) {
     const db = admin as any
     const { data: pack, error } = await db.from('service_packages').select('id,name,professional_id,service_id,sessions_count,price,validity_days,is_active,service:services(name,is_active),professional:professionals(user_id,status,is_premium,stripe_account_id)').eq('id', String(packageId)).maybeSingle()
     if (error || !pack || !pack.is_active || pack.service?.is_active === false || pack.professional?.status !== 'active') return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 404 })
+    if (!pack.professional.user_id) return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 409 })
+    const { data: owner, error: ownerError } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', pack.professional.user_id).maybeSingle()
+    if (ownerError || !isPublicProfessionalEligible(pack.professional.status, owner?.account_status, owner?.suspended_until)) return NextResponse.json({ error: 'Este pacote já não está disponível.' }, { status: 409 })
     if (pack.professional?.user_id === user.id) return NextResponse.json({ error: 'Não podes comprar o teu próprio pacote.' }, { status: 400 })
 
     const { data: subscription } = await admin.from('user_subscriptions').select('tier,status').eq('user_id', pack.professional.user_id).maybeSingle()
