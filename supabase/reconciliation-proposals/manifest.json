@@ -1,0 +1,70 @@
+{
+  "project": "bqjwsllnhvnxrfojftjb",
+  "retrieved_at": "2026-10-21",
+  "warning": "Archived SQL is not an executable Supabase migration directory. Never replay these proposals. Reconcile a new forward migration through an isolated test environment and record its actual remote history only after an approved application.",
+  "proposals": [
+    {
+      "path": "supabase/reconciliation-proposals/20260826000000_space_claim_review_fields.sql",
+      "sha256": "0773a2f6b46ff2abbadd5225bbab3af48f522783dcccf042727a9b4061986ac1",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260826151143",
+      "remote_name": "space_claim_review_fields"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260827000000_admin_roles_and_account_moderation.sql",
+      "sha256": "e2504acd5e286a74ede2d1fd48314843502b1c69e58fc9903103a2b4978ed1a6",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260827030106",
+      "remote_name": "admin_roles_and_account_moderation"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260827000001_fix_provider_identity_role_variable.sql",
+      "sha256": "3c742c932d9c7aea3f33c65fcfa162aa3c3c3ec16e7bb3bc4c370d08f85eeb79",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260827030544",
+      "remote_name": "fix_provider_identity_role_variable"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260903000000_add_editable_event_manager_plan.sql",
+      "sha256": "7eac8387551d1b62733af4bb6b208dbdb0c77422619809dda022e16ec372e0f5",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260903115029",
+      "remote_name": "add_editable_event_manager_plan"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260903010000_restricted_accounts_and_professional_unavailability.sql",
+      "sha256": "f9c8d21c31ed43a94e14fce147e314d22b7ce9e90ac60f6e3742f10540b472a5",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260903120132",
+      "remote_name": "restricted_accounts_and_professional_unavailability"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260903011000_expire_suspensions_automatically.sql",
+      "sha256": "cec67bf0f2dac7a8472ab8e9e6b7f7375c2d272914cacdbcd1247c5bb600a818",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260903120613",
+      "remote_name": "expire_suspensions_automatically"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260903020000_event_manager_role_and_community_status.sql",
+      "sha256": "afa0f5b8343737b7fd7a84c97f48fe5b8b7c3e2acdf04a69b38b9b7224d8f177",
+      "status": "superseded_by_exact_remote_history",
+      "remote_version": "20260903122814",
+      "remote_name": "event_manager_role_and_community_status"
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",
+      "sha256": "c59683d54824310ef6beff7468bf9360a97d00f195685c0c7cc61c4fbb9fe57e",
+      "status": "live_state_observed_without_history",
+      "remote_version": null,
+      "remote_name": null
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260826042410_secure_public_discovery_contracts.sql",
+      "sha256": "2cbd6fc4010336588123ccace66b0e105632caef1fba0023a51edf609bc2a86d",
+      "status": "live_state_observed_without_history",
+      "remote_version": null,
+      "remote_name": null
+    }
+  ]
+}

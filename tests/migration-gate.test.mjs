@@ -18,7 +18,7 @@ async function runGate(change) {
     await copyFile(new URL('../scripts/check-migrations.mjs', import.meta.url), join(root, 'scripts', 'check-migrations.mjs'))
     const fixture = {
       sql,
-      baseline: { project: 'fixture', cutoff_version: version, reconciled: [{ version, name, sha256: createHash('sha256').update(sql).digest('hex') }] },
+      baseline: { project: 'fixture', cutoff_version: version, reconciled: [{ version, name, sha256: createHash('sha256').update(sql).digest('hex') }], pending_forward_reconciliation: [] },
       provenance: { project: 'fixture', retrieved_at: '2026-10-21', history: [{ version, name }], migrations: [{ version, name, statements: [sql.trimEnd()] }] },
     }
     change?.(fixture)
@@ -65,4 +65,18 @@ test('migration gate rejects a matching checksum when recorded SQL differs', asy
   const result = await runGate(f => { f.provenance.migrations[0].statements = ['select 2;'] })
   assert.equal(result.status, 1)
   assert.match(result.output, /differs from recorded SQL/)
+})
+
+test('migration gate remains blocked while history reconciliation is pending', async () => {
+  const result = await runGate(f => {
+    f.baseline.pending_forward_reconciliation = [{
+      path: 'supabase/reconciliation-proposals/untracked.sql',
+      sha256: createHash('sha256').update('select 2;\n').digest('hex'),
+      status: 'live_state_observed_without_history',
+      remote_version: null,
+      remote_name: null,
+    }]
+  })
+  assert.equal(result.status, 1)
+  assert.match(result.output, /forward reconciliation pending/)
 })

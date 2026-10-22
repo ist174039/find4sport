@@ -73,6 +73,22 @@ else {
   }
 }
 
+if (!Array.isArray(baseline.pending_forward_reconciliation)) {
+  errors.push('migration baseline pending_forward_reconciliation must be an array; unresolved history must be explicit')
+} else {
+  for (const entry of baseline.pending_forward_reconciliation) {
+    const path = String(entry?.path || '')
+    const version = String(entry?.version || '')
+    const name = String(entry?.name || '')
+    if (!path || !/^[a-f0-9]{64}$/.test(String(entry?.sha256 || ''))) {
+      errors.push(`invalid pending reconciliation entry: ${JSON.stringify(entry)}`)
+      continue
+    }
+    if (version && remoteHistory.has(version)) errors.push(`pending reconciliation version is already present in remote history: ${version}`)
+    errors.push(`forward reconciliation pending: ${path}${version && name ? ` (${version}_${name})` : ''}`)
+  }
+}
+
 if (warnings.length) {
   console.warn(`Migration reconciliation warnings (${warnings.length}):`)
   for (const warning of warnings) console.warn(`- ${warning}`)

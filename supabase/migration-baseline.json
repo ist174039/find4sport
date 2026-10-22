@@ -3,23 +3,159 @@
   "policy": "All production migrations at or after cutoff must exist in Git with the exact version and name.",
   "cutoff_version": "20260819211506",
   "reconciled": [
-    { "version": "20260819211506", "name": "prevent_reservation_overlap" },
-    { "version": "20260819211602", "name": "enforce_event_registration_capacity" },
-    { "version": "20260819211724", "name": "harden_booking_capacity_objects" },
-    { "version": "20260819211802", "name": "consolidate_reservation_read_policy" },
-    { "version": "20260819211835", "name": "consolidate_space_professional_policies" },
-    { "version": "20260819211854", "name": "consolidate_admin_read_policy" },
-    { "version": "20260822005025", "name": "harden_platform_users_column_updates" },
-    { "version": "20260822015406", "name": "add_processing_reservation_settlement_status" },
-    { "version": "20260822222924", "name": "category_professional_icons" },
-    { "version": "20260823185415", "name": "category_taxonomy_dimensions" },
-    { "version": "20260823185717", "name": "seed_canonical_sport_modalities" },
-    { "version": "20260823193452", "name": "seed_professional_specialties_services" },
-    { "version": "20260823193820", "name": "normalize_legacy_taxonomy_entries" },
-    { "version": "20260823233822", "name": "add_event_categories_taxonomy_relation" },
-    { "version": "20260826034331", "name": "harden_private_community_post_visibility" },
-    { "version": "20260826042410", "name": "secure_public_discovery_contracts" },
-    { "version": "20260826043325", "name": "add_public_event_participant_count", "sha256": "5536f7a280c95b27dec18f446d7c8f465bd6be9530c6568a11ce1be33f605f28", "provenance": "migration-provenance.json" },
-    { "version": "20260827030638", "name": "allow_multi_provider_capabilities", "sha256": "7b431f1da49ff323b2ee8354bd8b218f86069cd5216bdd2bc860d36a78984b90", "provenance": "migration-provenance.json" }
+    {
+      "version": "20260819211506",
+      "name": "prevent_reservation_overlap",
+      "sha256": "ee83057c6d42e8122b09ede885c683e62b4e9a06334f5846c5c1379e0fd62044",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260819211602",
+      "name": "enforce_event_registration_capacity",
+      "sha256": "79587636cf9f8c28707f71ce3c73e12387b65593368e1a21ba08689ddda9c6db",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260819211724",
+      "name": "harden_booking_capacity_objects",
+      "sha256": "4c8fc0e187a59358f720014d9de75e7405326a33f66edaabb40bd6736498442b",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260819211802",
+      "name": "consolidate_reservation_read_policy",
+      "sha256": "ad19cee788b75ab55eff91c98651f756b636be4069c895b5b2525a523ffa0a25",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260819211835",
+      "name": "consolidate_space_professional_policies",
+      "sha256": "23b8448e094f24fd207219a2808102d262a20920c07cf165c61b8f8369d24997",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260819211854",
+      "name": "consolidate_admin_read_policy",
+      "sha256": "ada65cf200da402230e111292b1674e2a45e01f1f17df4500ee434cee909c071",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260822005025",
+      "name": "harden_platform_users_column_updates",
+      "sha256": "3593203d2b3c7373f7e8ef8897c5ddabfa97d8a1fd49bfdebba38522637a845d",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260822015406",
+      "name": "add_processing_reservation_settlement_status",
+      "sha256": "2c82394c3cc314239d050b1b2836b887936aabbb16e6dd430c6ee9525a8e0ba1",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260822222924",
+      "name": "category_professional_icons",
+      "sha256": "a4b0f232a29b05f7edf40ded96bf6c6812ffd304be0b1f75ca4df5d14300411c",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260823185415",
+      "name": "category_taxonomy_dimensions",
+      "sha256": "7737f201ac605c2e342b9d5be5ac313d3f29068674ddf305ce9fdb40fec7cf38",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260823185717",
+      "name": "seed_canonical_sport_modalities",
+      "sha256": "38ff8238f6b999bdd03b178597fa14e99860dc653cf6d0ab2b13fd123bb54df6",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260823193452",
+      "name": "seed_professional_specialties_services",
+      "sha256": "0e26b238587716bf7dd1dd157546b8a0111a0aaf43db0db27951a8d17abfbe6d",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260823193820",
+      "name": "normalize_legacy_taxonomy_entries",
+      "sha256": "1ef26f6351a2296dfeb6aa1ade419162316407cd43452206db3f5847c5281ee1",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260823233822",
+      "name": "add_event_categories_taxonomy_relation",
+      "sha256": "e1a9516b0e9c212c1cb81167ef07c238b0125262428e608ceb2ac2040b28066c",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260826043325",
+      "name": "add_public_event_participant_count",
+      "sha256": "5536f7a280c95b27dec18f446d7c8f465bd6be9530c6568a11ce1be33f605f28",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260826151143",
+      "name": "space_claim_review_fields",
+      "sha256": "3cab7cb5b7d4b855c6a4dda38242997d937c0f607ecc1546f3afa53ea53717ab",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260827030106",
+      "name": "admin_roles_and_account_moderation",
+      "sha256": "aba7851197f3b644231757cb7779facb86de869c8689cf0bb03929768be744c1",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260827030544",
+      "name": "fix_provider_identity_role_variable",
+      "sha256": "d08cbf98165da734da2d9333b6475fea489dc5aeee3361b76d1a9353de57aac4",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260827030638",
+      "name": "allow_multi_provider_capabilities",
+      "sha256": "7b431f1da49ff323b2ee8354bd8b218f86069cd5216bdd2bc860d36a78984b90",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260903115029",
+      "name": "add_editable_event_manager_plan",
+      "sha256": "8f866ecc6cd13e613d9e7be729f16dc8567d8d812c4f74b39b7ca09663fc4086",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260903120132",
+      "name": "restricted_accounts_and_professional_unavailability",
+      "sha256": "a1ffd2e286603fbe7fc2079af724f663e5a821f459b6e899d461e68d16fc4e42",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260903120613",
+      "name": "expire_suspensions_automatically",
+      "sha256": "c2afdd9435b7e2b14da0fc7795ebae25098619ec0594719d3cb0baa064979a3b",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20260903122814",
+      "name": "event_manager_role_and_community_status",
+      "sha256": "72bf3cc2ead0048bde3689a21f3baf0798a0abaa445c3e5f8d29d3744da54956",
+      "provenance": "migration-provenance.json"
+    }
+  ],
+  "pending_forward_reconciliation": [
+    {
+      "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",
+      "sha256": "c59683d54824310ef6beff7468bf9360a97d00f195685c0c7cc61c4fbb9fe57e",
+      "status": "live_state_observed_without_history",
+      "remote_version": null,
+      "remote_name": null
+    },
+    {
+      "path": "supabase/reconciliation-proposals/20260826042410_secure_public_discovery_contracts.sql",
+      "sha256": "2cbd6fc4010336588123ccace66b0e105632caef1fba0023a51edf609bc2a86d",
+      "status": "live_state_observed_without_history",
+      "remote_version": null,
+      "remote_name": null
+    }
   ]
 }
