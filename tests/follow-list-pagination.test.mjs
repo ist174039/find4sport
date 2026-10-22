@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const action = await readFile(new URL('../app/actions/follow.ts', import.meta.url), 'utf8')
 const modal = await readFile(new URL('../components/follow-list-modal.tsx', import.meta.url), 'utf8')
+const dashboard = await readFile(new URL('../app/dashboard/seguidores/page.tsx', import.meta.url), 'utf8')
 
 test('social list server actions return ordered pages capped at 25 and propagate query errors', () => {
   assert.match(action, /const FOLLOW_LIST_PAGE_SIZE = 25/)
@@ -21,4 +22,16 @@ test('social list modal appends pages and distinguishes empty results from query
   assert.match(modal, /setItems\(current => \[\.\.\.current, \.\.\.\(result\.list \|\| \[\]\)/)
   assert.match(modal, /'Carregar mais'/)
   assert.match(modal, /role="alert"/)
+})
+
+test('authenticated network dashboard does not represent failed queries as empty lists or zero metrics', () => {
+  assert.ok(action.includes('data: follows, error: followsError'))
+  assert.ok(action.includes('if (followsError) throw followsError'))
+  assert.ok(action.includes('data: { user }, error: authError'))
+  assert.ok(action.includes('if (authError) throw authError'))
+  assert.match(dashboard, /const loadError=followingResult.error||followersResult.error/)
+  assert.ok(dashboard.includes('role="alert"'))
+  assert.ok(dashboard.includes('Não foi possível carregar a sua rede'))
+  assert.match(dashboard, /value=\{loadError\?'—':following.length\}/)
+  assert.match(dashboard, /!loadError&&/)
 })

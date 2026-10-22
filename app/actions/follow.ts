@@ -162,10 +162,12 @@ export async function getFollowersListPage(targetUserId: string, offset = 0) {
 export async function getFollowingList(targetUserId: string) {
   try {
     const supabase = await createClient()
-    const { data: follows } = await supabase.from('user_follows').select('following_id').eq('follower_id', targetUserId)
+    const { data: follows, error: followsError } = await supabase.from('user_follows').select('following_id').eq('follower_id', targetUserId)
+    if (followsError) throw followsError
     const ids = (follows || []).map((f: any) => f.following_id)
     const list = await enrichUserIds(supabase, ids)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) throw authError
     const myFollowingIds = await getMyFollowingIds(supabase, user?.id)
     return { success: true, list: list.map(item => ({ ...item, isFollowedByMe: myFollowingIds.includes(item.userId) })), currentUserId: user?.id || null }
   } catch (err) { return { error: err instanceof Error ? err.message : 'Erro ao carregar lista.', list: [], currentUserId: null } }
@@ -174,10 +176,12 @@ export async function getFollowingList(targetUserId: string) {
 export async function getFollowersList(targetUserId: string) {
   try {
     const supabase = await createClient()
-    const { data: follows } = await supabase.from('user_follows').select('follower_id').eq('following_id', targetUserId)
+    const { data: follows, error: followsError } = await supabase.from('user_follows').select('follower_id').eq('following_id', targetUserId)
+    if (followsError) throw followsError
     const ids = (follows || []).map((f: any) => f.follower_id)
     const list = await enrichUserIds(supabase, ids)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) throw authError
     const myFollowingIds = await getMyFollowingIds(supabase, user?.id)
     return { success: true, list: list.map(item => ({ ...item, isFollowedByMe: myFollowingIds.includes(item.userId) })), currentUserId: user?.id || null }
   } catch (err) { return { error: err instanceof Error ? err.message : 'Erro ao carregar lista.', list: [], currentUserId: null } }
