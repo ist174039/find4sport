@@ -55,9 +55,10 @@
     {
       "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",
       "sha256": "c59683d54824310ef6beff7468bf9360a97d00f195685c0c7cc61c4fbb9fe57e",
-      "status": "live_state_observed_without_history",
-      "remote_version": null,
-      "remote_name": null
+      "status": "superseded_by_forward_migration",
+      "remote_version": "20261022102137",
+      "remote_name": "enforce_community_post_visibility",
+      "disposition": "Do not claim the archived historical proposal was applied. The current community visibility rule was reasserted and recorded under this actual forward migration."
     },
     {
       "path": "supabase/reconciliation-proposals/20260826042410_secure_public_discovery_contracts.sql",

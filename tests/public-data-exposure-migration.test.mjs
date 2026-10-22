@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 
 const migration = new URL('../supabase/migrations/20261022101506_revoke_legacy_public_radius_search.sql', import.meta.url)
 const discoveryMigration = new URL('../supabase/migrations/20261022101921_secure_public_discovery_allowlist.sql', import.meta.url)
+const communityVisibilityMigration = new URL('../supabase/migrations/20261022102137_enforce_community_post_visibility.sql', import.meta.url)
 const homePage = new URL('../app/(public)/page.tsx', import.meta.url)
 const feedPage = new URL('../app/(public)/feed/page.tsx', import.meta.url)
 const bookingPage = new URL('../app/(public)/reservar/[slug]/page.tsx', import.meta.url)
@@ -50,6 +51,19 @@ test('public discovery RPCs use explicit projections and a fixed search path', a
   }
   assert.match(sql, /grant execute on function public\.discover_professionals\([\s\s\S]+?to anon,authenticated/)
   assert.match(sql, /grant execute on function public\.discover_spaces\([\s\s\S]+?to anon,authenticated/)
+})
+
+test('community visibility is tracked by the applied forward policy migration', async () => {
+  const sql = (await readFile(communityVisibilityMigration, 'utf8')).toLowerCase()
+  for (const [table, policy, legacy] of [
+    ['posts', 'posts_visible_by_community', 'public profiles are viewable by everyone.'],
+    ['post_comments', 'post_comments_visible_by_post', 'comments are viewable by everyone'],
+    ['post_likes', 'post_likes_visible_by_post', 'likes are viewable by everyone'],
+  ]) {
+    assert.match(sql, new RegExp(`drop policy if exists \\"${legacy}\\" on public\\.${table}`))
+    assert.match(sql, new RegExp(`create policy \\"${policy}\\"[\\s\\S]+?on public\\.${table}`))
+  }
+  assert.equal((sql.match(/app_private\.can_view_community\(/g) || []).length, 3)
 })
 
 test('public home counts use the RLS-protected server client', async () => {

@@ -152,16 +152,14 @@
       "name": "secure_public_discovery_allowlist",
       "sha256": "727a2edd206310939a33e59e1e69b3cc745c4e898aed677544b5038d024b69d5",
       "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20261022102137",
+      "name": "enforce_community_post_visibility",
+      "sha256": "3a7bd267121bac25c92baa6125839e6e84132104600558e2d5bc035b993f243d",
+      "provenance": "migration-provenance.json"
     }
   ],
   "pending_forward_migrations": [],
-  "pending_forward_reconciliation": [
-    {
-      "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",
-      "sha256": "c59683d54824310ef6beff7468bf9360a97d00f195685c0c7cc61c4fbb9fe57e",
-      "status": "live_state_observed_without_history",
-      "remote_version": null,
-      "remote_name": null
-    }
-  ]
+  "pending_forward_reconciliation": []
 }
