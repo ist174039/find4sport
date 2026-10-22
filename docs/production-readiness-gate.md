@@ -106,3 +106,10 @@ The only migration gate blocker now is historical provenance for the community p
 ## Migration gate closure — 2026-10-22
 
 The community policy gap was closed forward, not by repairing or fabricating the old historical row. Supabase applied `20261022102137_enforce_community_post_visibility`, reasserting the current posts/comments/likes policies and removing the old broad policy names. A read-only catalog check confirmed those policies and the private membership helper afterward. The archived `20260826034331` proposal is marked superseded by this real forward migration, not applied. Repository integrity and `--release` migration gate now pass with zero pending forward migrations and zero unresolved historical reconciliations (45 legacy filename warnings remain non-blocking). Overall release readiness remains **35/100 — NO-GO** because direct table/column grants and other external readiness criteria remain open. No main merge or Vercel deploy.
+## Security delta — 2026-10-22 10:32 UTC
+
+- Applied forward migration `20261022103139_revoke_public_event_participant_count` through Supabase's supported migration tool.
+- Catalog verification: `anon` and `authenticated` cannot execute `public_event_participant_count(uuid)`; `service_role` can. Security Advisor no longer reports this function as publicly executable `SECURITY DEFINER`.
+- Remaining Supabase security finding: direct table/column `SELECT` grants to `anon` and `authenticated` on `professionals` and `sport_spaces`; leaked-password protection is disabled.
+- Local checks: focused public-data-exposure tests 11/11; `node scripts/check-migrations.mjs --release` passed with zero pending migration records and 45 non-blocking legacy-name warnings. CI on the changed SHA has not run yet.
+- Readiness remains 35/100, Red / NO-GO. PR #33 is draft and these changes are not in `main`; no production deploy.

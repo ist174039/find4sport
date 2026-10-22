@@ -158,6 +158,12 @@
       "name": "enforce_community_post_visibility",
       "sha256": "3a7bd267121bac25c92baa6125839e6e84132104600558e2d5bc035b993f243d",
       "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20261022103139",
+      "name": "revoke_public_event_participant_count",
+      "sha256": "52a3866a0da2878fb15b1bfa170f2bb705ad0ca6fe9fde9cef3792c64a82b89f",
+      "provenance": "migration-provenance.json"
     }
   ],
   "pending_forward_migrations": [],

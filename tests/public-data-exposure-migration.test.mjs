@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 const migration = new URL('../supabase/migrations/20261022101506_revoke_legacy_public_radius_search.sql', import.meta.url)
 const discoveryMigration = new URL('../supabase/migrations/20261022101921_secure_public_discovery_allowlist.sql', import.meta.url)
 const communityVisibilityMigration = new URL('../supabase/migrations/20261022102137_enforce_community_post_visibility.sql', import.meta.url)
+const eventCountMigration = new URL('../supabase/migrations/20261022103139_revoke_public_event_participant_count.sql', import.meta.url)
 const homePage = new URL('../app/(public)/page.tsx', import.meta.url)
 const feedPage = new URL('../app/(public)/feed/page.tsx', import.meta.url)
 const bookingPage = new URL('../app/(public)/reservar/[slug]/page.tsx', import.meta.url)
@@ -64,6 +65,12 @@ test('community visibility is tracked by the applied forward policy migration', 
     assert.match(sql, new RegExp(`create policy \\"${policy}\\"[\\s\\S]+?on public\\.${table}`))
   }
   assert.equal((sql.match(/app_private\.can_view_community\(/g) || []).length, 3)
+})
+
+test('public event participant count is not executable through public API roles', async () => {
+  const sql = (await readFile(eventCountMigration, 'utf8')).toLowerCase()
+  assert.match(sql, /revoke execute on function public\.public_event_participant_count\(uuid\)\s+from public, anon, authenticated/)
+  assert.match(sql, /grant execute on function public\.public_event_participant_count\(uuid\)\s+to service_role/)
 })
 
 test('public home counts use the RLS-protected server client', async () => {
