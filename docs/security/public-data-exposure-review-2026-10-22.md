@@ -50,6 +50,10 @@ The PostgreSQL harness itself now refuses remote hosts, requires an explicit des
 
 The review also found that generic user follows accept a target user ID without checking account eligibility, and follower/following enrichment does not filter restricted account owners. Track this separately; public follow behavior needs an explicit requirement before broadening the guard to every account type.
 
+## Conversation recipient search — local implementation
+
+`components/new-conversation-modal.tsx` now calls the authenticated `searchConversationContacts` server action instead of querying `platform_users`, `professionals`, and `sport_spaces` in the browser. The action derives the viewer with `auth.getUser()`, fails closed on query errors, filters eligible accounts and active verified provider profiles/spaces, excludes self and unclaimed spaces, bounds and escapes input, and returns a minimal identity DTO. The UI now states the separate active reservation/paid event requirement; `sendMessage` keeps its independent context authorization. Static boundary tests, 79 repository tests, TypeScript, and targeted ESLint passed. This does not close broad table grants, test the action against a live Supabase project, or authorize a first-contact message without an active context.
+
 ## Dashboard identity minimization — 2026-10-22
 
 The authenticated dashboard layout previously selected the full professional row to render three sidebar values. It now selects only `full_name`, `professional_name`, and `avatar_url`, scoped to the authenticated session user's `user_id`. A static regression test guards both the projection and ownership predicate. This reduces server-rendered overfetch for this one consumer; it does not change the underlying `anon`/`authenticated` grants, prove PostgREST isolation, or reduce the remaining direct-read inventory. The existing grants finding remains open and release readiness remains NO-GO.
