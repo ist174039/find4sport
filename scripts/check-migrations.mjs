@@ -19,6 +19,7 @@ if (!Array.isArray(provenance.history) || !Array.isArray(provenance.migrations))
 }
 const remoteHistory = new Map(provenance.history.map(entry => [entry.version, entry.name]))
 console.log(`Read-only remote history snapshot: ${provenance.retrieved_at}; ${remoteHistory.size} records. This does not verify current production state.`)
+const releaseMode = process.argv.includes('--release')
 
 for (const file of files) {
   const match = file.match(strictPattern)
@@ -61,9 +62,37 @@ else {
     }
   }
 
+  const pendingLocal = new Map()
+  if (!Array.isArray(baseline.pending_forward_migrations)) {
+    errors.push('migration baseline pending_forward_migrations must be an array')
+  } else {
+    for (const entry of baseline.pending_forward_migrations) {
+      const version = String(entry?.version || '')
+      const name = String(entry?.name || '')
+      const path = String(entry?.path || '')
+      const status = String(entry?.status || '')
+      const expectedHash = String(entry?.sha256 || '')
+      const match = path.match(/^supabase\/migrations\/(\d{14})_([a-z0-9]+(?:_[a-z0-9]+)*)\.sql$/)
+      if (!match || match[1] !== version || match[2] !== name || status !== 'not_applied' || !/^[a-f0-9]{64}$/.test(expectedHash)) {
+        errors.push(`invalid pending forward migration entry: ${JSON.stringify(entry)}`)
+        continue
+      }
+      if (pendingLocal.has(version)) errors.push(`duplicate pending forward migration version: ${version}`)
+      pendingLocal.set(version, name)
+      if (remoteHistory.has(version)) errors.push(`pending forward migration is already present in remote history: ${version}_${name}`)
+      try {
+        const sql = await readFile(new URL(`../${path}`, import.meta.url))
+        const hash = createHash('sha256').update(sql).digest('hex')
+        if (hash !== expectedHash) errors.push(`pending forward migration checksum mismatch: ${path}`)
+      } catch {
+        errors.push(`pending forward migration missing from Git: ${path}`)
+      }
+    }
+  }
+
   for (const [version, git] of versions) {
     if (version >= baseline.cutoff_version && !baselineVersions.has(version)) {
-      errors.push(`strict migration ${git.file} is not registered in supabase/migration-baseline.json`)
+      if (pendingLocal.get(version) !== git.name) errors.push(`strict migration ${git.file} is neither reconciled nor registered as pending in supabase/migration-baseline.json`)
     }
   }
   for (const [version, name] of remoteHistory) {
@@ -96,8 +125,17 @@ if (!Array.isArray(baseline.pending_forward_reconciliation)) {
       errors.push(`pending reconciliation proposal missing from Git: ${path}`)
     }
     if (version && remoteHistory.has(version)) errors.push(`pending reconciliation version is already present in remote history: ${version}`)
-    errors.push(`forward reconciliation pending: ${path}${version && name ? ` (${version}_${name})` : ''}`)
+    warnings.push(`historical reconciliation remains pending: ${path}${version && name ? ` (${version}_${name})` : ''}`)
   }
+}
+
+for (const entry of baseline.pending_forward_migrations || []) {
+  const { version, name } = entry
+  if (releaseMode) errors.push(`release blocked: forward migration is not applied: ${version}_${name}`)
+  else console.warn(`pending deployment migration (not counted as applied): ${version}_${name}`)
+}
+for (const entry of baseline.pending_forward_reconciliation || []) {
+  if (releaseMode) errors.push(`release blocked: historical migration provenance unresolved: ${entry.path}`)
 }
 
 if (warnings.length) {
@@ -111,4 +149,7 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log(`Migration gate passed: ${files.length} SQL files; ${versions.size} strict timestamped migrations; ${baseline.reconciled.length} reconciled production migrations; ${warnings.length} legacy files.`)
+const pendingCount = baseline.pending_forward_migrations?.length || 0
+const reconciliationCount = baseline.pending_forward_reconciliation?.length || 0
+console.log(`Migration repository integrity passed: ${files.length} SQL files; ${versions.size} strict timestamped migrations; ${baseline.reconciled.length} reconciled production migrations; ${pendingCount} pending forward migrations; ${reconciliationCount} unresolved historical reconciliations; ${warnings.length} legacy files.`)
+if (!releaseMode && (pendingCount || reconciliationCount)) console.log('This is not a release-readiness result. Run with --release to fail while either pending list is non-empty.')

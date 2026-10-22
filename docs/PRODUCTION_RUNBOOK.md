@@ -130,7 +130,7 @@ This runbook is the operational continuity procedure for application incidents. 
 
 For each release or incident, retain the commit SHA, Quality workflow URL/result, E2E Smoke workflow URL/result, Vercel production deployment ID/status, health endpoint response, unresolved runtime error groups, Supabase migration/security review, and (for payment changes) Stripe Test Mode evidence. A passing repository check does not prove production migration parity; confirm the Supabase migration history and schema/security state through the authorized project operator.
 
-The repository's current migration gate checks filename and baseline consistency only. It does not query the live database. Do not add a migration to `supabase/migration-baseline.json` until its production version and name have been verified against Supabase migration history.
+`node scripts/check-migrations.mjs` validates repository integrity against the checked-in, read-only Supabase history snapshot. A pass does not establish release readiness. Run `node scripts/check-migrations.mjs --release` before release; it must pass after every forward migration has been applied and verified and historical provenance has been reconciled. Do not mark a migration as applied or add it to `reconciled` until its production version and name have been verified against Supabase migration history.
 
 ### Find4Sport project review (2026-10-18)
 

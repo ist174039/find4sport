@@ -32,7 +32,7 @@ Local validation of the correction branch passed TypeScript, 56 tests and the pr
 
 These findings keep the release gate **blocked** until the migration gate passes and production evidence is attached for the same release commit. A clean local dependency audit does not establish remote CI or full security compliance.
 
-The migration gate remains blocked on the two historical entries without remote history rows. A read-only review of the authorized Supabase project (`bqjwsllnhvnxrfojftjb`) found 81 remote migration records; exact SQL for all 23 post-cutoff records is now stored and checksum-verified. The detailed reconciliation is in `docs/migration-reconciliation-2026-10-21.md`. Do not infer historical provenance from current catalog state or alter remote history outside Supabase's supported repair process.
+The repository integrity gate now explicitly tracks two unapplied forward migrations and two historical entries without remote history rows. A read-only review of the authorized Supabase project (`bqjwsllnhvnxrfojftjb`) found 81 remote migration records; exact SQL for all 23 post-cutoff records is stored and checksum-verified. `node scripts/check-migrations.mjs` checks repository integrity; `node scripts/check-migrations.mjs --release` remains blocked until the two forward migrations are applied and the two historical entries have sufficient provenance. Do not infer historical provenance from current catalog state or alter remote history outside Supabase's supported repair process.
 
 ## Security remediation update — 2026-10-22
 

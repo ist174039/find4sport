@@ -44,7 +44,7 @@ jobs:
         id: install
         run: npm ci
 
-      - name: Migration repository gate
+      - name: Migration repository integrity (does not establish release readiness)
         id: migrations
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: node scripts/check-migrations.mjs

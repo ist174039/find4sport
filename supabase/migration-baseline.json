@@ -142,6 +142,22 @@
       "provenance": "migration-provenance.json"
     }
   ],
+  "pending_forward_migrations": [
+    {
+      "version": "20261022002606",
+      "name": "revoke_legacy_public_radius_search",
+      "path": "supabase/migrations/20261022002606_revoke_legacy_public_radius_search.sql",
+      "sha256": "936db1d49b6f6ff7788c8ad8fc2f290a81f231af7294257f33fd42a8911c094d",
+      "status": "not_applied"
+    },
+    {
+      "version": "20261022003244",
+      "name": "secure_public_discovery_allowlist",
+      "path": "supabase/migrations/20261022003244_secure_public_discovery_allowlist.sql",
+      "sha256": "fbd1757471516df34678c967e868d5b816edaa68434092019b66cc715581b850",
+      "status": "not_applied"
+    }
+  ],
   "pending_forward_reconciliation": [
     {
       "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",
