@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { TablesInsert } from '@/lib/supabase-types'
 import { revalidatePath } from 'next/cache'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 
 function toMinutes(value: string) {
   const [hours, minutes] = value.split(':').map(Number)
@@ -156,6 +157,14 @@ export async function createFreeReservationAction(input: { serviceId?: string | 
     roomId = room.id
   } else {
     throw new Error('Seleciona um serviço ou uma sala/campo.')
+  }
+
+  if (spaceId) {
+    const { data: space, error: spaceError } = await admin.from('sport_spaces').select('id,status,owner_user_id').eq('id', spaceId).maybeSingle()
+    if (spaceError || !space || space.status !== 'active') throw new Error('O espaço já não está disponível.')
+    if (!space.owner_user_id) throw new Error('O espaço ainda não foi reivindicado.')
+    const { data: owner, error: ownerError } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', space.owner_user_id).maybeSingle()
+    if (ownerError || !isPublicAccountEligible(owner?.account_status, owner?.suspended_until)) throw new Error('O espaço já não está disponível.')
   }
 
   const endTime = addMinutes(startTime, duration)

@@ -1,7 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { isPlatformRole, type PlatformRole } from '@/lib/auth/roles'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 import { revalidatePath } from 'next/cache'
 
 export async function toggleFollowAction(targetUserId: string, pathToRevalidate?: string) {
@@ -24,6 +26,38 @@ export async function toggleFollowAction(targetUserId: string, pathToRevalidate?
   } catch (err) {
     console.error('Follow action error:', err)
     return { error: err instanceof Error ? err.message : 'Ocorreu um erro ao seguir o utilizador.' }
+  }
+}
+
+/** Follow the eligible owner of a public space without sending the owner's internal user ID to the browser. */
+export async function toggleFollowSpaceAction(spaceId: string, pathToRevalidate?: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Utilizador não autenticado')
+    if (!spaceId) throw new Error('Espaço inválido')
+
+    const admin = createAdminClient()
+    const { data: space } = await admin.from('sport_spaces').select('id,status,owner_user_id').eq('id', spaceId).maybeSingle()
+    if (!space || space.status !== 'active' || !space.owner_user_id) throw new Error('Este espaço não está disponível.')
+    if (user.id === space.owner_user_id) throw new Error('Não podes seguir a ti próprio.')
+
+    const { data: owner } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', space.owner_user_id).maybeSingle()
+    if (!owner || !isPublicAccountEligible(owner.account_status, owner.suspended_until)) throw new Error('Este espaço não está disponível.')
+
+    const { data: existingFollow } = await supabase.from('user_follows').select('id').eq('follower_id', user.id).eq('following_id', space.owner_user_id).maybeSingle()
+    if (existingFollow) {
+      const { error } = await supabase.from('user_follows').delete().eq('id', existingFollow.id)
+      if (error) throw error
+    } else {
+      const { error } = await supabase.from('user_follows').insert({ follower_id: user.id, following_id: space.owner_user_id })
+      if (error) throw error
+    }
+    if (pathToRevalidate) revalidatePath(pathToRevalidate)
+    return { success: true, isFollowing: !existingFollow }
+  } catch (err) {
+    console.error('Follow space action error:', err)
+    return { error: err instanceof Error ? err.message : 'Ocorreu um erro ao seguir o espaço.' }
   }
 }
 

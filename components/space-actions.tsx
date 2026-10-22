@@ -2,36 +2,33 @@
 
 import { useEffect, useState } from 'react'
 import { Calendar, Loader2, Navigation } from 'lucide-react'
-import { InitiateConversationButton } from '@/components/initiate-conversation-btn'
 import { BookingWizard } from '@/components/booking-wizard'
 import { createClient } from '@/lib/supabase/client'
 
-export function ReserveSpaceBtn({ spaceName, ownerUserId, spaceId }: { spaceName: string; ownerUserId: string | null; spaceId?: string }) {
+export function ReserveSpaceBtn({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false)
-  const [bookable, setBookable] = useState<boolean | null>(spaceId ? (ownerUserId ? null : false) : Boolean(ownerUserId))
+  const [bookable, setBookable] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!spaceId || !ownerUserId) return
-
     let cancelled = false
     void (async () => {
-      const supabase = createClient()
-      const [{ data: space }, { data: rooms }] = await Promise.all([
-        supabase.from('sport_spaces').select('stripe_account_id,status').eq('id', spaceId).maybeSingle(),
-        supabase.from('space_rooms').select('id,price_per_hour,is_active').eq('space_id', spaceId).eq('is_active', true),
-      ])
-      if (cancelled) return
-      const activeRooms = rooms || []
-      const hasPaidRoom = activeRooms.some(room => Number(room.price_per_hour || 0) > 0)
-      const canCharge = String(space?.stripe_account_id || '').startsWith('acct_')
-      setBookable(space?.status === 'active' && activeRooms.length > 0 && (!hasPaidRoom || canCharge))
+      try {
+        const supabase = createClient()
+        const [{ data: rooms }, paymentResponse] = await Promise.all([
+          supabase.from('space_rooms').select('id,price_per_hour,is_active').eq('space_id', spaceId).eq('is_active', true),
+          fetch(`/api/spaces/${encodeURIComponent(spaceId)}/payment-capability`, { cache: 'no-store' }),
+        ])
+        if (cancelled) return
+        const activeRooms = rooms || []
+        const hasPaidRoom = activeRooms.some(room => Number(room.price_per_hour || 0) > 0)
+        const paymentCapability = paymentResponse.ok ? await paymentResponse.json() : { enabled: false }
+        setBookable(paymentCapability.active === true && activeRooms.length > 0 && (!hasPaidRoom || paymentCapability.enabled === true))
+      } catch {
+        if (!cancelled) setBookable(false)
+      }
     })()
     return () => { cancelled = true }
-  }, [ownerUserId, spaceId])
-
-  if (!spaceId) {
-    return <InitiateConversationButton targetUserId={ownerUserId} targetName={spaceName} icon={Calendar} label="Reservar Espaço" emptyTargetMessage="Este espaço ainda não tem um contacto ativo para mensagens." selfTargetMessage="Você é o proprietário deste espaço desportivo." initialMessageBuilder={(name) => `Olá! Gostaria de fazer uma reserva no espaço desportivo "${name}". Podemos combinar os horários por aqui?`} errorMessage="Erro ao iniciar conversa para reserva." successMessage="Mensagem de pedido de reserva enviada! A redirecionar para a caixa de mensagens..." />
-  }
+  }, [spaceId])
 
   if (bookable === null) {
     return <button type="button" disabled className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 text-sm font-semibold text-muted-foreground sm:w-auto"><Loader2 className="h-4 w-4 animate-spin" />A verificar reservas…</button>

@@ -7,7 +7,7 @@ import { HomeCardImage } from '@/components/home/home-card-image'
 import { PageContainer } from '@/components/patterns/page-shell'
 import { createClient } from '@/lib/supabase/server'
 import { parseGeoCookie } from '@/lib/geo'
-import { PUBLIC_EVENT_STATUS, PUBLIC_PROFESSIONAL_STATUS, PUBLIC_SPACE_STATUS } from '@/lib/domain/public-entities'
+import { PUBLIC_EVENT_STATUS } from '@/lib/domain/public-entities'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +46,12 @@ function resultCount(result: PromiseSettledResult<CountResponse>) {
   return result.status === 'fulfilled' && !result.value.error ? result.value.count || 0 : 0
 }
 
+function discoveryTotalCount(result: PromiseSettledResult<RpcResponse>) {
+  if (result.status === 'rejected' || result.value.error || !Array.isArray(result.value.data)) return 0
+  const first = result.value.data[0] as DiscoveryRow<unknown> | undefined
+  return Number(first?.total_count || 0)
+}
+
 function distance(value?: number | null) {
   return value == null ? null : value < 1 ? `${Math.round(value * 1000)} m de ti` : `${value.toFixed(1)} km de ti`
 }
@@ -69,9 +75,7 @@ export default async function Page() {
   const now = new Date().toISOString()
   const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => PromiseLike<RpcResponse>
 
-  const [spacesCount, profsCount, eventsCount, athletesCount, communitiesCount, carouselResult, proResult, spaceResult, eventResult, communityResult] = await Promise.allSettled([
-    supabase.from('sport_spaces').select('id', { count: 'exact', head: true }).eq('status', PUBLIC_SPACE_STATUS),
-    supabase.from('professionals').select('id', { count: 'exact', head: true }).eq('status', PUBLIC_PROFESSIONAL_STATUS),
+  const [eventsCount, athletesCount, communitiesCount, carouselResult, proResult, spaceResult, eventResult, communityResult] = await Promise.allSettled([
     supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', PUBLIC_EVENT_STATUS).gte('start_date', now),
     supabase.from('platform_users').select('id', { count: 'exact', head: true }).eq('type', 'athlete').eq('account_status', 'active'),
     supabase.from('communities').select('id', { count: 'exact', head: true }).eq('status', 'active'),
@@ -89,7 +93,7 @@ export default async function Page() {
   const communities = rows<CommunityCard>(communityResult)
 
   return <div className="flex min-h-screen flex-col bg-background">
-    <HeroCarousel slides={carousel} spacesCount={resultCount(spacesCount)} profsCount={resultCount(profsCount)} eventsCount={resultCount(eventsCount)} athletesCount={resultCount(athletesCount)} communitiesCount={resultCount(communitiesCount)} />
+    <HeroCarousel slides={carousel} spacesCount={discoveryTotalCount(spaceResult)} profsCount={discoveryTotalCount(proResult)} eventsCount={resultCount(eventsCount)} athletesCount={resultCount(athletesCount)} communitiesCount={resultCount(communitiesCount)} />
     <section className="border-b py-10 sm:py-16"><PageContainer><h2 className="text-2xl font-bold sm:text-3xl">Explore a plataforma</h2><p className="mt-2 text-sm text-muted-foreground">Acede diretamente ao que procuras.</p><div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">{ecosystem.map(item => <Link key={item.href} href={item.href} className="flex min-h-32 flex-col justify-between rounded-2xl border bg-card p-4 transition hover:border-primary/40"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><item.icon className="h-5 w-5" /></div><div><h3 className="font-semibold">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p></div></Link>)}</div></PageContainer></section>
 
     <section className="border-b py-10 sm:py-16"><PageContainer><SectionHeading title="Profissionais recomendados" description="Proximidade e reputação, sem misturar promoção paga no ranking." href="/profissionais" /><SectionState failed={professionals.failed} empty={!professionals.items.length} label="profissionais" href="/profissionais" />{!professionals.failed && professionals.items.length > 0 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">{professionals.items.map(pro => <Link href={`/profissionais/${pro.public_slug || pro.id}`} key={pro.id} className="overflow-hidden rounded-2xl border bg-card transition hover:border-primary/40"><HomeCardImage src={pro.avatar_url} alt={pro.professional_name || pro.full_name || 'Profissional'} icon={Users} /><div className="p-3"><div className="flex gap-1"><h3 className="line-clamp-2 flex-1 text-sm font-semibold">{pro.professional_name || pro.full_name || 'Profissional'}</h3>{pro.is_verified && <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" />}</div>{pro.address && <p className="mt-2 flex items-center gap-1 truncate text-[11px] text-muted-foreground"><MapPin className="h-3 w-3" />{pro.address}</p>}{distance(pro.distanceKm) && <p className="mt-1 text-[11px] font-medium text-primary">{distance(pro.distanceKm)}</p>}{pro.averagePrice != null && <p className="mt-1 text-[11px] font-semibold">Média {money(pro.averagePrice)} / sessão</p>}{Number(pro.review_count || 0) > 0 && <p className="mt-2 flex items-center gap-1 text-[11px]"><Star className="h-3 w-3 fill-amber-500 text-amber-500" />{Number(pro.rating_avg || 0).toFixed(1)} ({pro.review_count})</p>}</div></Link>)}</div>}</PageContainer></section>

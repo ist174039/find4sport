@@ -23,3 +23,9 @@ On 2026-10-22 the authorized Supabase MCP connection re-read the remote migratio
 No production SQL was executed, no remote migration history was changed, and no deployment was made.
 
 Release remains blocked until the two history exceptions are resolved through supported, reviewed evidence and the full CI/release gate passes on the candidate commit.
+
+## Security source correction and forward proposals — 2026-10-22
+
+The previous paragraph describing discovery functions as `SECURITY INVOKER` reflected the archived proposal, not the executable historical SQL. Follow-up inspection of `supabase/migrations/20260816_zz_public_discovery.sql` found both professional and space discovery functions defined as `SECURITY DEFINER`, selecting full rows and serializing them. The archived `20260826042410_secure_public_discovery_contracts.sql` remains a proposal and must not be replayed.
+
+Two forward migrations have been drafted locally: `20261022002606_revoke_legacy_public_radius_search.sql` and `20261022003244_secure_public_discovery_allowlist.sql`. They are not registered as applied, have not been run in an isolated Postgres/Supabase environment, and have not been applied remotely. Accordingly the migration gate reports four blockers: two new strict migrations not registered in the baseline plus two unresolved historical entries. This correction supersedes the earlier discovery-function status above; no change to remote state is implied.

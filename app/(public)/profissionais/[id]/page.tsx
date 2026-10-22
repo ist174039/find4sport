@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Award, BadgeCheck, Building2, Dumbbell, ExternalLink, Globe2, MapPin, MessageSquare, Star, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 import { ContactarProfissionalBtn } from '@/components/professional-actions'
 import { ObterDirecoesBtn } from '@/components/space-actions'
 import { ReviewsSection } from '@/components/reviews-section'
@@ -38,7 +40,7 @@ type CategoryRelation = { category: { name: string | null } | null }
 type Qualification = { id: string; title: string; issuer: string | null }
 type Community = { id: string; slug: string | null; name: string }
 type CommunityRelation = { community: Community | null }
-type Space = { id: string; name: string; slug: string | null; address: string | null; logo_url: string | null; is_verified: boolean | null; status: string | null }
+type Space = { id: string; name: string; slug: string | null; address: string | null; logo_url: string | null; is_verified: boolean | null; status: string | null; owner_user_id: string | null }
 type SpaceRelation = { space: Space | null }
 type RpcResult = { data: unknown; error: { message: string } | null }
 type RpcCall = (name: string, args: Record<string, unknown>) => PromiseLike<RpcResult>
@@ -47,7 +49,7 @@ function safeExternalUrl(value?: string | null) { if (!value) return null; try {
 
 export default async function ProfessionalProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
-  const admin = supabase
+  const admin = createAdminClient()
   const { id: rawId } = await params
   const isUuid = /^[0-9a-f-]{36}$/i.test(rawId)
 
@@ -56,8 +58,8 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
   if (isUuid) professional = (await admin.from('professionals').select(publicFields).eq('id', rawId).maybeSingle()).data as Professional | null
   if (!professional) professional = (await admin.from('professionals').select(publicFields).eq('public_slug', rawId).maybeSingle()).data as Professional | null
   if (!professional || professional.status !== PUBLIC_PROFESSIONAL_STATUS) notFound()
-  const { data: publicOwner } = await admin.from('platform_users').select('id').eq('id', professional.user_id).eq('account_status', 'active').maybeSingle()
-  if (!publicOwner) notFound()
+  const { data: publicOwner } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', professional.user_id).maybeSingle()
+  if (!isPublicAccountEligible(publicOwner?.account_status, publicOwner?.suspended_until)) notFound()
 
   const rpc = admin.rpc.bind(admin) as unknown as RpcCall
   void rpc('increment_professional_views', { prof_id: professional.id })
@@ -67,7 +69,7 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
     admin.from('qualifications').select('id,title,issuer').eq('professional_id', professional.id).order('created_at', { ascending: false }),
     admin.from('community_members').select('community:communities(id,slug,name)').eq('user_id', professional.user_id),
     admin.from('services').select('*').eq('professional_id', professional.id).eq('is_active', true).order('price', { ascending: true }),
-    admin.from('space_professionals').select('space:sport_spaces(id,name,slug,address,logo_url,is_verified,status)').eq('professional_id', professional.id).eq('status', 'active'),
+    admin.from('space_professionals').select('space:sport_spaces(id,name,slug,address,logo_url,is_verified,status,owner_user_id)').eq('professional_id', professional.id).eq('status', 'active'),
     admin.from('user_follows').select('id', { count: 'exact', head: true }).eq('following_id', professional.user_id),
     admin.from('user_subscriptions').select('tier,status').eq('user_id', professional.user_id).maybeSingle(),
     supabase.auth.getUser(),
@@ -76,7 +78,13 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
   const categories = ((catData || []) as CategoryRelation[]).flatMap(row => row.category?.name ? [row.category.name] : [])
   const communities = ((memberData || []) as CommunityRelation[]).flatMap(row => row.community ? [row.community] : [])
   const qualificationsList = (qualifications || []) as Qualification[]
-  const associatedSpaces = ((associationRows || []) as SpaceRelation[]).flatMap(row => row.space ? [row.space] : []).filter(space => space.status === 'active')
+  const associatedSpaceCandidates = ((associationRows || []) as SpaceRelation[]).flatMap(row => row.space ? [row.space] : []).filter(space => space.status === 'active' && Boolean(space.owner_user_id))
+  const associatedOwnerIds = [...new Set(associatedSpaceCandidates.map(space => space.owner_user_id).filter((id): id is string => Boolean(id)))]
+  const { data: associatedOwners } = associatedOwnerIds.length
+    ? await admin.from('platform_users').select('id,account_status,suspended_until').in('id', associatedOwnerIds)
+    : { data: [] as { id: string; account_status: string; suspended_until: string | null }[] }
+  const eligibleAssociatedOwnerIds = new Set((associatedOwners || []).filter(owner => isPublicAccountEligible(owner.account_status, owner.suspended_until)).map(owner => owner.id))
+  const associatedSpaces = associatedSpaceCandidates.filter(space => space.owner_user_id && eligibleAssociatedOwnerIds.has(space.owner_user_id))
   const gallery = Array.isArray(professional.gallery_urls) ? professional.gallery_urls.filter((value): value is string => typeof value === 'string' && value.length > 0) : []
   const activeServices = (services || []) as Service[]
   const displayName = professional.professional_name || professional.full_name || 'Profissional'

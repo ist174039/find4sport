@@ -1,11 +1,13 @@
 import { Compass, FilePlus, Flame, Users } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import PostCard, { type PostCardPost } from '@/components/post-card'
 import { CreatePostBox } from '@/components/create-post-box'
 import { FeedFilterModal } from '@/components/feed-filter-modal'
 import { FollowButton } from '@/components/follow-button'
 import { canCreatePostForRole, normalizePlatformRole } from '@/lib/auth/roles'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 import { PageContainer } from '@/components/patterns/page-shell'
 
 type FollowedProfessional = { id: string; user_id: string; full_name: string | null; avatar_url: string | null; public_slug: string | null; is_verified: boolean | null; rating_avg: number | string | null; review_count: number | null }
@@ -16,8 +18,15 @@ type RankedEntity = { rating_avg: number | string | null; review_count: number |
 
 const score = (entity: RankedEntity) => Number(entity.review_count || 0) * 2 + Number(entity.rating_avg || 0)
 
+async function eligibleOwnerIds(ids: string[]) {
+  if (!ids.length) return new Set<string>()
+  const { data } = await createAdminClient().from('platform_users').select('id,account_status,suspended_until').in('id', ids)
+  return new Set((data || []).filter(owner => isPublicAccountEligible(owner.account_status, owner.suspended_until)).map(owner => owner.id))
+}
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const supabase = await createClient()
+  const admin = createAdminClient()
   const { data: { user } } = await supabase.auth.getUser()
   const params = await searchParams
   const dateParam = typeof params.date === 'string' ? params.date : null
@@ -29,19 +38,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
   let currentUserType = 'user', currentUserName = '', currentUserAvatar = ''
   let canPublish = false
   if (user) {
-    const { data: profile } = await supabase.from('platform_users').select('type,full_name,avatar_url').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('platform_users').select('type,full_name,avatar_url,account_status,suspended_until').eq('id', user.id).single()
     if (profile) {
       const normalizedRole = normalizePlatformRole(profile.type)
       currentUserType = profile.type || 'user'
       currentUserName = profile.full_name || ''
       currentUserAvatar = profile.avatar_url || ''
       const [{ data: space }, { data: prof }] = await Promise.all([
-        supabase.from('sport_spaces').select('id,name,logo_url').eq('owner_user_id', user.id).eq('is_verified', true).eq('status', 'active').limit(1).maybeSingle(),
-        supabase.from('professionals').select('id,full_name,avatar_url,is_verified').eq('user_id', user.id).eq('is_verified', true).eq('status', 'active').maybeSingle(),
+        admin.from('sport_spaces').select('id,name,logo_url').eq('owner_user_id', user.id).eq('is_verified', true).eq('status', 'active').limit(1).maybeSingle(),
+        admin.from('professionals').select('id,full_name,avatar_url,is_verified').eq('user_id', user.id).eq('is_verified', true).eq('status', 'active').maybeSingle(),
       ])
       if (space) { currentUserType = 'venue_manager'; currentUserName = space.name || currentUserName; currentUserAvatar = space.logo_url || currentUserAvatar }
       else if (prof) { currentUserType = 'professional'; currentUserName = prof.full_name || currentUserName; currentUserAvatar = prof.avatar_url || currentUserAvatar }
-      canPublish = canCreatePostForRole(normalizedRole) && Boolean(space || prof)
+      canPublish = isPublicAccountEligible(profile.account_status, profile.suspended_until) && canCreatePostForRole(normalizedRole) && Boolean(space || prof)
     }
   }
 
@@ -55,11 +64,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
   let followedSpaceRows: FollowedSpace[] = []
   if (followingIds.length) {
     const [{ data: profs }, { data: spaces }] = await Promise.all([
-      supabase.from('professionals').select('id,user_id,full_name,avatar_url,public_slug,is_verified,rating_avg,review_count').in('user_id', followingIds).eq('is_verified', true).eq('status', 'active').limit(20),
-      supabase.from('sport_spaces').select('id,owner_user_id,name,logo_url,slug,is_verified,rating_avg,review_count').in('owner_user_id', followingIds).eq('is_verified', true).eq('status', 'active').limit(20),
+      admin.from('professionals').select('id,user_id,full_name,avatar_url,public_slug,is_verified,rating_avg,review_count').in('user_id', followingIds).eq('is_verified', true).eq('status', 'active').limit(20),
+      admin.from('sport_spaces').select('id,owner_user_id,name,logo_url,slug,is_verified,rating_avg,review_count').in('owner_user_id', followingIds).eq('is_verified', true).eq('status', 'active').limit(20),
     ])
-    followedProfRows = (profs || []) as FollowedProfessional[]
-    followedSpaceRows = (spaces || []) as FollowedSpace[]
+    const ownerIds = [...new Set([...(profs || []).map(prof => prof.user_id), ...(spaces || []).map(space => space.owner_user_id).filter((id): id is string => Boolean(id))])]
+    const eligibleIds = await eligibleOwnerIds(ownerIds)
+    followedProfRows = ((profs || []).filter(prof => eligibleIds.has(prof.user_id))) as FollowedProfessional[]
+    followedSpaceRows = ((spaces || []).filter(space => space.owner_user_id && eligibleIds.has(space.owner_user_id))) as FollowedSpace[]
   }
 
   let postsQuery = supabase.from('posts').select(`*, professionals (id, full_name, professional_name, avatar_url, public_slug), sport_spaces (id, name, logo_url, slug), platform_users (id, full_name, avatar_url), likes:post_likes(count), comments:post_comments(count)`).is('community_id', null).order('created_at', { ascending: false }).limit(50)
@@ -93,7 +104,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
   const keyword = categoryParam || searchParam
   if (keyword) postsQuery = postsQuery.ilike('content', `%${keyword}%`)
   const { data: postsRaw } = await postsQuery
-  const posts = (postsRaw || []) as PostCardPost[]
+  const rawPosts = (postsRaw || []) as PostCardPost[]
+  const professionalIds = [...new Set(rawPosts.map(post => post.professional_id).filter((id): id is string => Boolean(id)))]
+  const spaceIds = [...new Set(rawPosts.map(post => post.sport_space_id).filter((id): id is string => Boolean(id)))]
+  const [{ data: postProfessionals }, { data: postSpaces }] = await Promise.all([
+    professionalIds.length ? admin.from('professionals').select('id,user_id').in('id', professionalIds) : Promise.resolve({ data: [] }),
+    spaceIds.length ? admin.from('sport_spaces').select('id,owner_user_id').in('id', spaceIds) : Promise.resolve({ data: [] }),
+  ])
+  const postOwnerIds = [...new Set([...(postProfessionals || []).map(pro => pro.user_id), ...(postSpaces || []).map(space => space.owner_user_id).filter((id): id is string => Boolean(id))])]
+  const eligiblePostOwners = await eligibleOwnerIds(postOwnerIds)
+  const professionalOwners = new Map((postProfessionals || []).map(pro => [pro.id, pro.user_id]))
+  const spaceOwners = new Map((postSpaces || []).map(space => [space.id, space.owner_user_id]))
+  const posts = rawPosts.filter(post => {
+    if (post.professional_id) return eligiblePostOwners.has(professionalOwners.get(post.professional_id) || '')
+    if (post.sport_space_id) return Boolean(spaceOwners.get(post.sport_space_id) && eligiblePostOwners.has(spaceOwners.get(post.sport_space_id)!))
+    return true
+  })
 
   let likedPostIds = new Set<string>()
   if (user && posts.length) {
@@ -110,11 +136,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
   const trendingTags = Object.entries(tagCounts).map(([tag, count]) => ({ tag, count })).sort((a, b) => b.count - a.count).slice(0, 5)
 
   const [{ data: suggestedProfsRaw }, { data: suggestedSpacesRaw }] = await Promise.all([
-    supabase.from('professionals').select('id,user_id,full_name,avatar_url,public_slug,is_verified,rating_avg,review_count').eq('is_verified', true).eq('status', 'active').limit(20),
-    supabase.from('sport_spaces').select('id,owner_user_id,name,logo_url,slug,is_verified,rating_avg,review_count').eq('is_verified', true).eq('status', 'active').limit(20),
+    admin.from('professionals').select('id,user_id,full_name,avatar_url,public_slug,is_verified,rating_avg,review_count').eq('is_verified', true).eq('status', 'active').limit(20),
+    admin.from('sport_spaces').select('id,owner_user_id,name,logo_url,slug,is_verified,rating_avg,review_count').eq('is_verified', true).eq('status', 'active').limit(20),
   ])
-  const suggestedProfCandidates = (suggestedProfsRaw || []) as FollowedProfessional[]
-  const suggestedSpaceCandidates = (suggestedSpacesRaw || []) as FollowedSpace[]
+  const suggestionOwnerIds = [...new Set([...(suggestedProfsRaw || []).map(prof => prof.user_id), ...(suggestedSpacesRaw || []).map(space => space.owner_user_id).filter((id): id is string => Boolean(id))])]
+  const eligibleSuggestionIds = await eligibleOwnerIds(suggestionOwnerIds)
+  const suggestedProfCandidates = ((suggestedProfsRaw || []).filter(prof => eligibleSuggestionIds.has(prof.user_id))) as FollowedProfessional[]
+  const suggestedSpaceCandidates = ((suggestedSpacesRaw || []).filter(space => space.owner_user_id && eligibleSuggestionIds.has(space.owner_user_id))) as FollowedSpace[]
   const followedUserIds = new Set(followingIds)
   const suggestedProfs = suggestedProfCandidates.filter(professional => professional.user_id !== user?.id && !followedUserIds.has(professional.user_id)).sort((a, b) => score(b) - score(a)).slice(0, 3)
   const suggestedSpaces = suggestedSpaceCandidates.filter((space): space is FollowedSpace & { owner_user_id: string } => Boolean(space.owner_user_id) && space.owner_user_id !== user?.id && !followedUserIds.has(space.owner_user_id as string)).sort((a, b) => score(b) - score(a)).slice(0, 2)
@@ -125,6 +153,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
     <div className="min-w-0"><CreatePostBox currentUserType={currentUserType} currentUserName={currentUserName} currentUserAvatar={currentUserAvatar} canPublish={canPublish} /></div>
     {posts.length ? posts.map(post => <PostCard key={post.id} post={post} isAuthenticated={Boolean(user)} initialIsLiked={likedPostIds.has(post.id)} />) : <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center sm:p-10">{tabParam === 'following' ? <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" /> : <FilePlus className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />}<h2 className="font-semibold">{tabParam === 'following' ? 'Ainda não há conteúdo das contas que segues' : 'Ainda não há publicações'}</h2><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{tabParam === 'following' ? 'Descobre profissionais e espaços e segue os que te interessam.' : 'Quando profissionais e espaços verificados publicarem, o conteúdo aparecerá aqui.'}</p></div>}
     </main>
-    <aside className="hidden space-y-4 lg:block">{(suggestedProfs.length || suggestedSpaces.length) ? <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Compass className="h-4 w-4 text-primary" /><h2 className="font-semibold">Sugestões</h2></div><div className="space-y-4">{suggestedProfs.map(professional => <div key={professional.id} className="flex items-center justify-between gap-3"><Link href={`/profissionais/${professional.public_slug || professional.id}`} className="min-w-0"><p className="truncate text-sm font-medium">{professional.full_name}</p><p className="text-xs text-muted-foreground">Profissional</p></Link>{user && <FollowButton targetUserId={professional.user_id} initialIsFollowing={false} variant="outline" />}</div>)}{suggestedSpaces.map(space => <div key={space.id} className="flex items-center justify-between gap-3"><Link href={`/espacos/${space.slug || space.id}`} className="min-w-0"><p className="truncate text-sm font-medium">{space.name}</p><p className="text-xs text-muted-foreground">Espaço</p></Link>{user && <FollowButton targetUserId={space.owner_user_id} initialIsFollowing={false} variant="outline" />}</div>)}</div></section> : null}{trendingTags.length > 0 && <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Flame className="h-4 w-4 text-orange-500" /><h2 className="font-semibold">Tendências reais</h2></div>{trendingTags.map(({ tag, count }) => <Link key={tag} href={`/feed?category=${encodeURIComponent(tag.slice(1))}`} className="block rounded-lg p-1 hover:text-primary"><p className="text-sm font-medium">{tag}</p><p className="text-xs text-muted-foreground">{count} {count === 1 ? 'publicação' : 'publicações'}</p></Link>)}</section>}</aside>
+    <aside className="hidden space-y-4 lg:block">{(suggestedProfs.length || suggestedSpaces.length) ? <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Compass className="h-4 w-4 text-primary" /><h2 className="font-semibold">Sugestões</h2></div><div className="space-y-4">{suggestedProfs.map(professional => <div key={professional.id} className="flex items-center justify-between gap-3"><Link href={`/profissionais/${professional.public_slug || professional.id}`} className="min-w-0"><p className="truncate text-sm font-medium">{professional.full_name}</p><p className="text-xs text-muted-foreground">Profissional</p></Link>{user && <FollowButton targetUserId={professional.user_id} initialIsFollowing={false} variant="outline" />}</div>)}{suggestedSpaces.map(space => <div key={space.id} className="flex items-center justify-between gap-3"><Link href={`/espacos/${space.slug || space.id}`} className="min-w-0"><p className="truncate text-sm font-medium">{space.name}</p><p className="text-xs text-muted-foreground">Espaço</p></Link>{user && <FollowButton targetSpaceId={space.id} initialIsFollowing={false} variant="outline" />}</div>)}</div></section> : null}{trendingTags.length > 0 && <section className="rounded-2xl border border-border bg-card p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><Flame className="h-4 w-4 text-orange-500" /><h2 className="font-semibold">Tendências reais</h2></div>{trendingTags.map(({ tag, count }) => <Link key={tag} href={`/feed?category=${encodeURIComponent(tag.slice(1))}`} className="block rounded-lg p-1 hover:text-primary"><p className="text-sm font-medium">{tag}</p><p className="text-xs text-muted-foreground">{count} {count === 1 ? 'publicação' : 'publicações'}</p></Link>)}</section>}</aside>
   </div></PageContainer></div>
 }

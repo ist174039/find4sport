@@ -2,6 +2,8 @@ import type { ComponentProps } from 'react'
 import { Globe, Lock, MapPin, MessageSquare, ShieldCheck, Users } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { isPublicAccountEligible } from '@/lib/auth/public-account-eligibility'
 import PostCard from '@/components/post-card'
 import { JoinCommunityBtn } from '@/components/join-community-btn'
 import { CreateCommunityPostBox } from '@/components/create-community-post-box'
@@ -116,7 +118,19 @@ export default async function CommunityProfilePage({
         .order('joined_at', { ascending: false })
         .limit(100),
     ])
-    posts = (postsResult.data || []) as CommunityPost[]
+    const candidatePosts = (postsResult.data || []) as CommunityPost[]
+    const spaceIds = [...new Set(candidatePosts.map(post => post.sport_space_id).filter((id): id is string => Boolean(id)))]
+    const adminClient = createAdminClient()
+    const { data: spaces } = spaceIds.length
+      ? await adminClient.from('sport_spaces').select('id,owner_user_id').in('id', spaceIds)
+      : { data: [] as { id: string; owner_user_id: string | null }[] }
+    const ownerIds = [...new Set((spaces || []).map(space => space.owner_user_id).filter((id): id is string => Boolean(id)))]
+    const { data: owners } = ownerIds.length
+      ? await adminClient.from('platform_users').select('id,account_status,suspended_until').in('id', ownerIds)
+      : { data: [] as { id: string; account_status: string; suspended_until: string | null }[] }
+    const eligibleOwnerIds = new Set((owners || []).filter(owner => isPublicAccountEligible(owner.account_status, owner.suspended_until)).map(owner => owner.id))
+    const eligibleSpaceIds = new Set((spaces || []).filter(space => space.owner_user_id && eligibleOwnerIds.has(space.owner_user_id)).map(space => space.id))
+    posts = candidatePosts.filter(post => !post.sport_space_id || eligibleSpaceIds.has(post.sport_space_id))
     members = (membersResult.data || []) as CommunityMember[]
   }
 

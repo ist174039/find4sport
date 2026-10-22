@@ -13,6 +13,22 @@ jobs:
   static-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PUBLIC_DISCOVERY_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -52,6 +68,11 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm test
 
+      - name: Public discovery PostgreSQL contract
+        id: postgres_contract
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:postgres:discovery
+
       - name: Production build
         id: build
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -67,6 +88,7 @@ jobs:
           LINT_RESULT: ${{ steps.lint.outcome }}
           TYPECHECK_RESULT: ${{ steps.types.outcome }}
           TEST_RESULT: ${{ steps.tests.outcome }}
+          POSTGRES_CONTRACT_RESULT: ${{ steps.postgres_contract.outcome }}
           BUILD_RESULT: ${{ steps.build.outcome }}
         run: |
           {
@@ -81,6 +103,7 @@ jobs:
             echo "| Lint | $LINT_RESULT |"
             echo "| Typecheck | $TYPECHECK_RESULT |"
             echo "| Tests | $TEST_RESULT |"
+            echo "| PostgreSQL public discovery contract | $POSTGRES_CONTRACT_RESULT |"
             echo "| Build | $BUILD_RESULT |"
             echo ""
             echo "Every required check must succeed. A failed check keeps Quality failed."

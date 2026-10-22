@@ -7,7 +7,6 @@ import { AlertCircle, ArrowLeft, Building2 } from 'lucide-react'
 import { BookingWizard } from '@/components/booking-wizard'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { createClient } from '@/lib/supabase/client'
 import { PUBLIC_SPACE_STATUS } from '@/lib/domain/public-entities'
 
 type PublicSpaceRef = { id: string; slug: string | null; status: string | null }
@@ -25,18 +24,12 @@ export default function BookSpacePage() {
 
     void (async () => {
       try {
-        const supabase = createClient()
-        const isUuid = /^[0-9a-f-]{36}$/i.test(slug)
-        let result = isUuid
-          ? await supabase.from('sport_spaces').select('id,slug,status').eq('id', slug).maybeSingle()
-          : await supabase.from('sport_spaces').select('id,slug,status').eq('slug', slug).maybeSingle()
-
-        if (!result.data && !isUuid) {
-          result = await supabase.from('sport_spaces').select('id,slug,status').eq('id', slug).maybeSingle()
-        }
+        const response = await fetch(`/api/public/spaces/resolve-booking/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+        if (!response.ok) throw new Error('Não foi possível resolver o espaço.')
+        const result = await response.json() as { space: PublicSpaceRef | null }
 
         if (cancelled) return
-        const resolved = result.data as PublicSpaceRef | null
+        const resolved = result.space
         if (!resolved || resolved.status !== PUBLIC_SPACE_STATUS) {
           setError('Este espaço não está disponível para reservas.')
           return
