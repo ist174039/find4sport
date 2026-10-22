@@ -1,16 +1,8 @@
 import 'server-only'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-type MarketplaceAudience = 'professional' | 'venue_manager'
-type PlanCode = 'free' | 'pro' | 'premium'
-export type MarketplacePaymentQuote = { providerUserId: string; audience: MarketplaceAudience; stripeAccountId: string; planCode: PlanCode; baseAmountCents: number; customerFeeCents: number; totalAmountCents: number; commissionCents: number; applicationFeeCents: number; commissionRate: number; customerFeeRate: number }
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing'])
-
-function clampRate(value: unknown, fallback = 0) { const numeric = Number(value); return Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : fallback }
-function validConnectAccount(value: unknown) { const id = String(value || '').trim(); return /^acct_[A-Za-z0-9]{16,}$/.test(id) ? id : null }
-function isMarketplaceAudience(value: string | null): value is MarketplaceAudience { return value === 'professional' || value === 'venue_manager' }
-function resolvePlanCode(tier: string | null | undefined, active: boolean): PlanCode { return active && (tier === 'pro' || tier === 'premium') ? tier : 'free' }
+import { resolveMarketplacePaymentQuoteWithClient, type MarketplacePaymentQuote, type MarketplacePaymentLookupClient } from '@/lib/billing/marketplace-payment-quote'
+export type { MarketplacePaymentQuote } from '@/lib/billing/marketplace-payment-quote'
 
 async function assertConnectAccountReady(accountId: string) {
   const key = process.env.STRIPE_SECRET_KEY
@@ -25,47 +17,13 @@ async function assertConnectAccountReady(accountId: string) {
 }
 
 export async function resolveMarketplacePaymentQuote(providerUserId: string, baseAmountCents: number, destinationAccountId?: string | null): Promise<MarketplacePaymentQuote> {
-  if (!providerUserId) throw new Error('Prestador inválido para pagamento.')
-  if (!Number.isInteger(baseAmountCents) || baseAmountCents <= 0) throw new Error('Valor base inválido para pagamento.')
-
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('platform_users').select('type').eq('id', providerUserId).maybeSingle()
-  if (!profile || !isMarketplaceAudience(profile.type)) throw new Error('O destinatário do pagamento não é um prestador válido.')
-  const audience = profile.type
-
-  let stripeAccountId = validConnectAccount(destinationAccountId)
-  if (!stripeAccountId && audience === 'professional') {
-    const { data: professional } = await admin.from('professionals').select('stripe_account_id,status').eq('user_id', providerUserId).maybeSingle()
-    if (!professional || professional.status !== 'active') throw new Error('O profissional não está ativo para receber pagamentos.')
-    stripeAccountId = validConnectAccount(professional.stripe_account_id)
-  }
-  if (!stripeAccountId && audience === 'venue_manager') {
-    const { data: space } = await admin.from('sport_spaces').select('stripe_account_id,status').eq('owner_user_id', providerUserId).not('stripe_account_id', 'is', null).order('created_at', { ascending: true }).limit(1).maybeSingle()
-    if (!space || space.status !== 'active') throw new Error('O espaço não está ativo para receber pagamentos.')
-    stripeAccountId = validConnectAccount(space.stripe_account_id)
-  }
-  if (!stripeAccountId) throw new Error('O prestador ainda não concluiu a configuração Stripe Connect. O pagamento não pode ser iniciado.')
-
-  await assertConnectAccountReady(stripeAccountId)
-
-  const { data: subscription } = await admin.from('user_subscriptions').select('plan_id,tier,status').eq('user_id', providerUserId).maybeSingle()
-  const active = Boolean(subscription && ACTIVE_SUBSCRIPTION_STATUSES.has(String(subscription.status)))
-  const planCode = resolvePlanCode(subscription?.tier, active)
-  let plan: { commission_rate: number | null; customer_service_fee_rate: number | null } | null = null
-  if (active && subscription?.plan_id) {
-    plan = (await admin.from('subscription_plans').select('commission_rate,customer_service_fee_rate').eq('id', subscription.plan_id).eq('is_active', true).maybeSingle()).data
-  }
-  if (!plan) {
-    plan = (await admin.from('subscription_plans').select('commission_rate,customer_service_fee_rate').eq('audience', audience).eq('code', planCode).eq('is_active', true).maybeSingle()).data
-  }
-
-  const commissionRate = clampRate(plan?.commission_rate, 15)
-  const customerFeeRate = clampRate(plan?.customer_service_fee_rate, 0)
-  const commissionCents = Math.round(baseAmountCents * commissionRate / 100)
-  const customerFeeCents = Math.round(baseAmountCents * customerFeeRate / 100)
-  const totalAmountCents = baseAmountCents + customerFeeCents
-  const applicationFeeCents = Math.min(totalAmountCents, commissionCents + customerFeeCents)
-  return { providerUserId, audience, stripeAccountId, planCode, baseAmountCents, customerFeeCents, totalAmountCents, commissionCents, applicationFeeCents, commissionRate, customerFeeRate }
+  return resolveMarketplacePaymentQuoteWithClient(
+    createAdminClient() as unknown as MarketplacePaymentLookupClient,
+    providerUserId,
+    baseAmountCents,
+    destinationAccountId,
+    assertConnectAccountReady,
+  )
 }
 
 export function marketplacePaymentIntentData(quote: MarketplacePaymentQuote, metadata: Record<string, string>) {
