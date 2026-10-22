@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Json, TablesInsert } from '@/lib/supabase-types'
 import { cleanText, optionalContact } from '@/lib/data-quality/inputs'
+import { isAccountUnavailable } from '@/lib/auth/account-status'
 
 type QualificationInput = { title: string; issuer?: string | null; issue_date?: string | null }
 type ProfessionalInput = {
@@ -31,10 +32,39 @@ type SpaceInput = {
   status?: 'pending' | 'active'
 }
 
+type RegistrationKind = 'professional' | 'space'
+
+export async function getProviderRegistrationBootstrap(kind: RegistrationKind) {
+  try {
+    if (kind !== 'professional' && kind !== 'space') throw new Error('Tipo de registo inválido.')
+    const user = await requireAuthenticatedUser()
+    const admin = createAdminClient()
+    const existingResult = kind === 'professional'
+      ? await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+      : await admin.from('sport_spaces').select('id').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+    if (existingResult.error) throw new Error('Não foi possível verificar o perfil existente.')
+
+    const { data: categories, error } = await admin.from('categories')
+      .select('id,name,slug,emoji,parent_id').eq('is_active', true).order('name')
+    if (error) throw new Error('Não foi possível carregar as modalidades.')
+
+    return {
+      success: true as const,
+      exists: Boolean(existingResult.data),
+      email: user.email || '',
+      fullName: typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : '',
+      categories: categories || [],
+    }
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : 'Não foi possível preparar o registo.' }
+  }
+}
+
 async function requireAuthenticatedUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) throw new Error('Utilizador não autenticado')
+  if (isAccountUnavailable(user)) throw new Error('Esta conta não pode iniciar ou alterar registos.')
   return user
 }
 
@@ -43,7 +73,7 @@ async function validateCategoryIds(ids: string[], max = 5) {
   if (!unique.length) throw new Error('Seleciona pelo menos uma modalidade.')
   if (unique.length > max) throw new Error(`Seleciona no máximo ${max} modalidades.`)
   const admin = createAdminClient()
-  const { data, error } = await admin.from('categories').select('id').in('id', unique)
+  const { data, error } = await admin.from('categories').select('id').in('id', unique).eq('is_active', true)
   if (error) throw new Error('Não foi possível validar as modalidades.')
   if ((data || []).length !== unique.length) throw new Error('Uma ou mais modalidades selecionadas já não existem.')
   return unique
@@ -62,8 +92,6 @@ async function manualProfileApprovalEnabled() {
 }
 
 export async function registerProfessionalInitial(
-  _email: string,
-  _userIdFromClient: string,
   profPayload: ProfessionalInput,
   categoryIds: string[],
   qualifications: QualificationInput[]
@@ -109,10 +137,11 @@ export async function registerProfessionalInitial(
     const { error: profileError } = await admin.from('platform_users').upsert({ id: user.id, full_name: fullName, type: 'professional' })
     if (profileError) return { error: profileError.message }
 
-    const { data: existingProf } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+    const { data: existingProf, error: existingProfError } = await admin.from('professionals').select('id').eq('user_id', user.id).maybeSingle()
+    if (existingProfError) return { error: 'Não foi possível verificar o perfil profissional existente.' }
     let professionalId: string | undefined = existingProf?.id
     if (professionalId) {
-      const { error } = await admin.from('professionals').update(safeProfessionalPayload).eq('id', professionalId)
+      const { error } = await admin.from('professionals').update(safeProfessionalPayload).eq('id', professionalId).eq('user_id', user.id)
       if (error) return { error: error.message }
     } else {
       const { data, error } = await admin.from('professionals').insert(safeProfessionalPayload).select('id').single()
@@ -147,7 +176,7 @@ export async function registerProfessionalInitial(
   }
 }
 
-export async function registerSpaceInitial(_userIdFromClient: string, spacePayload: SpaceInput, name: string, categoryIds: string[] = []) {
+export async function registerSpaceInitial(spacePayload: SpaceInput, name: string, categoryIds: string[] = []) {
   try {
     const user = await requireAuthenticatedUser()
     const admin = createAdminClient()
@@ -180,10 +209,11 @@ export async function registerSpaceInitial(_userIdFromClient: string, spacePaylo
     const { error: profileError } = await admin.from('platform_users').upsert({ id: user.id, full_name: cleanName, type: 'venue_manager' })
     if (profileError) return { error: profileError.message }
 
-    const { data: existingSpace } = await admin.from('sport_spaces').select('id').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+    const { data: existingSpace, error: existingSpaceError } = await admin.from('sport_spaces').select('id').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+    if (existingSpaceError) return { error: 'Não foi possível verificar o espaço existente.' }
     let spaceId: string | undefined = existingSpace?.id
     if (spaceId) {
-      const { error } = await admin.from('sport_spaces').update(safeSpacePayload).eq('id', spaceId)
+      const { error } = await admin.from('sport_spaces').update(safeSpacePayload).eq('id', spaceId).eq('owner_user_id', user.id)
       if (error) return { error: error.message }
     } else {
       const { data, error } = await admin.from('sport_spaces').insert(safeSpacePayload).select('id').single()
