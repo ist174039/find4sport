@@ -83,7 +83,7 @@ try {
 
   for (const filename of [
     "20261022101506_revoke_legacy_public_radius_search.sql",
-    "20261022003244_secure_public_discovery_allowlist.sql",
+    "20261022101921_secure_public_discovery_allowlist.sql",
   ]) {
     await isolated.query(
       await readFile(

@@ -33,3 +33,11 @@ Two forward migrations are present locally: `20261022002606_revoke_legacy_public
 ## Disposition update — 2026-10-22
 
 Read-only inspection confirms the current remote `discover_professionals` and `discover_spaces` are `SECURITY INVOKER`; the remote definitions differ from the archived `20260826042410` proposal. That proposal was never a remote migration and must not be applied or repaired into history. Its intended controls (owner eligibility and minimized response) are handled only by the separate forward migration candidate. Current community policies and `app_private.can_view_community(uuid)` match the expected behavior closely; exact full catalog review is still required before supported history repair.
+
+## Forward security migrations applied — 2026-10-22
+
+The supported Supabase migration operation applied both reviewed forward SQL files. Supabase generated actual versions `20261022101506_revoke_legacy_public_radius_search` and `20261022101921_secure_public_discovery_allowlist`; the local migration filenames, checksums, baseline and provenance snapshot were synchronized to those returned versions and exact submitted SQL.
+
+Read-only verification after application confirmed both legacy radius RPCs are non-executable by `PUBLIC`, `anon` and `authenticated`, and remain executable by `service_role`. The two public discovery functions are `SECURITY INVOKER`, have fixed `search_path=pg_catalog, public`, and execute for anon/authenticated. Their SQL filters active or expired-suspension owners, excludes ownerless spaces, and builds explicit JSON objects without owner IDs or listed private fields. Security Advisor still reports the pre-existing public participant-count definer function and leaked-password protection warning; the discovery change added no new definer warning.
+
+Direct table/column SELECT grants for anon/authenticated remain and this work does not resolve that separate exposure. The archived discovery proposal `20260826042410` is not a migration history gap. Release gate is now blocked only by the community proposal `20260826034331`: the current policies/helper appear equivalent, but the supported CLI repair was unavailable in this workspace. No history row was inserted manually, no merge or Vercel deployment occurred.

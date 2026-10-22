@@ -146,17 +146,15 @@
       "name": "revoke_legacy_public_radius_search",
       "sha256": "936db1d49b6f6ff7788c8ad8fc2f290a81f231af7294257f33fd42a8911c094d",
       "provenance": "migration-provenance.json"
-    }
-  ],
-  "pending_forward_migrations": [
+    },
     {
-      "version": "20261022003244",
+      "version": "20261022101921",
       "name": "secure_public_discovery_allowlist",
-      "path": "supabase/migrations/20261022003244_secure_public_discovery_allowlist.sql",
-      "sha256": "1323718856a6b5a7f0eb8e680b063f32160a747e96b7475e9ddb510ab58bfbcf",
-      "status": "not_applied"
+      "sha256": "727a2edd206310939a33e59e1e69b3cc745c4e898aed677544b5038d024b69d5",
+      "provenance": "migration-provenance.json"
     }
   ],
+  "pending_forward_migrations": [],
   "pending_forward_reconciliation": [
     {
       "path": "supabase/reconciliation-proposals/20260826034331_harden_private_community_post_visibility.sql",

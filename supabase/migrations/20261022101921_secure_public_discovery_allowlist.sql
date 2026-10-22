@@ -1,5 +1,5 @@
 -- Replace discovery functions that serialized entire table rows. Keep the
--- public contract explicit and execute with the owner role, since direct
+-- public contract explicit and execute with the caller's RLS context, since direct
 -- table SELECT is intentionally broader today and is tracked for follow-up.
 -- Product decision: hide owned spaces while their owner is blocked or suspended.
 

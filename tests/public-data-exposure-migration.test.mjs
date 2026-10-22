@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 const migration = new URL('../supabase/migrations/20261022101506_revoke_legacy_public_radius_search.sql', import.meta.url)
-const discoveryMigration = new URL('../supabase/migrations/20261022003244_secure_public_discovery_allowlist.sql', import.meta.url)
+const discoveryMigration = new URL('../supabase/migrations/20261022101921_secure_public_discovery_allowlist.sql', import.meta.url)
 const homePage = new URL('../app/(public)/page.tsx', import.meta.url)
 const feedPage = new URL('../app/(public)/feed/page.tsx', import.meta.url)
 const bookingPage = new URL('../app/(public)/reservar/[slug]/page.tsx', import.meta.url)
