@@ -44,6 +44,7 @@ The transaction order defines the boundary: a reservation whose trigger obtains 
 - The authenticated role test passes without direct SELECT grants on the sensitive tables.
 - Full local suite: 75/75 tests; typecheck passes; lint 0 errors and 350 warnings.
 - CI run 39707978757 on commit `b3b5b32730c190906103ed230711e63de018eb77` passed audit, lint, typecheck, unit tests, synthetic PostgreSQL discovery/booking contract, and build. The migration repository gate still fails on four provenance/reconciliation blockers.
+- Follow-up CI run 39708334447 on docs-only commit `167306189a23321fd40c9261bed31f112ad69fdd` passed audit, lint, typecheck, automated tests, PostgreSQL contract, and build; the migration repository gate still fails on the same four blockers and reports 45 legacy filename warnings.
 
 ## Limitations and required validation
 

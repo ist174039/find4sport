@@ -84,3 +84,9 @@ CI run 39707978757 on `b3b5b32730c190906103ed230711e63de018eb77` passed dependen
 A database trigger proposal now serializes a professional booking insert with owner/profile moderation using row locks. It remains in `supabase/migration-proposals/`, outside the executable migration directory. PostgreSQL 17 local tests passed both lock orderings and the eligibility-state matrix. This is synthetic evidence only; RLS, actual trigger ordering, function owner privileges, and Supabase schema remain unverified. The proposal is not deployed or registered as applied.
 
 Readiness remains **35/100 — NO-GO**. No Supabase remote changes, merge, or production deploy occurred. The pending reservation/Stripe behavior after a later suspension also needs a product and payment-flow decision.
+
+## Quality CI follow-up — 2026-10-22
+
+GitHub Actions Quality run `39708334447` on immutable SHA `167306189a23321fd40c9261bed31f112ad69fdd` completed with the same result: dependency audit, lint, typecheck, automated tests, PostgreSQL 17 contract, and production build passed; the workflow failed only at the migration repository gate. The exact blockers are the two forward migrations `20261022002606_revoke_legacy_public_radius_search.sql` and `20261022003244_secure_public_discovery_allowlist.sql` not being registered as applied, plus the historical entries `20260826034331_harden_private_community_post_visibility.sql` and `20260826042410_secure_public_discovery_contracts.sql` lacking reconciled remote history. The gate reports 45 legacy filename warnings.
+
+This CI result does not resolve the direct `anon`/authenticated table SELECT exposure or verify Supabase integration. Keep readiness **35/100 — NO-GO**. Do not register unapplied migrations or repair historical records without authorized catalog evidence and the supported Supabase procedure. Main remains at `36ac94701c62175cd40c601e644edb2687c10ef1`; no merge, remote database write, or production deployment occurred.
