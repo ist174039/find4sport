@@ -251,16 +251,16 @@
         <table>
           <thead><tr><th>Área</th><th>Evidência registada</th><th>Estado para decisão</th></tr></thead>
           <tbody>
-            <tr><td><strong>CI de qualidade</strong></td><td>Quality #40099179198/#643 passou integralmente em c675080: integrity, audit, lint, typecheck, 117 testes, contrato PostgreSQL e build. Zod atualizado para 4.6.7. Preview READY; health 200 com database=ok e stripe=missing.</td><td class="status ok">Passou no SHA candidato</td></tr>
-            <tr><td><strong>Preview Vercel</strong></td><td>Preview do candidato foi registado como aprovado.</td><td class="status ok">Passou no SHA candidato</td></tr>
+            <tr><td><strong>CI de qualidade</strong></td><td>Quality #40099461119/#644 passou integralmente em 3deea23: integridade de migrations, audit, lint, typecheck, 117 testes, contrato PostgreSQL e build. O finding Zod foi corrigido em c675080. Preview READY; health 200 com database=ok e stripe=missing.</td><td class="status ok">Passou no SHA candidato</td></tr>
+            <tr><td><strong>Preview Vercel</strong></td><td>Preview do SHA 3deea237b1fdfbc3cc9255cbd4cc4d81c070ea74 READY; /api/health verificado em 24/10/2026: HTTP 200, environment=preview, database=ok, stripe=missing.</td><td class="status warn">Disponível; Stripe por configurar</td></tr>
             <tr><td><strong>E2E autenticado</strong></td><td>Smoke público e health passaram; a suite autenticada não correu por falta de credenciais/secrets de teste.</td><td class="status blocked">Bloqueado</td></tr>
-            <tr><td><strong>Leituras privadas de perfil</strong></td><td>Edição, estado profissional e lookup de disponibilidade usam projeções server-side owner-scoped. Testes locais 2/2 para perfil e 1/1 para disponibilidade; typecheck e ESLint focado passaram.</td><td class="status warn">Alterações locais sem CI</td></tr>
-            <tr><td><strong>Production / main</strong></td><td>Último registo Notion aponta main e produção para 36ac947; a branch de trabalho consultada está em 885909e.</td><td class="status warn">Divergentes</td></tr>
+            <tr><td><strong>Leituras privadas de perfil</strong></td><td>Perfil, disponibilidade e avaliações do dashboard validam sessão/papel, consultam IDs do proprietário no servidor com projeções mínimas e falham fechado. O incremento está incluído no CI #644 (117 testes, typecheck, lint e build passam). Grants do Supabase não foram alterados.</td><td class="status ok">CI passou; validação ACL pendente</td></tr>
+            <tr><td><strong>Production / main</strong></td><td>main mantém-se em 36ac94701c62175cd40c601e644edb2687c10ef1. O branch candidato está em 3deea237b1fdfbc3cc9255cbd4cc4d81c070ea74; PR #33 continua aberto/draft.</td><td class="status warn">Candidato não integrado</td></tr>
             <tr><td><strong>Base de dados</strong></td><td>O gate do repositório de migrações foi registado como aprovado. A proveniência integral do histórico remoto e as permissões de leitura continuam sem validação conclusiva.</td><td class="status warn">Parcial</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="footnote" style="margin-top:12px">A CI aprovada corresponde ao commit candidato indicado no Notion. A árvore de trabalho local inclui alterações posteriores não commitadas; por isso, a evidência de CI não cobre essas alterações. Não foi feita nova verificação live de Vercel ou /api/health para este relatório.</p>
+      <p class="footnote" style="margin-top:12px">Quality #644 corresponde ao SHA 3deea237b1fdfbc3cc9255cbd4cc4d81c070ea74 e Vercel Preview desse SHA foi verificado diretamente. A resposta health comprova conectividade básica ao banco no Preview, não grants/RLS nem fluxos autenticados. Produção não foi alterada.</p>
     </section>
 
     <section id="riscos">
