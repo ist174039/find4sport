@@ -122,3 +122,11 @@ The PDD's F19 acceptance criteria require event creation with role validation. T
 ## Iteração local de segurança — página de avaliações — 24/10/2026
 
 Em `app/dashboard/avaliacoes/page.tsx`, as consultas de identificação de proprietário deixaram de usar o cliente de sessão: após `auth.getUser()` e `resolveSessionAccess`, a página resolve `professionals.id` ou `sport_spaces.id,name` através do cliente server-only, filtrado por `user.id`, e falha fechado se a resolução falhar. A consulta de avaliações continua no cliente de sessão, respeitando RLS; filtros de rating e paginação mantidos. O novo caso F4S-TC-SEC-REVIEWS-OWNER-01 passou 1/1 local, além de typecheck, ESLint focal strict e `git diff --check`. Esta evidência está numa working tree não commitada; não valida ACL, E2E, CI, isolamento Supabase nem corrige os grants diretos. A cadeia de acesso por colunas continua parcialmente mitigada e NO-GO.
+
+## Dependência vulnerável encontrada no CI e corrigida no lockfile — 24/10/2026
+
+Quality run #40098949692 / run #642 falhou no `npm audit --audit-level=low`: `zod` 4.4.3 está afetado por GHSA-mrhx-c7xc-m3w5 (exhaustão de memória em coleções extensas), com correção disponível a partir de 4.6.6. `npm audit fix` atualizou somente `package-lock.json` para zod 4.6.7, dentro do intervalo `^4.4.3`; `package.json` não mudou. Localmente `npm audit` reportou zero vulnerabilidades, `npm run check` passou (lint 336 warnings/0 errors, typecheck, 117 testes), `npm run build` passou. Commit `c675080b68cc76d88df10ffdadb000190fac85c5` enviado ao branch; Quality #643 ainda pendente. Risco fica em análise até CI confirmar no SHA. Sem alteração de runtime API intencional, Supabase remoto ou produção.
+
+### Confirmação CI da atualização Zod — 24/10/2026
+
+GitHub Quality run [#40099179198](https://github.com/ist174039/find4sport/actions/runs/40099179198) terminou PASS no SHA `c675080b68cc76d88df10ffdadb000190fac85c5`: migration repository integrity, npm audit, lint, typecheck, 117 testes, contrato PostgreSQL de discovery, build e publicação de evidências. Preview Vercel READY; `/api/health` HTTP 200, `database=ok`, `stripe=missing`. Risco específico GHSA-mrhx-c7xc-m3w5 passa a mitigado; lacuna independente de Stripe e demais gates externos continuam NO-GO.

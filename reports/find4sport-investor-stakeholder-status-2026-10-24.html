@@ -173,7 +173,7 @@
       </div>
     </section>
 
-    <div class="alert"><strong>Leitura para decisão.</strong> A plataforma tem uma base funcional e um candidato técnico com CI/Preview aprovados, mas o gate de validação externa permanece <b>NO-GO</b>. O índice de maturidade documental, testes, rastreabilidade e entrega é 33,79% pela fórmula interna do PDD; não mede probabilidade de sucesso, percentagem de código concluído ou valor da empresa.</div>
+    <div class="alert"><strong>Leitura para decisão.</strong> A plataforma tem uma base funcional e um candidato técnico com CI/Preview aprovados, mas o gate de validação externa permanece <b>NO-GO</b>. O índice de maturidade documental, testes, rastreabilidade e entrega é 35,13% pela fórmula interna do PDD; não mede probabilidade de sucesso, percentagem de código concluído ou valor da empresa.</div>
 
     <nav class="nav" aria-label="Índice do relatório">
       <a href="#resumo">Resumo</a><a href="#produto">Produto e negócio</a><a href="#metricas">Métricas</a><a href="#execucao">Execução</a><a href="#riscos">Riscos</a><a href="#plano">Próximos passos</a><a href="#fontes">Fontes</a>
@@ -229,18 +229,19 @@
       <p class="footnote">Fonte: fórmula de nove indicadores no PDD, última versão consultada. As categorias medem elementos diferentes e têm pesos iguais na média publicada.</p>
       <div class="card" style="margin-top:14px">
         <div class="meter-list">
-          <div class="meter-row"><strong>Requisitos implementados/verificados</strong><div class="track"><div class="fill" style="width:57.4%"></div></div><span class="pct">31/54 · 57,4%</span></div>
-          <div class="meter-row"><strong>Arquitetura observada</strong><div class="track"><div class="fill" style="width:37.5%"></div></div><span class="pct">9/24 · 37,5%</span></div>
-          <div class="meter-row"><strong>Requisitos ligados a testes</strong><div class="track"><div class="fill" style="width:87%"></div></div><span class="pct">47/54 · 87,0%</span></div>
-          <div class="meter-row"><strong>Casos de teste prontos</strong><div class="track"><div class="fill" style="width:36.36%"></div></div><span class="pct">20/55 casos ativos · 36,4%</span></div>
-          <div class="meter-row"><strong>Casos com execução mais recente aprovada</strong><div class="track"><div class="fill" style="width:38.18%"></div></div><span class="pct">21/55 casos ativos · 38,2%</span></div>
-          <div class="meter-row"><strong>Rastreabilidade ponta a ponta</strong><div class="track"><div class="fill" style="width:22.2%"></div></div><span class="pct">12/54 · 22,2%</span></div>
-          <div class="meter-row"><strong>Tarefas concluídas</strong><div class="track"><div class="fill" style="width:14.3%"></div></div><span class="pct">6/42 · 14,3%</span></div>
-          <div class="meter-row"><strong>Riscos mitigados</strong><div class="track"><div class="fill" style="width:11.1%"></div></div><span class="pct">2/18 · 11,1%</span></div>
+          <div class="meter-row"><strong>Requisitos implementados/verificados</strong><div class="track"><div class="fill" style="width:56.36%"></div></div><span class="pct">31/55 · 56,4%</span></div>
+          <div class="meter-row"><strong>Arquitetura observada</strong><div class="track"><div class="fill" style="width:40%"></div></div><span class="pct">10/25 · 40,0%</span></div>
+          <div class="meter-row"><strong>Requisitos ligados a testes</strong><div class="track"><div class="fill" style="width:87.27%"></div></div><span class="pct">48/55 · 87,3%</span></div>
+          <div class="meter-row"><strong>Casos de teste prontos</strong><div class="track"><div class="fill" style="width:37.5%"></div></div><span class="pct">21/56 casos ativos · 37,5%</span></div>
+          <div class="meter-row"><strong>Casos com execução mais recente aprovada</strong><div class="track"><div class="fill" style="width:39.29%"></div></div><span class="pct">22/56 casos ativos · 39,3%</span></div>
+          <div class="meter-row"><strong>Rastreabilidade ponta a ponta</strong><div class="track"><div class="fill" style="width:23.64%"></div></div><span class="pct">13/55 · 23,6%</span></div>
+          <div class="meter-row"><strong>Tarefas concluídas</strong><div class="track"><div class="fill" style="width:16.28%"></div></div><span class="pct">7/43 · 16,3%</span></div>
+          <div class="meter-row"><strong>Riscos mitigados</strong><div class="track"><div class="fill" style="width:15.79%"></div></div><span class="pct">3/19 · 15,8%</span></div>
           <div class="meter-row"><strong>Normas com evidência de conformidade</strong><div class="track"><div class="fill" style="width:0%"></div></div><span class="pct">0/35 · 0%</span></div>
         </div>
       </div>
-      <div class="alert"><strong>Interpretação:</strong> 28 execuções registadas têm resultado Passou, 8 Falhou e 19 Bloqueado. O indicador 21/55 acima considera a execução mais recente por caso; não deve ser confundido com o total de execuções aprovadas. Existe uma linha duplicada de caso marcada Obsoleto e excluída do denominador ativo.</div>
+      <div class="alert"><strong>Interpretação:</strong> 29 execuções registadas têm resultado Passou, 8 Falhou e 19 Bloqueado. O indicador 22/56 acima considera a execução mais recente por caso; não deve ser confundido com o total de execuções aprovadas. Existe uma linha duplicada de caso marcada Obsoleto e excluída do denominador ativo.
+      </div>
     </section>
 
     <section id="execucao">
@@ -250,7 +251,7 @@
         <table>
           <thead><tr><th>Área</th><th>Evidência registada</th><th>Estado para decisão</th></tr></thead>
           <tbody>
-            <tr><td><strong>CI de qualidade</strong></td><td>Quality run #39767772722 passou migration repository integrity, audit, lint, typecheck, 113 testes, contrato PostgreSQL de descoberta, build e publicação de evidências no SHA candidato. A working tree mais recente passou localmente 117 testes, typecheck, lint (336 warnings, 0 errors), build e diff-check; ainda sem CI do novo SHA.</td><td class="status blocked">CI candidato passou; diff local aguarda CI</td></tr>
+            <tr><td><strong>CI de qualidade</strong></td><td>Quality #40099179198/#643 passou integralmente em c675080: integrity, audit, lint, typecheck, 117 testes, contrato PostgreSQL e build. Zod atualizado para 4.6.7. Preview READY; health 200 com database=ok e stripe=missing.</td><td class="status ok">Passou no SHA candidato</td></tr>
             <tr><td><strong>Preview Vercel</strong></td><td>Preview do candidato foi registado como aprovado.</td><td class="status ok">Passou no SHA candidato</td></tr>
             <tr><td><strong>E2E autenticado</strong></td><td>Smoke público e health passaram; a suite autenticada não correu por falta de credenciais/secrets de teste.</td><td class="status blocked">Bloqueado</td></tr>
             <tr><td><strong>Leituras privadas de perfil</strong></td><td>Edição, estado profissional e lookup de disponibilidade usam projeções server-side owner-scoped. Testes locais 2/2 para perfil e 1/1 para disponibilidade; typecheck e ESLint focado passaram.</td><td class="status warn">Alterações locais sem CI</td></tr>
