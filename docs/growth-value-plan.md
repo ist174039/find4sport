@@ -19,6 +19,10 @@ Goal confirmed on 2026-10-21: acquire customers and generate revenue over the ne
 | V11 | P1 | Segment interviews and pricing/acquisition/referral experiments with measured cost and results | Customer counts and budget; explicit outreach/campaign instructions |
 | V12 | P2 | Reviewable ownership/licensing, costs, contracts, architecture, release evidence and monthly business metrics | Verified sources; restricted personal/contract data |
 
+## Migration and release status — 2026-10-22
+
+The V02 details above are historical. The latest candidate Quality run `39767772722` on `885909e64d23a6ebbc9882a744fad54aa6c54dd7` passed repository migration integrity with zero pending forward migrations and zero unresolved historical reconciliations; 45 legacy filename warnings remain. Do not change baseline/history to simulate application. Remote provenance and release readiness still require their own evidence. Direct profile-table SELECT exposure, authenticated E2E, leaked-password protection and privacy review remain blockers; `main` and production are still at `36ac94701c62175cd40c601e644edb2687c10ef1` and release is NO-GO.
+
 ## Measurement
 
 Keep transaction volume separate from platform revenue. Exclude test data and account for refunds. Record definitions, source, period, denominator and verification date. Do not invent targets or infer paying customers from registrations.

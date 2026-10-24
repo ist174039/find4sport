@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Find4Sport | Relatório de estado para investidores e stakeholders</title>
+  <style>
+    :root {
+      --ink: #18312f;
+      --muted: #58706c;
+      --brand: #168f72;
+      --brand-dark: #0b5c4b;
+      --brand-pale: #e7f5ef;
+      --paper: #f6faf8;
+      --white: #fff;
+      --line: #dce9e4;
+      --amber: #a96309;
+      --amber-pale: #fff5df;
+      --red: #a53d3b;
+      --red-pale: #fff0ef;
+      --blue: #315b8a;
+      --blue-pale: #edf4fc;
+      --radius: 18px;
+      --shadow: 0 14px 40px rgba(19, 67, 55, .08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.62 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    h1, h2, h3, .display { font-family: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.025em; }
+    a { color: var(--brand-dark); text-underline-offset: 3px; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #49b997; outline-offset: 3px; }
+    .topline { height: 7px; background: linear-gradient(90deg, #0d7059, #38b587, #a0d8bb); }
+    .page { max-width: 1180px; margin: 0 auto; padding: 30px 28px 64px; }
+    .masthead { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:24px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:750; letter-spacing:.02em; }
+    .brand-mark { width:42px; height:42px; display:grid; place-items:center; border-radius:14px; color:#fff; background:var(--brand-dark); font:700 14px/1 "Space Grotesk",sans-serif; box-shadow:0 8px 18px rgba(11,92,75,.19); }
+    .confidential { border:1px solid var(--line); border-radius:999px; padding:7px 13px; color:var(--muted); background:#ffffffb8; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .hero { position:relative; overflow:hidden; padding:52px 54px 48px; border-radius:28px; background:linear-gradient(118deg,#0c5949 0%,#11765c 57%,#269578 100%); color:white; box-shadow:var(--shadow); }
+    .hero:after { content:""; position:absolute; right:-110px; top:-180px; width:440px; height:440px; border:1px solid rgba(255,255,255,.14); border-radius:50%; box-shadow:0 0 0 45px rgba(255,255,255,.035),0 0 0 94px rgba(255,255,255,.025); }
+    .eyebrow { margin:0 0 12px; color:#bcebd8; font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { max-width:760px; margin:0; font-size:clamp(36px,6vw,60px); line-height:1.03; }
+    .hero-sub { max-width:730px; margin:20px 0 30px; color:#e4f7ef; font-size:18px; }
+    .hero-meta { display:flex; flex-wrap:wrap; gap:10px 24px; color:#dbf2e9; font-size:13px; }
+    .hero-meta strong { color:white; }
+    .hero-index { position:absolute; z-index:1; right:7%; top:50%; transform:translateY(-42%); text-align:center; }
+    .dial { width:150px; height:150px; display:grid; place-items:center; border-radius:50%; background:conic-gradient(#c9f0df 0 33.26%,rgba(255,255,255,.2) 33.26% 100%); }
+    .dial:before { content:""; position:absolute; width:126px; height:126px; border-radius:50%; background:#126d56; }
+    .dial-text { z-index:1; display:flex; flex-direction:column; align-items:center; }
+    .dial-text strong { font:700 36px/1 "Space Grotesk",sans-serif; }
+    .dial-text span { margin-top:7px; color:#c8ecdc; font-size:10px; font-weight:750; letter-spacing:.09em; text-transform:uppercase; }
+    .hero-index small { display:block; margin-top:12px; color:#dbf2e9; font-size:11px; }
+    .alert { margin:22px 0 0; padding:14px 17px; border-left:4px solid #e3a334; border-radius:0 12px 12px 0; background:var(--amber-pale); color:#60430f; font-size:14px; }
+    .alert strong { color:#493208; }
+    .nav { display:flex; flex-wrap:wrap; gap:8px; padding:18px 0 8px; }
+    .nav a { padding:7px 12px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--muted); font-size:12px; text-decoration:none; }
+    .nav a:hover { border-color:#8bcfb4; color:var(--brand-dark); }
+    section { margin-top:50px; scroll-margin-top:20px; }
+    .section-kicker { margin:0 0 7px; color:var(--brand); font-size:11px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
+    h2 { margin:0 0 18px; font-size:30px; line-height:1.14; }
+    h3 { margin:0 0 8px; font-size:17px; line-height:1.25; }
+    p { margin:0 0 12px; }
+    .lead { max-width:880px; color:#435d57; font-size:18px; }
+    .grid { display:grid; gap:14px; }
+    .grid-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .grid-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .card { padding:20px; border:1px solid var(--line); border-radius:var(--radius); background:var(--white); box-shadow:0 5px 16px rgba(19,67,55,.035); }
+    .metric { min-height:125px; }
+    .metric .value { display:block; margin-bottom:7px; color:var(--brand-dark); font:700 31px/1 "Space Grotesk",sans-serif; }
+    .metric .label { color:var(--muted); font-size:13px; }
+    .metric .note { display:block; margin-top:8px; color:#82928e; font-size:11px; }
+    .two-col { display:grid; grid-template-columns:1.25fr .75fr; gap:16px; align-items:stretch; }
+    .callout { padding:21px 23px; border:1px solid #c8e6d8; border-radius:var(--radius); background:var(--brand-pale); }
+    .callout p:last-child { margin-bottom:0; }
+    .badge { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:.035em; text-transform:uppercase; }
+    .badge:before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; }
+    .badge.red { color:var(--red); background:var(--red-pale); }
+    .badge.amber { color:var(--amber); background:var(--amber-pale); }
+    .badge.green { color:#16724f; background:#e5f5eb; }
+    .badge.blue { color:var(--blue); background:var(--blue-pale); }
+    .meter-list { display:grid; gap:13px; margin-top:6px; }
+    .meter-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(140px,2fr) 68px; gap:12px; align-items:center; font-size:13px; }
+    .meter-row strong { font-weight:650; }
+    .track { height:9px; overflow:hidden; border-radius:999px; background:#edf2ef; }
+    .fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#0f775d,#4bbd8d); }
+    .meter-row .pct { text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:#fff; }
+    table { width:100%; border-collapse:collapse; min-width:700px; }
+    th,td { padding:13px 15px; border-bottom:1px solid #edf2ef; text-align:left; vertical-align:top; }
+    th { background:#f5faf7; color:#526b65; font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+    td { font-size:13px; }
+    tr:last-child td { border-bottom:0; }
+    .status { white-space:nowrap; font-weight:750; }
+    .status.warn { color:var(--amber); }
+    .status.blocked { color:var(--red); }
+    .status.ok { color:#17734f; }
+    .risk { border-top:3px solid #d77c47; }
+    .risk p { color:var(--muted); font-size:13px; }
+    .step { display:flex; gap:13px; align-items:flex-start; }
+    .step-num { flex:0 0 30px; width:30px; height:30px; display:grid; place-items:center; border-radius:10px; color:var(--brand-dark); background:var(--brand-pale); font:700 14px "Space Grotesk",sans-serif; }
+    .step p { color:var(--muted); font-size:13px; }
+    .footnote { color:#71837e; font-size:12px; }
+    .source-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px 20px; padding:0; list-style:none; }
+    .source-list li { padding:10px 0; border-bottom:1px solid var(--line); font-size:12px; }
+    .source-list a { display:block; margin-top:3px; overflow-wrap:anywhere; }
+    .footer { margin-top:52px; padding:24px 0 0; border-top:1px solid var(--line); color:#71837e; font-size:12px; }
+    @media (max-width:900px) {
+      .hero { padding-right:225px; }
+      .hero-index { right:34px; }
+      .grid-4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .grid-3 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width:650px) {
+      .page { padding:18px 15px 42px; }
+      .masthead { align-items:flex-start; }
+      .hero { padding:35px 24px 25px; }
+      .hero-index { position:relative; right:auto; top:auto; transform:none; display:flex; align-items:center; gap:13px; margin-top:25px; text-align:left; }
+      .dial { width:96px; height:96px; flex:0 0 96px; }
+      .dial:before { width:80px; height:80px; }
+      .dial-text strong { font-size:25px; }
+      .dial-text span { font-size:8px; }
+      .hero-index small { max-width:120px; margin:0; }
+      .grid-4,.grid-3,.grid-2,.two-col { grid-template-columns:1fr; }
+      .meter-row { grid-template-columns:1fr 62px; gap:7px 10px; }
+      .meter-row .track { grid-column:1 / -1; grid-row:2; }
+      .meter-row .pct { grid-column:2; grid-row:1; }
+      .source-list { grid-template-columns:1fr; }
+      h2 { font-size:25px; }
+    }
+    @media print {
+      @page { size:A4; margin:15mm; }
+      body { background:#fff; font-size:10pt; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+      .page { max-width:none; padding:0; }
+      .topline { height:5px; }
+      .masthead { margin:0 0 12mm; }
+      .hero { padding:15mm; border-radius:12px; box-shadow:none; }
+      .hero-index { right:8%; }
+      .nav { display:none; }
+      section { margin-top:12mm; break-inside:avoid; }
+      .card,.callout,.table-wrap { break-inside:avoid; box-shadow:none; }
+      a { color:inherit; }
+      a[href^="http"]:after { content:""; }
+      .footer { margin-top:12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topline"></div>
+  <main class="page">
+    <header class="masthead">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">F4S</div><span>FIND4SPORT</span></div>
+      <div class="confidential">Confidencial · Estado do projeto</div>
+    </header>
+
+    <section class="hero" aria-labelledby="report-title">
+      <p class="eyebrow">Relatório executivo · investidores e stakeholders</p>
+      <h1 id="report-title">Da descoberta desportiva à validação do negócio</h1>
+      <p class="hero-sub">Estado de produto, execução, qualidade e prontidão para validação externa, baseado no Project Definition & Delivery e nas tabelas operacionais da plataforma.</p>
+      <div class="hero-meta">
+        <span><strong>Emitido:</strong> 24 outubro 2026</span>
+        <span><strong>Dados Notion:</strong> revistos em 24 outubro 2026</span>
+        <span><strong>Estado:</strong> <b>em validação técnica</b></span>
+      </div>
+      <div class="hero-index" aria-label="Índice de completude documental e de entrega: 33,53 por cento">
+        <div class="dial"><div class="dial-text"><strong>33,53%</strong><span>Índice de completude</span></div></div>
+        <small>média de 9 métricas<br>do PDD; não é tração nem valuation</small>
+      </div>
+    </section>
+
+    <div class="alert"><strong>Leitura para decisão.</strong> A plataforma tem uma base funcional e um candidato técnico com CI/Preview aprovados, mas o gate de validação externa permanece <b>NO-GO</b>. O índice de maturidade documental, testes, rastreabilidade e entrega é 33,79% pela fórmula interna do PDD; não mede probabilidade de sucesso, percentagem de código concluído ou valor da empresa.</div>
+
+    <nav class="nav" aria-label="Índice do relatório">
+      <a href="#resumo">Resumo</a><a href="#produto">Produto e negócio</a><a href="#metricas">Métricas</a><a href="#execucao">Execução</a><a href="#riscos">Riscos</a><a href="#plano">Próximos passos</a><a href="#fontes">Fontes</a>
+    </nav>
+
+    <section id="resumo">
+      <p class="section-kicker">01 · Resumo executivo</p>
+      <h2>Uma plataforma ativa, ainda em fase de validação</h2>
+      <p class="lead">Find4Sport reúne descoberta de profissionais, espaços e atividades desportivas com fluxos de perfil, interação, reservas e pagamentos. O próximo valor a provar é a ativação repetível de utilizadores e prestadores, seguida de conversão sustentável para receita.</p>
+      <div class="grid grid-4" style="margin-top:20px">
+        <article class="card metric"><span class="value">54</span><span class="label">requisitos registados no Notion</span><span class="note">30 implementados · 1 verificado</span></article>
+        <article class="card metric"><span class="value">42</span><span class="label">tarefas rastreadas</span><span class="note">6 concluídas; 18 em backlog</span></article>
+        <article class="card metric"><span class="value">54</span><span class="label">casos de teste definidos</span><span class="note">19 prontos; 35 por desenhar</span></article>
+        <article class="card metric"><span class="value">18</span><span class="label">riscos e decisões registados</span><span class="note">2 mitigados; 12 abertos</span></article>
+      </div>
+      <div class="two-col" style="margin-top:16px">
+        <div class="callout">
+          <h3>Resumo de investimento</h3>
+          <p>O produto está numa etapa pré-receita e de validação. A gestão indicou que utilizadores/clientes estão a entrar sem pagar; os sistemas analíticos ainda não fornecem uma baseline validada de utilizadores ativos, reservas, volume transacionado ou receita.</p>
+        </div>
+        <div class="card">
+          <span class="badge red">NO-GO para validação externa</span>
+          <p style="margin-top:12px">Pendências materiais em controlo de dados, testes autenticados, privacidade e evidência operacional impedem apresentar o lançamento como tecnicamente validado.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="produto">
+      <p class="section-kicker">02 · Produto e modelo</p>
+      <h2>O que está a ser construído</h2>
+      <div class="grid grid-3">
+        <article class="card"><h3>Descoberta desportiva</h3><p>Pesquisa de profissionais e espaços, perfis públicos, categorias e conteúdo relacionado com atividades e eventos.</p></article>
+        <article class="card"><h3>Ligação e participação</h3><p>Perfis e interações sociais, comunidades, mensagens e ferramentas de gestão para profissionais e espaços.</p></article>
+        <article class="card"><h3>Reserva e monetização</h3><p>Fluxos de reservas e checkout ligados a Supabase e Stripe; as regras de preço e elegibilidade continuam sob validação em alguns caminhos.</p></article>
+      </div>
+      <div class="two-col" style="margin-top:16px">
+        <div class="card">
+          <h3>Hipótese de negócio</h3>
+          <p>Começar por aumentar oferta e utilização sem cobrança inicial e introduzir receita através de transações e planos premium, conforme definido no trabalho do produto. Preços, comissão efetiva, margens e conversão ainda precisam de ser confirmados com dados reais.</p>
+        </div>
+        <div class="card">
+          <h3>Estado da tração</h3>
+          <p>Existe indicação da gestão de entrada de clientes/utilizadores sem pagamento. Não foi encontrada no PDD uma medição auditada por coorte. Receita recorrente e comissão mensal não estão validadas.</p>
+          <span class="badge amber">Métricas comerciais por confirmar</span>
+        </div>
+      </div>
+      <p class="footnote" style="margin-top:12px">O PDD regista como métrica a validar 200 utilizadores únicos que abram um perfil desportivo nos primeiros 30 dias após lançamento. O documento identifica que baseline e meta ainda precisam de validação; não é apresentado aqui como resultado ou compromisso.</p>
+    </section>
+
+    <section id="metricas">
+      <p class="section-kicker">03 · Métricas de completude</p>
+      <h2>O índice reflete sobretudo o trabalho ainda por verificar</h2>
+      <p class="footnote">Fonte: fórmula de nove indicadores no PDD, última versão consultada. As categorias medem elementos diferentes e têm pesos iguais na média publicada.</p>
+      <div class="card" style="margin-top:14px">
+        <div class="meter-list">
+          <div class="meter-row"><strong>Requisitos implementados/verificados</strong><div class="track"><div class="fill" style="width:57.4%"></div></div><span class="pct">31/54 · 57,4%</span></div>
+          <div class="meter-row"><strong>Arquitetura observada</strong><div class="track"><div class="fill" style="width:37.5%"></div></div><span class="pct">9/24 · 37,5%</span></div>
+          <div class="meter-row"><strong>Requisitos ligados a testes</strong><div class="track"><div class="fill" style="width:87%"></div></div><span class="pct">47/54 · 87,0%</span></div>
+          <div class="meter-row"><strong>Casos de teste prontos</strong><div class="track"><div class="fill" style="width:36.36%"></div></div><span class="pct">20/55 casos ativos · 36,4%</span></div>
+          <div class="meter-row"><strong>Casos com execução mais recente aprovada</strong><div class="track"><div class="fill" style="width:38.18%"></div></div><span class="pct">21/55 casos ativos · 38,2%</span></div>
+          <div class="meter-row"><strong>Rastreabilidade ponta a ponta</strong><div class="track"><div class="fill" style="width:22.2%"></div></div><span class="pct">12/54 · 22,2%</span></div>
+          <div class="meter-row"><strong>Tarefas concluídas</strong><div class="track"><div class="fill" style="width:14.3%"></div></div><span class="pct">6/42 · 14,3%</span></div>
+          <div class="meter-row"><strong>Riscos mitigados</strong><div class="track"><div class="fill" style="width:11.1%"></div></div><span class="pct">2/18 · 11,1%</span></div>
+          <div class="meter-row"><strong>Normas com evidência de conformidade</strong><div class="track"><div class="fill" style="width:0%"></div></div><span class="pct">0/35 · 0%</span></div>
+        </div>
+      </div>
+      <div class="alert"><strong>Interpretação:</strong> 28 execuções registadas têm resultado Passou, 8 Falhou e 19 Bloqueado. O indicador 21/55 acima considera a execução mais recente por caso; não deve ser confundido com o total de execuções aprovadas. Existe uma linha duplicada de caso marcada Obsoleto e excluída do denominador ativo.</div>
+    </section>
+
+    <section id="execucao">
+      <p class="section-kicker">04 · Entrega e qualidade</p>
+      <h2>Há evidência positiva no candidato, mas ainda não no conjunto das alterações locais</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área</th><th>Evidência registada</th><th>Estado para decisão</th></tr></thead>
+          <tbody>
+            <tr><td><strong>CI de qualidade</strong></td><td>Quality run #39767772722 passou migration repository integrity, audit, lint, typecheck, 113 testes, contrato PostgreSQL de descoberta, build e publicação de evidências no SHA candidato. A working tree mais recente passou localmente 117 testes, typecheck, lint (336 warnings, 0 errors), build e diff-check; ainda sem CI do novo SHA.</td><td class="status blocked">CI candidato passou; diff local aguarda CI</td></tr>
+            <tr><td><strong>Preview Vercel</strong></td><td>Preview do candidato foi registado como aprovado.</td><td class="status ok">Passou no SHA candidato</td></tr>
+            <tr><td><strong>E2E autenticado</strong></td><td>Smoke público e health passaram; a suite autenticada não correu por falta de credenciais/secrets de teste.</td><td class="status blocked">Bloqueado</td></tr>
+            <tr><td><strong>Leituras privadas de perfil</strong></td><td>Edição, estado profissional e lookup de disponibilidade usam projeções server-side owner-scoped. Testes locais 2/2 para perfil e 1/1 para disponibilidade; typecheck e ESLint focado passaram.</td><td class="status warn">Alterações locais sem CI</td></tr>
+            <tr><td><strong>Production / main</strong></td><td>Último registo Notion aponta main e produção para 36ac947; a branch de trabalho consultada está em 885909e.</td><td class="status warn">Divergentes</td></tr>
+            <tr><td><strong>Base de dados</strong></td><td>O gate do repositório de migrações foi registado como aprovado. A proveniência integral do histórico remoto e as permissões de leitura continuam sem validação conclusiva.</td><td class="status warn">Parcial</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="footnote" style="margin-top:12px">A CI aprovada corresponde ao commit candidato indicado no Notion. A árvore de trabalho local inclui alterações posteriores não commitadas; por isso, a evidência de CI não cobre essas alterações. Não foi feita nova verificação live de Vercel ou /api/health para este relatório.</p>
+    </section>
+
+    <section id="riscos">
+      <p class="section-kicker">05 · Riscos e controlos</p>
+      <h2>Os bloqueios prioritários são corrigíveis, mas exigem prova externa</h2>
+      <div class="grid grid-3">
+        <article class="card risk"><span class="badge red">Alto · Em análise</span><h3 style="margin-top:12px">Acesso a dados de perfil</h3><p>A auditoria read-only registou permissões diretas mais amplas do que o objetivo de privacidade. Leitores da aplicação estão a ser migrados; a alteração de grants e a verificação de acesso por papel ainda não estão concluídas.</p></article>
+        <article class="card risk"><span class="badge red">Bloqueio de release</span><h3 style="margin-top:12px">Teste autenticado por papel</h3><p>Faltam credenciais de teste e evidência E2E para demonstrar os fluxos permitidos e negados de atletas, profissionais, gestores de espaços e administração.</p></article>
+        <article class="card risk"><span class="badge amber">Aberto</span><h3 style="margin-top:12px">Privacidade e Auth</h3><p>O PDD mantém revisão de privacidade por concluir e proteção contra palavras-passe comprometidas desativada no último snapshot.</p></article>
+        <article class="card risk"><span class="badge amber">Aberto</span><h3 style="margin-top:12px">Evidência operacional</h3><p>Backup/restauro, RTO/RPO, alertas, responsável de incidentes e suporte ainda precisam de definição e prova.</p></article>
+        <article class="card risk"><span class="badge amber">Em análise</span><h3 style="margin-top:12px">Reserva e moderação concorrentes</h3><p>Permanece uma questão transacional: o estado do prestador pode mudar entre a validação e a criação da reserva/checkout.</p></article>
+        <article class="card risk"><span class="badge blue">Documentação</span><h3 style="margin-top:12px">Snapshots históricos</h3><p>As páginas preservam histórico com métricas e gates de datas anteriores. Este relatório usa as correções e atualizações mais recentes, mas o PDD beneficiaria de uma reconciliação editorial consolidada.</p></article>
+      </div>
+      <div class="callout" style="margin-top:16px">
+        <h3>Snapshot agregado de riscos</h3>
+        <p><strong>18 registos:</strong> 12 Abertos · 3 Em análise · 1 Aceite · 2 Mitigados. Assim, 16 riscos não estão classificados como mitigados. Na matriz de normas/controlos, 31 estão como Lacuna, 3 Em análise, 1 Por avaliar e nenhum tem evidência de conformidade.</p>
+      </div>
+    </section>
+
+    <section id="plano">
+      <p class="section-kicker">06 · Plano de valorização</p>
+      <h2>Sequência recomendada para reduzir risco e provar crescimento</h2>
+      <div class="grid grid-2">
+        <article class="card step"><span class="step-num">1</span><div><h3>Fechar segurança e privacidade</h3><p>Completar inventário de leitores, migrar chamadas restantes, preparar uma migração de privilégios revisada e provar anon/auth/owner/non-owner num Supabase isolado antes de tocar nos grants de produção.</p></div></article>
+        <article class="card step"><span class="step-num">2</span><div><h3>Executar E2E por papel</h3><p>Criar contas de teste seguras, cobrir fluxos de descoberta, perfil, reserva, checkout e autorização negativa em desktop/mobile; ligar os resultados à CI e à matriz de evidências.</p></div></article>
+        <article class="card step"><span class="step-num">3</span><div><h3>Fechar gates de operação</h3><p>Ativar e verificar os controlos de Auth, privacidade, backup/restauro, alertas e resposta a incidentes; reconciliar a proveniência das migrações remotas.</p></div></article>
+        <article class="card step"><span class="step-num">4</span><div><h3>Medir ativação e unidade económica</h3><p>Instrumentar funil de registo → pesquisa → perfil → contacto/reserva → repetição; acompanhar GMV, receita líquida, comissões, conversão, retenção e custos por canal.</p></div></article>
+        <article class="card step"><span class="step-num">5</span><div><h3>Validar oferta e procura</h3><p>Definir segmentos prioritários e entrevistar clientes e prestadores; medir tempo até primeira reserva, qualidade da oferta e razões para não converter.</p></div></article>
+        <article class="card step"><span class="step-num">6</span><div><h3>Preparar uma release auditável</h3><p>Atualizar PDD e tabelas, concluir CI no SHA candidato, obter aprovação externa, promover para main e verificar deployment, health e transações sandbox.</p></div></article>
+      </div>
+      <div class="alert"><strong>Dados necessários para um investment case quantificado:</strong> clientes ativos por segmento e mês, espaços/profissionais ativos e verificados, reservas concluídas e canceladas, GMV, receita líquida/comissões, conversão, retenção/coortes, CAC por canal, custos variáveis, margem e runway. Estes valores não estão validados nas fontes consultadas.</div>
+    </section>
+
+    <section id="fontes">
+      <p class="section-kicker">07 · Fontes e metodologia</p>
+      <h2>Rastreabilidade do relatório</h2>
+      <p>O Project Definition & Delivery é a fonte principal; as vistas operacionais fornecem os estados agregados. A árvore local e a referência local a origin/main foram conferidas em 24/10/2026. Não foram executadas novas verificações contra serviços remotos.</p>
+      <ul class="source-list">
+        <li><strong>Project Definition & Delivery — Find4Sport</strong><a href="https://app.notion.com/p/3ffbe9392b6081a29f8fea0b5300f9e8">Abrir PDD e secções 00–14</a></li>
+        <li><strong>Requirements</strong><a href="https://app.notion.com/p/73abe9392b60833fb51f01b4a2655cec?v=3c9be9392b6082c59e4c08ee9610da4e">Ver requisitos e estados</a></li>
+        <li><strong>Architecture Components</strong><a href="https://app.notion.com/p/2a2be9392b60834799d70173771afa37?v=cb9be9392b60835abb33880e8e3adc2c">Ver componentes de arquitetura</a></li>
+        <li><strong>Sequence Diagrams</strong><a href="https://app.notion.com/p/03fbe9392b60835ba7f5813c2286a499?v=777be9392b6082238ef888f8a5069c15">Ver sequências</a></li>
+        <li><strong>Standards & Controls</strong><a href="https://app.notion.com/p/d9dbe9392b6083b0a7d581615afe4c91?v=82abe9392b608241bf2008e6d72c2568">Ver normas e controlos</a></li>
+        <li><strong>Tasks & Deliverables</strong><a href="https://app.notion.com/p/b0abe9392b6082b0b54801f7a690277a?v=308be9392b6082738bbb08e575b59945">Ver tarefas e entregáveis</a></li>
+        <li><strong>Test Cases</strong><a href="https://app.notion.com/p/052be9392b6082a8904401b5c5d219a1?v=a6abe9392b60834883ac085c43686ba7">Ver casos de teste</a></li>
+        <li><strong>Executions & Evidence</strong><a href="https://app.notion.com/p/719be9392b6083cd96eb814f1e69d34e?v=efcbe9392b6083ada4f30876c8c77918">Ver execuções e evidências</a></li>
+        <li><strong>Risks & Mitigations</strong><a href="https://app.notion.com/p/3adbe9392b6082d99c7981ae4fe7ab13?v=4adbe9392b608225ae1088888fe12019">Ver riscos e mitigações</a></li>
+      </ul>
+      <div class="card">
+        <h3>Notas de rigor</h3>
+        <p>O PDD e as vistas operacionais foram revistos em 24/10/2026. As entradas operacionais mais recentes são de 24/10 para o novo caso/evidência e 22/10 para outros gates. O PDD contém snapshots históricos que foram substituídos por correções posteriores; o índice atual usado aqui é 33,53% segundo a fórmula publicada recalculada com o novo caso/evidência.</p>
+        <p>“Implementado” e “Pronto” são estados documentais; não garantem validação em produção. A informação de utilizadores/clientes a entrar sem pagamento foi fornecida pela gestão nesta conversa, sem números anexados nem reconciliação analítica.</p>
+        <p class="footnote">Relatório descritivo, não é avaliação financeira, oferta de investimento, auditoria legal ou certificação de segurança. Não foram inferidos valuation, receitas, CAC, LTV, utilizadores ativos ou performance comercial.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">F4S</div><span>FIND4SPORT</span></div>
+      <p style="margin-top:12px">Documento preparado para discussão com investidores e stakeholders · 24/10/2026 · Fonte de trabalho: Project Definition & Delivery — Find4Sport.</p>
+      <p>Identidade gráfica alinhada com os tokens visuais do produto: verde/teal primário, fundos claros, tipografia Inter e Space Grotesk, cartões arredondados e estados de risco explícitos.</p>
+    </footer>
+  </main>
+</body>
+</html>
