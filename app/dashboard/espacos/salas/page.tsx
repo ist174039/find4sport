@@ -1,18 +1,21 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { SpaceRoomsClient } from './space-rooms-client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Info } from 'lucide-react'
 import { getLimit } from '@/lib/billing/entitlements'
+import type { SpaceRoom } from '@/lib/types'
 
 export default async function SalasPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/dashboard/espacos/salas')
 
+  const ownerDb = createAdminClient()
   const params = await searchParams
-  const { data: spaces, error: spacesError } = await supabase
+  const { data: spaces, error: spacesError } = await ownerDb
     .from('sport_spaces')
     .select('id,name,slug,address')
     .eq('owner_user_id', user.id)
@@ -25,7 +28,7 @@ export default async function SalasPage({ searchParams }: { searchParams: Promis
 
   const selectedSpace = spaces.find(space => space.id === params.space) || spaces[0]
   const [{ data: rooms, error: roomsError }, maxPhotos] = await Promise.all([
-    supabase.from('space_rooms').select('*').eq('space_id', selectedSpace.id).order('created_at', { ascending: false }),
+    ownerDb.from('space_rooms').select('id,space_id,name,description,capacity,price_per_hour,is_active,gallery_urls').eq('space_id', selectedSpace.id).order('created_at', { ascending: false }),
     getLimit(user.id, 'profile.photos.max'),
   ])
   if (roomsError) throw new Error(`Não foi possível carregar as salas/campos: ${roomsError.message}`)
@@ -51,7 +54,7 @@ export default async function SalasPage({ searchParams }: { searchParams: Promis
         <AlertDescription className="text-sm leading-relaxed">Preço, disponibilidade e fotografias são configurados por sala/campo. As taxas de pagamento são calculadas apenas no checkout.</AlertDescription>
       </Alert>
 
-      <SpaceRoomsClient initialRooms={(rooms || []) as any} spaceId={selectedSpace.id} maxPhotos={maxPhotos} />
+      <SpaceRoomsClient initialRooms={(rooms || []) as SpaceRoom[]} spaceId={selectedSpace.id} maxPhotos={maxPhotos} />
     </div>
   )
 }
