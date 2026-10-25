@@ -23,6 +23,8 @@ const discoveryFilterModal = readFileSync(new URL('../components/filter-modal.ts
 const feedFilterModal = readFileSync(new URL('../components/feed-filter-modal.tsx', import.meta.url), 'utf8')
 const postCard = readFileSync(new URL('../components/post-card.tsx', import.meta.url), 'utf8')
 const reviewsSection = readFileSync(new URL('../components/reviews-section.tsx', import.meta.url), 'utf8')
+const dashboardSidebar = readFileSync(new URL('../components/dashboard/sidebar.tsx', import.meta.url), 'utf8')
+const adminSidebar = readFileSync(new URL('../components/admin/sidebar.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -131,4 +133,13 @@ test('review rating controls use semantic tokens and mobile touch targets', () =
 test('event cards avoid sub-12px metadata on mobile', () => {
   assert.doesNotMatch(eventCard, /text-\[(?:9|10)px\]/)
   assert.match(eventCard, /text-xs/)
+})
+
+
+test('dashboard and admin mobile navigation avoid microtype and undersized selectors', () => {
+  for (const sidebar of [dashboardSidebar, adminSidebar]) assert.doesNotMatch(sidebar, /text-\[10px\]/)
+  assert.doesNotMatch(dashboardSidebar, /min-h-10 w-full rounded-xl border/)
+  assert.match(dashboardSidebar, /min-h-11 w-full rounded-xl border/)
+  assert.doesNotMatch(dashboardSidebar, /text-white/)
+  assert.doesNotMatch(adminSidebar, /text-white/)
 })
