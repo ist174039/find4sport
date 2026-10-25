@@ -27,6 +27,8 @@ const dashboardSidebar = readFileSync(new URL('../components/dashboard/sidebar.t
 const adminSidebar = readFileSync(new URL('../components/admin/sidebar.tsx', import.meta.url), 'utf8')
 const searchResultsList = readFileSync(new URL('../components/search-results-list.tsx', import.meta.url), 'utf8')
 const billingDashboard = readFileSync(new URL('../app/dashboard/faturacao/page.tsx', import.meta.url), 'utf8')
+const communityFeedAction = readFileSync(new URL('../app/actions/community-feed.ts', import.meta.url), 'utf8')
+const eventCreatePage = readFileSync(new URL('../app/dashboard/eventos/criar/page.tsx', import.meta.url), 'utf8')
 const billingActions = readFileSync(new URL('../app/dashboard/faturacao/actions.ts', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
@@ -166,4 +168,12 @@ test('billing dashboard keeps sensitive reads behind an authenticated server bou
   assert.doesNotMatch(billingDashboard, /stripe_connected_account_id|financial_metadata/)
   assert.match(billingActions, /id,user_id,provider_user_id,amount,currency,type,status,created_at/)
   assert.match(billingActions, /eq\('owner_user_id', user\.id\)/)
+})
+
+
+test('community posting and event taxonomy readers use minimum projections', () => {
+  assert.doesNotMatch(communityFeedAction, /from\('communities'\)\.select\(['"]\*['"]\)/)
+  assert.match(communityFeedAction, /select\('id,posting_policy'\)/)
+  assert.doesNotMatch(eventCreatePage, /from\('categories'\)\.select\(['"]\*['"]\)/)
+  assert.match(eventCreatePage, /select\('id,name,slug,emoji,parent_id'\)/)
 })
