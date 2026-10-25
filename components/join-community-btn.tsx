@@ -39,7 +39,7 @@ export function JoinCommunityBtn({ communityId, isPrivate, initialJoined = false
     finally { setLoading(false) }
   }
 
-  if (state === 'member') return <button onClick={handleLeave} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-background px-5 py-3 font-bold text-destructive transition hover:bg-destructive/10 disabled:opacity-60 sm:w-auto"><LogOut className="h-5 w-5" />{loading ? 'A sair...' : 'Sair'}</button>
-  if (state === 'pending') return <button disabled className="flex w-full cursor-default items-center justify-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-5 py-3 font-bold text-amber-700 sm:w-auto"><Clock3 className="h-5 w-5" />Pedido pendente</button>
-  return <button onClick={handleJoin} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-70 sm:w-auto"><UserPlus className="h-5 w-5" />{loading ? 'A processar...' : isPrivate ? 'Pedir adesão' : 'Entrar'}</button>
+  if (state === 'member') return <button onClick={handleLeave} disabled={loading} className="flex w-full items-center justify-center gap-2 min-h-11 rounded-xl border border-destructive/30 bg-background px-5 py-3 font-bold text-destructive transition hover:bg-destructive/10 disabled:opacity-60 sm:w-auto"><LogOut className="h-5 w-5" />{loading ? 'A sair...' : 'Sair'}</button>
+  if (state === 'pending') return <button disabled className="flex w-full cursor-default items-center justify-center gap-2 min-h-11 rounded-xl border border-warning/20 bg-warning/10 px-5 py-3 font-bold text-warning sm:w-auto"><Clock3 className="h-5 w-5" />Pedido pendente</button>
+  return <button onClick={handleJoin} disabled={loading} className="flex w-full items-center justify-center gap-2 min-h-11 rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-70 sm:w-auto"><UserPlus className="h-5 w-5" />{loading ? 'A processar...' : isPrivate ? 'Pedir adesão' : 'Entrar'}</button>
 }
