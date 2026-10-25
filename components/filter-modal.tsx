@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, Check, LocateFixed, SlidersHorizontal, X } from 'lucide-react'
 
@@ -29,10 +29,52 @@ export function FilterModal({ type, currentFilters = {} }: FilterModalProps) {
   const [radius, setRadius] = useState(currentFilters.radius || '')
   const [dateFrom, setDateFrom] = useState(currentFilters.dateFrom || '')
   const [dateTo, setDateTo] = useState(currentFilters.dateTo || '')
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const activeCount = [sort, rating, priceMin, priceMax, radius, type === 'eventos' ? dateFrom : '', type === 'eventos' ? dateTo : ''].filter(Boolean).length
 
-  useEffect(() => { const handler=(e:KeyboardEvent)=>{if(e.key==='Escape')setOpen(false)}; window.addEventListener('keydown',handler); return()=>window.removeEventListener('keydown',handler) }, [])
+  useEffect(() => {
+    if (!open) return
+
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const selector = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+    const focusables = () => Array.from(dialog.querySelectorAll<HTMLElement>(selector)).filter(element => !element.hasAttribute('hidden'))
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    requestAnimationFrame(() => focusables()[0]?.focus())
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const elements = focusables()
+      if (!elements.length) {
+        event.preventDefault()
+        return
+      }
+      const first = elements[0]
+      const last = elements[elements.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handler)
+    return () => {
+      document.removeEventListener('keydown', handler)
+      document.body.style.overflow = previousOverflow
+      requestAnimationFrame(() => triggerRef.current?.focus())
+    }
+  }, [open])
 
   function applyFilters() {
     const params = new URLSearchParams(searchParams.toString())
@@ -49,10 +91,11 @@ export function FilterModal({ type, currentFilters = {} }: FilterModalProps) {
   }
 
   return <>
-    <button id="filter-modal-trigger" type="button" aria-label="Abrir filtros de pesquisa" aria-expanded={open} onClick={()=>setOpen(true)} className="relative flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"><SlidersHorizontal className="h-4 w-4"/><span className="hidden sm:inline">Filtros</span>{activeCount>0&&<span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{activeCount}</span>}</button>
-    {open&&<div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={()=>setOpen(false)}/>} 
-    <div role="dialog" aria-modal="true" aria-label="Filtros de pesquisa" className={`fixed bottom-0 left-0 right-0 z-50 max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-border bg-background shadow-2xl transition-all duration-300 sm:bottom-auto sm:left-auto sm:right-8 sm:top-24 sm:w-[420px] sm:rounded-2xl sm:border ${open?'translate-y-0 opacity-100':'pointer-events-none translate-y-full opacity-0 sm:translate-y-4'}`}>
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background p-5"><div className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-primary"/><h2 className="text-lg font-bold">Filtros</h2>{activeCount>0&&<span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{activeCount}</span>}</div><button type="button" aria-label="Fechar filtros de pesquisa" onClick={()=>setOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="h-4 w-4"/></button></div>
+    <button ref={triggerRef} id="filter-modal-trigger" type="button" aria-label="Abrir filtros de pesquisa" aria-expanded={open} aria-controls="filter-modal-dialog" onClick={()=>setOpen(true)} className="relative flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><SlidersHorizontal className="h-4 w-4"/><span className="hidden sm:inline">Filtros</span>{activeCount>0&&<span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">{activeCount}</span>}</button>
+    {open&&<>
+      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={()=>setOpen(false)}/>
+      <div ref={dialogRef} id="filter-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" className="fixed bottom-0 left-0 right-0 z-50 max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-border bg-background shadow-2xl sm:bottom-auto sm:left-auto sm:right-8 sm:top-24 sm:w-[420px] sm:rounded-2xl sm:border">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background p-5"><div className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-primary"/><h2 id="filter-modal-title" className="text-lg font-bold">Filtros</h2>{activeCount>0&&<span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{activeCount}</span>}</div><button type="button" aria-label="Fechar filtros de pesquisa" onClick={()=>setOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="h-4 w-4"/></button></div>
       <div className="space-y-6 p-5">
         <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Raio de procura</h3><div className="flex flex-wrap gap-2">{RADIUS_OPTIONS.map(value=><button key={value} type="button" onClick={()=>setRadius(radius===value?'':value)} className={`min-h-11 rounded-xl border px-3 text-sm font-medium ${radius===value?'border-primary bg-primary/10 text-primary':'border-border hover:bg-muted'}`}>{value} km</button>)}</div><p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><LocateFixed className="h-3.5 w-3.5"/>Requer permissão de localização. Sem localização, o raio não exclui resultados.</p></section>
         {type==='eventos'&&<section><h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground"><CalendarDays className="h-4 w-4"/>Intervalo de datas</h3><div className="grid grid-cols-2 gap-3"><label className="space-y-1"><span className="text-xs text-muted-foreground">De</span><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"/></label><label className="space-y-1"><span className="text-xs text-muted-foreground">Até</span><input type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)} className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"/></label></div></section>}
@@ -61,6 +104,7 @@ export function FilterModal({ type, currentFilters = {} }: FilterModalProps) {
         <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">{type==='espacos'?'Preço por hora (€)':type==='eventos'?'Preço do bilhete (€)':'Preço da sessão (€)'}</h3><div className="grid grid-cols-2 gap-3"><input type="number" aria-label="Preço mínimo em euros" placeholder="Mínimo" value={priceMin} onChange={e=>setPriceMin(e.target.value)} min={0} className="h-11 rounded-xl border border-border bg-background px-3 text-sm"/><input type="number" aria-label="Preço máximo em euros" placeholder="Máximo" value={priceMax} onChange={e=>setPriceMax(e.target.value)} min={0} className="h-11 rounded-xl border border-border bg-background px-3 text-sm"/></div></section>
       </div>
       <div className="sticky bottom-0 flex gap-3 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><button type="button" onClick={resetFilters} className="min-h-12 flex-1 rounded-xl border border-border text-sm font-semibold hover:bg-muted">Limpar</button><button type="button" onClick={applyFilters} className="min-h-12 flex-1 rounded-xl bg-primary text-sm font-bold text-primary-foreground">Ver resultados</button></div>
-    </div>
+      </div>
+    </>}
   </>
 }
