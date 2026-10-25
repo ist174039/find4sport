@@ -11,14 +11,14 @@ import { ArrowDownLeft, ArrowUpRight, Check, ChevronRight, CreditCard, Crown, Do
 import { useModal } from '@/components/providers/modal-provider'
 
 type Plan = { id:string; code:'free'|'pro'|'premium'; name:string; description:string|null; monthly_price:number; annual_price:number; commission_rate:number; customer_service_fee_rate:number; audience:'professional'|'venue_manager'|'event_manager'; entitlements?: any[] }
-type Subscription = { tier:'free'|'pro'|'premium'; status:string; plan_id?:string|null; current_period_end?:string|null; cancel_at_period_end?:boolean; stripe_customer_id?:string|null }
+type Subscription = { tier:'free'|'pro'|'premium'; status:string; plan_id?:string|null; current_period_end?:string|null; cancel_at_period_end?:boolean }
 type ConnectStatus = { connected:boolean; accountId:string|null; detailsSubmitted:boolean; chargesEnabled:boolean; payoutsEnabled:boolean; requirementsDue:string[] }
 type LedgerFilter = 'all'|'in'|'out'|'reservation'|'service'|'event'
 
 type Transaction = {
   id:string; user_id:string|null; provider_user_id:string|null; amount:number|string|null; currency:string|null; type:string|null; status:string|null; created_at:string;
-  source_type:string|null; source_id:string|null; stripe_charge_id:string|null; stripe_payment_intent_id:string|null; stripe_connected_account_id:string|null; stripe_transfer_id:string|null;
-  gross_amount:number|string|null; base_amount:number|string|null; customer_fee_amount:number|string|null; platform_commission_amount:number|string|null; application_fee_amount:number|string|null; stripe_processing_fee_amount:number|string|null; provider_net_amount:number|string|null; platform_net_amount:number|string|null; commission_rate:number|string|null; customer_fee_rate:number|string|null; financial_metadata:any;
+  source_type:string|null; source_id:string|null; stripe_payment_intent_id:string|null; stripe_transfer_id:string|null;
+  gross_amount:number|string|null; base_amount:number|string|null; customer_fee_amount:number|string|null; platform_commission_amount:number|string|null; stripe_processing_fee_amount:number|string|null; provider_net_amount:number|string|null; platform_net_amount:number|string|null;
 }
 
 const labels: Record<string,string> = {
