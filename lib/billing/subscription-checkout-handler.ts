@@ -34,7 +34,13 @@ export function createSubscriptionCheckoutHandler(deps: SubscriptionCheckoutDepe
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-      const input = subscriptionCheckoutInputSchema.safeParse(await req.json())
+      let rawBody: unknown
+      try {
+        rawBody = await req.json()
+      } catch {
+        return Response.json({ error: 'Pedido inválido' }, { status: 400 })
+      }
+      const input = subscriptionCheckoutInputSchema.safeParse(rawBody)
       if (!input.success) return Response.json({ error: 'Plano inválido' }, { status: 400 })
       const { planCode, billingCycle } = input.data
 
