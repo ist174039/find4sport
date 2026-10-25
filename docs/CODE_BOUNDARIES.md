@@ -94,6 +94,8 @@ The subscription checkout flow is the pilot for the convention:
 - It constructs server dependencies: authenticated Supabase client, admin client, trusted origin resolver and Stripe SDK.
 - `lib/billing/subscription-checkout-handler.ts` contains the flow:
   validation -> authentication -> commercial-role authorization -> plan lookup -> subscription lookup -> Stripe portal/checkout operation -> stable error response.
+- `lib/billing/subscription-checkout-schema.ts` is the runtime input contract. It validates the commercial plan code before admin/Stripe side effects and preserves the existing monthly fallback for unknown billing-cycle values.
+- Malformed JSON and schema-invalid payloads return stable HTTP 400 responses before privileged client construction.
 - Dependencies are injected, so the fail-closed behavior is exercised by Node tests without real Stripe or Supabase.
 - A database lookup failure returns 503 before any Stripe call.
 - An unauthorized or non-commercial account is rejected before any Stripe effect.
