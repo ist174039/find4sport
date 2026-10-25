@@ -9,7 +9,6 @@ import { isPublicProfessionalEligible } from '@/lib/auth/public-account-eligibil
 export async function POST(request: Request) {
   try {
     if (!process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: 'Stripe não está configurado.' }, { status: 503 })
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Autenticação necessária.' }, { status: 401 })
@@ -33,6 +32,7 @@ export async function POST(request: Request) {
     const baseAmountCents = Math.round(Number(pack.price || 0) * 100)
     if (!(baseAmountCents > 0)) return NextResponse.json({ error: 'O preço do pacote é inválido.' }, { status: 400 })
     const quote = await resolveMarketplacePaymentQuote(pack.professional.user_id, baseAmountCents, pack.professional.stripe_account_id)
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
     const recentCutoff = new Date(Date.now() - 45 * 60 * 1000).toISOString()
     const { data: recentPending } = await db.from('service_package_purchases').select('id,stripe_session_id,created_at').eq('user_id', user.id).eq('package_id', pack.id).eq('status', 'pending').gte('created_at', recentCutoff).order('created_at', { ascending: false }).limit(3)
