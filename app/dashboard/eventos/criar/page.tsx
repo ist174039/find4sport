@@ -13,7 +13,7 @@ export default async function CriarEventoPage() {
   if (!access || !['professional', 'venue_manager', 'event_manager'].includes(access.role)) redirect('/dashboard/eventos')
 
   const [{ data: categoryRows, error }, { data: config }] = await Promise.all([
-    supabase.from('categories').select('*').order('name'),
+    supabase.from('categories').select('id,name,slug,emoji,parent_id').order('name'),
     supabase.from('system_config').select('settings').eq('id', 'global').maybeSingle(),
   ])
   if (error) throw new Error('Não foi possível carregar as modalidades.')
