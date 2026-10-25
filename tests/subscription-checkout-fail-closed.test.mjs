@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createSubscriptionCheckoutHandler } from '../app/api/stripe/checkout/route.ts'
+import { createSubscriptionCheckoutHandler } from '../lib/billing/subscription-checkout-handler.ts'
 
 function createAdmin(responses) {
   const calls = []
