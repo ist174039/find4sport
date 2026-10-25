@@ -27,6 +27,7 @@ const dashboardSidebar = readFileSync(new URL('../components/dashboard/sidebar.t
 const adminSidebar = readFileSync(new URL('../components/admin/sidebar.tsx', import.meta.url), 'utf8')
 const searchResultsList = readFileSync(new URL('../components/search-results-list.tsx', import.meta.url), 'utf8')
 const billingDashboard = readFileSync(new URL('../app/dashboard/faturacao/page.tsx', import.meta.url), 'utf8')
+const billingActions = readFileSync(new URL('../app/dashboard/faturacao/actions.ts', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -154,9 +155,13 @@ test('discovery cards and search list avoid microtype and hard-coded rating colo
 })
 
 
-test('billing dashboard uses explicit projections for sensitive financial reads', () => {
-  assert.doesNotMatch(billingDashboard, /from\(['"]user_subscriptions['"]\)\.select\(['"]\*['"]\)/)
-  assert.doesNotMatch(billingDashboard, /from\(['"]transactions['"]\)\.select\(['"]\*['"]\)/)
-  assert.match(billingDashboard, /tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id/)
-  assert.match(billingDashboard, /id,user_id,provider_user_id,amount,currency,type,status,created_at/)
+test('billing dashboard keeps sensitive reads behind an authenticated server boundary', () => {
+  assert.doesNotMatch(billingDashboard, /createClient|\.from\(/)
+  assert.match(billingDashboard, /getBillingDashboardData/)
+  assert.match(billingActions, /'use server'/)
+  assert.match(billingActions, /auth\.getUser\(\)/)
+  assert.doesNotMatch(billingActions, /select\(['"]\*['"]\)/)
+  assert.match(billingActions, /tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id/)
+  assert.match(billingActions, /id,user_id,provider_user_id,amount,currency,type,status,created_at/)
+  assert.match(billingActions, /eq\('owner_user_id', user\.id\)/)
 })
