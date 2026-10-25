@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveSessionAccess, type SessionAccess } from '@/lib/auth/access'
 import type { AccessRole } from '@/lib/auth/roles'
 import { adminHasPermission, parseAdminType, type AdminPermission } from '@/lib/auth/admin-permissions'
+import { assertCanManageSpaces } from '@/lib/auth/access-rules'
 
 export type AuthorizedSession = {
   user: User
@@ -75,8 +76,6 @@ export async function requireProfessional() {
 
 export async function requireVenueManager() {
   const session = await requireAccess()
-  if (!session.access.canManageSpaces) {
-    throw new Error('Sem permissões de gestor de espaço')
-  }
+  assertCanManageSpaces(session.access)
   return session
 }
