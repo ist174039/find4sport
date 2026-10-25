@@ -126,3 +126,9 @@ test('review rating controls use semantic tokens and mobile touch targets', () =
   assert.match(reviewsSection, /focus-visible:ring-2/)
   assert.match(reviewsSection, /text-warning/)
 })
+
+
+test('event cards avoid sub-12px metadata on mobile', () => {
+  assert.doesNotMatch(eventCard, /text-\[(?:9|10)px\]/)
+  assert.match(eventCard, /text-xs/)
+})
