@@ -1,3 +1,5 @@
+import { subscriptionCheckoutInputSchema } from './subscription-checkout-schema'
+
 const MANAGED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused'])
 
 type CommercialAudience = 'professional' | 'venue_manager'
@@ -32,10 +34,9 @@ export function createSubscriptionCheckoutHandler(deps: SubscriptionCheckoutDepe
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-      const body = await req.json()
-      const planCode = String(body.planCode || '')
-      const billingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
-      if (!['pro', 'premium'].includes(planCode)) return Response.json({ error: 'Plano inválido' }, { status: 400 })
+      const input = subscriptionCheckoutInputSchema.safeParse(await req.json())
+      if (!input.success) return Response.json({ error: 'Plano inválido' }, { status: 400 })
+      const { planCode, billingCycle } = input.data
 
       const admin = deps.createAdminClient()
       const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
