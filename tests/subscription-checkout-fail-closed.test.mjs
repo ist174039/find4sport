@@ -196,3 +196,40 @@ test('invalid plan code is rejected before admin and Stripe side effects', async
   assert.equal(stripe.calls.checkout.length, 0)
   assert.equal(stripe.calls.portal.length, 0)
 })
+
+
+test('malformed JSON is rejected with 400 before admin and Stripe side effects', async () => {
+  const stripe = createStripe()
+  const admin = createAdmin({})
+  let adminCreated = false
+  const checkout = createSubscriptionCheckoutHandler({
+    createUserClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'user-1', email: 'user@example.invalid' } } }) } }),
+    createAdminClient: () => { adminCreated = true; return admin.client },
+    getTrustedApplicationOrigin: () => 'https://find4sport.example',
+    stripe: stripe.client,
+  })
+  const badRequest = new Request('https://find4sport.example/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{',
+  })
+
+  const response = await checkout(badRequest)
+  assert.equal(response.status, 400)
+  assert.equal((await response.json()).error, 'Pedido inválido')
+  assert.equal(adminCreated, false)
+  assert.equal(stripe.calls.checkout.length, 0)
+  assert.equal(stripe.calls.portal.length, 0)
+})
+
+test('unknown billing cycle preserves legacy monthly fallback after runtime validation', async () => {
+  const { checkout, stripe } = handler({
+    platform_users: [PROFILE],
+    subscription_plans: [PLAN],
+    user_subscriptions: [{ data: null, error: null }],
+  })
+
+  const response = await checkout(request({ planCode: 'pro', billingCycle: 'unexpected' }))
+  assert.equal(response.status, 200)
+  assert.deepEqual(stripe.calls.checkout[0].line_items, [{ price: 'price_monthly', quantity: 1 }])
+})
