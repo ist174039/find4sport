@@ -19,6 +19,9 @@ const professionalDetailPage = readFileSync(new URL('../app/(public)/profissiona
 const spaceDetailPage = readFileSync(new URL('../app/(public)/espacos/[id]/page.tsx', import.meta.url), 'utf8')
 const eventDetailPage = readFileSync(new URL('../app/(public)/eventos/[id]/page.tsx', import.meta.url), 'utf8')
 const joinCommunityButton = readFileSync(new URL('../components/join-community-btn.tsx', import.meta.url), 'utf8')
+const discoveryFilterModal = readFileSync(new URL('../components/filter-modal.tsx', import.meta.url), 'utf8')
+const feedFilterModal = readFileSync(new URL('../components/feed-filter-modal.tsx', import.meta.url), 'utf8')
+const postCard = readFileSync(new URL('../components/post-card.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -102,4 +105,15 @@ test('entity detail warning states use semantic tokens consistently', () => {
   assert.match(eventDetailPage, /warning/)
   assert.match(joinCommunityButton, /min-h-11/)
   assert.match(joinCommunityButton, /text-warning/)
+})
+
+
+test('filters and feed interactions keep touch targets and semantic status tokens', () => {
+  assert.match(discoveryFilterModal, /min-h-11/)
+  assert.doesNotMatch(discoveryFilterModal, /h-9 w-9/)
+  assert.match(feedFilterModal, /min-h-11/)
+  assert.doesNotMatch(feedFilterModal, /amber-|blue-500/)
+  assert.match(feedFilterModal, /text-warning/)
+  assert.doesNotMatch(postCard, /h-8 w-8|h-9 w-9/)
+  assert.match(postCard, /h-11 w-11/)
 })
