@@ -10,7 +10,7 @@ test('managed-space writes reuse the shared venue-manager authorization boundary
   assert.match(actions, /await requireAuthorizedVenueManager\(\)/)
   assert.doesNotMatch(actions, /from\('platform_users'\)\.select\('type'\)/)
   assert.match(authorization, /export async function requireVenueManager\(\)/)
-  assert.match(authorization, /session\.access\.canManageSpaces/)
+  assert.match(authorization, /assertCanManageSpaces\(session\.access\)/)
 })
 
 test('managed-space update is owner scoped and returns stable errors', () => {
