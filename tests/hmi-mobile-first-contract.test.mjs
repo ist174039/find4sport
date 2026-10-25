@@ -13,6 +13,9 @@ const spaceCard = readFileSync(new URL('../components/space-card.tsx', import.me
 const eventCard = readFileSync(new URL('../components/event-card.tsx', import.meta.url), 'utf8')
 const discoveryPagination = readFileSync(new URL('../components/patterns/discovery-pagination.tsx', import.meta.url), 'utf8')
 const notificationsPage = readFileSync(new URL('../app/dashboard/notificacoes/page.tsx', import.meta.url), 'utf8')
+const publicBlogPage = readFileSync(new URL('../app/(public)/blog/page.tsx', import.meta.url), 'utf8')
+const publicCareersPage = readFileSync(new URL('../app/(public)/carreiras/page.tsx', import.meta.url), 'utf8')
+const professionalDetailPage = readFileSync(new URL('../app/(public)/profissionais/[id]/page.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -78,4 +81,13 @@ test('notification dashboard keeps an explicit minimum-data projection', () => {
   assert.doesNotMatch(notificationsPage, /select\(['"]\*['"]\)/)
   assert.match(notificationsPage, /id,type,message,read_at,created_at,link,data/)
   assert.match(notificationsPage, /eq\('user_id',user\.id\)/)
+})
+
+
+test('public content surfaces avoid wildcard projections and hard-coded warning colors', () => {
+  for (const page of [publicBlogPage, publicCareersPage, professionalDetailPage]) assert.doesNotMatch(page, /select\(['"]\*['"]\)/)
+  assert.match(publicBlogPage, /title,description,content/)
+  assert.match(publicCareersPage, /title,description,content/)
+  assert.doesNotMatch(professionalDetailPage, /amber-/)
+  assert.match(professionalDetailPage, /text-warning/)
 })
