@@ -146,3 +146,53 @@ test('eligible user without managed subscription creates one checkout session', 
   assert.equal(stripe.calls.checkout[0].client_reference_id, 'user-1')
   assert.deepEqual(stripe.calls.checkout[0].line_items, [{ price: 'price_monthly', quantity: 1 }])
 })
+
+
+test('unauthenticated request is rejected before admin or Stripe side effects', async () => {
+  const stripe = createStripe()
+  const admin = createAdmin({})
+  let adminCreated = false
+  const checkout = createSubscriptionCheckoutHandler({
+    createUserClient: async () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }),
+    createAdminClient: () => { adminCreated = true; return admin.client },
+    getTrustedApplicationOrigin: () => 'https://find4sport.example',
+    stripe: stripe.client,
+  })
+
+  const response = await checkout(request())
+  assert.equal(response.status, 401)
+  assert.equal(adminCreated, false)
+  assert.equal(stripe.calls.checkout.length, 0)
+  assert.equal(stripe.calls.portal.length, 0)
+})
+
+test('non-commercial account is rejected before plan lookup and Stripe side effects', async () => {
+  const { checkout, stripe, admin } = handler({
+    platform_users: [{ data: { type: 'athlete' }, error: null }],
+  })
+
+  const response = await checkout(request())
+  assert.equal(response.status, 403)
+  assert.equal(admin.calls.length, 1)
+  assert.equal(admin.calls[0].table, 'platform_users')
+  assert.equal(stripe.calls.checkout.length, 0)
+  assert.equal(stripe.calls.portal.length, 0)
+})
+
+test('invalid plan code is rejected before admin and Stripe side effects', async () => {
+  const stripe = createStripe()
+  const admin = createAdmin({})
+  let adminCreated = false
+  const checkout = createSubscriptionCheckoutHandler({
+    createUserClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'user-1', email: 'user@example.invalid' } } }) } }),
+    createAdminClient: () => { adminCreated = true; return admin.client },
+    getTrustedApplicationOrigin: () => 'https://find4sport.example',
+    stripe: stripe.client,
+  })
+
+  const response = await checkout(request({ planCode: 'enterprise', billingCycle: 'monthly' }))
+  assert.equal(response.status, 400)
+  assert.equal(adminCreated, false)
+  assert.equal(stripe.calls.checkout.length, 0)
+  assert.equal(stripe.calls.portal.length, 0)
+})
