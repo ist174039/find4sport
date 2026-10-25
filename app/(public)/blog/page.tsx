@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export default async function BlogPage() {
   const supabase = await createClient()
-  const { data, error } = await supabase.from('cms_pages').select('*').eq('slug', 'blog').single()
+  const { data, error } = await supabase.from('cms_pages').select('title,description,content').eq('slug', 'blog').single()
 
   return (
     <NormalizedContentPage
