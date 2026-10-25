@@ -166,6 +166,14 @@
       "provenance": "migration-provenance.json"
     }
   ],
-  "pending_forward_migrations": [],
+  "pending_forward_migrations": [
+    {
+      "version": "20261025221000",
+      "name": "restrict_profile_table_select_columns",
+      "path": "supabase/migrations/20261025221000_restrict_profile_table_select_columns.sql",
+      "status": "not_applied",
+      "sha256": "d851628e559766d209e43c517be6a2810cfb346aff2787bb92d5758c09f9ac03"
+    }
+  ],
   "pending_forward_reconciliation": []
 }
