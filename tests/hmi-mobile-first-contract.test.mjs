@@ -11,6 +11,7 @@ const tabs = readFileSync(new URL('../components/ui/tabs.tsx', import.meta.url),
 const professionalCard = readFileSync(new URL('../components/professional-card.tsx', import.meta.url), 'utf8')
 const spaceCard = readFileSync(new URL('../components/space-card.tsx', import.meta.url), 'utf8')
 const eventCard = readFileSync(new URL('../components/event-card.tsx', import.meta.url), 'utf8')
+const discoveryPagination = readFileSync(new URL('../components/patterns/discovery-pagination.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -60,4 +61,13 @@ test('discovery cards use semantic status tokens and taxonomy labels', () => {
   assert.match(professionalCard, /fill-warning text-warning/)
   assert.match(spaceCard, /fill-warning text-warning/)
   assert.match(eventCard, /bg-warning/)
+})
+
+
+test('discovery pagination keeps mobile targets, current-page semantics and visible focus', () => {
+  assert.match(discoveryPagination, /min-h-11/)
+  assert.match(discoveryPagination, /min-w-11/)
+  assert.match(discoveryPagination, /aria-current=/)
+  assert.match(discoveryPagination, /focus-visible:ring-2/)
+  assert.match(discoveryPagination, /aria-disabled=/)
 })
