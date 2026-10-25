@@ -5,20 +5,12 @@ function isCommercialAudience(value: string | null): value is CommercialAudience
   return value === 'professional' || value === 'venue_manager'
 }
 
-type QueryResult<T = any> = Promise<{ data: T | null; error?: any }>
-
 type UserClient = {
   auth: { getUser: () => Promise<{ data: { user: { id: string; email?: string | null } | null } }> }
 }
 
-type QueryBuilder = {
-  select: (columns: string) => QueryBuilder
-  eq: (column: string, value: unknown) => QueryBuilder
-  maybeSingle: () => QueryResult
-}
-
 type AdminClient = {
-  from: (table: string) => QueryBuilder
+  from: (table: string) => any
 }
 
 export type StripeCheckoutDependency = {
