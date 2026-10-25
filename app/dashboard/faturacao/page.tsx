@@ -44,8 +44,8 @@ export default function FaturacaoPage(){
     const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.push('/auth/login');return}setUserId(user.id)
     const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'||profile?.type==='event_manager'?profile.type:null;setAudience(role)
     const [{data:sub},{data:tx},{data:prof},{data:spaces}]=await Promise.all([
-      supabase.from('user_subscriptions').select('*').eq('user_id',user.id).maybeSingle(),
-      supabase.from('transactions').select('*').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
+      supabase.from('user_subscriptions').select('tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id').eq('user_id',user.id).maybeSingle(),
+      supabase.from('transactions').select('id,user_id,provider_user_id,amount,currency,type,status,created_at,source_type,source_id,stripe_charge_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id,gross_amount,base_amount,customer_fee_amount,platform_commission_amount,application_fee_amount,stripe_processing_fee_amount,provider_net_amount,platform_net_amount,commission_rate,customer_fee_rate,financial_metadata').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
       supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),
       supabase.from('sport_spaces').select('id,name').eq('owner_user_id',user.id).order('created_at'),
     ])
