@@ -21,6 +21,6 @@ test('subscription lookup errors fail closed before creating checkout or billing
 
 test('successful subscription lookup preserves the existing checkout and managed subscription portal paths', () => {
   assert.match(handler, /MANAGED_SUBSCRIPTION_STATUSES\.has\(String\(existingSubscription\.status \|\| ''\)\)/)
-  assert.match(handler, /deps\\.stripe\\.billingPortal\\.sessions\\.create/)
-  assert.match(handler, /deps\\.stripe\\.checkout\\.sessions\\.create/)
+  assert.match(handler, /deps\.stripe\.billingPortal\.sessions\.create/)
+  assert.match(handler, /deps\.stripe\.checkout\.sessions\.create/)
 })
