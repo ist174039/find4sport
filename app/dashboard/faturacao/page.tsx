@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { getBillingDashboardData } from './actions'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -41,17 +41,14 @@ export default function FaturacaoPage(){
   const [ledgerOpen,setLedgerOpen]=useState(false); const [ledgerFilter,setLedgerFilter]=useState<LedgerFilter>('all'); const [selectedTx,setSelectedTx]=useState<Transaction|null>(null)
 
   useEffect(()=>{void(async()=>{try{
-    const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.push('/auth/login');return}setUserId(user.id)
-    const {data:profile}=await supabase.from('platform_users').select('type').eq('id',user.id).maybeSingle();const role=profile?.type==='professional'||profile?.type==='venue_manager'||profile?.type==='event_manager'?profile.type:null;setAudience(role)
-    const [{data:sub},{data:tx},{data:prof},{data:spaces}]=await Promise.all([
-      supabase.from('user_subscriptions').select('tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id').eq('user_id',user.id).maybeSingle(),
-      supabase.from('transactions').select('id,user_id,provider_user_id,amount,currency,type,status,created_at,source_type,source_id,stripe_charge_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id,gross_amount,base_amount,customer_fee_amount,platform_commission_amount,application_fee_amount,stripe_processing_fee_amount,provider_net_amount,platform_net_amount,commission_rate,customer_fee_rate,financial_metadata').or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`).order('created_at',{ascending:false}).limit(500),
-      supabase.from('professionals').select('id').eq('user_id',user.id).maybeSingle(),
-      supabase.from('sport_spaces').select('id,name').eq('owner_user_id',user.id).order('created_at'),
-    ])
-    setSubscription((sub as Subscription)||{tier:'free',status:'active'});setTransactions((tx||[]) as Transaction[]);setSpaces((spaces||[]) as {id:string;name:string}[])
-    if(role){const [{data,error},connectRes]=await Promise.all([supabase.from('subscription_plans').select('*,entitlements:plan_entitlements(*)').eq('audience',role).eq('is_active',true).eq('is_public',true).order('sort_order'),fetch('/api/stripe/connect',{method:'GET',cache:'no-store'})]);if(error)throw error;setPlans((data||[]) as Plan[]);if(connectRes.ok)setConnectStatus(await connectRes.json())}
-    const ors:string[]=[];if(prof?.id)ors.push(`professional_id.eq.${prof.id}`);if(spaces?.length)ors.push(`space_id.in.(${spaces.map((s:any)=>s.id).join(',')})`);if(ors.length){const {data}=await supabase.from('reservations').select('id,space_id,amount,status,date,start_time').or(ors.join(',')).order('date',{ascending:false}).limit(100);setReservations(data||[])}
+    const data=await getBillingDashboardData()
+    setUserId(data.userId);setAudience(data.audience)
+    setSubscription((data.subscription as Subscription)||{tier:'free',status:'active'})
+    setTransactions((data.transactions||[]) as Transaction[])
+    setSpaces((data.spaces||[]) as {id:string;name:string}[])
+    setPlans((data.plans||[]) as Plan[])
+    setReservations(data.reservations||[])
+    if(data.audience){const connectRes=await fetch('/api/stripe/connect',{method:'GET',cache:'no-store'});if(connectRes.ok)setConnectStatus(await connectRes.json())}
   }catch(e:any){showAlert('Faturação',e?.message||'Não foi possível carregar a faturação.','error')}finally{setLoading(false)}})()},[router,showAlert])
 
   const selectedSpace=spaces.find(space=>space.id===searchParams.get('space'))||spaces[0]||null
