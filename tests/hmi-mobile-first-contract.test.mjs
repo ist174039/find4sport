@@ -16,6 +16,9 @@ const notificationsPage = readFileSync(new URL('../app/dashboard/notificacoes/pa
 const publicBlogPage = readFileSync(new URL('../app/(public)/blog/page.tsx', import.meta.url), 'utf8')
 const publicCareersPage = readFileSync(new URL('../app/(public)/carreiras/page.tsx', import.meta.url), 'utf8')
 const professionalDetailPage = readFileSync(new URL('../app/(public)/profissionais/[id]/page.tsx', import.meta.url), 'utf8')
+const spaceDetailPage = readFileSync(new URL('../app/(public)/espacos/[id]/page.tsx', import.meta.url), 'utf8')
+const eventDetailPage = readFileSync(new URL('../app/(public)/eventos/[id]/page.tsx', import.meta.url), 'utf8')
+const joinCommunityButton = readFileSync(new URL('../components/join-community-btn.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -90,4 +93,13 @@ test('public content surfaces avoid wildcard projections and hard-coded warning 
   assert.match(publicCareersPage, /title,description,content/)
   assert.doesNotMatch(professionalDetailPage, /amber-/)
   assert.match(professionalDetailPage, /text-warning/)
+})
+
+
+test('entity detail warning states use semantic tokens consistently', () => {
+  for (const page of [professionalDetailPage, spaceDetailPage, eventDetailPage, joinCommunityButton]) assert.doesNotMatch(page, /amber-/)
+  assert.match(spaceDetailPage, /warning/)
+  assert.match(eventDetailPage, /warning/)
+  assert.match(joinCommunityButton, /min-h-11/)
+  assert.match(joinCommunityButton, /text-warning/)
 })
