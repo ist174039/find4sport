@@ -26,6 +26,7 @@ const reviewsSection = readFileSync(new URL('../components/reviews-section.tsx',
 const dashboardSidebar = readFileSync(new URL('../components/dashboard/sidebar.tsx', import.meta.url), 'utf8')
 const adminSidebar = readFileSync(new URL('../components/admin/sidebar.tsx', import.meta.url), 'utf8')
 const searchResultsList = readFileSync(new URL('../components/search-results-list.tsx', import.meta.url), 'utf8')
+const billingDashboard = readFileSync(new URL('../app/dashboard/faturacao/page.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -150,4 +151,12 @@ test('discovery cards and search list avoid microtype and hard-coded rating colo
   for (const surface of [professionalCard, spaceCard, eventCard, searchResultsList]) assert.doesNotMatch(surface, /text-\[(?:9|10)px\]/)
   assert.doesNotMatch(searchResultsList, /amber-/)
   assert.match(searchResultsList, /text-warning/)
+})
+
+
+test('billing dashboard uses explicit projections for sensitive financial reads', () => {
+  assert.doesNotMatch(billingDashboard, /from\(['"]user_subscriptions['"]\)\.select\(['"]\*['"]\)/)
+  assert.doesNotMatch(billingDashboard, /from\(['"]transactions['"]\)\.select\(['"]\*['"]\)/)
+  assert.match(billingDashboard, /tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id/)
+  assert.match(billingDashboard, /id,user_id,provider_user_id,amount,currency,type,status,created_at/)
 })
