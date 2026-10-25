@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-const TX_FIELDS = 'id,user_id,provider_user_id,amount,currency,type,status,created_at,source_type,source_id,stripe_charge_id,stripe_payment_intent_id,stripe_connected_account_id,stripe_transfer_id,gross_amount,base_amount,customer_fee_amount,platform_commission_amount,application_fee_amount,stripe_processing_fee_amount,provider_net_amount,platform_net_amount,commission_rate,customer_fee_rate,financial_metadata'
+const TX_FIELDS = 'id,user_id,provider_user_id,amount,currency,type,status,created_at,source_type,source_id,stripe_payment_intent_id,stripe_transfer_id,gross_amount,base_amount,customer_fee_amount,platform_commission_amount,stripe_processing_fee_amount,provider_net_amount,platform_net_amount'
 const PLAN_FIELDS = 'id,code,name,description,monthly_price,annual_price,commission_rate,customer_service_fee_rate,audience,entitlements:plan_entitlements(key,value_type,boolean_value,integer_value,decimal_value,text_value,is_unlimited)'
 const RESERVATION_FIELDS = 'id,space_id,amount,status,date,start_time'
 
@@ -20,7 +20,7 @@ export async function getBillingDashboardData() {
 
   const [subscriptionResult, transactionsResult, professionalResult, spacesResult] = await Promise.all([
     supabase.from('user_subscriptions')
-      .select('tier,status,plan_id,current_period_end,cancel_at_period_end,stripe_customer_id')
+      .select('tier,status,plan_id,current_period_end,cancel_at_period_end')
       .eq('user_id', user.id).maybeSingle(),
     supabase.from('transactions').select(TX_FIELDS)
       .or(`user_id.eq.${user.id},provider_user_id.eq.${user.id}`)
