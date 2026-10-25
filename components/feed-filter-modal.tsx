@@ -59,7 +59,7 @@ export function FeedFilterModal() {
   return (
     <Dialog>
       <DialogTrigger render={
-        <button className="bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-primary/20 cursor-pointer">
+        <button className="min-h-11 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 border border-primary/20 cursor-pointer">
           <SlidersHorizontal className="w-3.5 h-3.5" />
           Ver Todos & Filtrar
           {activeCount > 0 && (
@@ -106,7 +106,7 @@ export function FeedFilterModal() {
           {/* Filter 2: Tipo de Autor / Profissional */}
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-blue-500" /> Autor / Origem
+              <Users className="w-3.5 h-3.5 text-primary" /> Autor / Origem
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -118,7 +118,7 @@ export function FeedFilterModal() {
                   key={item.id}
                   type="button"
                   onClick={() => setAuthorType(item.id)}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  className={`min-h-11 py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                     authorType === item.id 
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
                       : 'bg-card border-border hover:bg-muted text-muted-foreground'
@@ -133,7 +133,7 @@ export function FeedFilterModal() {
           {/* Filter 3: Data da Publicação */}
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-amber-500" /> Data
+              <Calendar className="w-3.5 h-3.5 text-warning" /> Data
             </label>
             <div className="grid grid-cols-4 gap-2">
               {[
@@ -146,7 +146,7 @@ export function FeedFilterModal() {
                   key={item.id}
                   type="button"
                   onClick={() => setDateRange(item.id)}
-                  className={`py-2 px-2 rounded-xl text-[11px] font-semibold border transition-all text-center cursor-pointer ${
+                  className={`min-h-11 py-2 px-2 rounded-xl text-[11px] font-semibold border transition-all text-center cursor-pointer ${
                     dateRange === item.id 
                       ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
                       : 'bg-card border-border hover:bg-muted text-muted-foreground'
@@ -174,12 +174,12 @@ export function FeedFilterModal() {
 
         <DialogFooter className="flex gap-2 sm:gap-0">
           <DialogClose render={
-            <Button variant="ghost" onClick={handleClear} className="rounded-xl text-xs gap-1.5">
+            <Button variant="ghost" onClick={handleClear} className="min-h-11 rounded-xl text-xs gap-1.5">
               <RefreshCw className="w-3.5 h-3.5" /> Limpar
             </Button>
           } />
           <DialogClose render={
-            <Button onClick={handleApply} className="rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button onClick={handleApply} className="min-h-11 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground">
               Aplicar Filtros
             </Button>
           } />
