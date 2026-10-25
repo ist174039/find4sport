@@ -7,6 +7,7 @@ const filters = readFileSync(new URL('../components/pesquisa-filtros.tsx', impor
 const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8')
 const contract = readFileSync(new URL('../docs/HMI_MOBILE_FIRST.md', import.meta.url), 'utf8')
 const dashboard = readFileSync(new URL('../components/dashboard/overview-dashboard.tsx', import.meta.url), 'utf8')
+const tabs = readFileSync(new URL('../components/ui/tabs.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -36,4 +37,12 @@ test('dashboard pilot uses semantic feedback tokens and mobile-sized primary act
   assert.match(dashboard, /bg-warning\/10/)
   assert.match(dashboard, /min-h-11/)
   assert.match(dashboard, /focus-visible:ring-2/)
+})
+
+
+test('shared tabs remain usable on narrow viewports', () => {
+  assert.match(tabs, /min-h-11/)
+  assert.match(tabs, /overflow-x-auto/)
+  assert.match(tabs, /min-h-10/)
+  assert.match(tabs, /focus-visible:ring/)
 })
