@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../supabase-types'
-import { subscriptionCheckoutInputSchema } from './subscription-checkout-schema'
+import { subscriptionCheckoutInputSchema } from './subscription-checkout-schema.ts'
 
 const MANAGED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused'])
 
