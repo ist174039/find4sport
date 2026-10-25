@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireVenueManager as requireAuthorizedVenueManager } from '@/lib/auth/authorization'
 import type { TablesUpdate } from '@/lib/supabase-types'
 import { cleanText, optionalContact } from '@/lib/data-quality/inputs'
 
@@ -23,18 +24,13 @@ async function geocodeAddress(address: string) {
   } catch { return null }
 }
 
-async function requireVenueManager() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Autenticação necessária.')
-  const admin = createAdminClient()
-  const { data: profile } = await admin.from('platform_users').select('type').eq('id', user.id).maybeSingle()
-  if (profile?.type !== 'venue_manager') throw new Error('Apenas gestores de espaço podem executar esta ação.')
-  return { user, admin }
+async function requireVenueManagerContext() {
+  const { user } = await requireAuthorizedVenueManager()
+  return { user, admin: createAdminClient() }
 }
 
 export async function updateManagedSpaceAction(spaceId: string, input: { name: string; description?: string; email?: string; phone?: string; website?: string; address?: string; amenities?: string[] }) {
-  const { user, admin } = await requireVenueManager()
+  const { user, admin } = await requireVenueManagerContext()
   const name = cleanText(input.name, 160)
   if (!spaceId || name.length < 2) throw new Error('Indica um nome válido e um espaço.')
   if (name.length > 160) throw new Error('O nome é demasiado longo.')
@@ -56,7 +52,7 @@ export async function updateManagedSpaceAction(spaceId: string, input: { name: s
 }
 
 export async function searchUnclaimedSpacesAction(query: string) {
-  const { admin } = await requireVenueManager()
+  const { admin } = await requireVenueManagerContext()
   const clean = query.trim().slice(0, 120)
   let db = admin.from('sport_spaces').select('id,name,address').is('owner_user_id', null).order('created_at', { ascending: false }).limit(8)
   if (clean) db = db.ilike('name', `%${clean}%`)
@@ -66,7 +62,7 @@ export async function searchUnclaimedSpacesAction(query: string) {
 }
 
 export async function submitSpaceClaimAction(spaceId: string, message: string, formData?: FormData) {
-  const { user, admin } = await requireVenueManager()
+  const { user, admin } = await requireVenueManagerContext()
   const cleanMessage = message.trim()
   if (!spaceId) throw new Error('Espaço inválido.')
   if (cleanMessage.length < 20) throw new Error('Explique a sua relação com o espaço com pelo menos 20 caracteres.')
