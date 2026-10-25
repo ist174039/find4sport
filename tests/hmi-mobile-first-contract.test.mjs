@@ -6,6 +6,7 @@ const search = readFileSync(new URL('../components/search-bar.tsx', import.meta.
 const filters = readFileSync(new URL('../components/pesquisa-filtros.tsx', import.meta.url), 'utf8')
 const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8')
 const contract = readFileSync(new URL('../docs/HMI_MOBILE_FIRST.md', import.meta.url), 'utf8')
+const dashboard = readFileSync(new URL('../components/dashboard/overview-dashboard.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -27,4 +28,12 @@ test('global interaction baseline preserves visible focus and reduced motion', (
 
 test('HMI contract records mobile-first, states, PT-PT and evidence requirements', () => {
   for (const term of ['Mobile first', 'loading', 'vazio', 'erro', 'sucesso', 'disabled', 'PT-PT', 'E2E desktop e mobile']) assert.ok(contract.includes(term), term)
+})
+
+
+test('dashboard pilot uses semantic feedback tokens and mobile-sized primary actions', () => {
+  assert.doesNotMatch(dashboard, /bg-amber-|text-amber-/)
+  assert.match(dashboard, /bg-warning\/10/)
+  assert.match(dashboard, /min-h-11/)
+  assert.match(dashboard, /focus-visible:ring-2/)
 })
