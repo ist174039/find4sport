@@ -173,6 +173,13 @@
       "path": "supabase/migrations/20261025221000_restrict_profile_table_select_columns.sql",
       "status": "not_applied",
       "sha256": "d851628e559766d209e43c517be6a2810cfb346aff2787bb92d5758c09f9ac03"
+    },
+    {
+      "version": "20261025224500",
+      "name": "revoke_browser_event_insert",
+      "path": "supabase/migrations/20261025224500_revoke_browser_event_insert.sql",
+      "status": "not_applied",
+      "sha256": "918a5799816ddb2c646528462838e7f1a302e58b8b795bea7979355a230f38ad"
     }
   ],
   "pending_forward_reconciliation": []
