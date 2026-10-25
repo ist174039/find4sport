@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ExternalLink, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,7 +21,8 @@ export default async function DashboardEspacosPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login?redirect=/dashboard/espacos')
 
-  const { data: ownedSpaces, error: ownedError } = await supabase
+  const ownerDb = createAdminClient()
+  const { data: ownedSpaces, error: ownedError } = await ownerDb
     .from('sport_spaces')
     .select('id,name,address,slug')
     .eq('owner_user_id', user.id)
@@ -35,14 +37,15 @@ export default async function DashboardEspacosPage() {
     role: 'owner',
   }))
 
-  const { data: professional } = await supabase
+  const { data: professional, error: professionalError } = await ownerDb
     .from('professionals')
     .select('id')
     .eq('user_id', user.id)
     .maybeSingle()
+  if (professionalError) throw new Error('Não foi possível carregar o perfil profissional.')
 
   if (professional) {
-    const { data: relations, error: relationError } = await supabase
+    const { data: relations, error: relationError } = await ownerDb
       .from('space_professionals')
       .select('space_id')
       .eq('professional_id', professional.id)
@@ -54,7 +57,7 @@ export default async function DashboardEspacosPage() {
       .filter((id): id is string => Boolean(id) && !associations.some(item => item.space_id === id))
 
     if (associatedIds.length) {
-      const { data: spaces, error: spacesError } = await supabase
+      const { data: spaces, error: spacesError } = await ownerDb
         .from('sport_spaces')
         .select('id,name,address,slug')
         .in('id', associatedIds)

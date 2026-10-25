@@ -1,0 +1,14 @@
+{
+  "name": "@find4sport/braces-depth-guard",
+  "version": "3.0.3-f4s.1",
+  "private": true,
+  "description": "Locally maintained nesting-depth security patch derived from braces 3.0.3 (MIT)",
+  "license": "MIT",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "fill-range": "^7.1.1"
+  }
+}

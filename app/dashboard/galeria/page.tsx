@@ -4,6 +4,11 @@ import { GaleriaManagerV2 } from '@/components/dashboard/galeria-manager-v2'
 import { resolveSessionAccess } from '@/lib/auth/access'
 import { isProviderRole } from '@/lib/auth/roles'
 import Link from 'next/link'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Tables } from '@/lib/supabase-types'
+
+type GalleryOwnerEntity = Pick<Tables<'professionals'>, 'id' | 'gallery_urls' | 'private_gallery_urls' | 'cover_url' | 'avatar_url'> & { name?: string | null }
+  | Pick<Tables<'sport_spaces'>, 'id' | 'name' | 'gallery_urls' | 'private_gallery_urls' | 'cover_url' | 'logo_url' | 'created_at'>
 
 export default async function GaleriaPage() {
   const supabase = await createClient()
@@ -13,11 +18,12 @@ export default async function GaleriaPage() {
   const access = await resolveSessionAccess(supabase, user)
   if (!access?.canAccessDashboard || !isProviderRole(access.role)) redirect('/dashboard')
 
-  const entityResult: { data: any } = access.role === 'professional'
-    ? await supabase.from('professionals').select('*').eq('user_id', user.id).maybeSingle()
-    : await supabase.from('sport_spaces').select('*').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
+  const ownerDb = createAdminClient()
+  const entityResult: { data: GalleryOwnerEntity | null } = access.role === 'professional'
+    ? await ownerDb.from('professionals').select('id,gallery_urls,private_gallery_urls,cover_url,avatar_url').eq('user_id', user.id).maybeSingle()
+    : await ownerDb.from('sport_spaces').select('id,name,gallery_urls,private_gallery_urls,cover_url,logo_url,created_at').eq('owner_user_id', user.id).order('created_at', { ascending: true }).limit(1).maybeSingle()
   const { data: managedSpaces } = access.role === 'venue_manager'
-    ? await supabase.from('sport_spaces').select('id,name').eq('owner_user_id', user.id).order('created_at', { ascending: true })
+    ? await ownerDb.from('sport_spaces').select('id,name,created_at').eq('owner_user_id', user.id).order('created_at', { ascending: true })
     : { data: [] as { id: string; name: string }[] }
 
   if (!entityResult.data) redirect('/dashboard')

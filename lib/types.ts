@@ -1,3 +1,5 @@
+import type { Json } from '@/lib/supabase-types'
+
 // Database enums
 export type UserRole = 'user' | 'professional' | 'admin' | 'moderator' | 'gestor_espaco'
 export type ProfessionalStatus = 'pending' | 'active' | 'suspended' | 'rejected'
@@ -300,7 +302,7 @@ export interface EventRegistration {
 export interface ApplicationSetting {
   id: string
   key: string
-  value: any
+  value: Json
   description: string | null
   updated_at: string
 }

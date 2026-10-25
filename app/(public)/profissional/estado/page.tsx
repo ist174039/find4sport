@@ -5,20 +5,29 @@ import { CheckCircle2, Clock, ArrowRight, User, MapPin, Phone, Mail, Award, Layo
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { AppImage } from '@/components/ui/app-image'
+import { resolveSessionAccess } from '@/lib/auth/access'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Tables } from '@/lib/supabase-types'
 
 type CategoryRelation = { category: Array<{ id: string; name: string | null }> }
+type ProfessionalStatusProfile = Pick<Tables<'professionals'>, 'id' | 'is_verified' | 'full_name' | 'professional_name' | 'avatar_url' | 'bio' | 'email' | 'phone' | 'address' | 'public_slug'> & {
+  professional_categories: CategoryRelation[]
+}
 
 export default async function ProfissionalEstadoPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+  const access = await resolveSessionAccess(supabase, user)
+  if (access?.role !== 'professional' || !access.canManageProfessionals) redirect('/dashboard')
 
-  const { data: prof } = await supabase.from('professionals').select(`
-      *,
-      professional_categories (
-        category:categories (id, name)
-      )
-    `).eq('user_id', user.id).single()
+  const ownerDb = createAdminClient()
+  const { data, error } = await ownerDb.from('professionals').select(`
+    id,is_verified,full_name,professional_name,avatar_url,bio,email,phone,address,public_slug,
+    professional_categories(category:categories(id,name))
+  `).eq('user_id', user.id).maybeSingle()
+  if (error) throw new Error('Não foi possível carregar o estado do perfil profissional.')
+  const prof = data as ProfessionalStatusProfile | null
 
   if (!prof) redirect('/auth/registar/profissional')
 

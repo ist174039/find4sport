@@ -4,29 +4,33 @@ import Link from 'next/link'
 import { FollowButton } from '@/components/follow-button'
 
 export function PublicFollowAction({
-  targetUserId,
-  currentUserId,
+  spaceId,
+  hasEligibleOwner,
+  isOwnSpace,
+  isAuthenticated,
   initialIsFollowing,
   loginRedirect,
   className = '',
 }: {
-  targetUserId: string | null | undefined
-  currentUserId?: string | null
+  spaceId: string
+  hasEligibleOwner: boolean
+  isOwnSpace: boolean
+  isAuthenticated: boolean
   initialIsFollowing?: boolean
   loginRedirect: string
   className?: string
 }) {
-  if (!targetUserId) {
+  if (!hasEligibleOwner) {
     return <button type="button" disabled className={`min-h-11 rounded-xl border border-border px-4 text-sm font-semibold text-muted-foreground opacity-60 ${className}`}>Seguir</button>
   }
 
-  if (!currentUserId) {
+  if (!isAuthenticated) {
     return <Link href={`/auth/login?redirect=${encodeURIComponent(loginRedirect)}`} className={`inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90 ${className}`}>Seguir</Link>
   }
 
-  if (currentUserId === targetUserId) {
+  if (isOwnSpace) {
     return null
   }
 
-  return <FollowButton targetUserId={targetUserId} initialIsFollowing={Boolean(initialIsFollowing)} className={`min-h-11 rounded-xl px-4 ${className}`} />
+  return <FollowButton targetSpaceId={spaceId} initialIsFollowing={Boolean(initialIsFollowing)} className={`min-h-11 rounded-xl px-4 ${className}`} />
 }

@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveSessionAccess } from '@/lib/auth/access'
 import { redirect } from 'next/navigation'
 import { AvailabilityClient } from './availability-client'
 
@@ -8,11 +10,25 @@ export default async function DisponibilidadePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: prof } = await supabase
+  const access = await resolveSessionAccess(supabase, user)
+  if (!access) redirect('/auth/login')
+
+  if (access.role !== 'professional' || !access.canManageProfessionals) {
+    return (
+      <div className="p-8">
+        <h1 className="mb-4 text-2xl font-bold">Disponibilidade</h1>
+        <p>Apenas os profissionais podem configurar disponibilidade diária. Se tem um Espaço, configure a disponibilidade nas definições das Salas.</p>
+      </div>
+    )
+  }
+
+  const ownerDb = createAdminClient()
+  const { data: prof, error: professionalError } = await ownerDb
     .from('professionals')
     .select('id')
     .eq('user_id', user.id)
     .maybeSingle()
+  if (professionalError) throw new Error('Não foi possível carregar o perfil profissional.')
 
   if (!prof) {
     return (

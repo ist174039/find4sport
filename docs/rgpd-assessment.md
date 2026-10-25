@@ -71,3 +71,7 @@ Controlos observados incluem RLS/migrations, callbacks com destino same-origin, 
 8. **DPIA screening:** documentar decisão fundamentada e realizar DPIA se critérios do art. 35.º forem preenchidos.
 
 **Critério de conclusão:** só marcar RGPD como validado após completar as ações aplicáveis, anexar evidências datadas e obter aprovação do responsável pelo tratamento (e EPD/assessor jurídico, quando aplicável). A alteração de código não constitui essa aprovação.
+
+## Atualização de risco de acesso — 2026-10-22
+
+Uma revisão read-only do catálogo Supabase confirmou capacidade de leitura anon de todas as colunas de `professionals` e `sport_spaces`; a fonte SQL executável das RPCs de descoberta também usava `SECURITY DEFINER` com linhas completas. Não foram consultados valores pessoais e não há evidência observada de acesso indevido ou exploração. Esta evidência mantém em aberto a avaliação de risco e exige minimização, mas não basta para declarar uma violação notificável. O responsável pela privacidade deve documentar a avaliação e decisão de escalonamento/notificação. Duas migrations corretivas e endpoints booleanos existem apenas na árvore local, sem validação Supabase; estado remoto ainda por confirmar.

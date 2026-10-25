@@ -3,6 +3,101 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { isAccountUnavailable } from '@/lib/auth/account-status'
+import { isPublicAccountEligible, isPublicProfessionalEligible } from '@/lib/auth/public-account-eligibility'
+import { getUserAvatarUrl, getUserDisplayName } from '@/lib/user-display'
+
+export type ConversationContact = {
+  id: string
+  full_name: string
+  avatar_url: string
+  type: string
+}
+
+function escapeLikeQuery(value: string) {
+  return value.replace(/[\\%_]/g, '\\$&')
+}
+
+/** Search only identities that are currently eligible to appear as conversation contacts. */
+export async function searchConversationContacts(rawQuery: string): Promise<ConversationContact[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || isAccountUnavailable(user)) return []
+
+  const query = typeof rawQuery === 'string' ? rawQuery.trim() : ''
+  if (query.length < 2 || query.length > 80) return []
+
+  const admin = createAdminClient()
+  const pattern = `%${escapeLikeQuery(query)}%`
+  const [viewerRes, usersRes, professionalNamesRes, professionalTitlesRes, spacesRes] = await Promise.all([
+    admin.from('platform_users').select('id,account_status,suspended_until').eq('id', user.id).maybeSingle(),
+    admin.from('platform_users').select('id,full_name,avatar_url,type,account_status,suspended_until')
+      .ilike('full_name', pattern).limit(30),
+    admin.from('professionals').select('user_id,full_name,professional_name,avatar_url,status,is_verified')
+      .ilike('full_name', pattern).eq('status', 'active').eq('is_verified', true).not('user_id', 'is', null).limit(20),
+    admin.from('professionals').select('user_id,full_name,professional_name,avatar_url,status,is_verified')
+      .ilike('professional_name', pattern).eq('status', 'active').eq('is_verified', true).not('user_id', 'is', null).limit(20),
+    admin.from('sport_spaces').select('owner_user_id,name,logo_url,status,is_verified')
+      .ilike('name', pattern).eq('status', 'active').eq('is_verified', true).not('owner_user_id', 'is', null).limit(20),
+  ])
+
+  // The service role bypasses RLS, so any failed lookup must fail closed.
+  if (viewerRes.error || !viewerRes.data || !isPublicAccountEligible(viewerRes.data.account_status, viewerRes.data.suspended_until) || usersRes.error || professionalNamesRes.error || professionalTitlesRes.error || spacesRes.error) return []
+
+  const professionals = [...(professionalNamesRes.data || []), ...(professionalTitlesRes.data || [])]
+  const providerIds = [...new Set([
+    ...professionals.map((professional) => professional.user_id).filter((id): id is string => Boolean(id)),
+    ...(spacesRes.data || []).map((space) => space.owner_user_id).filter((id): id is string => Boolean(id)),
+  ])]
+  const { data: owners, error: ownersError } = providerIds.length
+    ? await admin.from('platform_users').select('id,account_status,suspended_until').in('id', providerIds)
+    : { data: [], error: null }
+  if (ownersError) return []
+
+  const eligibleOwners = new Map((owners || [])
+    .filter((owner) => isPublicAccountEligible(owner.account_status, owner.suspended_until))
+    .map((owner) => [owner.id, owner]))
+  const results = new Map<string, ConversationContact>()
+
+  for (const account of usersRes.data || []) {
+    if (account.id === user.id || !isPublicAccountEligible(account.account_status, account.suspended_until)) continue
+    // Provider identities must be represented by an eligible public provider profile below.
+    if (account.type === 'professional' || account.type === 'venue_manager') continue
+    results.set(account.id, {
+      id: account.id,
+      full_name: account.full_name || 'Utilizador',
+      avatar_url: account.avatar_url || '',
+      type: account.type || 'athlete',
+    })
+  }
+
+  for (const professional of professionals) {
+    const id = professional.user_id
+    const owner = id ? eligibleOwners.get(id) : undefined
+    if (!id || id === user.id || !owner || !isPublicProfessionalEligible(professional.status, owner.account_status, owner.suspended_until)) continue
+    const current = results.get(id)
+    results.set(id, {
+      id,
+      full_name: getUserDisplayName({ type: 'professional', full_name: current?.full_name, professional_name: professional.professional_name, professional_full_name: professional.full_name }),
+      avatar_url: getUserAvatarUrl({ type: 'professional', avatar_url: current?.avatar_url, professional_avatar_url: professional.avatar_url }),
+      type: 'professional',
+    })
+  }
+
+  for (const space of spacesRes.data || []) {
+    const id = space.owner_user_id
+    if (!id || id === user.id || !eligibleOwners.has(id) || space.status !== 'active' || space.is_verified !== true) continue
+    const current = results.get(id)
+    results.set(id, {
+      id,
+      full_name: getUserDisplayName({ type: 'venue_manager', full_name: current?.full_name, space_name: space.name }),
+      avatar_url: getUserAvatarUrl({ type: 'venue_manager', avatar_url: current?.avatar_url, space_logo_url: space.logo_url }),
+      type: 'venue_manager',
+    })
+  }
+
+  return [...results.values()].sort((a, b) => a.full_name.localeCompare(b.full_name, 'pt')).slice(0, 15)
+}
 
 type MessagingContext = {
   allowed: boolean

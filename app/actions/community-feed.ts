@@ -19,7 +19,7 @@ export async function createCommunityPostAction(communityId: string, content: st
     admin.from('community_members').select('id, role').eq('community_id', communityId).eq('user_id', user.id).maybeSingle(),
     admin.from('communities').select('*').eq('id', communityId).maybeSingle(),
   ])
-  const community = communityResult.data as any
+  const community = communityResult.data
   if (!community) throw new Error('Comunidade não encontrada.')
   if (!member) throw new Error('Apenas membros podem publicar nesta comunidade.')
 

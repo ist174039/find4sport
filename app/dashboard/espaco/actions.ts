@@ -49,7 +49,7 @@ export async function updateManagedSpaceAction(spaceId: string, input: { name: s
   if (coordinates) { patch.latitude = coordinates.latitude; patch.longitude = coordinates.longitude }
   else if (!address) { patch.latitude = null; patch.longitude = null }
 
-  const { data, error } = await admin.from('sport_spaces').update(patch).eq('id', spaceId).eq('owner_user_id', user.id).select('*').single()
+  const { data, error } = await admin.from('sport_spaces').update(patch).eq('id', spaceId).eq('owner_user_id', user.id).select('id,name,description,email,phone,website,address,amenities,slug,is_verified,status').single()
   if (error) throw new Error('Não foi possível guardar o espaço.')
   revalidatePath('/dashboard/espaco'); revalidatePath(`/espacos/${data.slug || data.id}`); revalidatePath('/espacos'); revalidatePath('/pesquisa'); revalidatePath('/')
   return data

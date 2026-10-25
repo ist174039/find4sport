@@ -330,9 +330,9 @@ export type Database = {
         ]
       }
       space_claims: {
-        Row: { created_at: string | null; documents_url: string | null; id: string; message: string | null; space_id: string | null; status: string | null; user_id: string | null }
-        Insert: { created_at?: string | null; documents_url?: string | null; id?: string; message?: string | null; space_id?: string | null; status?: string | null; user_id?: string | null }
-        Update: { created_at?: string | null; documents_url?: string | null; id?: string; message?: string | null; space_id?: string | null; status?: string | null; user_id?: string | null }
+        Row: { created_at: string | null; decision_reason: string | null; documents_url: string | null; id: string; message: string | null; space_id: string | null; status: string | null; user_id: string | null }
+        Insert: { created_at?: string | null; decision_reason?: string | null; documents_url?: string | null; id?: string; message?: string | null; space_id?: string | null; status?: string | null; user_id?: string | null }
+        Update: { created_at?: string | null; decision_reason?: string | null; documents_url?: string | null; id?: string; message?: string | null; space_id?: string | null; status?: string | null; user_id?: string | null }
         Relationships: [{ foreignKeyName: "space_claims_space_id_fkey"; columns: ["space_id"]; isOneToOne: false; referencedRelation: "sport_spaces"; referencedColumns: ["id"] }]
       }
       space_professionals: {

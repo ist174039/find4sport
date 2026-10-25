@@ -13,6 +13,13 @@ import { updateProfileAction, uploadAvatarAction, uploadBannerAction } from './a
 import { QualificationsManager } from '@/components/dashboard/qualifications-manager'
 import { SpaceProfessionalLink } from '@/components/dashboard/space-professional-link'
 import { GroupedSportCheckboxes } from '@/components/sports/grouped-sport-fields'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Tables } from '@/lib/supabase-types'
+
+type EditableProfessionalProfile = Pick<Tables<'professionals'>, 'id' | 'full_name' | 'phone' | 'nif' | 'avatar_url' | 'cover_url' | 'professional_name' | 'service_radius_km' | 'whatsapp' | 'website' | 'address' | 'bio' | 'public_slug'> & {
+  professional_categories: { category_id: string }[]
+}
+type SportCategoryOption = Pick<Tables<'categories'>, 'id' | 'name' | 'emoji' | 'icon_key' | 'slug' | 'parent_id'>
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -23,15 +30,20 @@ export default async function ProfilePage() {
 
   const [{ data: platformUser }, { data: categories }] = await Promise.all([
     supabase.from('platform_users').select('id, full_name, avatar_url, banner_url, location, language').eq('id', user.id).maybeSingle(),
-    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji, icon_key, slug, parent_id').order('name') : Promise.resolve({ data: [] as any[] }),
+    access.role === 'professional' ? supabase.from('categories').select('id, name, emoji, icon_key, slug, parent_id').order('name') : Promise.resolve({ data: [] as SportCategoryOption[] }),
   ])
 
-  let professional: any = null
+  let professional: EditableProfessionalProfile | null = null
   let selectedCategoryIds: string[] = []
   if (access.role === 'professional') {
-    const { data } = await supabase.from('professionals').select('*, professional_categories(category_id)').eq('user_id', user.id).maybeSingle()
-    professional = data
-    selectedCategoryIds = (data?.professional_categories || []).map((row: any) => row.category_id)
+    const ownerDb = createAdminClient()
+    const { data, error } = await ownerDb.from('professionals')
+      .select('id,full_name,phone,nif,avatar_url,cover_url,professional_name,service_radius_km,whatsapp,website,address,bio,public_slug,professional_categories(category_id)')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (error) throw new Error('Não foi possível carregar o perfil profissional.')
+    professional = data as EditableProfessionalProfile | null
+    selectedCategoryIds = professional?.professional_categories.map((row) => row.category_id) || []
   }
 
   const avatarUrl = professional?.avatar_url || platformUser?.avatar_url || user.user_metadata?.avatar_url || null
@@ -69,7 +81,7 @@ export default async function ProfilePage() {
             <div className="min-w-0 space-y-2 sm:col-span-2"><Label htmlFor="address">Morada / zona de atendimento</Label><Input id="address" name="address" defaultValue={professional.address || ''} className="min-h-11 w-full text-base" /></div>
             <div className="min-w-0 space-y-2 sm:col-span-2"><Label htmlFor="bio">Biografia</Label><Textarea id="bio" name="bio" defaultValue={professional.bio || ''} className="min-h-36 w-full text-base" maxLength={3000} /></div>
           </div>
-          {(categories || []).length > 0 && <div className="min-w-0 space-y-2"><Label>Modalidades</Label><GroupedSportCheckboxes categories={(categories || []) as any[]} name="category_ids" selectedIds={selectedCategoryIds} /></div>}
+          {(categories || []).length > 0 && <div className="min-w-0 space-y-2"><Label>Modalidades</Label><GroupedSportCheckboxes categories={categories || []} name="category_ids" selectedIds={selectedCategoryIds} /></div>}
         </>}
 
         {access.role === 'venue_manager' && <div className="min-w-0 rounded-2xl border border-border bg-muted/30 p-4"><div className="flex min-w-0 items-start gap-3"><Building2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div className="min-w-0"><p className="font-semibold">Informação do espaço separada</p><p className="mt-1 break-words text-sm text-muted-foreground">Nome, descrição, contactos, comodidades, morada e instalações são geridos em “O Meu Espaço”.</p><Button asChild variant="link" className="mt-2 h-auto max-w-full p-0"><Link href="/dashboard/espaco">Gerir o meu espaço</Link></Button></div></div></div>}

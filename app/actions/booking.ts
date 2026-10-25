@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { TablesInsert } from '@/lib/supabase-types'
 import { revalidatePath } from 'next/cache'
+import { isPublicAccountEligible, isPublicProfessionalEligible } from '@/lib/auth/public-account-eligibility'
 
 function toMinutes(value: string) {
   const [hours, minutes] = value.split(':').map(Number)
@@ -53,6 +54,24 @@ async function assertProfessionalSlot(admin: ReturnType<typeof createAdminClient
   return endTime
 }
 
+async function assertProfessionalOwnerEligible(admin: ReturnType<typeof createAdminClient>, professionalId: string) {
+  const { data: professional, error: professionalError } = await admin
+    .from('professionals')
+    .select('user_id,status')
+    .eq('id', professionalId)
+    .maybeSingle()
+  if (professionalError || !professional?.user_id) throw new Error('O profissional não está disponível.')
+
+  const { data: owner, error: ownerError } = await admin
+    .from('platform_users')
+    .select('account_status,suspended_until')
+    .eq('id', professional.user_id)
+    .maybeSingle()
+  if (ownerError || !isPublicProfessionalEligible(professional.status, owner?.account_status, owner?.suspended_until)) {
+    throw new Error('O profissional não está disponível.')
+  }
+}
+
 export async function createPackageReservationAction(input: { serviceId: string; professionalId: string; packagePurchaseId: string; date: string; startTime: string }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -61,6 +80,7 @@ export async function createPackageReservationAction(input: { serviceId: string;
   const admin = createAdminClient()
   const { data: service, error: serviceError } = await admin.from('services').select('id,professional_id,duration_minutes,is_active').eq('id', input.serviceId).maybeSingle()
   if (serviceError || !service || !service.is_active || service.professional_id !== input.professionalId) throw new Error('Serviço indisponível.')
+  await assertProfessionalOwnerEligible(admin, service.professional_id)
 
   const { data: purchase, error: purchaseError } = await admin
     .from('service_package_purchases')
@@ -145,6 +165,7 @@ export async function createFreeReservationAction(input: { serviceId?: string | 
     if (input.professionalId && input.professionalId !== service.professional_id) throw new Error('O serviço não pertence a este profissional.')
     if (Number(service.price || 0) > 0) throw new Error('Esta reserva requer pagamento online.')
     professionalId = service.professional_id
+    await assertProfessionalOwnerEligible(admin, professionalId)
     serviceId = service.id
     duration = Math.max(1, Number(service.duration_minutes || 60))
   } else if (input.spaceRoomId) {
@@ -156,6 +177,14 @@ export async function createFreeReservationAction(input: { serviceId?: string | 
     roomId = room.id
   } else {
     throw new Error('Seleciona um serviço ou uma sala/campo.')
+  }
+
+  if (spaceId) {
+    const { data: space, error: spaceError } = await admin.from('sport_spaces').select('id,status,owner_user_id').eq('id', spaceId).maybeSingle()
+    if (spaceError || !space || space.status !== 'active') throw new Error('O espaço já não está disponível.')
+    if (!space.owner_user_id) throw new Error('O espaço ainda não foi reivindicado.')
+    const { data: owner, error: ownerError } = await admin.from('platform_users').select('account_status,suspended_until').eq('id', space.owner_user_id).maybeSingle()
+    if (ownerError || !isPublicAccountEligible(owner?.account_status, owner?.suspended_until)) throw new Error('O espaço já não está disponível.')
   }
 
   const endTime = addMinutes(startTime, duration)
