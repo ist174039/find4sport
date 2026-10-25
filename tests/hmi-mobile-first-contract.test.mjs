@@ -25,6 +25,7 @@ const postCard = readFileSync(new URL('../components/post-card.tsx', import.meta
 const reviewsSection = readFileSync(new URL('../components/reviews-section.tsx', import.meta.url), 'utf8')
 const dashboardSidebar = readFileSync(new URL('../components/dashboard/sidebar.tsx', import.meta.url), 'utf8')
 const adminSidebar = readFileSync(new URL('../components/admin/sidebar.tsx', import.meta.url), 'utf8')
+const searchResultsList = readFileSync(new URL('../components/search-results-list.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -142,4 +143,11 @@ test('dashboard and admin mobile navigation avoid microtype and undersized selec
   assert.match(dashboardSidebar, /min-h-11 w-full rounded-xl border/)
   assert.doesNotMatch(dashboardSidebar, /text-white/)
   assert.doesNotMatch(adminSidebar, /text-white/)
+})
+
+
+test('discovery cards and search list avoid microtype and hard-coded rating colors', () => {
+  for (const surface of [professionalCard, spaceCard, eventCard, searchResultsList]) assert.doesNotMatch(surface, /text-\[(?:9|10)px\]/)
+  assert.doesNotMatch(searchResultsList, /amber-/)
+  assert.match(searchResultsList, /text-warning/)
 })
