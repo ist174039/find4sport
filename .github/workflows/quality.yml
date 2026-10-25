@@ -79,6 +79,11 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:postgres:profile-grants
 
+      - name: Event write server boundary contract
+        id: event_write_contract
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:postgres:event-write-boundary
+
       - name: Production build
         id: build
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
@@ -96,6 +101,7 @@ jobs:
           TEST_RESULT: ${{ steps.tests.outcome }}
           POSTGRES_CONTRACT_RESULT: ${{ steps.postgres_contract.outcome }}
           PROFILE_GRANTS_RESULT: ${{ steps.profile_grants_contract.outcome }}
+          EVENT_WRITE_RESULT: ${{ steps.event_write_contract.outcome }}
           BUILD_RESULT: ${{ steps.build.outcome }}
         run: |
           {
@@ -112,6 +118,7 @@ jobs:
             echo "| Tests | $TEST_RESULT |"
             echo "| PostgreSQL public discovery contract | $POSTGRES_CONTRACT_RESULT |"
             echo "| PostgreSQL profile grants contract | $PROFILE_GRANTS_RESULT |"
+            echo "| PostgreSQL event write boundary | $EVENT_WRITE_RESULT |"
             echo "| Build | $BUILD_RESULT |"
             echo ""
             echo "Every required check must succeed. A failed check keeps Quality failed."
