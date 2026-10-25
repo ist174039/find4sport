@@ -12,6 +12,7 @@ const professionalCard = readFileSync(new URL('../components/professional-card.t
 const spaceCard = readFileSync(new URL('../components/space-card.tsx', import.meta.url), 'utf8')
 const eventCard = readFileSync(new URL('../components/event-card.tsx', import.meta.url), 'utf8')
 const discoveryPagination = readFileSync(new URL('../components/patterns/discovery-pagination.tsx', import.meta.url), 'utf8')
+const notificationsPage = readFileSync(new URL('../app/dashboard/notificacoes/page.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -70,4 +71,11 @@ test('discovery pagination keeps mobile targets, current-page semantics and visi
   assert.match(discoveryPagination, /aria-current=/)
   assert.match(discoveryPagination, /focus-visible:ring-2/)
   assert.match(discoveryPagination, /aria-disabled=/)
+})
+
+
+test('notification dashboard keeps an explicit minimum-data projection', () => {
+  assert.doesNotMatch(notificationsPage, /select\(['"]\*['"]\)/)
+  assert.match(notificationsPage, /id,type,message,read_at,created_at,link,data/)
+  assert.match(notificationsPage, /eq\('user_id',user\.id\)/)
 })
