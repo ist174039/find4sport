@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../supabase-types'
 import { subscriptionCheckoutInputSchema } from './subscription-checkout-schema'
 
 const MANAGED_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due', 'unpaid', 'paused'])
@@ -11,9 +13,7 @@ type UserClient = {
   auth: { getUser: () => Promise<{ data: { user: { id: string; email?: string | null } | null } }> }
 }
 
-type AdminClient = {
-  from: (table: string) => any
-}
+type AdminClient = SupabaseClient<Database>
 
 export type StripeCheckoutDependency = {
   checkout: { sessions: { create: (params: Record<string, unknown>) => Promise<{ url: string | null }> } }
