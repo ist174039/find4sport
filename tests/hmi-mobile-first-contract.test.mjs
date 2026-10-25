@@ -117,14 +117,21 @@ test('entity detail warning states use semantic tokens consistently', () => {
 })
 
 
-test('filters and feed interactions keep touch targets and semantic status tokens', () => {
+test('filters and feed interactions keep touch targets, focus containment and semantic status tokens', () => {
   assert.match(discoveryFilterModal, /min-h-11/)
-  assert.doesNotMatch(discoveryFilterModal, /h-9 w-9/)
+  assert.doesNotMatch(discoveryFilterModal, /h-9 w-9|text-\[10px\]/)
+  assert.match(discoveryFilterModal, /role="dialog"/)
+  assert.match(discoveryFilterModal, /aria-modal="true"/)
+  assert.match(discoveryFilterModal, /dialogRef/)
+  assert.match(discoveryFilterModal, /event\.key !== 'Tab'/)
+  assert.match(discoveryFilterModal, /triggerRef\.current\?\.focus\(\)/)
   assert.match(feedFilterModal, /min-h-11/)
   assert.doesNotMatch(feedFilterModal, /amber-|blue-500/)
   assert.match(feedFilterModal, /text-warning/)
-  assert.doesNotMatch(postCard, /h-8 w-8|h-9 w-9/)
+  assert.doesNotMatch(postCard, /h-8 w-8|h-9 w-9|text-\[10px\]/)
   assert.match(postCard, /h-11 w-11/)
+  assert.match(postCard, /size-11/)
+  assert.match(postCard, /min-h-11 shrink-0 items-center/)
 })
 
 
