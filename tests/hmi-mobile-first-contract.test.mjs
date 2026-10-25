@@ -8,6 +8,9 @@ const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8')
 const contract = readFileSync(new URL('../docs/HMI_MOBILE_FIRST.md', import.meta.url), 'utf8')
 const dashboard = readFileSync(new URL('../components/dashboard/overview-dashboard.tsx', import.meta.url), 'utf8')
 const tabs = readFileSync(new URL('../components/ui/tabs.tsx', import.meta.url), 'utf8')
+const professionalCard = readFileSync(new URL('../components/professional-card.tsx', import.meta.url), 'utf8')
+const spaceCard = readFileSync(new URL('../components/space-card.tsx', import.meta.url), 'utf8')
+const eventCard = readFileSync(new URL('../components/event-card.tsx', import.meta.url), 'utf8')
 
 test('global search covers the four public entity families and has search semantics', () => {
   for (const entity of ['profissionais', 'espacos', 'eventos', 'comunidades']) assert.match(search, new RegExp(entity))
@@ -45,4 +48,16 @@ test('shared tabs remain usable on narrow viewports', () => {
   assert.match(tabs, /overflow-x-auto/)
   assert.match(tabs, /min-h-10/)
   assert.match(tabs, /focus-visible:ring/)
+})
+
+
+test('discovery cards use semantic status tokens and taxonomy labels', () => {
+  for (const card of [professionalCard, spaceCard, eventCard]) {
+    assert.doesNotMatch(card, /amber-500/)
+    assert.doesNotMatch(card, /\.emoji}/)
+    assert.match(card, /focus-visible:ring-2/)
+  }
+  assert.match(professionalCard, /fill-warning text-warning/)
+  assert.match(spaceCard, /fill-warning text-warning/)
+  assert.match(eventCard, /bg-warning/)
 })
