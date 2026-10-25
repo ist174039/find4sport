@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export default async function CarreirasPage() {
   const supabase = await createClient()
-  const { data, error } = await supabase.from('cms_pages').select('*').eq('slug', 'carreiras').single()
+  const { data, error } = await supabase.from('cms_pages').select('title,description,content').eq('slug', 'carreiras').single()
 
   return (
     <NormalizedContentPage
