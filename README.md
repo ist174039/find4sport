@@ -41,7 +41,7 @@ O runner usa `E2E_BASE_URL` (na ausência de valor, o endereço público de prod
 - Referência de projeto utilizada pelo baseline do repositório: `bqjwsllnhvnxrfojftjb` — confirmar titularidade/organização e autorização antes de alterações.
 - Migrações controladas em `supabase/migrations/`; integridade estática em `node scripts/check-migrations.mjs`.
 - **`node scripts/check-migrations.mjs --release` só passa quando as condições reais de release estão cumpridas**; um check estático verde não prova migrations aplicadas.
-- As migrations `20261025221000_restrict_profile_table_select_columns` e `20261025224500_revoke_browser_event_insert` estão registadas como `not_applied` na branch candidata. Não aplicar diretamente sem validação isolada e aprovação.
+- A restrição de colunas em `20261025221000_restrict_profile_table_select_columns` permanece **`not_applied`** e bloqueia a release. A restrição de escrita direta em eventos foi **aplicada e verificada** no Supabase ligado, versão remota `20261029091404_20261025224500_revoke_browser_event_insert`, com `anon`/`authenticated` sem INSERT e `service_role` com INSERT. Não declarar a validação de todos os fluxos apenas pela ACL.
 
 ## Guias essenciais
 
