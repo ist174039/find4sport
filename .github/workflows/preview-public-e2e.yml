@@ -44,21 +44,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in {1..24}; do
-            response=$(curl --fail --location --silent --show-error --max-time 15 "$E2E_BASE_URL/api/health" || true)
-            if [ -n "$response" ]; then
-              observed=$(node -e 'try { process.stdout.write(JSON.parse(process.argv[1]).version || "") } catch {}' "$response")
-              if [ "$observed" = "$EXPECTED_SHA" ]; then
-                echo "Verified preview commit: $observed"
-                exit 0
-              fi
-              echo "Attempt $attempt: preview SHA does not match this PR HEAD"
-            else
-              echo "Attempt $attempt: candidate preview not accessible"
+          for attempt in {1..8}; do
+            # Read via stdin, never as a process argument (Vercel auth pages can
+            # be large HTML). Limit response size and do not log response bodies.
+            observed=$(curl --fail --location --silent --max-time 15 --max-filesize 131072 "$E2E_BASE_URL/api/health" 2>/dev/null \
+              | node -e 'let s="";process.stdin.on("data",x=>{s+=x});process.stdin.on("end",()=>{try{const d=JSON.parse(s);process.stdout.write(typeof d.version==="string"?d.version:"")}catch{}})' || true)
+            if [ "$observed" = "$EXPECTED_SHA" ]; then
+              echo "Verified preview commit: $observed"
+              exit 0
             fi
-            sleep 10
+            if [ -z "$observed" ]; then
+              echo "Attempt $attempt: candidate health not a public JSON response (may be Vercel authentication/protection)"
+            else
+              echo "Attempt $attempt: stale preview SHA (observed $observed)"
+            fi
+            sleep 5
           done
-          echo "::error::No public Vercel preview with exact expected SHA. Refusing stale preview evidence."
+          echo "::error::Preview cannot be verified as public JSON on the exact candidate SHA. Check Vercel deployment protection before E2E."
           exit 1
       - name: Execute public discovery and anonymous authorization E2E
         run: npx playwright test e2e/public-smoke.spec.mjs e2e/search-pagination.spec.mjs --project=${{ matrix.project }} --workers=1
