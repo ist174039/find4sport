@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, Check, LocateFixed, SlidersHorizontal, X } from 'lucide-react'
 
@@ -92,9 +93,9 @@ export function FilterModal({ type, currentFilters = {} }: FilterModalProps) {
 
   return <>
     <button ref={triggerRef} id="filter-modal-trigger" type="button" aria-label="Abrir filtros de pesquisa" aria-expanded={open} aria-controls="filter-modal-dialog" onClick={()=>setOpen(true)} className="relative flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><SlidersHorizontal className="h-4 w-4"/><span className="hidden sm:inline">Filtros</span>{activeCount>0&&<span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">{activeCount}</span>}</button>
-    {open&&<>
-      <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={()=>setOpen(false)}/>
-      <div ref={dialogRef} id="filter-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" className="fixed bottom-0 left-0 right-0 z-[80] max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-border bg-background shadow-2xl sm:bottom-auto sm:left-auto sm:right-8 sm:top-24 sm:w-[420px] sm:rounded-2xl sm:border">
+    {open && createPortal(<>
+      <div className="fixed inset-0 z-[120] bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={()=>setOpen(false)}/>
+      <div ref={dialogRef} id="filter-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="filter-modal-title" className="fixed bottom-0 left-0 right-0 z-[130] max-h-[88dvh] overflow-y-auto rounded-t-3xl border-t border-border bg-background shadow-2xl sm:bottom-auto sm:left-auto sm:right-8 sm:top-24 sm:w-[420px] sm:rounded-2xl sm:border">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background p-5"><div className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-primary"/><h2 id="filter-modal-title" className="text-lg font-bold">Filtros</h2>{activeCount>0&&<span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{activeCount}</span>}</div><button type="button" aria-label="Fechar filtros de pesquisa" onClick={()=>setOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="h-4 w-4"/></button></div>
       <div className="space-y-6 p-5">
         <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Raio de procura</h3><div className="flex flex-wrap gap-2">{RADIUS_OPTIONS.map(value=><button key={value} type="button" onClick={()=>setRadius(radius===value?'':value)} className={`min-h-11 rounded-xl border px-3 text-sm font-medium ${radius===value?'border-primary bg-primary/10 text-primary':'border-border hover:bg-muted'}`}>{value} km</button>)}</div><p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><LocateFixed className="h-3.5 w-3.5"/>Requer permissão de localização. Sem localização, o raio não exclui resultados.</p></section>
@@ -105,6 +106,6 @@ export function FilterModal({ type, currentFilters = {} }: FilterModalProps) {
       </div>
       <div className="sticky bottom-0 flex gap-3 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"><button type="button" onClick={resetFilters} className="min-h-12 flex-1 rounded-xl border border-border text-sm font-semibold hover:bg-muted">Limpar</button><button type="button" onClick={applyFilters} className="min-h-12 flex-1 rounded-xl bg-primary text-sm font-bold text-primary-foreground">Ver resultados</button></div>
       </div>
-    </>}
+    </>, document.body)}
   </>
 }
