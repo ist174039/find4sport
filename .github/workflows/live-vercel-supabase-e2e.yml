@@ -1,0 +1,131 @@
+name: Live Vercel Supabase Playwright E2E
+
+# Read existing Find4Sport Vercel deployment connected to its real Supabase.
+# No mocks, no new environment, no Stripe charges, no real record mutations.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-find4sport-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, mobile-chromium]
+    env:
+      E2E_BASE_URL: https://find4sport.vercel.app
+      # Keep proof tied to deployed code, not to the unmerged PR candidate.
+
+    steps:
+      - name: Checkout Playwright tests from candidate branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Setup Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Resolve current main SHA (source of the deployed application)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(git ls-remote https://github.com/ist174039/find4sport.git refs/heads/main | cut -f1)
+          if [ -z "$sha" ]; then
+            echo "::error::Could not resolve current main SHA"
+            exit 1
+          fi
+          echo "EXPECTED_DEPLOYED_SHA=$sha" >> "$GITHUB_ENV"
+
+      - name: Verify Vercel live deployment, actual Supabase and configured Stripe
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --max-time 20 \
+            --output /tmp/find4sport-health.json "$E2E_BASE_URL/api/health"
+          node -e '
+            const fs = require("node:fs");
+            const d = JSON.parse(fs.readFileSync("/tmp/find4sport-health.json", "utf8"));
+            if (d.status !== "ok" || d.checks?.database !== "ok") {
+              throw Error("Existing Supabase health is degraded");
+            }
+            if (d.checks?.stripe !== "configured") {
+              throw Error("Existing Stripe integration not configured");
+            }
+            if (d.version !== process.env.EXPECTED_DEPLOYED_SHA) {
+              throw Error("Vercel deployed SHA drift: expected " + process.env.EXPECTED_DEPLOYED_SHA + " observed " + d.version);
+            }
+            process.stdout.write("Validated existing Vercel SHA " + d.version + " / Supabase OK / Stripe configured\n");
+          '
+      - name: Playwright public and anonymous authorization against existing environment
+        run: npx playwright test e2e/public-smoke.spec.mjs e2e/search-pagination.spec.mjs --project=${{ matrix.project }} --workers=1 --retries=0
+      - name: Check authenticated-role test prerequisites
+        id: accounts
+        env:
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_PROFESSIONAL_EMAIL: ${{ secrets.E2E_PROFESSIONAL_EMAIL }}
+          E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
+          E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
+          E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          complete=1
+          for role in ATHLETE PROFESSIONAL VENUE_MANAGER ADMIN; do
+            email="E2E_${role}_EMAIL"
+            password="E2E_${role}_PASSWORD"
+            if [ -z "${!email}" ] || [ -z "${!password}" ]; then
+              complete=0
+              echo "::notice::Missing role-specific test account for ${role}; real authenticated E2E not executed."
+            fi
+          done
+          echo "complete=${complete}" >> "$GITHUB_OUTPUT"
+          if [ "$complete" = "0" ]; then
+            echo "### Role-based E2E BLOCKED — synthetic role credentials are not configured" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Playwright with existing Supabase test accounts
+        if: steps.accounts.outputs.complete == '1'
+        env:
+          E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
+          E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
+          E2E_PROFESSIONAL_EMAIL: ${{ secrets.E2E_PROFESSIONAL_EMAIL }}
+          E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
+          E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
+          E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: npx playwright test e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }} --workers=1 --retries=0
+      - name: Publish test scope and limitation
+        if: always()
+        run: |
+          echo "### Find4Sport live E2E — ${{ matrix.project }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target: https://find4sport.vercel.app (existing Vercel + Supabase)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tested deployed SHA: $EXPECTED_DEPLOYED_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Test source SHA: ${{ github.event.pull_request.head.sha || github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Stripe: configuration check and anonymous checkout denial only; no test payment charged." >> "$GITHUB_STEP_SUMMARY"
+          echo "- This job does not validate the unmerged PR candidate deployed behind SSO." >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Playwright reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: find4sport-live-e2e-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
