@@ -1,4 +1,7 @@
 -- P0 #41: enforce public visibility in aggregate search RPC. Review before deployment.
+-- Space records lacking owner_user_id remain eligible by their own status (legacy/unclaimed inventory).
+-- A blocked/suspended creator is NOT assumed to be the current owner.
+-- Do not merge until detail endpoints, other discovery RPCs and integration tests are covered.
 CREATE OR REPLACE FUNCTION public.search_public_entities(p_q text DEFAULT NULL::text, p_entity_type text DEFAULT 'todos'::text, p_category_ids uuid[] DEFAULT NULL::uuid[], p_location text DEFAULT NULL::text, p_rating numeric DEFAULT NULL::numeric, p_lat double precision DEFAULT NULL::double precision, p_lng double precision DEFAULT NULL::double precision, p_radius double precision DEFAULT NULL::double precision, p_date_from timestamp with time zone DEFAULT NULL::timestamp with time zone, p_date_to timestamp with time zone DEFAULT NULL::timestamp with time zone, p_sort text DEFAULT 'relevance'::text, p_offset integer DEFAULT 0, p_limit integer DEFAULT 24)
  RETURNS TABLE(item jsonb, total_count bigint)
  LANGUAGE sql
@@ -22,7 +25,7 @@ with candidates as (
     s.latitude,s.longitude,(select avg(r.price_per_hour) from public.space_rooms r where r.space_id=s.id and r.is_active=true),
     null,null
   from public.sport_spaces s where s.status='active'
-    and exists (select 1 from public.platform_users pu where pu.id=coalesce(s.owner_user_id,s.created_by) and coalesce(pu.account_status,'active') not in ('blocked','deactivated') and (pu.account_status is distinct from 'suspended' or (pu.suspended_until is not null and pu.suspended_until <= now())))
+    and (s.owner_user_id is null or exists (select 1 from public.platform_users pu where pu.id=s.owner_user_id and coalesce(pu.account_status,'active') not in ('blocked','deactivated') and (pu.account_status is distinct from 'suspended' or (pu.suspended_until is not null and pu.suspended_until <= now()))))
     and p_entity_type in ('todos','espacos')
     and (p_category_ids is null or exists(select 1 from public.space_categories sc where sc.space_id=s.id and sc.category_id=any(p_category_ids)))
   union all
