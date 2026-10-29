@@ -20,7 +20,7 @@ function expectFirstPage(url, expectedFilters, removedFilters = []) {
 for (const route of discoveryRoutes) {
   test(`${route}: a new search starts on page one and preserves filters`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&rating=4&priceMin=10`)
-    await page.getByRole('textbox', { name: 'Pesquisar', exact: true }).fill('tenis')
+    await page.locator('input[placeholder^="Pesquisar "]').first().fill('tenis')
     await page.getByRole('button', { name: 'Pesquisar', exact: true }).click()
 
     await expect(page).toHaveURL(url => url.searchParams.get('q') === 'tenis' && !url.searchParams.has('page'))
@@ -29,10 +29,13 @@ for (const route of discoveryRoutes) {
 
   test(`${route}: applying a filter starts on page one and preserves the search`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&priceMin=10`)
-    await page.getByRole('button', { name: 'Abrir filtros de pesquisa' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Filtros de pesquisa' })
+    await page.locator('#filter-modal-trigger').click()
+    const dialog = page.getByRole('dialog', { name: 'Filtros' })
     await expect(dialog).toBeVisible()
-    await dialog.getByRole('spinbutton', { name: 'Preço mínimo em euros' }).fill('20')
+    // Regression: global bottom nav must not cover the mobile filter actions.
+    // Portalling to document.body bypasses ancestor stacking contexts.
+    expect(await dialog.evaluate(node => node.parentElement === document.body)).toBe(true)
+    await dialog.getByPlaceholder('Mínimo').fill('20')
     await dialog.getByRole('button', { name: 'Ver resultados' }).click()
 
     await expect(page).toHaveURL(url => url.searchParams.get('priceMin') === '20' && !url.searchParams.has('page'))
@@ -41,8 +44,11 @@ for (const route of discoveryRoutes) {
 
   test(`${route}: clearing filters starts on page one and preserves the search`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&rating=4&priceMin=10&radius=25`)
-    await page.getByRole('button', { name: 'Abrir filtros de pesquisa' }).click()
-    await page.getByRole('dialog', { name: 'Filtros de pesquisa' }).getByRole('button', { name: 'Limpar', exact: true }).click()
+    await page.locator('#filter-modal-trigger').click()
+    const dialog = page.getByRole('dialog', { name: 'Filtros' })
+    await expect(dialog).toBeVisible()
+    expect(await dialog.evaluate(node => node.parentElement === document.body)).toBe(true)
+    await dialog.getByRole('button', { name: 'Limpar', exact: true }).click()
 
     await expect(page).toHaveURL(url => !url.searchParams.has('priceMin') && !url.searchParams.has('page'))
     expectFirstPage(new URL(page.url()), { q: 'padel', location: 'Lisboa' }, ['rating', 'priceMin', 'radius'])
