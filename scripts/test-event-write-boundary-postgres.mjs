@@ -51,7 +51,7 @@ try {
   assert.deepEqual(before.rows[0], { auth_insert: true, anon_insert: true, service_insert: true });
 
   const migration = await readFile(
-    new URL("../supabase/migrations/20261025224500_revoke_browser_event_insert.sql", import.meta.url),
+    new URL("../supabase/migrations/20261029091404_20261025224500_revoke_browser_event_insert.sql", import.meta.url),
     "utf8",
   );
   await isolated.query(migration);
