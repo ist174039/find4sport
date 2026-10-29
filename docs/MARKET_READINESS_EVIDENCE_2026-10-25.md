@@ -1,3 +1,5 @@
+> **Atualização em 29/10/2026:** A migration de eventos preparada em 25/10 foi aplicada na base Supabase existente sob a versão remota `20261029091404_20261025224500_revoke_browser_event_insert`. ACL verificada: `anon` e `authenticated` sem INSERT em `public.events`; `service_role` mantém INSERT e a policy genérica foi eliminada. O ficheiro de migração foi reconciliado no Git. A migration de restrição de colunas de perfis/espaços `20261025221000` continua `not_applied` e o lançamento permanece NO-GO. As secções abaixo documentam o estado histórico de 25/10.
+
 # Find4Sport — Market Readiness Evidence Dossier
 
 **Snapshot:** 25 October 2026  
