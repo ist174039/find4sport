@@ -1,0 +1,79 @@
+name: Find4Sport Admin Playwright E2E
+
+# Independent from public search / pagination tests, so admin authorization
+# still runs when public E2E fails. Uses GitHub Actions Secrets, never Variables.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: find4sport-admin-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, mobile-chromium]
+    env:
+      E2E_BASE_URL: https://find4sport.vercel.app
+      EXPECTED_DEPLOYED_SHA: 36ac94701c62175cd40c601e644edb2687c10ef1
+      E2E_ADMIN_EMAIL: ${{ secrets.FIND4SPORT_E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.FIND4SPORT_E2E_ADMIN_PASSWORD }}
+    steps:
+      - name: Checkout tests
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify Secrets exist without showing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$E2E_ADMIN_EMAIL" ] || [ -z "$E2E_ADMIN_PASSWORD" ]; then
+            echo "::error::FIND4SPORT_E2E_ADMIN_EMAIL/PASSWORD must exist as repository Actions Secrets."
+            exit 1
+          fi
+          echo "Admin test account is configured."
+      - name: Verify deployed SHA and Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --max-time 20 \
+            --output /tmp/find4sport-e2e-health.json "$E2E_BASE_URL/api/health"
+          node -e '
+            const fs = require("node:fs");
+            const d = JSON.parse(fs.readFileSync("/tmp/find4sport-e2e-health.json","utf8"));
+            if (d.status !== "ok" || d.checks?.database !== "ok")
+              throw Error("Existing Supabase health unavailable");
+            if (d.version !== process.env.EXPECTED_DEPLOYED_SHA)
+              throw Error("Vercel deployed SHA changed; verify before interpreting E2E");
+            process.stdout.write("Verified existing Vercel deployment SHA\n");
+          '
+      - name: Test Admin login, dashboard and general-only access
+        run: npx playwright test e2e/authenticated-smoke.spec.mjs --config=playwright.admin.config.mjs --project=${{ matrix.project }} --grep="general administrator" --workers=1 --retries=0
+      - name: Record scope, not credentials
+        if: always()
+        shell: bash
+        run: |
+          echo "### Find4Sport authenticated Admin E2E — ${{ matrix.project }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target: existing Vercel/Supabase environment (SHA $EXPECTED_DEPLOYED_SHA)." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Test source commit: ${{ github.event.pull_request.head.sha || github.sha }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "- No customer/finance mutations. No screenshots, traces, video, account identifiers or secrets persisted." >> "$GITHUB_STEP_SUMMARY"
+          echo "- Test of PR candidate UI remains blocked by preview SSO and requires separate approval." >> "$GITHUB_STEP_SUMMARY"
