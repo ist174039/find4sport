@@ -25,7 +25,7 @@ jobs:
     env:
       E2E_BASE_URL: https://find4sport.vercel.app
       # Keep proof tied to deployed code, not to the unmerged PR candidate.
-      EXPECTED_DEPLOYED_SHA: 36ac94701c62175cd40c601e644edb2687c10ef1
+      EXPECTED_DEPLOYED_SHA: 4fad104a869a45262393f777fcb963f764ca2d5e
     steps:
       - name: Checkout Playwright tests from candidate branch
         uses: actions/checkout@v6
