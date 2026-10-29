@@ -224,4 +224,10 @@ test('all payment consumers resolve the quote before creating a Stripe Checkout 
     assert.ok(source.indexOf(quoteCall) >= 0, `${path} should resolve the quote`)
     assert.ok(source.indexOf(quoteCall) < source.indexOf(checkoutCall), `${path} should resolve the quote before Stripe Checkout`)
   }
+
+  const packageCheckout = await readFile(new URL('../app/api/package-checkout/route.ts', import.meta.url), 'utf8')
+  assert.ok(
+    packageCheckout.indexOf('await resolveMarketplacePaymentQuote(') < packageCheckout.indexOf('new Stripe('),
+    'package checkout should not instantiate Stripe before the marketplace quote succeeds',
+  )
 })

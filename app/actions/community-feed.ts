@@ -17,7 +17,7 @@ export async function createCommunityPostAction(communityId: string, content: st
   const admin = createAdminClient()
   const [{ data: member }, communityResult] = await Promise.all([
     admin.from('community_members').select('id, role').eq('community_id', communityId).eq('user_id', user.id).maybeSingle(),
-    admin.from('communities').select('*').eq('id', communityId).maybeSingle(),
+    admin.from('communities').select('id,posting_policy').eq('id', communityId).maybeSingle(),
   ])
   const community = communityResult.data
   if (!community) throw new Error('Comunidade não encontrada.')

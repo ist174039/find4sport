@@ -1,0 +1,75 @@
+name: Preview Public E2E
+
+# Read-only/public browser validation of the candidate. Never run authenticated or
+# financial mutations against a preview connected to non-isolated Supabase.
+# The preview is SSO-protected. Enable manually only when an origin-scoped
+# trusted access method has been configured; do not open public access for CI.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-public-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, mobile-chromium]
+    env:
+      E2E_BASE_URL: https://find4sport-git-feat-a130be-carlos-evaristo-silva-gomes-projects.vercel.app
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout candidate HEAD
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Require Vercel preview of this exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..8}; do
+            # Read via stdin, never as a process argument (Vercel auth pages can
+            # be large HTML). Limit response size and do not log response bodies.
+            observed=$(curl --fail --location --silent --max-time 15 --max-filesize 131072 "$E2E_BASE_URL/api/health" 2>/dev/null \
+              | node -e 'let s="";process.stdin.on("data",x=>{s+=x});process.stdin.on("end",()=>{try{const d=JSON.parse(s);process.stdout.write(typeof d.version==="string"?d.version:"")}catch{}})' || true)
+            if [ "$observed" = "$EXPECTED_SHA" ]; then
+              echo "Verified preview commit: $observed"
+              exit 0
+            fi
+            if [ -z "$observed" ]; then
+              echo "Attempt $attempt: candidate health not a public JSON response (may be Vercel authentication/protection)"
+            else
+              echo "Attempt $attempt: stale preview SHA (observed $observed)"
+            fi
+            sleep 5
+          done
+          echo "::error::Preview cannot be verified as public JSON on the exact candidate SHA. Check Vercel deployment protection before E2E."
+          exit 1
+      - name: Execute public discovery and anonymous authorization E2E
+        run: npx playwright test e2e/public-smoke.spec.mjs e2e/search-pagination.spec.mjs --project=${{ matrix.project }} --workers=1
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: find4sport-preview-public-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

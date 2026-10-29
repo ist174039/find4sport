@@ -70,12 +70,13 @@ type EnrichedFollowUser = {
   href: string
 }
 
-async function enrichUserIds(supabase: any, userIds: string[]): Promise<EnrichedFollowUser[]> {
+async function enrichUserIds(userIds: string[]): Promise<EnrichedFollowUser[]> {
   if (!userIds.length) return []
+  const admin = createAdminClient()
   const [usersResult, profsResult, spacesResult] = await Promise.all([
-    supabase.from('platform_users').select('id, full_name, avatar_url, type').in('id', userIds),
-    supabase.from('professionals').select('id, user_id, full_name, avatar_url, public_slug, is_verified').in('user_id', userIds),
-    supabase.from('sport_spaces').select('id, owner_user_id, name, logo_url, slug, is_verified').in('owner_user_id', userIds),
+    admin.from('platform_users').select('id,full_name,avatar_url,type,account_status,suspended_until').in('id', userIds),
+    admin.from('professionals').select('id,user_id,full_name,avatar_url,public_slug,is_verified,status').in('user_id', userIds),
+    admin.from('sport_spaces').select('id,owner_user_id,name,logo_url,slug,is_verified,status').in('owner_user_id', userIds),
   ])
   const queryError = usersResult.error || profsResult.error || spacesResult.error
   if (queryError) throw queryError
@@ -87,16 +88,16 @@ async function enrichUserIds(supabase: any, userIds: string[]): Promise<Enriched
 
   for (const uid of userIds) {
     const profile = userByUserId.get(uid)
-    if (!profile || !isPlatformRole(profile.type)) continue
+    if (!profile || !isPlatformRole(profile.type) || !isPublicAccountEligible(profile.account_status, profile.suspended_until)) continue
     if (profile.type === 'professional') {
       const professional = profByUserId.get(uid)
-      if (!professional) continue
+      if (!professional || professional.status !== 'active') continue
       result.push({ userId: uid, type: 'professional', name: professional.full_name || profile.full_name || 'Profissional', avatar: professional.avatar_url || profile.avatar_url || null, isVerified: professional.is_verified ?? false, href: `/profissionais/${professional.public_slug || professional.id}` })
       continue
     }
     if (profile.type === 'venue_manager') {
       const space = spaceByUserId.get(uid)
-      if (!space) continue
+      if (!space || space.status !== 'active') continue
       result.push({ userId: uid, type: 'venue_manager', name: space.name || profile.full_name || 'Espaço', avatar: space.logo_url || profile.avatar_url || null, isVerified: space.is_verified ?? false, href: `/espacos/${space.slug || space.id}` })
       continue
     }
@@ -135,7 +136,7 @@ async function getFollowListPage(targetUserId: string, relation: 'followers' | '
 
     const pageRows = (rows || []).slice(0, FOLLOW_LIST_PAGE_SIZE)
     const ids = pageRows.map((row: Record<string, string>) => row[column])
-    const list = await enrichUserIds(supabase, ids)
+    const list = await enrichUserIds(ids)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError) throw authError
     const myFollowingIds = await getMyFollowingIds(supabase, user?.id, ids)
@@ -165,7 +166,7 @@ export async function getFollowingList(targetUserId: string) {
     const { data: follows, error: followsError } = await supabase.from('user_follows').select('following_id').eq('follower_id', targetUserId)
     if (followsError) throw followsError
     const ids = (follows || []).map((f: any) => f.following_id)
-    const list = await enrichUserIds(supabase, ids)
+    const list = await enrichUserIds(ids)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError) throw authError
     const myFollowingIds = await getMyFollowingIds(supabase, user?.id)
@@ -179,7 +180,7 @@ export async function getFollowersList(targetUserId: string) {
     const { data: follows, error: followsError } = await supabase.from('user_follows').select('follower_id').eq('following_id', targetUserId)
     if (followsError) throw followsError
     const ids = (follows || []).map((f: any) => f.follower_id)
-    const list = await enrichUserIds(supabase, ids)
+    const list = await enrichUserIds(ids)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError) throw authError
     const myFollowingIds = await getMyFollowingIds(supabase, user?.id)

@@ -13,6 +13,11 @@ test('social list server actions return ordered pages capped at 25 and propagate
   assert.match(action, /if \(queryError\) throw queryError/)
   assert.match(action, /hasMore: \(rows \|\| \[\]\)\.length > FOLLOW_LIST_PAGE_SIZE/)
   assert.match(action, /getMyFollowingIds\(supabase, user\?\.id, ids\)/)
+  assert.match(action, /const admin = createAdminClient\(\)/)
+  assert.doesNotMatch(action, /supabase\.from\('professionals'\)|supabase\.from\('sport_spaces'\)/)
+  assert.match(action, /isPublicAccountEligible\(profile\.account_status, profile\.suspended_until\)/)
+  assert.match(action, /professional\.status !== 'active'/)
+  assert.match(action, /space\.status !== 'active'/)
   assert.match(action, /query\.in\('following_id', candidateIds\)/)
 })
 
