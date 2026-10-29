@@ -19,7 +19,22 @@ async function loginAdmin(page, account) {
   await page.getByLabel('Email Administrativo').fill(account.email)
   await page.locator('input[type="password"]').first().fill(account.password)
   await page.getByRole('button', { name: 'Entrar no Painel' }).click()
-  await expect(page).toHaveURL(/\/admin(?:\/|$)/)
+  // /admin/login must NEVER count as successful login: the old expression
+  // /\/admin(?:\/|$)/ accepted the login page by mistake.
+  try {
+    await page.waitForURL(url => url.pathname === '/admin', { timeout: 14000 })
+  } catch {
+    // Fail with a fixed diagnostic category, not the raw UI error text,
+    // URL query, identifier, response, or session cookies.
+    const category = await page.locator('[role="alert"]').first().evaluate(node => {
+      const value = (node.textContent || '').toLowerCase()
+      if (/permiss|autoriz|administr/.test(value)) return 'ADMIN_MEMBERSHIP_REJECTED'
+      if (/invalid login|invalid credentials|incorret|credencia|password|palavra-passe|não confirm/.test(value)) return 'AUTH_CREDENTIALS_REJECTED'
+      return 'LOGIN_APPLICATION_ERROR'
+    }).catch(() => 'LOGIN_DID_NOT_ESTABLISH_ADMIN_SESSION')
+    throw new Error('Find4Sport Admin login not established: ' + category)
+  }
+  await expect(page).toHaveURL(/\/admin(?:\?|$)/)
 }
 
 async function expectProtectedPage(page, route) {
