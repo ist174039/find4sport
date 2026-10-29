@@ -32,6 +32,9 @@ for (const route of discoveryRoutes) {
     await page.locator('#filter-modal-trigger').click()
     const dialog = page.getByRole('dialog', { name: 'Filtros' })
     await expect(dialog).toBeVisible()
+    // Regression: global bottom nav must not cover the mobile filter actions.
+    // Portalling to document.body bypasses ancestor stacking contexts.
+    expect(await dialog.evaluate(node => node.parentElement === document.body)).toBe(true)
     await dialog.getByPlaceholder('Mínimo').fill('20')
     await dialog.getByRole('button', { name: 'Ver resultados' }).click()
 
@@ -42,7 +45,10 @@ for (const route of discoveryRoutes) {
   test(`${route}: clearing filters starts on page one and preserves the search`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&rating=4&priceMin=10&radius=25`)
     await page.locator('#filter-modal-trigger').click()
-    await page.getByRole('dialog', { name: 'Filtros' }).getByRole('button', { name: 'Limpar', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Filtros' })
+    await expect(dialog).toBeVisible()
+    expect(await dialog.evaluate(node => node.parentElement === document.body)).toBe(true)
+    await dialog.getByRole('button', { name: 'Limpar', exact: true }).click()
 
     await expect(page).toHaveURL(url => !url.searchParams.has('priceMin') && !url.searchParams.has('page'))
     expectFirstPage(new URL(page.url()), { q: 'padel', location: 'Lisboa' }, ['rating', 'priceMin', 'radius'])
