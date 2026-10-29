@@ -30,7 +30,7 @@ for (const route of discoveryRoutes) {
   test(`${route}: applying a filter starts on page one and preserves the search`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&priceMin=10`)
     await page.locator('#filter-modal-trigger').click()
-    const dialog = page.getByRole('dialog', { name: 'Filtros de pesquisa' })
+    const dialog = page.getByRole('dialog', { name: 'Filtros' })
     await expect(dialog).toBeVisible()
     await dialog.getByPlaceholder('Mínimo').fill('20')
     await dialog.getByRole('button', { name: 'Ver resultados' }).click()
@@ -42,7 +42,7 @@ for (const route of discoveryRoutes) {
   test(`${route}: clearing filters starts on page one and preserves the search`, async ({ page }) => {
     await openDiscovery(page, `${route}?page=3&q=padel&location=Lisboa&rating=4&priceMin=10&radius=25`)
     await page.locator('#filter-modal-trigger').click()
-    await page.getByRole('dialog', { name: 'Filtros de pesquisa' }).getByRole('button', { name: 'Limpar', exact: true }).click()
+    await page.getByRole('dialog', { name: 'Filtros' }).getByRole('button', { name: 'Limpar', exact: true }).click()
 
     await expect(page).toHaveURL(url => !url.searchParams.has('priceMin') && !url.searchParams.has('page'))
     expectFirstPage(new URL(page.url()), { q: 'padel', location: 'Lisboa' }, ['rating', 'priceMin', 'radius'])
