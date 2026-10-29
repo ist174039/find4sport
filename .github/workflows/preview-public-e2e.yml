@@ -2,9 +2,9 @@ name: Preview Public E2E
 
 # Read-only/public browser validation of the candidate. Never run authenticated or
 # financial mutations against a preview connected to non-isolated Supabase.
+# The preview is SSO-protected. Enable manually only when an origin-scoped
+# trusted access method has been configured; do not open public access for CI.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
