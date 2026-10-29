@@ -164,8 +164,22 @@
       "name": "revoke_public_event_participant_count",
       "sha256": "52a3866a0da2878fb15b1bfa170f2bb705ad0ca6fe9fde9cef3792c64a82b89f",
       "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20261029091404",
+      "name": "20261025224500_revoke_browser_event_insert",
+      "sha256": "918a5799816ddb2c646528462838e7f1a302e58b8b795bea7979355a230f38ad",
+      "provenance": "migration-provenance.json"
     }
   ],
-  "pending_forward_migrations": [],
+  "pending_forward_migrations": [
+    {
+      "version": "20261025221000",
+      "name": "restrict_profile_table_select_columns",
+      "path": "supabase/migrations/20261025221000_restrict_profile_table_select_columns.sql",
+      "status": "not_applied",
+      "sha256": "d851628e559766d209e43c517be6a2810cfb346aff2787bb92d5758c09f9ac03"
+    }
+  ],
   "pending_forward_reconciliation": []
 }
