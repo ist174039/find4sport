@@ -170,16 +170,20 @@
       "name": "20261025224500_revoke_browser_event_insert",
       "sha256": "918a5799816ddb2c646528462838e7f1a302e58b8b795bea7979355a230f38ad",
       "provenance": "migration-provenance.json"
-    }
-  ],
-  "pending_forward_migrations": [
+    },
     {
-      "version": "20261025221000",
-      "name": "restrict_profile_table_select_columns",
-      "path": "supabase/migrations/20261025221000_restrict_profile_table_select_columns.sql",
-      "status": "not_applied",
-      "sha256": "d851628e559766d209e43c517be6a2810cfb346aff2787bb92d5758c09f9ac03"
+      "version": "20261029094556",
+      "name": "20261025221000_restrict_profile_table_select_columns",
+      "sha256": "d851628e559766d209e43c517be6a2810cfb346aff2787bb92d5758c09f9ac03",
+      "provenance": "migration-provenance.json"
+    },
+    {
+      "version": "20261029094731",
+      "name": "split_public_review_reads_from_authenticated_ownership",
+      "sha256": "d998607548fe87ec482976b37c696f23a97590340d268acaa4652f98f9bf6b5d",
+      "provenance": "migration-provenance.json"
     }
   ],
+  "pending_forward_migrations": [],
   "pending_forward_reconciliation": []
 }
