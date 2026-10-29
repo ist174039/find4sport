@@ -9,7 +9,7 @@ function credentials(prefix) {
 async function loginUser(page, account) {
   await page.goto('/auth/login')
   await page.getByLabel('E-mail').fill(account.email)
-  await page.getByLabel('Palavra-passe').fill(account.password)
+  await page.locator('input[type="password"]').first().fill(account.password)
   await page.getByRole('button', { name: 'Entrar' }).click()
   await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/)
 }
@@ -17,7 +17,7 @@ async function loginUser(page, account) {
 async function loginAdmin(page, account) {
   await page.goto('/admin/login')
   await page.getByLabel('Email Administrativo').fill(account.email)
-  await page.getByLabel('Palavra-passe').fill(account.password)
+  await page.locator('input[type="password"]').first().fill(account.password)
   await page.getByRole('button', { name: 'Entrar no Painel' }).click()
   await expect(page).toHaveURL(/\/admin(?:\/|$)/)
 }
