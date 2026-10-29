@@ -3,6 +3,9 @@ import { test, expect } from '@playwright/test'
 function credentials(prefix) {
   const email = process.env[`E2E_${prefix}_EMAIL`]
   const password = process.env[`E2E_${prefix}_PASSWORD`]
+  if ((!email || !password) && process.env.E2E_REQUIRE_ROLE_ACCOUNTS === '1' && prefix !== 'OPERATIONAL_ADMIN') {
+    throw new Error(`Required test account missing for ${prefix}`)
+  }
   return email && password ? { email, password } : null
 }
 
@@ -41,7 +44,7 @@ async function expectProtectedPage(page, route) {
   const response = await page.goto(route, { waitUntil: 'domcontentloaded' })
   expect(response, `Expected a response for ${route}`).not.toBeNull()
   expect(response.status(), `${route} returned a server error`).toBeLessThan(500)
-  await expect(page).not.toHaveURL(/\/auth\/login(?:\?|$)/)
+  await expect(page).toHaveURL(new RegExp(`${route.replaceAll('/', '\\/')}(?:\\?|$)`))
   await expect(page.locator('body')).toBeVisible()
 }
 

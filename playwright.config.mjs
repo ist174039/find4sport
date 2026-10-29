@@ -15,9 +15,9 @@ export default defineConfig({
     : [['list']],
   use: {
     baseURL,
-    trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    trace: process.env.E2E_AUTH_PRIVATE === '1' ? 'off' : 'retain-on-failure',
+    screenshot: process.env.E2E_AUTH_PRIVATE === '1' ? 'off' : 'only-on-failure',
+    video: process.env.E2E_AUTH_PRIVATE === '1' ? 'off' : 'retain-on-failure',
   },
   projects: [
     {

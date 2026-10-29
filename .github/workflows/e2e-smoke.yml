@@ -59,6 +59,8 @@ jobs:
       - name: Run public production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
+          E2E_REQUIRE_ROLE_ACCOUNTS: '1'
+          E2E_AUTH_PRIVATE: '1'
         run: npx playwright test e2e/public-smoke.spec.mjs e2e/search-pagination.spec.mjs --project=${{ matrix.project }} --workers=1
 
       - name: Require authenticated E2E coverage
@@ -69,8 +71,8 @@ jobs:
           E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
           E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
           E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.FIND4SPORT_E2E_ADMIN_EMAIL || secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.FIND4SPORT_E2E_ADMIN_PASSWORD || secrets.E2E_ADMIN_PASSWORD }}
         run: |
           echo "## Authenticated E2E coverage" >> "$GITHUB_STEP_SUMMARY"
           missing=0
@@ -107,14 +109,16 @@ jobs:
       - name: Run production smoke suite
         env:
           E2E_BASE_URL: https://find4sport.vercel.app
+          E2E_REQUIRE_ROLE_ACCOUNTS: '1'
+          E2E_AUTH_PRIVATE: '1'
           E2E_ATHLETE_EMAIL: ${{ secrets.E2E_ATHLETE_EMAIL }}
           E2E_ATHLETE_PASSWORD: ${{ secrets.E2E_ATHLETE_PASSWORD }}
           E2E_PROFESSIONAL_EMAIL: ${{ secrets.E2E_PROFESSIONAL_EMAIL }}
           E2E_PROFESSIONAL_PASSWORD: ${{ secrets.E2E_PROFESSIONAL_PASSWORD }}
           E2E_VENUE_MANAGER_EMAIL: ${{ secrets.E2E_VENUE_MANAGER_EMAIL }}
           E2E_VENUE_MANAGER_PASSWORD: ${{ secrets.E2E_VENUE_MANAGER_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_ADMIN_EMAIL: ${{ secrets.FIND4SPORT_E2E_ADMIN_EMAIL || secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.FIND4SPORT_E2E_ADMIN_PASSWORD || secrets.E2E_ADMIN_PASSWORD }}
           E2E_OPERATIONAL_ADMIN_EMAIL: ${{ secrets.E2E_OPERATIONAL_ADMIN_EMAIL }}
           E2E_OPERATIONAL_ADMIN_PASSWORD: ${{ secrets.E2E_OPERATIONAL_ADMIN_PASSWORD }}
         run: npx playwright test e2e/authenticated-smoke.spec.mjs --project=${{ matrix.project }}
