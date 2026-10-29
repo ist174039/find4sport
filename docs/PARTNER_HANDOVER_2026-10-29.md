@@ -15,7 +15,7 @@ Esta checklist permite preparar a delegação/transferência sem declarar a vers
 
 | Prioridade | Gate | Evidência de fecho exigida | Estado em 29/10 |
 | --- | --- | --- | --- |
-| P0 | Dados públicos e RLS | Contratos negativos `anon/authenticated` com schema real; SELECT mínimo em `professionals` e `sport_spaces`; eventos sem INSERT browser genérico | Migrações preparadas mas `not_applied`; exige ambiente isolado |
+| P0 | Dados públicos e RLS | Contratos negativos `anon/authenticated` com schema real; SELECT mínimo em `professionals` e `sport_spaces`; eventos sem INSERT browser genérico | Eventos: migration remota `20261029091404` aplicada, ACL verificada; perfis/espaços: `20261025221000` ainda `not_applied`, requer análise de dependências |
 | P0 | Consistência migrations | Histórico remoto verificado com fontes suportadas; migrations e checksums correspondem ao release | Gate de release bloqueado; não editar tabela histórica manualmente |
 | P0 | E2E autenticado | Passagem em `chromium` e `mobile-chromium` para ATHLETE/PROFESSIONAL/VENUE_MANAGER/ADMIN com contas de teste | Secrets/ambiente autenticado por configurar e executar |
 | P0 | Fluxos financeiros | Reservas/checkout/webhooks/Stripe Connect/refunds no **Test Mode**, sem encargos reais | Código e testes unitários não equivalem a transação integrada |
